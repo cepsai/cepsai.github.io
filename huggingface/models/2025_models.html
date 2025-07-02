@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+<head>
+<style type="text/css">
+.knitr .inline {
+  background-color: #F7F7F7;
+  border:solid 1px #B0B0B0;
+}
+.error {
+ font-weight: bold;
+ color: #FF0000;
+}
+.warning {
+ font-weight: bold;
+}
+.message {
+ font-style: italic;
+}
+.source, .output, .warning, .error, .message {
+ padding: 0 1em;
+  border:solid 1px #F7F7F7;
+}
+.source {
+  background-color: #F5F5F5;
+}
+.rimage .left {
+  text-align: left;
+}
+.rimage .right {
+  text-align: right;
+}
+.rimage .center {
+  text-align: center;
+}
+.hl.num {
+  color: #AF0F91;
+}
+.hl.str {
+  color: #317ECC;
+}
+.hl.com {
+  color: #AD95AF;
+  font-style: italic;
+}
+.hl.opt {
+  color: #000000;
+}
+.hl.std {
+  color: #585858;
+}
+.hl.kwa {
+  color: #295F94;
+  font-weight: bold;
+}
+.hl.kwb {
+  color: #B05A65;
+}
+.hl.kwc {
+  color: #55AA55;
+}
+.hl.kwd {
+  color: #BC5A65;
+  font-weight: bold;
+}
+</style>
+  <meta charset="utf-8">
+    <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+      <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #treemap {
+        height: calc(100vh - 20px);
+      }
+    .logo {
+        position: absolute;
+        bottom: 8px;
+        left: 20px;
+        width: 150px;
+        pointer-events: auto;
+        z-index: 1000;
+        opacity: 1;
+        transition: opacity 0.3s ease;
+      }
+      .logo.overlapped {
+        opacity: 0.15;
+      }
+      .logo.overlapped:hover {
+        opacity: 1;
+      }
+      .source-text {
+        position: absolute;
+        bottom: 30px;
+        right: 20px;
+        pointer-events: auto;
+        font-size:16px;
+        font-weight: bold;
+        color: #555555;
+        z-index: 1000;
+        opacity: 1;
+        font-style: italic;
+        transition: opacity 0.3s ease;
+      }
+      .source-text.overlapped {
+        opacity: 0.15;
+      }
+      .source-text.overlapped:hover {
+        opacity: 1;
+      }
+    </style>
+      </head>
+      <body>
+      <div id="treemap"></div>
+      <script>
+      var data = "https://cepsai.github.io/huggingface/models/models_100.json";
+
+      function checkOverlap() {
+        const legend = document.querySelector('.d3plus-legend');
+        const logo = document.querySelector('.logo');
+        const sourceText = document.querySelector('.source-text');
+
+        if (!legend || !logo || !sourceText) return;
+
+        const legendRect = legend.getBoundingClientRect();
+        const logoRect = logo.getBoundingClientRect();
+        const sourceRect = sourceText.getBoundingClientRect();
+
+        const logoOverlap = !(legendRect.right < logoRect.left ||
+                             legendRect.left > logoRect.right ||
+                             legendRect.bottom < logoRect.top ||
+                             legendRect.top > logoRect.bottom);
+
+        const sourceOverlap = !(legendRect.right < sourceRect.left ||
+                               legendRect.left > sourceRect.right ||
+                               legendRect.bottom < sourceRect.top ||
+                               legendRect.top > sourceRect.bottom);
+
+        logo.classList.toggle('overlapped', logoOverlap);
+        sourceText.classList.toggle('overlapped', sourceOverlap);
+      }
+
+
+      new d3plus.Treemap()
+        .select("#treemap")
+        .data(data)
+        .groupBy(["parent","parent2",'id'])
+        .tooltipConfig({
+        title: d => d.id,
+        body:  function(d){
+          return `<table class='tooltip-table'>`
+                   + `<tr><td class="title">Developer:</td><td class="data">${d.id}</td></tr>`
+                   + `<tr><td class="title">Family:</td><td class="data">${d.parent}</td></tr>`
+                   + `<tr><td class="title">Likes:</td><td class="data">${d.likes}</td></tr>`
+                   + `<tr><td class="title">Downloads:</td><td class="data">${d.downloads}</td></tr>`
+
+                 + `</table>`;
+        }
+      })
+        // .sum("models")
+        .legendPosition("bottom")
+        .layoutPadding(1.25)
+        .legendConfig({
+          padding: 10,
+          shapeConfig: {
+            padding: 0,
+            labelConfig: {
+              fontSize: 14,
+              width: 200
+            }
+          }
+        })
+        .color("color")
+        .render();
+
+      const observer = new MutationObserver(debouncedCheckOverlap);
+
+      observer.observe(document.body, {childList: true, subtree: true});
+
+      window.addEventListener('resize', debouncedCheckOverlap);
+
+      setTimeout(debouncedCheckOverlap, 200);
+
+      </script>
+      <a href="https://www.huggingface.co/" target="_blank" rel="noopener" > 
+        <div class="source-text">Source: HuggingFace </div>
+      </a>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+      </a>
+    </body>
+</html>
