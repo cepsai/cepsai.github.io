@@ -55,7 +55,7 @@ body{font-family:sans-serif; margin:0; padding:8px;}
   .source-text a:visited{color:#1a73e8;}
 button:focus{outline:none;}
 button:hover{filter:brightness(0.97);}
-#controls{display:flex;gap:10px;--gap:10px;--btn-count:5;--btn-fs:12px;--btn-pad-y:8px;--btn-pad-x:12px;margin:0 0 8px 0;align-items:center;justify-content:center;flex-wrap:nowrap;}
+#controls{display:flex;gap:10px;--gap:10px;--btn-count:5;--btn-fs:12px;--btn-pad-y:8px;--btn-pad-x:12px;margin:0 0 8px 0;align-items:center;justify-content:center;flex-wrap:none;}
 #controls .btn{appearance:none;border:1px solid #d0d0d7;background:linear-gradient(#ffffff,#f6f7fb);border-radius:10px;padding:var(--btn-pad-y) var(--btn-pad-x);cursor:pointer;font-weight:600;min-height:30px;line-height:1;transition:transform .06s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease;box-shadow:0 1px 2px rgba(0,0,0,.04), inset 0 -1px 0 rgba(0,0,0,.03);flex:1 1 calc((100% - var(--gap) * (var(--btn-count) - 1))/var(--btn-count));min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--btn-fs);} 
 #controls .btn:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.08), inset 0 -1px 0 rgba(0,0,0,.02);} 
 #controls .btn:active{transform:translateY(0);} 
@@ -167,7 +167,8 @@ function createChart() {
   const containerWidth = Math.max(window.innerWidth, 320);
   const containerHeight = Math.max(window.innerHeight - 8, 240);
   const sizeFactor = Math.max(0.6, Math.min(1.15, Math.min(containerWidth/900, containerHeight/650)));
-  let axisFS = Math.max(9, Math.round(12 * sizeFactor));
+  let axisFS = Math.max(12, Math.round(16 * sizeFactor));
+  const axisLabelFS = Math.max(16, Math.round(22 * sizeFactor));
   const valueFS = Math.max(9, Math.round(12 * sizeFactor));
   const sourceFS = Math.max(9, Math.round(12 * sizeFactor));
   let logoWH = Math.max(10, Math.round(24 * sizeFactor));
@@ -192,9 +193,21 @@ function createChart() {
   const neededLeft = Math.ceil(maxLabelWidth + padding);
   const dynamicLeftMargin = neededLeft;
 
+  const titleText = "Energy used in 1 Hour";
+  const titleFS = Math.max(16, Math.round(26 * sizeFactor));
+  const titleH = Math.round(titleFS * 1.6);
+
+  const tickLabelH = Math.round(axisFS * 1.2);
+  const axisBigLabelH = Math.round(axisLabelFS * 1.4);
+  const xAxisPadding = 12;
+
   const footerH = Math.max(60, 80 * sizeFactor);
+  const minBottomForXAxis = tickLabelH + axisBigLabelH + xAxisPadding + 6;
+  const bottomMargin = Math.max(footerH, minBottomForXAxis);
+
   const rightMargin = Math.max(20, Math.min(60, Math.floor(containerWidth * 0.08)));
-  const margin = {top:12,right:rightMargin,bottom:footerH,left:dynamicLeftMargin};
+  const margin = {top:titleH + 12, right:rightMargin, bottom:bottomMargin, left:dynamicLeftMargin};
+
   const width = containerWidth - margin.left - margin.right;
   const maxRowsH = containerHeight - margin.top - margin.bottom;
   const height = Math.max(140, maxRowsH);
@@ -204,6 +217,15 @@ function createChart() {
     .attr("viewBox",`0 0 ${containerWidth} ${height + margin.top + margin.bottom}`)
     .style("width","100%")
     .style("height", (height + margin.top + margin.bottom) + "px");
+
+  svg.append("text")
+    .attr("x", margin.left + width / 2)
+    .attr("y", titleFS)
+    .attr("text-anchor", "middle")
+    .style("font-size", titleFS + "px")
+    .style("font-weight", "700")
+    .style("fill", "#111")
+    .text(titleText);
 
   chartState.svg = svg;
   chartState.width = width;
@@ -264,10 +286,12 @@ function createChart() {
     .call(xAxis);
   g.selectAll("g.axis:last-of-type text").style("font-size", axisFS + "px");
     
+  const xLabelY = height + tickLabelH + 6 + Math.round(axisLabelFS * 0.95);
   g.append("text")
-    .attr("transform", `translate(${width / 2}, ${height + 45})`)
+    .attr("transform", `translate(${width / 2}, ${xLabelY})`)
     .style("text-anchor", "middle")
-    .style("font-size", axisFS + "px")
+    .style("font-size", axisLabelFS + "px")
+    .style("font-weight", "700")
     .style("fill", "#666")
     .text("Wh/Hour");
     
