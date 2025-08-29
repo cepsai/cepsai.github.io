@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Energy Consumption</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+html,body{height:100%;overflow:hidden;}
+body{font-family:sans-serif; margin:0; padding:8px;}
+.axis path,.axis line{stroke:#bbb;}
+.tick text{font-size: 12px;}
+#tooltip{position:absolute;background:#fff; border:1px solid #ccc; padding:4px 8px;font-size:12px; pointer-events:none; opacity:0; transition:opacity 0.2s;}
+#chart{display:block;margin:0 auto; width: 100%; height: auto;}
+#tooltip:after{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-6px;border-width:6px 6px 0 6px;border-style:solid;border-color:#ccc transparent transparent transparent;}
+#tooltip:before{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-7px;border-width:7px 7px 0 7px;border-style:solid;border-color:#fff transparent transparent transparent;}
+.axis text {
+  white-space: nowrap;
+}
+.logo {
+    position: absolute;
+    bottom: clamp(6px, 4vh, 20px);
+    right: 20px;
+    width: clamp(80px, 10vw, 200px);
+    pointer-events: auto;
+    z-index: 1000;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+  }
+  .logo.overlapped {
+    opacity: 0.15;
+  }
+  .logo.overlapped:hover {
+    opacity: 1;
+  }
+  .source-text {
+    position: absolute;
+    bottom: clamp(10px, 4vh, 30px);
+    left: 20px;
+    pointer-events: auto;
+    font-size: clamp(12px, 1.5vw, 20px);
+    font-weight: bold;
+    color: #555555;
+    z-index: 1000;
+    opacity: 1;
+    font-style: italic;
+    transition: opacity 0.3s ease;
+  }
+  .source-text.overlapped {
+    opacity: 0.15;
+  }
+  .source-text.overlapped:hover {
+    opacity: 1;
+  }
+  .source-text a{color:#1a73e8; text-decoration:underline; cursor:pointer;}
+  .source-text a:visited{color:#1a73e8;}
+button:focus{outline:none;}
+button:hover{filter:brightness(0.97);}
+#controls{display:flex;gap:10px;--gap:10px;--btn-count:5;--btn-fs:12px;--btn-pad-y:8px;--btn-pad-x:12px;margin:0 0 8px 0;align-items:center;justify-content:center;flex-wrap:nowrap;}
+#controls .btn{appearance:none;border:1px solid #d0d0d7;background:linear-gradient(#ffffff,#f6f7fb);border-radius:10px;padding:var(--btn-pad-y) var(--btn-pad-x);cursor:pointer;font-weight:600;min-height:30px;line-height:1;transition:transform .06s ease, box-shadow .2s ease, background .2s ease, color .2s ease, border-color .2s ease;box-shadow:0 1px 2px rgba(0,0,0,.04), inset 0 -1px 0 rgba(0,0,0,.03);flex:1 1 calc((100% - var(--gap) * (var(--btn-count) - 1))/var(--btn-count));min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--btn-fs);} 
+#controls .btn:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.08), inset 0 -1px 0 rgba(0,0,0,.02);} 
+#controls .btn:active{transform:translateY(0);} 
+#controls .btn:focus-visible{outline:2px solid #1a73e8;outline-offset:2px;} 
+#controls .btn.active{background:#1a73e8;color:#fff;border-color:#1a73e8;box-shadow:0 4px 10px rgba(26,115,232,.35);} 
+</style>
+</head>
+<body>
+<svg id="chart"></svg>
+<div id="tooltip"></div>
+<script>
+const tooltip = d3.select("#tooltip");
+const DATA = [
+ {id: "Console Gaming", x: 0, y: 180, logo: "https://cdn-icons-png.flaticon.com/512/686/686589.png", color: "#FFD21E"},
+ {id: "Social Media", x: 0, y: 170, logo: "https://cdn-icons-png.flaticon.com/512/1260/1260108.png", color: "#194ACD"},
+ {id: "Video Streaming", x: 0, y: 77, logo: "https://cdn-icons-png.flaticon.com/512/6402/6402576.png", color: "#AF191E"},
+ {id: "AI Chatting", x: 0, y: 10, logo: "https://w7.pngwing.com/pngs/384/837/png-transparent-artificial-intelligence-indiana-university-bloomington-chatbot-society-others-text-workshop-noun-project.png", color: "#106C4E"}
+];
+function normalizeColor(c){
+  if(!c){return null;};
+  const s = String(c).trim();
+  if(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s)){return s;};
+  if(/^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s)){return "#" + s;};
+  return null;
+};
+function getYDomain(){
+  return DATA.slice().sort((a,b)=>b.y-a.y).slice(0,20).map(d=>d.id);
+};
+function getData(){
+  return DATA
+    .slice()
+    .sort((a,b)=>b.y-a.y)
+    .slice(0,20)
+    .map(d=>({id:d.id,x:d.x,y:d.y,logo:d.logo,color:normalizeColor(d.color)}));
+};
+let chartState = { svg:null, g:null, x:null, y:null, yAxisGroup:null, bgLayer:null, rowBG:null, width:0, height:0, margin:null, bars:null, logos:null };
+
+const startColor = "#cccccc";
+const upColor = "#2ecc71";
+const downColor = "#e74c3c";
+
+const addLogo = (id) => {
+  if(!id){return "";};
+  const logoPath = `./orgs-icons/${id.toLowerCase().replace(/\s+/g,'-')}.png`;
+  return logoPath;
+};
+
+function barPath(x0, x1, yCenter, h){
+  const yTop = yCenter - h/2;
+  const yBot = yCenter + h/2;
+  const width = Math.max(0, x1 - x0);
+  const r = Math.min(8, h/2, width/2);
+  if (width <= 0){
+    return `M ${x0} ${yTop} L ${x0} ${yBot} L ${x0} ${yBot} Z`;
+  };
+  return `M ${x0} ${yTop} L ${x1 - r} ${yTop} A ${r} ${r} 0 0 1 ${x1} ${yTop + r} L ${x1} ${yBot - r} A ${r} ${r} 0 0 1 ${x1 - r} ${yBot} L ${x0} ${yBot} Z`;
+};
+
+function truncateAxisLabels(maxWidth){
+  if(!chartState.yAxisGroup){return;};
+  chartState.yAxisGroup.selectAll("text").each(function(d){
+    const text = d3.select(this);
+    const full = d;
+    let shown = full;
+    text.text(shown);
+    if (this.getComputedTextLength() <= maxWidth){
+      text.attr("data-full", full);
+      return;
+    };
+    let low = 0;
+    let high = full.length;
+    while (low < high){
+      const mid = Math.floor((low + high) / 2);
+      text.text(full.slice(0, mid) + "…");
+      if (this.getComputedTextLength() <= maxWidth){
+        low = mid + 1;
+      } else {
+        high = mid;
+      };
+    };
+    const cut = Math.max(1, low - 1);
+    text.text(full.slice(0, cut) + "…");
+    let title = text.select("title");
+    if (title.empty()){
+      text.append("title").text(full);
+    } else {
+      title.text(full);
+    };
+  });
+};
+
+function getBarHeight(scaleBand, sizeFactor){
+  const bw = scaleBand.bandwidth();
+  const k = 0.95 + 0.03 * (sizeFactor || 1);
+  return Math.max(10, bw * k);
+};
+
+function sizeYAxisEndTicks(group, smallPx){
+  const nodes = group.selectAll(".tick text").nodes();
+  if(!nodes || nodes.length===0){return;};
+  d3.select(nodes[0]).style("font-size", smallPx + "px");
+  d3.select(nodes[nodes.length-1]).style("font-size", smallPx + "px");
+};
+
+function createChart() {
+  const data = getData();
+  data.forEach(d=>{d.delta=d.y-d.x;d.inc=d.delta>0;d.dec=d.delta<0;d.same=Math.abs(d.delta)<0.01;});
+  d3.select("#chart").selectAll("*").remove();
+  const containerWidth = Math.max(window.innerWidth, 320);
+  const containerHeight = Math.max(window.innerHeight - 8, 240);
+  const sizeFactor = Math.max(0.6, Math.min(1.15, Math.min(containerWidth/900, containerHeight/650)));
+  let axisFS = Math.max(9, Math.round(12 * sizeFactor));
+  const valueFS = Math.max(9, Math.round(12 * sizeFactor));
+  const sourceFS = Math.max(9, Math.round(12 * sizeFactor));
+  let logoWH = Math.max(10, Math.round(24 * sizeFactor));
+  chartState.sizeFactor = sizeFactor;
+  chartState.axisFS = axisFS;
+  chartState.valueFS = valueFS;
+  chartState.sourceFS = sourceFS;
+
+  const tempSvg = d3.select("body").append("svg").style("visibility","hidden");
+  const tempText = tempSvg.append("text").style("font-family","sans-serif");
+  let maxLabelWidth = 0;
+  tempText.style("font-size", axisFS + "px");
+  DATA.slice().sort((a,b)=>b.y-a.y).slice(0,20).forEach(d=>{
+    tempText.text(d.id);
+    const w = tempText.node().getBBox().width;
+    maxLabelWidth = Math.max(maxLabelWidth, w);
+  });
+  tempSvg.remove();
+
+  const logoWidth = 24;
+  const padding = 16;
+  const neededLeft = Math.ceil(maxLabelWidth + padding);
+  const dynamicLeftMargin = neededLeft;
+
+  const footerH = Math.max(60, 80 * sizeFactor);
+  const rightMargin = Math.max(20, Math.min(60, Math.floor(containerWidth * 0.08)));
+  const margin = {top:12,right:rightMargin,bottom:footerH,left:dynamicLeftMargin};
+  const width = containerWidth - margin.left - margin.right;
+  const maxRowsH = containerHeight - margin.top - margin.bottom;
+  const height = Math.max(140, maxRowsH);
+  const svg = d3.select("#chart")
+    .attr("width",containerWidth)
+    .attr("height",height+margin.top+margin.bottom)
+    .attr("viewBox",`0 0 ${containerWidth} ${height + margin.top + margin.bottom}`)
+    .style("width","100%")
+    .style("height", (height + margin.top + margin.bottom) + "px");
+
+  chartState.svg = svg;
+  chartState.width = width;
+  chartState.height = height;
+
+  const defs = svg.append("defs");
+  const grad = defs.append("linearGradient")
+    .attr("id","gradBlue")
+    .attr("x1","0%")
+    .attr("x2","100%")
+    .attr("y1","0%")
+    .attr("y2","0%");
+  grad.append("stop").attr("offset","0%").attr("stop-color","#cfe8ff");
+  grad.append("stop").attr("offset","100%").attr("stop-color","#1f78ff");
+    
+  const g = svg.append("g").attr("transform",`translate(${margin.left},${margin.top})`);
+
+  const bgLayer = g.append("g").attr("class","bg-layer");
+  chartState.bgLayer = bgLayer;
+  
+  const maxY = Math.max(1, d3.max(data, d=>d.y) || 1);
+  const x = d3.scaleLinear()
+    .domain([0, maxY * 1.1])
+    .range([0, width]);
+  const localYDomain = getYDomain();
+  const y = d3.scaleBand()
+    .domain(localYDomain)
+    .range([0, height])
+    .padding(Math.max(0.2, Math.min(0.45, 0.55 - 0.25 * sizeFactor)));
+
+  chartState.x = x;
+  chartState.y = y;
+  chartState.margin = margin;
+  chartState.logoWidth = logoWidth;
+  chartState.padding = padding;
+
+  const step = y.step();
+  const padGap = (step - y.bandwidth()) / 2;
+  
+  const rowIdx = d3.range(localYDomain.length);
+  chartState.rowBG = bgLayer.selectAll("rect.row-bg").data(rowIdx, d=>d).enter().append("rect")
+    .attr("class","row-bg")
+    .attr("x", -margin.left)
+    .attr("y", i => y(localYDomain[i]) - padGap)
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", step)
+    .attr("fill", (d,i) => i % 2 ? "#f5f5f5" : "#ffffff")
+    .attr("pointer-events","none")
+    .lower();
+    
+  const yAxis = d3.axisLeft(y).tickSize(0).tickPadding(2);
+  chartState.yAxisGroup = g.append("g").attr("class", "axis").call(yAxis);
+  chartState.yAxisGroup.selectAll("text").style("font-size", axisFS + "px");
+
+  const xAxis = d3.axisBottom(x);
+  g.append("g").attr("class", "axis")
+    .attr("transform", `translate(0,${height})`)
+    .call(xAxis);
+  g.selectAll("g.axis:last-of-type text").style("font-size", axisFS + "px");
+    
+  g.append("text")
+    .attr("transform", `translate(${width / 2}, ${height + 45})`)
+    .style("text-anchor", "middle")
+    .style("font-size", axisFS + "px")
+    .style("fill", "#666")
+    .text("Wh/Hour");
+    
+  const barH = getBarHeight(y, sizeFactor);
+  logoWH = Math.max(10, Math.round(barH * 0.8));
+  chartState.logoWH = logoWH;
+  g.selectAll("path.bar").data(data, d=>d.id).enter().append("path")
+    .attr("class","bar")
+    .attr("d", d => barPath(x(0), x(d.y), y(d.id) + y.bandwidth()/2, barH))
+    .attr("fill", d => d.color || "url(#gradBlue)")
+    .attr("fill-opacity", 0.75);
+
+  chartState.bars = g.selectAll("path.bar");
+  chartState.bars.each(function(d){
+    const x = chartState.x;
+    const y = chartState.y;
+    const barH = getBarHeight(y, chartState.sizeFactor);
+    this._x1 = x(d.y);
+    this._yc = y(d.id) + y.bandwidth()/2;
+    this._h  = barH;
+  });
+
+  const fmt = d3.format(".0f");
+  g.selectAll("text.value").data(data, d=>d.id).enter().append("text")
+    .attr("class","value")
+    .attr("x", d => x(d.y) - 8)
+    .attr("y", d => y(d.id) + y.bandwidth()/2)
+    .attr("text-anchor","end")
+    .attr("dominant-baseline","middle")
+    .attr("font-size", d => {
+      const bandH = y.bandwidth();
+      const ratio = Math.max(0, Math.min(1, d.y / maxY));
+      const fsMin = Math.max(10, Math.round(bandH * 0.35));
+      const fsMax = Math.max(14, Math.round(bandH * 0.75));
+      const fs = fsMin + (fsMax - fsMin) * ratio;
+      return Math.round(fs) + "px";
+    })
+    .attr("font-weight","600")
+    .attr("fill","#ffffff")
+    .text(d => fmt(d.y));
+
+  const logoGap = Math.max(2, Math.round(4 * sizeFactor));
+  g.selectAll("image.logo").data(data, d=>d.id).enter().append("image")
+    .attr("class","logo")
+    .attr("x", d => x(d.y) + logoGap)
+    .attr("y", d => y(d.id) + (y.bandwidth() - logoWH) / 2)
+    .attr("width", logoWH)
+    .attr("height", logoWH)
+    .attr("href", d => d.logo || addLogo(d.id))
+    .attr("xlink:href", d => d.logo || addLogo(d.id));
+
+  chartState.logos = g.selectAll("image.logo");
+  chartState.g = g;
+
+}
+
+createChart();
+let resizeTimeout;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => { createChart(); }, 250);
+});
+</script>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+      </a>
+      <div class="source-text">Source: CEPS Data Science Team</a></div>
+</body>
+</html>
