@@ -13,46 +13,36 @@ body{font-family:sans-serif; margin:0; padding:8px;}
 #chart{display:block;margin:0 auto; width: 100%; height: auto;}
 #tooltip:after{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-6px;border-width:6px 6px 0 6px;border-style:solid;border-color:#ccc transparent transparent transparent;}
 #tooltip:before{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-7px;border-width:7px 7px 0 7px;border-style:solid;border-color:#fff transparent transparent transparent;}
-.axis text {
-  white-space: nowrap;
-}
+.axis text { white-space: nowrap; }
 .logo {
-    position: absolute;
-    bottom: clamp(6px, 4vh, 20px);
-    right: 20px;
-    width: clamp(80px, 10vw, 200px);
-    pointer-events: auto;
-    z-index: 1000;
-    opacity: 1;
-    transition: opacity 0.3s ease;
-  }
-  .logo.overlapped {
-    opacity: 0.15;
-  }
-  .logo.overlapped:hover {
-    opacity: 1;
-  }
-  .source-text {
-    position: absolute;
-    bottom: clamp(10px, 4vh, 30px);
-    left: 20px;
-    pointer-events: auto;
-    font-size: clamp(12px, 1.5vw, 20px);
-    font-weight: bold;
-    color: #555555;
-    z-index: 1000;
-    opacity: 1;
-    font-style: italic;
-    transition: opacity 0.3s ease;
-  }
-  .source-text.overlapped {
-    opacity: 0.15;
-  }
-  .source-text.overlapped:hover {
-    opacity: 1;
-  }
-  .source-text a{color:#1a73e8; text-decoration:underline; cursor:pointer;}
-  .source-text a:visited{color:#1a73e8;}
+  position: absolute;
+  bottom: clamp(6px, 4vh, 20px);
+  right: 20px;
+  width: clamp(80px, 10vw, 200px);
+  pointer-events: auto;
+  z-index: 1000;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+.logo.overlapped { opacity: 0.15; }
+.logo.overlapped:hover { opacity: 1; }
+.source-text {
+  position: absolute;
+  bottom: clamp(10px, 4vh, 30px);
+  left: 20px;
+  pointer-events: auto;
+  font-size: clamp(12px, 1.5vw, 20px);
+  font-weight: bold;
+  color: #555555;
+  z-index: 1000;
+  opacity: 1;
+  font-style: italic;
+  transition: opacity 0.3s ease;
+}
+.source-text.overlapped { opacity: 0.15; }
+.source-text.overlapped:hover { opacity: 1; }
+.source-text a{color:#1a73e8; text-decoration:underline; cursor:pointer;}
+.source-text a:visited{color:#1a73e8;}
 button:focus{outline:none;}
 button:hover{filter:brightness(0.97);}
 #controls{display:flex;gap:10px;--gap:10px;--btn-count:5;--btn-fs:12px;--btn-pad-y:8px;--btn-pad-x:12px;margin:0 0 8px 0;align-items:center;justify-content:center;flex-wrap:none;}
@@ -70,23 +60,24 @@ button:hover{filter:brightness(0.97);}
 <svg id="chart"></svg>
 <div id="tooltip"></div>
 <div id="legend" aria-label="Chart legend"></div>
+
 <script>
-const tooltip = d3.select("#tooltip");
+
 const DATA = [
- {id: "Insiders", x: 0, y: 3.29, color: "#091EDA"},
- {id: "Insiders", x: 0, y: 3.96, color: "#1D74E7"},
- {id: "Outsiders", x: 0, y: 2.81, color: "#091EDA"},
- {id: "Outsiders", x: 0, y: 3.92, color: "#1D74E7"},
- {id: "Distant outsiders", x: 0, y: 3.38, color: "#091EDA"},
- {id: "Distant outsiders", x: 0, y: 3.42, color: "#1D74E7"}
+  {id: "Insiders", y: 20.36, color: "#1846C1"},
+  {id: "Outsiders", y:39.5 , color: "#1846C1"},
+  {id: "Distant outsiders", y: 1.1, color: "#1846C1"}
 ];
+
+// Leyenda: etiqueta única para el color usado
 const COLOR_LABELS = {
-  "#091EDA": "With AI tools",
-  "#1D74E7": "Without AI tools"
+  "#1846C1": "Increase in scores due to AI (%)"
 };
+
 function getColorOrderFromData(){
   return Array.from(new Set(DATA.map(d => normalizeColor(d.color)).filter(Boolean)));
-};
+}
+
 function renderLegend(colors){
   const container = document.getElementById("legend");
   container.innerHTML = "";
@@ -103,14 +94,16 @@ function renderLegend(colors){
     item.appendChild(label);
     container.appendChild(item);
   });
-};
+}
+
 function normalizeColor(c){
-  if(!c){return null;};
+  if(!c){return null;}
   const s = String(c).trim();
-  if(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s)){return s;};
-  if(/^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s)){return "#" + s;};
+  if(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s)){return s;}
+  if(/^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s)){return "#" + s;}
   return null;
-};
+}
+
 function barPath(x0, x1, yCenter, h){
   const yTop = yCenter - h/2;
   const yBot = yCenter + h/2;
@@ -118,84 +111,81 @@ function barPath(x0, x1, yCenter, h){
   const r = Math.min(8, h/2, width/2);
   if(width <= 0){
     return `M ${x0} ${yTop} L ${x0} ${yBot} L ${x0} ${yBot} Z`;
-  };
+  }
   return `M ${x0} ${yTop} L ${x1 - r} ${yTop} A ${r} ${r} 0 0 1 ${x1} ${yTop + r} L ${x1} ${yBot - r} A ${r} ${r} 0 0 1 ${x1 - r} ${yBot} L ${x0} ${yBot} Z`;
-};
+}
+
 function groupById(data){
-  const map = new Map();
-  data.forEach(d=>{
-    const k = d.id;
-    if(!map.has(k)){map.set(k, []);};
-    map.get(k).push({id:d.id,x:d.x,y:d.y,color:normalizeColor(d.color)});
-  });
-  const groups = Array.from(map, ([id, items])=>{
-    items.sort((a,b)=>b.y-a.y);
-    const maxY = d3.max(items, d=>d.y) || 0;
-    return {id, items, maxY};
-  });
-  groups.sort((a,b)=>b.maxY-a.maxY);
-  return groups;
-};
+  // Para compatibilidad con el layout existente
+  return data.map(d => ({ id: d.id, items: [d], maxY: d.y }));
+}
+
 let chartState = { svg:null, g:null, x:null, y:null, y1:null, yAxisGroup:null, bgLayer:null, rowBG:null, width:0, height:0, margin:null, bars:null };
+
 function getBarHeight(scaleBand){
   const bw = scaleBand.bandwidth();
   const k = 0.9;
   return Math.max(8, bw * k);
-};
+}
+
 function createChart(){
   const groups = groupById(DATA);
   const allItems = groups.flatMap(g=>g.items);
   renderLegend(getColorOrderFromData());
+
   const legendEl = document.getElementById("legend");
   const legendH = legendEl ? legendEl.offsetHeight : 0;
+
   d3.select("#chart").selectAll("*").remove();
+
   const containerWidth = Math.max(window.innerWidth, 320);
   const containerHeight = Math.max(window.innerHeight - legendH - 8, 240);
   const sizeFactor = Math.max(0.6, Math.min(1.15, Math.min(containerWidth/900, containerHeight/650)));
-  const axisFS = Math.max(9, Math.round(12 * sizeFactor));
+  const axisFS = Math.max(9, Math.round(20 * sizeFactor));
   const valueFSMin = Math.max(9, Math.round(12 * sizeFactor));
+
   const margin = {top:12,right:Math.max(20, Math.min(60, Math.floor(containerWidth * 0.08))),bottom:Math.max(60, 80 * sizeFactor),left:0};
+
+  // Medir ancho de etiquetas Y
   const tempSvg = d3.select("body").append("svg").style("visibility","hidden");
-  const tempText = tempSvg.append("text").style("font-family","sans-serif").style("font-size", axisFS + "px");
+  const tempText = tempSvg.append("text").style("font-family","sans-serif").style("font-size", axisFS + "px").style("font-weight","bold");
   let maxLabelWidth = 0;
   groups.forEach(g=>{tempText.text(g.id); const w = tempText.node().getBBox().width; maxLabelWidth = Math.max(maxLabelWidth, w);});
   tempSvg.remove();
+
   const padding = 16;
   const dynamicLeftMargin = Math.ceil(maxLabelWidth + padding);
   margin.left = dynamicLeftMargin;
+
   const width = containerWidth - margin.left - margin.right;
   const maxRowsH = containerHeight - margin.top - margin.bottom;
   const height = Math.max(140, maxRowsH);
+
   const svg = d3.select("#chart")
     .attr("width", containerWidth)
     .attr("height", height + margin.top + margin.bottom)
     .attr("viewBox", `0 0 ${containerWidth} ${height + margin.top + margin.bottom}`)
     .style("width", "100%")
     .style("height", (height + margin.top + margin.bottom) + "px");
+
   chartState.svg = svg;
   chartState.width = width;
   chartState.height = height;
   chartState.margin = margin;
-  const defs = svg.append("defs");
-  const grad = defs.append("linearGradient")
-    .attr("id","gradBlue")
-    .attr("x1","0%")
-    .attr("x2","100%")
-    .attr("y1","0%")
-    .attr("y2","0%");
-  grad.append("stop").attr("offset","0%").attr("stop-color","#cfe8ff");
-  grad.append("stop").attr("offset","100%").attr("stop-color","#1f78ff");
+
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
   const bgLayer = g.append("g").attr("class","bg-layer");
   chartState.bgLayer = bgLayer;
+
+  // Escalas: 0 a max positivo
   const maxYVal = Math.max(1, d3.max(allItems, d=>d.y) || 1);
   const x = d3.scaleLinear().domain([0, maxYVal * 1.1]).range([0, width]);
   const y = d3.scaleBand().domain(groups.map(d=>d.id)).range([0, height]).padding(0.25);
-  const maxGroupSize = d3.max(groups, d=>d.items.length) || 1;
-  const y1 = d3.scaleBand().domain(d3.range(maxGroupSize)).range([0, y.bandwidth()]).padding(0.25);
+
   chartState.x = x;
   chartState.y = y;
-  chartState.y1 = y1;
+
+  // Fondo alternado por fila
   const step = y.step();
   const padGap = (step - y.bandwidth()) / 2;
   const rowIdx = d3.range(groups.length);
@@ -208,45 +198,57 @@ function createChart(){
     .attr("fill", (d,i) => i % 2 ? "#f5f5f5" : "#ffffff")
     .attr("pointer-events","none")
     .lower();
+
+  // Ejes
   const yAxis = d3.axisLeft(y).tickSize(0).tickPadding(2);
   chartState.yAxisGroup = g.append("g").attr("class", "axis").call(yAxis);
-  chartState.yAxisGroup.selectAll("text").style("font-size", axisFS + "px");
+  chartState.yAxisGroup.selectAll("text").style("font-size", axisFS + "px").style("font-weight","bold");
+
   const xAxis = d3.axisBottom(x);
   g.append("g").attr("class", "axis").attr("transform", `translate(0,${height})`).call(xAxis);
   g.selectAll("g.axis:last-of-type text").style("font-size", axisFS + "px");
+
+  // Etiqueta X
   g.append("text")
     .attr("transform", `translate(${width / 2}, ${height + 45})`)
     .style("text-anchor", "middle")
     .style("font-size", axisFS + "px")
     .style("fill", "#666")
-    .text("Points");
+    .text("Value");
+
+  // Barras (3), desde 0 hacia la derecha
+  const barH = getBarHeight(y);
+  const fmt = d3.format(".2f");
+
   const flat = groups.flatMap(gr => gr.items.map((it, i) => ({...it, groupId: gr.id, idx: i})));
-  const barH = getBarHeight(y1);
+
   chartState.bars = g.selectAll("path.bar").data(flat, d=>d.id+"__"+d.idx).enter().append("path")
     .attr("class","bar")
-    .attr("d", d => barPath(x(0), x(d.y), y(d.groupId) + y1(d.idx) + y1.bandwidth()/2, barH))
-    .attr("fill", d => d.color || "url(#gradBlue)")
+    .attr("d", d => barPath(0, x(d.y), y(d.groupId) + y.bandwidth()/2, barH))
+    .attr("fill", d => d.color || "#1D74E7")
     .attr("fill-opacity", 0.85);
-  const fmt = d3.format(".2f");
+
+  // Valores sobre la barra
   g.selectAll("text.value").data(flat, d=>d.id+"__"+d.idx).enter().append("text")
     .attr("class","value")
-    .attr("x", d => x(d.y) - 6)
-    .attr("y", d => y(d.groupId) + y1(d.idx) + y1.bandwidth()/2)
-    .attr("text-anchor","end")
+    .attr("x", d => x(d.y) + 6)
+    .attr("y", d => y(d.groupId) + y.bandwidth()/2)
+    .attr("text-anchor","start")
     .attr("dominant-baseline","middle")
-    .attr("font-size", Math.max(valueFSMin, Math.round(y1.bandwidth() * 0.6)) + "px")
+    .attr("font-size", Math.max(valueFSMin, Math.round(y.bandwidth() * 0.4)) + "px")
     .attr("font-weight","600")
-    .attr("fill","#ffffff")
-    .text(d => fmt(d.y));
-};
+    .attr("fill","#000")
+    .text(d => d3.format(".1f")(d.y) + "%");
+}
+
 createChart();
 let resizeTimeout;
 window.addEventListener('resize', ()=>{clearTimeout(resizeTimeout); resizeTimeout = setTimeout(()=>{createChart();}, 250);});
 </script>
 
-      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
-        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
-      </a>
-      <div class="source-text">Source: <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5462694" target="_blank" rel="noopener"> Harvard BST</a></div>
+<a href="https://aiworld.eu/" target="_blank" rel="noopener">
+  <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+</a>
+<div class="source-text">Source: <a href="https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5462694" target="_blank" rel="noopener"> Harvard BST</a></div>
 </body>
 </html>
