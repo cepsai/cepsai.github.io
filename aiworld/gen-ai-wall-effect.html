@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>no idea</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
-html,body{height:100%;overflow:auto;}
-body{font-family:sans-serif; margin:0; padding:8px;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:sans-serif; margin:0; padding:0;}
 .axis path,.axis line{stroke:#bbb;}
 .tick text{font-size: 12px;}
 #tooltip{position:absolute;background:#fff; border:1px solid #ccc; padding:4px 8px;font-size:12px; pointer-events:none; opacity:0; transition:opacity 0.2s;}
@@ -69,7 +70,6 @@ const DATA = [
   {id: "Distant outsiders", y: 1.1, color: "#1846C1"}
 ];
 
-// Leyenda: etiqueta única para el color usado
 const COLOR_LABELS = {
   "#1846C1": "Increase in scores due to AI (%)"
 };
@@ -116,7 +116,6 @@ function barPath(x0, x1, yCenter, h){
 }
 
 function groupById(data){
-  // Para compatibilidad con el layout existente
   return data.map(d => ({ id: d.id, items: [d], maxY: d.y }));
 }
 
@@ -135,18 +134,18 @@ function createChart(){
 
   const legendEl = document.getElementById("legend");
   const legendH = legendEl ? legendEl.offsetHeight : 0;
+  const extraBottomSpace = Math.max(30, Math.round(window.innerHeight * 0.06));
 
   d3.select("#chart").selectAll("*").remove();
 
   const containerWidth = Math.max(window.innerWidth, 320);
-  const containerHeight = Math.max(window.innerHeight - legendH - 8, 240);
+  const containerHeight = Math.max(window.innerHeight - legendH - extraBottomSpace, 240);
   const sizeFactor = Math.max(0.6, Math.min(1.15, Math.min(containerWidth/900, containerHeight/650)));
   const axisFS = Math.max(9, Math.round(20 * sizeFactor));
   const valueFSMin = Math.max(9, Math.round(12 * sizeFactor));
 
-  const margin = {top:12,right:Math.max(20, Math.min(60, Math.floor(containerWidth * 0.08))),bottom:Math.max(60, 80 * sizeFactor),left:0};
+  const margin = {top:12,right:Math.max(100, Math.min(180, Math.floor(containerWidth * 0.16))),bottom:Math.max(60, 80 * sizeFactor),left:0};
 
-  // Medir ancho de etiquetas Y
   const tempSvg = d3.select("body").append("svg").style("visibility","hidden");
   const tempText = tempSvg.append("text").style("font-family","sans-serif").style("font-size", axisFS + "px").style("font-weight","bold");
   let maxLabelWidth = 0;
@@ -177,7 +176,6 @@ function createChart(){
   const bgLayer = g.append("g").attr("class","bg-layer");
   chartState.bgLayer = bgLayer;
 
-  // Escalas: 0 a max positivo
   const maxYVal = Math.max(1, d3.max(allItems, d=>d.y) || 1);
   const x = d3.scaleLinear().domain([0, maxYVal * 1.1]).range([0, width]);
   const y = d3.scaleBand().domain(groups.map(d=>d.id)).range([0, height]).padding(0.25);
@@ -185,7 +183,6 @@ function createChart(){
   chartState.x = x;
   chartState.y = y;
 
-  // Fondo alternado por fila
   const step = y.step();
   const padGap = (step - y.bandwidth()) / 2;
   const rowIdx = d3.range(groups.length);
@@ -199,7 +196,6 @@ function createChart(){
     .attr("pointer-events","none")
     .lower();
 
-  // Ejes
   const yAxis = d3.axisLeft(y).tickSize(0).tickPadding(2);
   chartState.yAxisGroup = g.append("g").attr("class", "axis").call(yAxis);
   chartState.yAxisGroup.selectAll("text").style("font-size", axisFS + "px").style("font-weight","bold");
@@ -208,7 +204,6 @@ function createChart(){
   g.append("g").attr("class", "axis").attr("transform", `translate(0,${height})`).call(xAxis);
   g.selectAll("g.axis:last-of-type text").style("font-size", axisFS + "px");
 
-  // Etiqueta X
   g.append("text")
     .attr("transform", `translate(${width / 2}, ${height + 45})`)
     .style("text-anchor", "middle")
@@ -216,7 +211,6 @@ function createChart(){
     .style("fill", "#666")
     .text("Value");
 
-  // Barras (3), desde 0 hacia la derecha
   const barH = getBarHeight(y);
   const fmt = d3.format(".2f");
 
@@ -228,10 +222,9 @@ function createChart(){
     .attr("fill", d => d.color || "#1D74E7")
     .attr("fill-opacity", 0.85);
 
-  // Valores sobre la barra
   g.selectAll("text.value").data(flat, d=>d.id+"__"+d.idx).enter().append("text")
     .attr("class","value")
-    .attr("x", d => x(d.y) + 6)
+    .attr("x", d => Math.min(x(d.y) + 6, width - 4))
     .attr("y", d => y(d.groupId) + y.bandwidth()/2)
     .attr("text-anchor","start")
     .attr("dominant-baseline","middle")
