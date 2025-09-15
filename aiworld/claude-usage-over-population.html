@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AI World Lollipop Chart</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+body{font-family:sans-serif; margin:0; padding:20px;}
+.axis path,.axis line{stroke:#bbb;}
+.tick text{font-size: 12px;}
+#tooltip{position:absolute;background:#fff; border:1px solid #ccc; padding:4px 8px;font-size:12px; pointer-events:none; opacity:0; transition:opacity 0.2s;}
+#chart{display:block;margin:0 auto; width: 100%; height: auto;}
+#tooltip:after{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-6px;border-width:6px 6px 0 6px;border-style:solid;border-color:#ccc transparent transparent transparent;}
+#tooltip:before{content:"";position:absolute;left:50%;transform:translateX(-50%);bottom:-7px;border-width:7px 7px 0 7px;border-style:solid;border-color:#fff transparent transparent transparent;}
+.logo { position: absolute; bottom: clamp(6px, 4vh, 20px); right: 20px; width: clamp(80px, 10vw, 200px); pointer-events: auto; z-index: 1000; opacity: 1; transition: opacity 0.3s ease; }
+.logo.overlapped { opacity: 0.15; }
+.logo.overlapped:hover { opacity: 1; }
+.source-text { position: absolute; bottom: clamp(10px, 4vh, 30px); left: 20px; pointer-events: auto; font-size: clamp(12px, 1.5vw, 20px); font-weight: bold; color: #555555; z-index: 1000; opacity: 1; font-style: italic; transition: opacity 0.3s ease; }
+.source-text.overlapped { opacity: 0.15; }
+.source-text.overlapped:hover { opacity: 1; }
+.axis text {
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+<svg id = "chart"></svg>
+<div id = "tooltip"></div>
+<script>
+const tooltip = d3.select("#tooltip");
+const data = [
+  {
+    "id":"United States 🇺🇸",
+    "x4":4.1772123573,
+    "x1":1,
+    "x2":5.1709125973
+  },
+  {
+    "id":"India 🇮🇳",
+    "x4":17.8202620017,
+    "x1":1,
+    "x2":0.4040344637
+  },
+  {
+    "id":"Brazil 🇧🇷",
+    "x4":2.6037472769,
+    "x1":1,
+    "x2":1.4210288505
+  },
+  {
+    "id":"Japan 🇯🇵",
+    "x4":1.5226542806,
+    "x1":1,
+    "x2":2.4299672271
+  },
+  {
+    "id":"South Korea 🇰🇷",
+    "x4":0.6356018942,
+    "x1":1,
+    "x2":5.8212538911
+  },
+  {
+    "id":"United Kingdom 🇬🇧",
+    "x4":0.8502274635,
+    "x1":1,
+    "x2":3.763698701
+  },
+  {
+    "id":"Germany 🇩🇪",
+    "x4":1.0256739259,
+    "x1":1,
+    "x2":2.5349186855
+  },
+  {
+    "id":"France 🇫🇷",
+    "x4":0.8415158929,
+    "x1":1,
+    "x2":2.6143297098
+  },
+  {
+    "id":"Canada 🇨🇦",
+    "x4":0.5071028342,
+    "x1":1,
+    "x2":4.1411718854
+  },
+  {
+    "id":"Australia 🇦🇺",
+    "x4":0.3341270007,
+    "x1":1,
+    "x2":5.6864605252
+  },
+  {
+    "id":"Indonesia 🇮🇩",
+    "x4":3.4817730985,
+    "x1":1,
+    "x2":0.5456989718
+  },
+  {
+    "id":"Italy 🇮🇹",
+    "x4":0.7244609933,
+    "x1":1,
+    "x2":2.0705048498
+  },
+  {
+    "id":"Thailand 🇹🇭",
+    "x4":0.8802200215,
+    "x1":1,
+    "x2":1.4769034653
+  },
+  {
+    "id":"Israel 🇮🇱",
+    "x4":0.1225046776,
+    "x1":1,
+    "x2":8.979248968
+  },
+  {
+    "id":"Spain 🇪🇸",
+    "x4":0.5994448371,
+    "x1":1,
+    "x2":1.8350312354
+  },
+  {
+    "id":"Poland 🇵🇱",
+    "x4":0.4489616013,
+    "x1":1,
+    "x2":2.2273619772
+  },
+  {
+    "id":"Taiwan 🇹🇼",
+    "x4":0.2935376358,
+    "x1":1,
+    "x2":3.4067181782
+  },
+  {
+    "id":"Pakistan 🇵🇰",
+    "x4":3.0860651196,
+    "x1":1,
+    "x2":0.3240372323
+  },
+  {
+    "id":"Mexico 🇲🇽",
+    "x4":1.6072230384,
+    "x1":1,
+    "x2":0.6221911808
+  },
+  {
+    "id":"The Netherlands 🇳🇱",
+    "x4":0.2210035894,
+    "x1":1,
+    "x2":3.6198507093
+  },
+  {
+    "id":"Nigeria 🇳🇬",
+    "x4":2.8577482795,
+    "x1":1,
+    "x2":0.244948096
+  },
+  {
+    "id":"Egypt 🇪🇬",
+    "x4":1.4313123321,
+    "x1":1,
+    "x2":0.4191957175
+  },
+  {
+    "id":"Singapore 🇸🇬",
+    "x4":0.0741441679,
+    "x1":1,
+    "x2":8.0923424886
+  }
+]
+
+const addLogo = (id) => {
+  if (!id) {
+    console.error("Missing id:", id);
+    return '';
+  }
+  console.log("Logo ID:", id);
+  const logoPath = `./orgs-icons/${id.toLowerCase().replace(/\s+/g, '-')}.png`;
+  return logoPath;
+};
+
+data.forEach(d => {
+  d.delta = d.x2 - d.x1;
+  d.ratio = d.x1 === 0 ? null : d.x2 / d.x1;
+  const isSame = d.ratio === null ? Math.abs(d.delta) < 0.01 : Math.abs(d.ratio - 1) < 0.01;
+  d.same = isSame;
+  d.inc = !isSame && (d.ratio !== null ? d.ratio > 1 : d.delta > 0);
+  d.dec = !isSame && (d.ratio !== null ? d.ratio < 1 : d.delta < 0);
+});
+
+const startColor = "#cccccc"; 
+const upColor = "#2ecc71"; 
+const downColor = "#e74c3c";
+
+data.sort((a, b) => b.x2 - a.x2);
+
+function createChart() {
+  d3.select("#chart").selectAll("*").remove();
+  
+  const containerWidth = Math.max(window.innerWidth - 40, 400);
+  const containerHeight = Math.max(window.innerHeight - 100, 300);
+  
+  const tempSvg = d3.select("body").append("svg").style("visibility", "hidden");
+  const tempText = tempSvg.append("text").style("font-size", "12px").style("font-family", "sans-serif");
+
+  let maxLabelWidth = 0;
+  data.forEach(d => {
+    const flagMatch = d.id.match(/^(.+)\s(🇺🇸|🇮🇳|🇧🇷|🇯🇵|🇰🇷|🇬🇧|🇩🇪|🇫🇷|🇨🇦|🇦🇺|🇮🇩|🇮🇹|🇹🇭|🇮🇱|🇪🇸|🇵🇱|🇹🇼|🇵🇰|🇲🇽|🇵🇭|🇳🇱|🇳🇬|🇪🇬|🇸🇬|🇿🇦)$/);
+    if (flagMatch) {
+      tempText.style("font-size", "12px").text(flagMatch[1] + ' ');
+      const nameWidth = tempText.node().getBoundingClientRect().width;
+      tempText.style("font-size", "24px").text(flagMatch[2]);
+      const flagWidth = tempText.node().getBoundingClientRect().width;
+      const textWidth = nameWidth + flagWidth;
+      maxLabelWidth = Math.max(maxLabelWidth, textWidth);
+    } else {
+      tempText.text(d.id);
+      const textWidth = tempText.node().getBoundingClientRect().width;
+      maxLabelWidth = Math.max(maxLabelWidth, textWidth);
+    }
+  });
+
+  tempSvg.remove();
+
+  const logoWidth = 24;
+  const padding = 16;
+  const dynamicLeftMargin = maxLabelWidth + logoWidth + padding;
+
+  const margin = {
+    top: 20, 
+    right: Math.max(30, containerWidth * 0.05), 
+    bottom: 80, 
+    left: dynamicLeftMargin
+  };
+  
+  const width = containerWidth - margin.left - margin.right;
+  const height = Math.max(data.length * 30, containerHeight - margin.top - margin.bottom);
+
+  const svg = d3.select("#chart")
+    .attr("width", containerWidth)
+    .attr("height", height + margin.top + margin.bottom)
+    .attr("viewBox", `0 0 ${containerWidth} ${height + margin.top + margin.bottom}`)
+    .style("width", "100%")
+    .style("height", "auto");
+
+  const defs = svg.append("defs");
+  defs.append("marker")
+    .attr("id","arrowGreen")
+    .attr("viewBox","0 0 10 10")
+    .attr("refX",10)
+    .attr("refY",5)
+    .attr("markerWidth",12)
+    .attr("markerHeight",12)
+    .attr("orient","auto")
+    .attr("markerUnits","userSpaceOnUse")
+    .append("path")
+    .attr("d","M 0 0 L 10 5 L 0 10 z")
+    .attr("fill", "#2ecc71");
+
+  defs.append("marker")
+    .attr("id","arrowRed")
+    .attr("viewBox","0 0 10 10")
+    .attr("refX",0)
+    .attr("refY",5)
+    .attr("markerWidth",12)
+    .attr("markerHeight",12)
+    .attr("orient","auto")
+    .attr("markerUnits","userSpaceOnUse")
+    .append("path")
+    .attr("d","M 10 0 L 0 5 L 10 10 z")
+    .attr("fill", "#e74c3c");
+    
+  const g = svg.append("g").attr("transform",`translate(${margin.left},${margin.top})`);
+  
+  const xMin = d3.min(data, d => Math.min(d.x1, d.x2));
+  const xMax = d3.max(data, d => Math.max(d.x1, d.x2));
+  const x = d3.scaleLinear()
+    .domain([Math.min(0, xMin) - (xMax - xMin) * 0.02, xMax + (xMax - xMin) * 0.1]).nice()
+    .range([0, width]);
+  const y = d3.scaleBand()
+    .domain(data.map(d => d.id))
+    .range([0, height])
+    .padding(0.8);
+
+  const step = y.step();
+  const padGap = (step - y.bandwidth()) / 2;
+  
+  g.selectAll("rect.row-bg").data(data).enter().append("rect")
+    .attr("class","row-bg")
+    .attr("x", -margin.left)
+    .attr("y", d => y(d.id) - padGap)
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", step)
+    .attr("fill", (d,i) => i % 2 ? "#f5f5f5" : "#ffffff")
+    .attr("pointer-events","none")
+    .lower();
+    
+  const yAxisGroup = g.append("g").attr("class", "axis").call(d3.axisLeft(y));
+  yAxisGroup.selectAll(".tick text").each(function() {
+    const textElement = d3.select(this);
+    const fullText = textElement.text();
+    const flagMatch = fullText.match(/^(.+)\s(🇺🇸|🇮🇳|🇧🇷|🇯🇵|🇰🇷|🇬🇧|🇩🇪|🇫🇷|🇨🇦|🇦🇺|🇮🇩|🇮🇹|🇹🇭|🇮🇱|🇪🇸|🇵🇱|🇹🇼|🇵🇰|🇲🇽|🇵🇭|🇳🇱|🇳🇬|🇪🇬|🇸🇬|🇿🇦)$/);
+    
+    if (flagMatch) {
+      const countryName = flagMatch[1];
+      const flag = flagMatch[2];
+      
+      textElement.text('');
+    
+      textElement.append('tspan')
+        .text(countryName + ' ')
+        .style('font-size', '12px');
+      
+      textElement.append('tspan')
+        .text(flag)
+        .style('font-size', '24px');
+    }
+  });
+    
+  const xAxis = d3.axisBottom(x).tickValues(x.ticks().filter(d => d >= 0));
+  g.append("g").attr("class", "axis")
+    .attr("transform", `translate(0,${height})`)
+    .call(xAxis);
+    
+  g.append("text")
+    .attr("transform", `translate(${width / 2}, ${height + 45})`)
+    .style("text-anchor", "middle")
+    .style("font-size", "12px")
+    .style("fill", "#666")
+    .text("Claude usage over Global Population Share");
+    
+  const rNode = 8;
+  const rNodeLarge = 14;
+  const arrowOffset = rNodeLarge - rNode;
+  const minArrow = 14;
+  
+  g.selectAll("line.lolli").data(data.filter(d=>!d.same)).enter().append("line")
+    .attr("class", "lolli")
+    .attr("data-id", d => d.id)
+    .attr("y1", d => y(d.id) + y.bandwidth()/2)
+    .attr("y2", d => y(d.id) + y.bandwidth()/2)
+    .attr("x1", d => d.inc ? x(d.x1) + rNode : x(d.x2) + rNode)
+    .attr("x2", d => d.inc ? x(d.x2) - rNode : x(d.x1) - rNode)
+    .attr("stroke", d => d.inc ? upColor : downColor)
+    .attr("stroke-width", 3)
+    .attr("stroke-linecap", "round")
+    .attr("marker-end", d => (d.inc && Math.abs(x(d.x2) - x(d.x1)) > minArrow) ? "url(#arrowGreen)" : null)
+    .attr("marker-start", d => (d.dec && Math.abs(x(d.x1) - x(d.x2)) > minArrow) ? "url(#arrowRed)" : null);
+    
+  const formatNumber = (num) => {
+    return num % 1 === 0 ? num.toString() : num.toFixed(2);
+  };
+
+  const showNode = (e, node, val) => {
+    const tt = tooltip.style("opacity",1).html(formatNumber(val));
+    const nb = node.getBoundingClientRect();
+    const tb = tt.node().getBoundingClientRect();
+    const left = nb.left + nb.width/2 - tb.width/2 + window.scrollX;
+    const top  = nb.top  - tb.height - 12 + window.scrollY;
+    tt.style("left", left + "px").style("top", top + "px");
+  };
+  const hide = () => tooltip.style("opacity", 0);
+  
+  const enlargeSimple = function(e, val, d){
+    d3.select(this).transition().duration(150).attr("r", rNodeLarge);
+    showNode(e, this, val);
+    if (!d.same) {
+      const line = g.select(`line.lolli[data-id="${d.id}"]`);
+      const left = Math.min(x(d.x1), x(d.x2));
+      const right = Math.max(x(d.x1), x(d.x2));
+      if (x(d.x1) === left) {
+        line.transition().duration(150).attr("x1", left + rNodeLarge);
+      } else {
+        line.transition().duration(150).attr("x2", right - rNodeLarge);
+      }
+    }
+  };
+  
+  const shrinkSimple = function(d){
+    d3.select(this).transition().duration(150).attr("r", rNode);
+    hide();
+    if (!d.same) {
+      const line = g.select(`line.lolli[data-id="${d.id}"]`);
+      const left = Math.min(x(d.x1), x(d.x2));
+      const right = Math.max(x(d.x1), x(d.x2));
+      if (x(d.x1) === left) {
+        line.transition().duration(150).attr("x1", left + rNode);
+      } else {
+        line.transition().duration(150).attr("x2", right - rNode);
+      }
+    }
+  };
+  
+  const enlargeWithDelta = function(e, val, d){
+    d3.select(this).transition().duration(150).attr("r", rNodeLarge);
+    showNode(e, this, val);
+    
+    if (d.inc && !d.same) {
+      g.select(`text.diffUp[data-id="${d.id}"]`)
+        .transition().duration(150)
+        .attr("font-weight", "bold")
+        .attr("font-size", "14px")
+        .attr("x", x(d.x2) + 20);
+    } else if (d.dec && !d.same) {
+      g.select(`text.diffDown[data-id="${d.id}"]`)
+        .transition().duration(150)
+        .attr("font-weight", "bold")
+        .attr("font-size", "14px")
+        .attr("x", x(d.x2) - 20);
+    }
+    
+    if (!d.same) {
+      const line = g.select(`line.lolli[data-id="${d.id}"]`);
+      const left = Math.min(x(d.x1), x(d.x2));
+      const right = Math.max(x(d.x1), x(d.x2));
+      if (x(d.x2) === left) {
+        line.transition().duration(150).attr("x1", left + rNodeLarge);
+      } else {
+        line.transition().duration(150).attr("x2", right - rNodeLarge);
+      }
+    }
+  };
+  
+  const shrinkWithDelta = function(d){
+    d3.select(this).transition().duration(150).attr("r", rNode); 
+    hide();
+    
+    if (d.inc && !d.same) {
+      g.select(`text.diffUp[data-id="${d.id}"]`)
+        .transition().duration(150)
+        .attr("font-weight", "normal")
+        .attr("font-size", "11px")
+        .attr("x", x(d.x2) + 12);
+    } else if (d.dec && !d.same) {
+      g.select(`text.diffDown[data-id="${d.id}"]`)
+        .transition().duration(150)
+        .attr("font-weight", "normal")
+        .attr("font-size", "11px")
+        .attr("x", x(d.x2) - 12);
+    }
+    
+    if (!d.same) {
+      const line = g.select(`line.lolli[data-id="${d.id}"]`);
+      const left = Math.min(x(d.x1), x(d.x2));
+      const right = Math.max(x(d.x1), x(d.x2));
+      if (x(d.x2) === left) {
+        line.transition().duration(150).attr("x1", left + rNode);
+      } else {
+        line.transition().duration(150).attr("x2", right - rNode);
+      }
+    }
+  };
+  
+  g.selectAll("circle.a").data(data).enter().append("circle")
+    .attr("cx", d => x(d.x1))
+    .attr("cy", d => y(d.id) + y.bandwidth()/2)
+    .attr("r", rNode)
+    .attr("fill", startColor)
+    .on("mouseover", function(e,d){enlargeSimple.call(this, e, d.x1, d);})
+    .on("mouseout", function(e,d){shrinkSimple.call(this, d);});
+    
+  g.selectAll("circle.b").data(data).enter().append("circle")
+    .attr("cx",d => x(d.x2))
+    .attr("cy",d => y(d.id) + y.bandwidth()/2)
+    .attr("r", rNode)
+    .attr("fill", d => d.same ? startColor : (d.inc ? upColor : downColor))
+    .on("mouseover", function(e,d){enlargeWithDelta.call(this,e,d.x2, d);})
+    .on("mouseout", function(e,d){shrinkWithDelta.call(this, d);});
+    
+  const diff = d => formatNumber(Math.abs(d.delta));
+
+  g.selectAll("text.diffUp").data(data.filter(d=>d.inc && !d.same)).enter().append("text")
+    .attr("class","diffUp")
+    .attr("data-id", d => d.id)
+    .attr("x", d => x(d.x2) + 12)
+    .attr("y", d => y(d.id) + y.bandwidth()/2 + 4)
+    .attr("text-anchor","start")
+    .attr("fill", upColor)
+    .attr("font-size","11px")
+    .text(d => "+" + diff(d));
+    
+  g.selectAll("text.diffDown").data(data.filter(d=>d.dec && !d.same)).enter().append("text")
+    .attr("class","diffDown")
+    .attr("data-id", d => d.id)
+    .attr("x", d => x(d.x2) - 12)
+    .attr("y", d => y(d.id) + y.bandwidth()/2 + 4)
+    .attr("text-anchor","end")
+    .attr("fill", downColor)
+    .attr("font-size","11px")
+    .text(d => "-" + diff(d));
+}
+
+createChart();
+
+let resizeTimeout;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => {
+    createChart();
+  }, 250);
+});
+</script>
+<a href="https://aiworld.eu/" target="_blank" rel="noopener">
+  <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+</a>
+<div class="source-text">Source: <a href="https://www.anthropic.com/research/anthropic-economic-index-september-2025-report" target="_blank" rel="noopener">Anthropic Economic Index Report</a></div>
+</body>
+</html>
