@@ -144,6 +144,12 @@ const data = [
     "x2":0.6221911808
   },
   {
+    "id":"Philippines 🇵🇭",
+    "x4":1.4227814652,
+    "x1":1,
+    "x2":0.6325637647
+  },
+  {
     "id":"The Netherlands 🇳🇱",
     "x4":0.2210035894,
     "x1":1,
@@ -166,6 +172,12 @@ const data = [
     "x4":0.0741441679,
     "x1":1,
     "x2":8.0923424886
+  },
+  {
+    "id":"South Africa 🇿🇦",
+    "x4":0.7861304748,
+    "x1":1,
+    "x2":0.636026736
   }
 ]
 
@@ -181,11 +193,11 @@ const addLogo = (id) => {
 
 data.forEach(d => {
   d.delta = d.x2 - d.x1;
-  d.ratio = d.x1 === 0 ? null : d.x2 / d.x1;
-  const isSame = d.ratio === null ? Math.abs(d.delta) < 0.01 : Math.abs(d.ratio - 1) < 0.01;
-  d.same = isSame;
-  d.inc = !isSame && (d.ratio !== null ? d.ratio > 1 : d.delta > 0);
-  d.dec = !isSame && (d.ratio !== null ? d.ratio < 1 : d.delta < 0);
+  const tol = 0.01;
+  d.same = Math.abs(d.delta) < tol;
+  d.inc = !d.same && d.delta > 0;
+  d.dec = !d.same && d.delta < 0;
+  d.mult = d.x1 === 0 ? null : d.x2 / d.x1;
 });
 
 const startColor = "#cccccc"; 
@@ -467,7 +479,7 @@ function createChart() {
     .on("mouseover", function(e,d){enlargeWithDelta.call(this,e,d.x2, d);})
     .on("mouseout", function(e,d){shrinkWithDelta.call(this, d);});
     
-  const diff = d => formatNumber(Math.abs(d.delta));
+  const mult = d => formatNumber(d.mult);
 
   g.selectAll("text.diffUp").data(data.filter(d=>d.inc && !d.same)).enter().append("text")
     .attr("class","diffUp")
@@ -477,7 +489,7 @@ function createChart() {
     .attr("text-anchor","start")
     .attr("fill", upColor)
     .attr("font-size","11px")
-    .text(d => "+" + diff(d));
+    .text(d => "x" + mult(d));
     
   g.selectAll("text.diffDown").data(data.filter(d=>d.dec && !d.same)).enter().append("text")
     .attr("class","diffDown")
@@ -487,7 +499,7 @@ function createChart() {
     .attr("text-anchor","end")
     .attr("fill", downColor)
     .attr("font-size","11px")
-    .text(d => "-" + diff(d));
+    .text(d => "x" + mult(d));
 }
 
 createChart();
