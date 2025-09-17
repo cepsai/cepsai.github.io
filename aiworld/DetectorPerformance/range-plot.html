@@ -12,11 +12,11 @@ body { font-family: sans-serif; margin: 0; padding: 0; }
 #tooltip { position: absolute; background: #fff; border: 1px solid #ccc; padding: 4px 8px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
 #tooltip { font-size: clamp(10px, 2.5vw, 14px); max-width: 90vw; }
 
-.layout { display: grid; grid-template-rows: 5vh 75vh 10vh 10vh; grid-template-columns: 100%; width: 100vw; height: 100vh; }
+.layout { display: grid; grid-template-rows: 3vh 77vh 10vh 10vh; grid-template-columns: 100%; width: 100vw; height: 100vh; }
 .win-title, .win-viz, .win-label, .win-footer { position: relative; overflow: hidden; }
 
 .win-title { display: flex; align-items: center; justify-content: center; padding: 0 clamp(10px, 2vw, 20px); }
-#titleText { font-size: clamp(12px, 2.2vw, 22px); font-weight: 600; text-align: center; color: #111; }
+#titleText { font-size: clamp(10px, 1.6vw, 18px); font-weight: 600; text-align: center; color: #111; line-height: 1.1; }
 
 .win-viz { padding: clamp(6px, 1vw, 12px); display: flex; }
 #chart { flex: 1 1 auto; display: block; width: 100%; height: 100%; }
@@ -138,7 +138,7 @@ const createChart = () => {
   tempSvg.remove();
 
   const padding = 16;
-  const margin = { top: small ? 26 : 32, right: Math.max(28, containerWidth * 0.06), bottom: small ? 46 : 54, left: maxLabelWidth + padding + 10 };
+  const margin = { top: small ? 26 : 32, right: Math.max(28, containerWidth * 0.06), bottom: small ? 52 : 60, left: maxLabelWidth + padding + 10 };
   const width = containerWidth - margin.left - margin.right;
   const rowH = tiny ? 30 : (small ? 38 : 46);
   const height = Math.max(models.length * rowH, containerHeight - margin.top - margin.bottom);
@@ -172,7 +172,7 @@ const createChart = () => {
 
   g.append("g").attr("class", "axis").call(d3.axisLeft(y));
   const tickCount = tiny ? 4 : (small ? 6 : 8);
-  const xAxis = d3.axisBottom(x).ticks(tickCount).tickFormat(d3.format(".0%"));
+  const xAxis = d3.axisBottom(x).ticks(tickCount).tickFormat(d => d3.format(".0f")(d * 100));
   g.append("g").attr("class", "axis").attr("transform", `translate(0,${height})`).call(xAxis);
 
   const xlabel = (raw && raw.config && raw.config.xlabel) ? String(raw.config.xlabel) : "";
@@ -180,14 +180,14 @@ const createChart = () => {
     g.append("text")
       .attr("class", "svg-xlabel")
       .attr("x", width / 2)
-      .attr("y", height + (tiny ? 22 : (small ? 24 : 28)))
+      .attr("y", height + (tiny ? 26 : (small ? 30 : 34)))
       .attr("text-anchor", "middle")
       .style("font-size", tiny ? "11px" : (small ? "12px" : "13px"))
       .style("fill", "#666")
       .text(xlabel);
   }
 
-  const formatPct = d3.format(".1%");
+  const formatNum = d3.format(".1f");
 
   const groups = g.selectAll("g.model").data(models).enter().append("g")
     .attr("class", "model")
@@ -207,7 +207,7 @@ const createChart = () => {
       .attr("stroke", d => d.color || "#888888")
       .attr("stroke-width", Math.max(tiny ? 4 : (small ? 5 : 6), y2.bandwidth() * (tiny ? 0.45 : (small ? 0.5 : 0.55))))
       .on("mousemove", function(e, d) {
-        const text = `${d.id}: ${formatPct(d.min)}–${formatPct(d.max)}`;
+        const text = `${d.id}: ${formatNum(d.min * 100)}–${formatNum(d.max * 100)}`;
         const tt = tooltip.style("opacity", 1).html(text);
         const nb = this.getBoundingClientRect();
         const tb = tt.node().getBoundingClientRect();
@@ -224,7 +224,7 @@ const createChart = () => {
       .attr("r", Math.min(tiny ? 5 : (small ? 6 : 8), y2.bandwidth() / 2))
       .attr("fill", d => d.color || "#888888")
       .on("mousemove", function(e, d) {
-        const text = `${d.id}: ${formatPct(d.min)}`;
+        const text = `${d.id}: ${formatNum(d.min * 100)}`;
         const tt = tooltip.style("opacity", 1).html(text);
         const nb = this.getBoundingClientRect();
         const tb = tt.node().getBoundingClientRect();
@@ -241,7 +241,7 @@ const createChart = () => {
       .attr("r", Math.min(tiny ? 5 : (small ? 6 : 8), y2.bandwidth() / 2))
       .attr("fill", d => d.color || "#888888")
       .on("mousemove", function(e, d) {
-        const text = `${d.id}: ${formatPct(d.max)}`;
+        const text = `${d.id}: ${formatNum(d.max * 100)}`;
         const tt = tooltip.style("opacity", 1).html(text);
         const nb = this.getBoundingClientRect();
         const tb = tt.node().getBoundingClientRect();
