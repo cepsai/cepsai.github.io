@@ -110,6 +110,20 @@ function getSourceInfo(obj) {
   );
 }
 
+function placeTooltipAbove(rect, clientX, html){
+  const tt = tooltip.style("opacity", 1).html(html);
+  const host = document.querySelector('.win-viz');
+  const hostRect = host.getBoundingClientRect();
+  const tb = tt.node().getBoundingClientRect();
+  const cx = (typeof clientX === 'number') ? clientX : (rect.left + rect.width / 2);
+  let left = cx - hostRect.left - tb.width / 2;
+  left = Math.max(4, Math.min(left, hostRect.width - tb.width - 4));
+  let top = rect.top - hostRect.top - tb.height - 8;
+  top = Math.max(4, top);
+  tt.style("left", left + "px").style("top", top + "px");
+  return tt;
+}
+
 const createChart = () => {
   if (!raw) { return; }
   d3.select("#chart").selectAll("*").remove();
@@ -208,12 +222,8 @@ const createChart = () => {
       .attr("stroke-width", Math.max(tiny ? 4 : (small ? 5 : 6), y2.bandwidth() * (tiny ? 0.45 : (small ? 0.5 : 0.55))))
       .on("mousemove", function(e, d) {
         const text = `${d.id}: ${formatNum(d.min * 100)}–${formatNum(d.max * 100)}`;
-        const tt = tooltip.style("opacity", 1).html(text);
         const nb = this.getBoundingClientRect();
-        const tb = tt.node().getBoundingClientRect();
-        const left = e.clientX - tb.width / 2 + window.scrollX;
-        const top = nb.top - tb.height - 12 + window.scrollY;
-        tt.style("left", left + "px").style("top", top + "px");
+        placeTooltipAbove(nb, e.clientX, text);
       })
       .on("mouseout", function() { tooltip.style("opacity", 0); });
 
@@ -225,12 +235,8 @@ const createChart = () => {
       .attr("fill", d => d.color || "#888888")
       .on("mousemove", function(e, d) {
         const text = `${d.id}: ${formatNum(d.min * 100)}`;
-        const tt = tooltip.style("opacity", 1).html(text);
         const nb = this.getBoundingClientRect();
-        const tb = tt.node().getBoundingClientRect();
-        const left = e.clientX - tb.width / 2 + window.scrollX;
-        const top = nb.top - tb.height - 12 + window.scrollY;
-        tt.style("left", left + "px").style("top", top + "px");
+        placeTooltipAbove(nb, e.clientX, text);
       })
       .on("mouseout", function() { tooltip.style("opacity", 0); });
 
@@ -242,12 +248,8 @@ const createChart = () => {
       .attr("fill", d => d.color || "#888888")
       .on("mousemove", function(e, d) {
         const text = `${d.id}: ${formatNum(d.max * 100)}`;
-        const tt = tooltip.style("opacity", 1).html(text);
         const nb = this.getBoundingClientRect();
-        const tb = tt.node().getBoundingClientRect();
-        const left = e.clientX - tb.width / 2 + window.scrollX;
-        const top = nb.top - tb.height - 12 + window.scrollY;
-        tt.style("left", left + "px").style("top", top + "px");
+        placeTooltipAbove(nb, e.clientX, text);
       })
       .on("mouseout", function() { tooltip.style("opacity", 0); });
   });
@@ -377,7 +379,6 @@ function downloadPNG(){
     if(!el){ return Promise.resolve(null); }
     const rect = el.getBoundingClientRect();
     const clone = el.cloneNode(true);
-    // inline computed styles
     const all = clone.querySelectorAll('*');
     const srcAll = el.querySelectorAll('*');
     all.forEach((n,i) => {
@@ -387,7 +388,6 @@ function downloadPNG(){
       style.value = `display:${cs.display};position:static;margin:0;padding:${cs.padding};font-family:${cs.fontFamily};font-size:${cs.fontSize};font-weight:${cs.fontWeight};color:${cs.color};background:${cs.backgroundColor};border:${cs.borderWidth} ${cs.borderStyle} ${cs.borderColor};border-radius:${cs.borderRadius};box-shadow:${cs.boxShadow};line-height:${cs.lineHeight};letter-spacing:${cs.letterSpacing};transform:${cs.transform};transform-origin:${cs.transformOrigin};`;
       n.setAttributeNode(style);
     });
-    // wrap in foreignObject
     const xmlns = 'http://www.w3.org/2000/svg';
     const s = document.createElementNS(xmlns, 'svg');
     s.setAttribute('xmlns', xmlns);
@@ -468,9 +468,7 @@ function downloadPNG(){
       ctx.drawImage(img, dx, dy, dw, dh);
     };
 
-    // draw svg
     drawAt(svgPart.img, svgRect);
-    // draw legend/source/logo if available
     if(legendPart){ drawAt(legendPart.img, legendRect); }
     if(sourcePart){ drawAt(sourcePart.img, sourceRect); }
     if(logoPart){ drawAt(logoPart.img, logoRect); }
