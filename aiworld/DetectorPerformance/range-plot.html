@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Detector Performance</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+html, body { height: 100%; }
+body { font-family: sans-serif; margin: 0; padding: 0; }
+.axis path, .axis line { stroke: #bbb; }
+.tick text { font-size: clamp(10px, 2.2vw, 14px); }
+#tooltip { position: absolute; background: #fff; border: 1px solid #ccc; padding: 4px 8px; font-size: 12px; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+#tooltip { font-size: clamp(10px, 2.5vw, 14px); max-width: 90vw; }
+
+.layout { display: grid; grid-template-rows: 5vh 75vh 10vh 10vh; grid-template-columns: 100%; width: 100vw; height: 100vh; }
+.win-title, .win-viz, .win-label, .win-footer { position: relative; overflow: hidden; }
+
+.win-title { display: flex; align-items: center; justify-content: center; padding: 0 clamp(10px, 2vw, 20px); }
+#titleText { font-size: clamp(12px, 2.2vw, 22px); font-weight: 600; text-align: center; color: #111; }
+
+.win-viz { padding: clamp(6px, 1vw, 12px); display: flex; }
+#chart { flex: 1 1 auto; display: block; width: 100%; height: 100%; }
+#tooltip:after { content: ""; position: absolute; left: 50%; transform: translateX(-50%); bottom: -6px; border-width: 6px 6px 0 6px; border-style: solid; border-color: #ccc transparent transparent transparent; }
+#tooltip:before { content: ""; position: absolute; left: 50%; transform: translateX(-50%); bottom: -7px; border-width: 7px 7px 0 7px; border-style: solid; border-color: #fff transparent transparent transparent; }
+.axis text { white-space: nowrap; }
+
+.win-label { display: flex; align-items: center; justify-content: center; }
+.legend-wrap { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; }
+.custom-legend { position: relative; transform-origin: center center; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; column-gap: clamp(10px, 2.5vw, 18px); row-gap: clamp(6px, 1.5vh, 10px); background: rgba(255, 255, 255, 0.9); padding: clamp(6px, 1.8vh, 12px) clamp(10px, 2vw, 18px); border-radius: clamp(4px, 1vw, 8px); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); font-family: Arial, sans-serif; font-size: clamp(11px, 1.6vw, 15px); font-weight: 500; max-width: none; width: max-content; }
+.legend-item { display: flex; align-items: center; gap: 8px; cursor: pointer; transition: opacity 0.3s ease; }
+.legend-item.inactive { opacity: 0.3; }
+.legend-item:hover { opacity: 1; }
+.legend-square { width: clamp(12px, 1.5vw, 16px); height: clamp(12px, 1.5vw, 16px); border-radius: clamp(2px, 0.5vw, 4px); }
+.legend-item { position: relative; }
+.legend-item:focus-visible { outline: 2px solid rgba(0,0,0,0.6); outline-offset: 2px; }
+.legend-item .legend-square { position: relative; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+.legend-item.active .legend-square::after { content: "✓"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -55%); font-size: clamp(10px, 1.6vw, 14px); color: #ffffff; text-shadow: 0 0 2px rgba(0,0,0,0.35); }
+.legend-item.inactive .legend-square::before { content: ""; position: absolute; left: 2px; right: 2px; top: 50%; height: 2px; background: rgba(255,255,255,0.9); transform: rotate(-45deg); }
+@media (hover: none) and (pointer: coarse) { .legend-item { min-height: 44px; padding: 8px; } .legend-square { min-width: 20px; min-height: 20px; } }
+@media (max-width: 520px) { .custom-legend { column-gap: 10px; row-gap: 6px; padding: 6px 10px; border-radius: 6px; } .legend-item { gap: 6px; } }
+
+.win-footer { display: flex; align-items: center; justify-content: space-between; padding: 0 clamp(12px, 2vw, 20px); }
+.logo { position: static; width: clamp(80px, 10vw, 200px); pointer-events: auto; }
+.source-text { position: static; font-size: clamp(12px, 1.5vw, 20px); font-weight: bold; color: #555555; font-style: italic; }
+</style>
+<style>
+.download-btn { position: fixed; top: clamp(8px, 2vh, 16px); right: clamp(8px, 2vw, 16px); z-index: 1200; background: #1a73e8; color: #fff; border: 0; padding: clamp(6px, 1.2vh, 10px) clamp(10px, 1.6vw, 14px); border-radius: 8px; font-size: clamp(12px, 1.6vw, 14px); cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.download-btn:active { transform: translateY(1px); }
+@media (max-width: 420px) { .download-btn { padding: 6px 10px; border-radius: 6px; font-size: 12px; } }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="win-title"><div id="titleText"></div></div>
+  <div class="win-viz">
+    <svg id="chart"></svg>
+    <div id="tooltip"></div>
+  </div>
+  <div class="win-label">
+    <div class="legend-wrap">
+      <div id="customLegend" class="custom-legend" role="group" aria-label="Detectors legend"></div>
+    </div>
+  </div>
+  <div class="win-footer">
+    <div class="source-text"></div>
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+    </a>
+  </div>
+</div>
+
+<script>
+const tooltip = d3.select("#tooltip");
+const legendEl = document.getElementById("customLegend");
+const titleEl = document.getElementById("titleText");
+let activeDetectors = new Set();
+let raw = null;
+
+function loadConfig() {
+  fetch('config.json').then(r => r.json()).then(cfg => { raw = cfg; initFromConfig(); }).catch(err => { console.error(err); });
+}
+
+function initFromConfig() {
+  const src = document.querySelector('.source-text');
+  const { name, link } = getSourceInfo(raw);
+  if (src) {
+    if (name && link) { src.innerHTML = `Source: <a href="${link}" target="_blank" rel="noopener">${name}</a>`; }
+    else if (name) { src.textContent = `Source: ${name}`; }
+    else { src.textContent = ""; }
+  }
+  if (titleEl) { titleEl.textContent = (raw && raw.config && raw.config.title) ? String(raw.config.title) : ''; }
+  createChart();
+  fitLegend();
+}
+
+function getSourceInfo(obj) {
+  if (!obj) { return { name: null, link: null }; }
+  const pick = (o) => {
+    if (!o) { return null; }
+    const name = o.source_name || o.source || null;
+    const link = o.source_url || o.source_link || null;
+    if (name && link) { return { name, link }; }
+    return null;
+  };
+  return (
+    pick(obj) ||
+    pick(obj.config) ||
+    (Array.isArray(obj.data) && obj.data.length ? pick(obj.data[0]) : null) ||
+    { name: null, link: null }
+  );
+}
+
+const createChart = () => {
+  if (!raw) { return; }
+  d3.select("#chart").selectAll("*").remove();
+
+  const data = raw.data.slice();
+  const models = Array.from(new Set(data.map(d => d.parent)));
+  const detectors = Array.from(new Set(data.map(d => d.id)));
+
+  const showLegend = !!(raw && raw.config && ("legend" in raw.config ? raw.config.legend : true));
+  legendEl.style.display = showLegend ? "flex" : "none";
+
+  if (activeDetectors.size === 0) { detectors.forEach(d => activeDetectors.add(d)); }
+  if (showLegend) { buildLegend(detectors, data); }
+
+  const vizHost = document.querySelector('.win-viz');
+  const vizRect = vizHost.getBoundingClientRect();
+  const containerWidth = Math.max(vizRect.width, 300);
+  const containerHeight = Math.max(vizRect.height, 220);
+  const small = containerWidth < 520;
+  const tiny = containerWidth < 380;
+
+  const tempSvg = d3.select("body").append("svg").style("visibility", "hidden");
+  const tempText = tempSvg.append("text").style("font-size", "12px").style("font-family", "sans-serif");
+  let maxLabelWidth = 0;
+  models.forEach(m => { tempText.text(m); const w = tempText.node().getBoundingClientRect().width; maxLabelWidth = Math.max(maxLabelWidth, w); });
+  tempSvg.remove();
+
+  const padding = 16;
+  const margin = { top: small ? 26 : 32, right: Math.max(28, containerWidth * 0.06), bottom: small ? 46 : 54, left: maxLabelWidth + padding + 10 };
+  const width = containerWidth - margin.left - margin.right;
+  const rowH = tiny ? 30 : (small ? 38 : 46);
+  const height = Math.max(models.length * rowH, containerHeight - margin.top - margin.bottom);
+
+  const svg = d3.select("#chart")
+    .attr("width", containerWidth)
+    .attr("height", height + margin.top + margin.bottom)
+    .attr("viewBox", `0 0 ${containerWidth} ${height + margin.top + margin.bottom}`)
+    .style("width", "100%")
+    .style("height", "auto");
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const xMax = d3.max(data, d => d.max);
+  const x = d3.scaleLinear().domain([0, xMax]).nice().range([0, width]);
+  const y = d3.scaleBand().domain(models).range([0, height]).padding(0.35);
+  const y2 = d3.scaleBand().domain(detectors).range([0, y.bandwidth()]).padding(0.2);
+
+  const step = y.step();
+  const padGap = (step - y.bandwidth()) / 2;
+
+  g.selectAll("rect.row-bg").data(models).enter().append("rect")
+    .attr("class", "row-bg")
+    .attr("x", -margin.left)
+    .attr("y", m => y(m) - padGap)
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", step)
+    .attr("fill", (d, i) => i % 2 ? "#f5f5f5" : "#ffffff")
+    .attr("pointer-events", "none")
+    .lower();
+
+  g.append("g").attr("class", "axis").call(d3.axisLeft(y));
+  const tickCount = tiny ? 4 : (small ? 6 : 8);
+  const xAxis = d3.axisBottom(x).ticks(tickCount).tickFormat(d3.format(".0%"));
+  g.append("g").attr("class", "axis").attr("transform", `translate(0,${height})`).call(xAxis);
+
+  const xlabel = (raw && raw.config && raw.config.xlabel) ? String(raw.config.xlabel) : "";
+  if (xlabel) {
+    g.append("text")
+      .attr("class", "svg-xlabel")
+      .attr("x", width / 2)
+      .attr("y", height + (tiny ? 22 : (small ? 24 : 28)))
+      .attr("text-anchor", "middle")
+      .style("font-size", tiny ? "11px" : (small ? "12px" : "13px"))
+      .style("fill", "#666")
+      .text(xlabel);
+  }
+
+  const formatPct = d3.format(".1%");
+
+  const groups = g.selectAll("g.model").data(models).enter().append("g")
+    .attr("class", "model")
+    .attr("transform", m => `translate(0, ${y(m)})`);
+
+  groups.each(function(m) {
+    const group = d3.select(this);
+    const rows = data.filter(d => d.parent === m);
+    const row = group.selectAll("g.entry").data(rows).enter().append("g").attr("class", "entry").attr("transform", d => `translate(0, ${y2(d.id)})`);
+
+    row.append("line")
+      .attr("data-detector", d => d.id)
+      .attr("x1", d => x(d.min))
+      .attr("x2", d => x(d.max))
+      .attr("y1", y2.bandwidth() / 2)
+      .attr("y2", y2.bandwidth() / 2)
+      .attr("stroke", d => d.color || "#888888")
+      .attr("stroke-width", Math.max(tiny ? 4 : (small ? 5 : 6), y2.bandwidth() * (tiny ? 0.45 : (small ? 0.5 : 0.55))))
+      .on("mousemove", function(e, d) {
+        const text = `${d.id}: ${formatPct(d.min)}–${formatPct(d.max)}`;
+        const tt = tooltip.style("opacity", 1).html(text);
+        const nb = this.getBoundingClientRect();
+        const tb = tt.node().getBoundingClientRect();
+        const left = e.clientX - tb.width / 2 + window.scrollX;
+        const top = nb.top - tb.height - 12 + window.scrollY;
+        tt.style("left", left + "px").style("top", top + "px");
+      })
+      .on("mouseout", function() { tooltip.style("opacity", 0); });
+
+    row.append("circle")
+      .attr("data-detector", d => d.id)
+      .attr("cx", d => x(d.min))
+      .attr("cy", y2.bandwidth() / 2)
+      .attr("r", Math.min(tiny ? 5 : (small ? 6 : 8), y2.bandwidth() / 2))
+      .attr("fill", d => d.color || "#888888")
+      .on("mousemove", function(e, d) {
+        const text = `${d.id}: ${formatPct(d.min)}`;
+        const tt = tooltip.style("opacity", 1).html(text);
+        const nb = this.getBoundingClientRect();
+        const tb = tt.node().getBoundingClientRect();
+        const left = e.clientX - tb.width / 2 + window.scrollX;
+        const top = nb.top - tb.height - 12 + window.scrollY;
+        tt.style("left", left + "px").style("top", top + "px");
+      })
+      .on("mouseout", function() { tooltip.style("opacity", 0); });
+
+    row.append("circle")
+      .attr("data-detector", d => d.id)
+      .attr("cx", d => x(d.max))
+      .attr("cy", y2.bandwidth() / 2)
+      .attr("r", Math.min(tiny ? 5 : (small ? 6 : 8), y2.bandwidth() / 2))
+      .attr("fill", d => d.color || "#888888")
+      .on("mousemove", function(e, d) {
+        const text = `${d.id}: ${formatPct(d.max)}`;
+        const tt = tooltip.style("opacity", 1).html(text);
+        const nb = this.getBoundingClientRect();
+        const tb = tt.node().getBoundingClientRect();
+        const left = e.clientX - tb.width / 2 + window.scrollX;
+        const top = nb.top - tb.height - 12 + window.scrollY;
+        tt.style("left", left + "px").style("top", top + "px");
+      })
+      .on("mouseout", function() { tooltip.style("opacity", 0); });
+  });
+
+  applyDetectorFilter();
+  fitLegend();
+};
+function fitLegend() {
+  const host = document.querySelector('.win-label');
+  if (!host) { return; }
+  const wrap = host.querySelector('.legend-wrap');
+  const showLegend = !!(raw && raw.config && ("legend" in raw.config ? raw.config.legend : true));
+  legendEl.style.display = showLegend ? 'flex' : 'none';
+  if (!showLegend) { return; }
+  legendEl.style.transform = 'scale(1)';
+  const pad = 8;
+  const maxW = Math.max(1, wrap.clientWidth - pad * 2);
+  const maxH = Math.max(1, wrap.clientHeight - pad * 2);
+  const rect = legendEl.getBoundingClientRect();
+  const scale = Math.min(maxW / rect.width, maxH / rect.height, 1);
+  legendEl.style.transform = `scale(${scale})`;
+}
+
+function buildLegend(detectors, data) {
+  if (legendEl.style.display === 'none') { legendEl.innerHTML = ""; return; }
+  const colors = new Map();
+  detectors.forEach(id => { const d = data.find(x => x.id === id); if (d) colors.set(id, d.color); });
+  legendEl.innerHTML = "";
+  detectors.forEach(id => {
+    const item = document.createElement("div");
+    item.className = "legend-item " + (activeDetectors.has(id) ? "active" : "inactive");
+    item.setAttribute("tabindex", "0");
+    item.setAttribute("role", "button");
+    item.setAttribute("aria-pressed", activeDetectors.has(id) ? "true" : "false");
+    const sq = document.createElement("div");
+    sq.className = "legend-square";
+    sq.style.background = colors.get(id) || "#888";
+    const label = document.createElement("span");
+    label.textContent = String(id);
+    item.appendChild(sq);
+    item.appendChild(label);
+    item.addEventListener("click", () => { toggleDetector(id); });
+    item.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleDetector(id); } });
+    legendEl.appendChild(item);
+  });
+}
+
+function toggleDetector(id) {
+  if (activeDetectors.has(id)) { activeDetectors.delete(id); } else { activeDetectors.add(id); }
+  if (activeDetectors.size === 0) { raw.data.forEach(d => activeDetectors.add(d.id)); }
+  Array.from(legendEl.children).forEach(ch => {
+    const name = ch.querySelector("span").textContent;
+    const active = activeDetectors.has(name);
+    ch.classList.toggle("active", active);
+    ch.classList.toggle("inactive", !active);
+    ch.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+  applyDetectorFilter();
+}
+
+function applyDetectorFilter() {
+  const all = document.querySelectorAll('[data-detector]');
+  all.forEach(el => {
+    const id = el.getAttribute('data-detector');
+    const on = activeDetectors.has(id);
+    el.style.opacity = on ? "1" : "0.12";
+    el.style.pointerEvents = on ? "auto" : "none";
+  });
+}
+
+
+
+function inlineStyles(svg){
+  const all = svg.querySelectorAll('*');
+  all.forEach(el => {
+    const cs = window.getComputedStyle(el);
+    const set = (a,v) => { if(v && v !== 'initial' && v !== 'auto' && v !== 'none'){ el.setAttribute(a, v); } };
+    set('font-family', cs.fontFamily);
+    set('font-size', cs.fontSize);
+    set('font-weight', cs.fontWeight);
+    set('fill', cs.fill);
+    set('stroke', cs.stroke);
+    set('stroke-width', cs.strokeWidth);
+    set('opacity', cs.opacity);
+    if(el.tagName.toLowerCase() === 'text'){ set('text-anchor', el.style.textAnchor || el.getAttribute('text-anchor')); }
+  });
+}
+
+function downloadPNG(){
+  const svg = document.getElementById('chart');
+  const legend = document.getElementById('customLegend');
+  const source = document.querySelector('.source-text');
+  const logo = document.querySelector('.logo');
+
+  const svgRect = svg.getBoundingClientRect();
+  const legendRect = (legend && getComputedStyle(legend).display !== 'none') ? legend.getBoundingClientRect() : { left: svgRect.left, top: svgRect.bottom, right: svgRect.left, bottom: svgRect.bottom, width: 0, height: 0 };
+  const sourceRect = source ? source.getBoundingClientRect() : { left: svgRect.left, top: svgRect.bottom, right: svgRect.left, bottom: svgRect.bottom, width: 0, height: 0 };
+  const logoRect = logo ? logo.getBoundingClientRect() : { left: svgRect.left, top: svgRect.bottom, right: svgRect.left, bottom: svgRect.bottom, width: 0, height: 0 };
+
+  const minLeft = Math.min(svgRect.left, legendRect.left, sourceRect.left, logoRect.left);
+  const maxRight = Math.max(svgRect.right, legendRect.right, sourceRect.right, logoRect.right);
+  const minTop = Math.min(svgRect.top, legendRect.top, sourceRect.top, logoRect.top);
+  const maxBottom = Math.max(svgRect.bottom, legendRect.bottom, sourceRect.bottom, logoRect.bottom);
+
+  const outW = Math.ceil(maxRight - minLeft);
+  const outH = Math.ceil(maxBottom - minTop);
+
+  const scale = Math.max(2, Math.min(4, Math.round((window.devicePixelRatio || 1) * 2)));
+
+  function inlineStyles(svgRoot){
+    const all = svgRoot.querySelectorAll('*');
+    all.forEach(el => {
+      const cs = window.getComputedStyle(el);
+      const set = (a,v) => { if(v && v !== 'initial' && v !== 'auto' && v !== 'none'){ el.setAttribute(a, v); } };
+      set('font-family', cs.fontFamily);
+      set('font-size', cs.fontSize);
+      set('font-weight', cs.fontWeight);
+      set('fill', cs.fill);
+      set('stroke', cs.stroke);
+      set('stroke-width', cs.strokeWidth);
+      set('opacity', cs.opacity);
+      if(el.tagName.toLowerCase() === 'text'){ set('text-anchor', el.style.textAnchor || el.getAttribute('text-anchor')); }
+    });
+  }
+
+  function htmlElementToImage(el){
+    if(!el){ return Promise.resolve(null); }
+    const rect = el.getBoundingClientRect();
+    const clone = el.cloneNode(true);
+    // inline computed styles
+    const all = clone.querySelectorAll('*');
+    const srcAll = el.querySelectorAll('*');
+    all.forEach((n,i) => {
+      const srcNode = srcAll[i];
+      const cs = window.getComputedStyle(srcNode || el);
+      const style = document.createAttribute('style');
+      style.value = `display:${cs.display};position:static;margin:0;padding:${cs.padding};font-family:${cs.fontFamily};font-size:${cs.fontSize};font-weight:${cs.fontWeight};color:${cs.color};background:${cs.backgroundColor};border:${cs.borderWidth} ${cs.borderStyle} ${cs.borderColor};border-radius:${cs.borderRadius};box-shadow:${cs.boxShadow};line-height:${cs.lineHeight};letter-spacing:${cs.letterSpacing};transform:${cs.transform};transform-origin:${cs.transformOrigin};`;
+      n.setAttributeNode(style);
+    });
+    // wrap in foreignObject
+    const xmlns = 'http://www.w3.org/2000/svg';
+    const s = document.createElementNS(xmlns, 'svg');
+    s.setAttribute('xmlns', xmlns);
+    s.setAttribute('width', rect.width);
+    s.setAttribute('height', rect.height);
+    const fo = document.createElementNS(xmlns, 'foreignObject');
+    fo.setAttribute('x', 0);
+    fo.setAttribute('y', 0);
+    fo.setAttribute('width', '100%');
+    fo.setAttribute('height', '100%');
+    const div = document.createElement('div');
+    div.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    div.style.width = rect.width + 'px';
+    div.style.height = rect.height + 'px';
+    div.appendChild(clone);
+    fo.appendChild(div);
+    s.appendChild(fo);
+    const svgStr = new XMLSerializer().serializeToString(s);
+    const blob = new Blob([svgStr], {type: 'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve({img, rect}); };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    });
+  }
+
+  function svgToImage(){
+    const clone = svg.cloneNode(true);
+    const vb = clone.viewBox && clone.viewBox.baseVal ? clone.viewBox.baseVal : null;
+    const w = vb ? vb.width : svgRect.width;
+    const h = vb ? vb.height : svgRect.height;
+    clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    clone.setAttribute('width', w);
+    clone.setAttribute('height', h);
+    inlineStyles(clone);
+    const svgStr = new XMLSerializer().serializeToString(clone);
+    const blob = new Blob([svgStr], {type: 'image/svg+xml;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => { URL.revokeObjectURL(url); resolve({img, w, h}); };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    });
+  }
+
+  function loadLogoImage(){
+    if(!logo){ return Promise.resolve(null); }
+    const rect = logo.getBoundingClientRect();
+    return new Promise(resolve => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve({img, rect});
+      img.onerror = () => resolve(null);
+      img.src = logo.src;
+    });
+  }
+
+  Promise.all([svgToImage(), htmlElementToImage(legend), htmlElementToImage(source), loadLogoImage()]).then(parts => {
+    const [svgPart, legendPart, sourcePart, logoPart] = parts;
+    if(!svgPart){ return; }
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.floor(outW * scale));
+    canvas.height = Math.max(1, Math.floor(outH * scale));
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    const drawAt = (img, rect) => {
+      const dx = (rect.left - minLeft) * scale;
+      const dy = (rect.top - minTop) * scale;
+      const dw = rect.width * scale;
+      const dh = rect.height * scale;
+      ctx.drawImage(img, dx, dy, dw, dh);
+    };
+
+    // draw svg
+    drawAt(svgPart.img, svgRect);
+    // draw legend/source/logo if available
+    if(legendPart){ drawAt(legendPart.img, legendRect); }
+    if(sourcePart){ drawAt(sourcePart.img, sourceRect); }
+    if(logoPart){ drawAt(logoPart.img, logoRect); }
+
+    canvas.toBlob(function(blob){
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      const ts = new Date().toISOString().replace(/[:.]/g,'-');
+      a.download = `detector_performance_full_${ts}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+    }, 'image/png', 1.0);
+  });
+}
+
+const btn = document.getElementById('btnDownload');
+if(btn){ btn.addEventListener('click', downloadPNG); }
+
+createChart();
+
+let resizeTimeout;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(() => { createChart(); fitLegend(); }, 250);
+});
+
+loadConfig();
+</script>
+</body>
+</html>
