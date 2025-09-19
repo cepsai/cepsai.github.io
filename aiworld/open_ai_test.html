@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="utf-8" />
-<title>Treemap with One-Line Legend + Fullscreen Button</title>
+<title>Treemap with One-Line Legend + Fullscreen + Safe Zones</title>
 <style>
 :root{
   --legendHeight: clamp(70px, 10vh, 110px);
@@ -11,10 +11,10 @@
 html, body { margin:0; height:100%; }
 body { overflow:hidden; background:#fff; }
 
-/* Treemap area respects footer height */
+/* Chart area respects footer height */
 #treemap { position:absolute; inset:0 0 var(--legendHeight) 0; }
 
-/* Footer with legend (auto one-line fit) */
+/* Footer with legend (one-line fit) */
 .controls-section{
   position:absolute; left:0; right:0; bottom:0;
   height:var(--legendHeight);
@@ -32,11 +32,13 @@ body { overflow:hidden; background:#fff; }
   backdrop-filter:blur(6px); background:rgba(255,255,255,.9);
   border:1px solid rgba(0,0,0,.06); box-shadow:0 6px 22px rgba(0,0,0,.08);
 
+  /* one-line auto-fit */
   max-width:100%; white-space:nowrap; flex-wrap:nowrap;
   transform:scale(var(--legendScale,1)); transform-origin:left center;
   will-change:transform;
   font:500 clamp(10px,1vw,13px)/1.1 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
   color:#3a3a3a;
+  z-index: 900; /* keep under source/logo just in case */
 }
 .legend-pills{ display:inline-flex; flex-wrap:nowrap; gap:6px 8px; }
 .legend-pill{
@@ -64,15 +66,13 @@ body { overflow:hidden; background:#fff; }
 .fs-btn:active{ transform:scale(.98); }
 .fs-btn svg{ width:24px; height:24px; stroke:#fff; stroke-width:2.5; fill:none; }
 
-/* When fullscreen: shrink footer for maximum chart space */
+/* When fullscreen: shrink footer for extra chart space */
 body.is-fullscreen #treemap{ inset:0 0 var(--legendHeightCompact) 0; }
 body.is-fullscreen .controls-section{ height:var(--legendHeightCompact); }
 
-/* Optional brand/source */
-.logo{ position:absolute; bottom:clamp(6px,4vh,20px); right:20px; width:clamp(70px,8.5vw,140px); z-index:1000; transition:opacity .3s; }
-.logo.overlapped{ opacity:.15; } .logo.overlapped:hover{ opacity:1; }
-.source-text{ position:absolute; bottom:clamp(10px,4vh,30px); left:20px; font-size:clamp(11px,1.2vw,16px); font-weight:700; color:#555; font-style:italic; z-index:1000; transition:opacity .3s; }
-.source-text.overlapped{ opacity:.15; }
+/* Brand / source */
+.logo{ position:absolute; bottom:clamp(6px,4vh,20px); right:20px; width:clamp(70px,8.5vw,140px); z-index:1100; transition:opacity .3s; }
+.source-text{ position:absolute; bottom:clamp(10px,4vh,30px); left:20px; font-size:clamp(11px,1.2vw,16px); font-weight:700; color:#555; font-style:italic; z-index:1100; }
 .source-text a{ color:#5a2ea6; text-decoration:none; border-bottom:1px solid rgba(90,46,166,.35); }
 .source-text a:hover{ opacity:.8; }
 
@@ -86,9 +86,8 @@ body.is-fullscreen .controls-section{ height:var(--legendHeightCompact); }
 </head>
 <body>
 
-<!-- Fullscreen toggle button -->
+<!-- Fullscreen toggle -->
 <button id="fsBtn" class="fs-btn" aria-label="Enter fullscreen">
-  <!-- expand icon (four outward corners) -->
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M9 3H4v5M15 3h5v5M9 21H4v-5M15 21h5v-5" />
   </svg>
@@ -125,7 +124,7 @@ var originalData = [
   { "id": "Computer Programming", "parent": "Technical Help", "color": "#e6d4d1", "value": 4.2 },
   { "id": "Write Fiction", "parent": "Writing", "color": "#da8ec0", "value": 1.4 },
   { "id": "Translation", "parent": "Writing", "color": "#fbb0e0", "value": 4.5 },
-  { "id": "Personal Writing Or Communication", "parent": "Writing", "color": "#fbcce9", "value": 8.0 },
+  { "id": "Personal Writing Or Communication", "parent": "Writing", "value": 8.0, "color":"#fbcce9" },
   { "id": "Edit Or Critique Provided Text", "parent": "Writing", "color": "#fbcce9", "value": 10.6 },
   { "id": "Argument Or Summary Generation", "parent": "Writing", "color": "#fde1f2", "value": 3.6 }
 ];
@@ -141,7 +140,6 @@ function normalizeData(arr){
 }
 var data = normalizeData(originalData);
 var groups = Array.from(new Set(data.map(d => d.parent)));
-
 var inferredColors = {};
 groups.forEach(function(g){
   var item = originalData.find(function(x){
@@ -218,14 +216,6 @@ const _origUpdate = function(){
   var filteredData = normalized.filter(d => activeGroups.has(d.parent));
   data = filteredData;
   treemap.data(data).render();
-
-  document.querySelectorAll('.legend-item').forEach(function(item){
-    var grp = item.getAttribute('data-group');
-    var isActive = activeGroups.has(grp);
-    item.classList.toggle('inactive', !isActive);
-    item.classList.toggle('active', isActive);
-    item.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-  });
 };
 function updateVisualization(){
   _origUpdate();
@@ -238,21 +228,30 @@ function updateVisualization(){
   fitLegendToOneLine();
 }
 
-// ---------- One-line auto-fit ----------
+// ---------- One-line auto-fit WITH SAFE ZONES ----------
 function fitLegendToOneLine() {
   const container = document.querySelector('.controls-section');
   const legend = document.getElementById('legend');
+  const source = document.querySelector('.source-text');
+  const logo = document.querySelector('.logo');
   if (!container || !legend) return;
 
+  // reset
   legend.style.setProperty('--legendScale', 1);
   legend.classList.remove('compact');
 
-  const available = container.clientWidth - 24;
+  // reserve room for source (left) and logo (right)
+  const GAP = 18;
+  const leftReserve = source ? (source.getBoundingClientRect().width + GAP) : 0;
+  const rightReserve = logo ? (logo.getBoundingClientRect().width + GAP) : 0;
+
+  const available = container.clientWidth - leftReserve - rightReserve - 24; // 24 = side padding
   const needed = legend.scrollWidth;
 
   let scale = Math.min(1, available / Math.max(1, needed));
   legend.style.setProperty('--legendScale', scale);
 
+  // If still tight, hide the % values then re-measure
   if (scale < 0.92) {
     legend.classList.add('compact');
     legend.style.setProperty('--legendScale', 1);
@@ -281,18 +280,15 @@ fsBtn.addEventListener('click', ()=>{
   if (!isFS()) enterFS(document.documentElement);
   else exitFS();
 });
-document.addEventListener('fullscreenchange', handleFSChange);
-document.addEventListener('webkitfullscreenchange', handleFSChange);
-document.addEventListener('MSFullscreenChange', handleFSChange);
-
-function handleFSChange(){
-  const on = !!isFS();
-  document.body.classList.toggle('is-fullscreen', on);
-  fsBtn.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Enter fullscreen');
-  // Re-render & fit after the viewport changes
-  treemap.render();
-  fitLegendToOneLine();
-}
+['fullscreenchange','webkitfullscreenchange','MSFullscreenChange'].forEach(evt=>{
+  document.addEventListener(evt, ()=>{
+    const on = !!isFS();
+    document.body.classList.toggle('is-fullscreen', on);
+    fsBtn.setAttribute('aria-label', on ? 'Exit fullscreen' : 'Enter fullscreen');
+    treemap.render();
+    fitLegendToOneLine();
+  });
+});
 
 // ---------- Boot ----------
 treemap.render();
@@ -301,7 +297,7 @@ updateVisualization();
 window.addEventListener('resize', fitLegendToOneLine);
 </script>
 
-<!-- Optional brand/source -->
+<!-- Brand / source (left & right) -->
 <a href="https://aiworld.eu/" target="_blank" rel="noopener">
   <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
 </a>
