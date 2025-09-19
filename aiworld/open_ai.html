@@ -1,0 +1,216 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style type="text/css">
+.knitr .inline { background-color: #F7F7F7; border: solid 1px #B0B0B0; }
+.error { font-weight: bold; color: #FF0000; }
+.warning { font-weight: bold; }
+.message { font-style: italic; }
+.source, .output, .warning, .error, .message { padding: 0 1em; border: solid 1px #F7F7F7; }
+.source { background-color: #F5F5F5; }
+.rimage .left { text-align: left; }
+.rimage .right { text-align: right; }
+.rimage .center { text-align: center; }
+.hl.num { color: #AF0F91; }
+.hl.str { color: #317ECC; }
+.hl.com { color: #AD95AF; font-style: italic; }
+.hl.opt { color: #000000; }
+.hl.std { color: #585858; }
+.hl.kwa { color: #295F94; font-weight: bold; }
+.hl.kwb { color: #B05A65; }
+.hl.kwc { color: #55AA55; }
+.hl.kwd { color: #BC5A65; font-weight: bold; }
+body { margin: 0; overflow: hidden; }
+#treemap { position: absolute; top: 0; left: 0; right: 0; bottom: clamp(80px, 12vh, 120px); }
+.logo { position: absolute; bottom: clamp(6px, 4vh, 20px); right: 20px; width: clamp(80px, 10vw, 200px); pointer-events: auto; z-index: 1000; opacity: 1; transition: opacity 0.3s ease; }
+.logo.overlapped { opacity: 0.15; }
+.logo.overlapped:hover { opacity: 1; }
+.source-text { position: absolute; bottom: clamp(10px, 4vh, 30px); left: 20px; pointer-events: auto; font-size: clamp(12px, 1.5vw, 20px); font-weight: bold; color: #555555; z-index: 1000; opacity: 1; font-style: italic; transition: opacity 0.3s ease; }
+.source-text.overlapped { opacity: 0.15; }
+.source-text.overlapped:hover { opacity: 1; }
+.custom-legend { position: absolute; top: calc(100vh - clamp(80px, 12vh, 120px) + 10px); bottom: auto; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: clamp(12px, 3vw, 24px); background: rgba(255, 255, 255, 0.9); padding: clamp(8px, 2vh, 12px) clamp(12px, 2vw, 20px); border-radius: clamp(4px, 1vw, 8px); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); font-family: Arial, sans-serif; font-size: clamp(12px, 1.5vw, 16px); font-weight: 500; z-index: 1000; opacity: 1; transition: opacity 0.3s ease; }
+.custom-legend.overlapped { opacity: 0.15; }
+.custom-legend.overlapped:hover { opacity: 1; }
+.legend-item { display: flex; align-items: center; gap: 8px; cursor: pointer; transition: opacity 0.3s ease; }
+.legend-item.inactive { opacity: 0.3; }
+.legend-item:hover { opacity: 1; }
+.legend-square { width: clamp(12px, 1.5vw, 16px); height: clamp(12px, 1.5vw, 16px); border-radius: clamp(2px, 0.5vw, 4px); }
+.legend-item { position: relative; }
+.legend-item:focus-visible { outline: 2px solid rgba(0,0,0,0.6); outline-offset: 2px; }
+.legend-item .legend-square { position: relative; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+.legend-item.active .legend-square::after { content: "✓"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -55%); font-size: clamp(10px, 1.6vw, 14px); color: #ffffff; text-shadow: 0 0 2px rgba(0,0,0,0.35); }
+.legend-item.inactive .legend-square::before { content: ""; position: absolute; left: 2px; right: 2px; top: 50%; height: 2px; background: rgba(255,255,255,0.9); transform: rotate(-45deg); }
+</style>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+<body>
+<div class="treemap-section">
+  <div id="treemap"></div>
+</div>
+<div class="controls-section">
+  <div class="custom-legend" id="legend"></div>
+</div>
+<script>
+//var originalData = [{"name":"not_classified","parent":"","value":8060.657378741,"color":"#8826D9"},{"name":"directive","parent":"","value":2567.7012383901,"color":"#16CDFB"},{"name":"learning","parent":"","value":2085.5608875129,"color":"#21C6C1"},{"name":"task iteration","parent":"","value":1778.6522187822,"color":"#FF91A7"},{"name":"Provide comprehensive software development assistance across multiple programming domains and technologies","parent":"","value":1361.3374613003,"color":"#61565A"},{"name":"feedback loop","parent":"","value":882.2358101135,"color":"#702416"},{"name":"none","parent":"","value":551.0175438596,"color":"#DA6EC2"},{"name":"Provide educational tutoring and academic assistance across multiple subjects and disciplines","parent":"","value":520.6305469556,"color":"#12CDDB"},{"name":"Help edit, improve, and create professional written documents and communications","parent":"","value":484.1661506708,"color":"#8D8800"},{"name":"Help develop and debug complete web applications and user interfaces","parent":"","value":446.6888544892,"color":"#160EB6"},{"name":"Provide technical IT support and troubleshooting assistance","parent":"","value":429.4695562436,"color":"#86B2EB"},{"name":"validation","parent":"","value":394.0180598555,"color":"#819333"},{"name":"Provide comprehensive financial guidance and investment assistance across multiple domains","parent":"","value":391.9922600619,"color":"#B5011C"},{"name":"Provide technical and academic assistance across scientific research and educational domains","parent":"","value":371.7342621259,"color":"#188C53"},{"name":"Provide medical and sports training guidance","parent":"","value":318.0505675955,"color":"#C786ED"},{"name":"Debug and fix software code errors across multiple programming languages","parent":"","value":318.0505675955,"color":"#62C2F9"},{"name":"Provide comprehensive domestic life and household management guidance","parent":"","value":315.0118679051,"color":"#71445A"},{"name":"write new programs or modify existing programs to meet customer requirements, using current programming languages and technologies.","parent":"","value":304.882868937,"color":"#BC2F0D"},{"name":"Provide comprehensive multi-technology programming development assistance and technical guidance","parent":"","value":281.5861713106,"color":"#DAC240"},{"name":"Analyze and process data from documents, visual media, and business sources","parent":"","value":277.5345717234,"color":"#97ACB7"},{"name":"Provide multilingual translation services and language learning assistance","parent":"","value":263.3539731682,"color":"#A3823B"},{"name":"Provide personalized lifestyle advice and recommendations across relationships, spirituality, entertainment, beauty, and parenting","parent":"","value":254.237874097,"color":"#C913D1"},{"name":"modify existing software to correct errors, allow it to adapt to new hardware, or to improve its performance.","parent":"","value":246.1346749226,"color":"#628316"},{"name":"Create comprehensive digital marketing strategies and promotional content","parent":"","value":246.1346749226,"color":"#0ECC20"},{"name":"Provide comprehensive medical and healthcare guidance across multiple specialties","parent":"","value":236.0056759546,"color":"#6EBDF9"},{"name":"Provide translation services and comprehensive language learning assistance across multiple languages","parent":"","value":236.0056759546,"color":"#D6297E"},{"name":"Help with academic research, writing, and educational content across multiple disciplines","parent":"","value":233.979876161,"color":"#4C7329"},{"name":"diagnose, troubleshoot, and resolve hardware, software, or other network and system problems, and replace defective components when necessary.","parent":"","value":231.9540763674,"color":"#101780"},{"name":"Help plan and organize events, schedules, and travel arrangements","parent":"","value":222.8379772962,"color":"#8B9EEC"},{"name":"Help with automation scripts, robotics programming, and workflow optimization tasks","parent":"","value":220.8121775026,"color":"#5EAF92"},{"name":"Edit and improve existing written content and documents","parent":"","value":203.592879257,"color":"#BB2E66"},{"name":"perform routine system administrative functions such as troubleshooting, back-ups, and upgrades.","parent":"","value":187.3864809082,"color":"#7840ED"},{"name":"Provide comprehensive cooking, nutrition, and meal planning assistance","parent":"","value":183.3348813209,"color":"#06CE14"},{"name":"Provide business operations support and strategic consulting services","parent":"","value":181.3090815273,"color":"#C83158"},{"name":"Provide comprehensive travel planning and booking assistance","parent":"","value":181.3090815273,"color":"#D4A4B6"},{"name":"Provide educational assistance and tutoring across multiple academic subjects and disciplines","parent":"","value":173.2058823529,"color":"#A00467"},{"name":"Help create visual content, graphics, and multimedia for digital platforms","parent":"","value":167.1284829721,"color":"#4D81A0"},{"name":"Provide comprehensive financial advice and assistance across multiple domains","parent":"","value":164.0897832817,"color":"#D2233E"},{"name":"Provide comprehensive business consulting and strategic development assistance","parent":"","value":159.0252837977,"color":"#A18BCA"},{"name":"Help with Docker containerization and cloud infrastructure deployment","parent":"","value":158.0123839009,"color":"#978371"},{"name":"Provide technical troubleshooting and support for software, hardware, and system issues","parent":"","value":154.9736842105,"color":"#3A5151"},{"name":"Provide comprehensive database development and management assistance","parent":"","value":154.9736842105,"color":"#731E51"},{"name":"Help research and recommend consumer products across various categories for purchase decisions","parent":"","value":151.9349845201,"color":"#2C3A22"},{"name":"Provide comprehensive legal assistance including immigration and document services","parent":"","value":146.8704850361,"color":"#389617"},{"name":"Help with job applications, resumes, and career advancement","parent":"","value":144.8446852425,"color":"#C344F9"},{"name":"correct errors by making appropriate changes and rechecking the program to ensure that the desired results are produced.","parent":"","value":142.8188854489,"color":"#8DAFBF"},{"name":"Help create and optimize comprehensive digital marketing content and strategies","parent":"","value":134.7156862745,"color":"#4CE3E3"},{"name":"modify existing software to correct errors, to adapt it to new hardware, or to upgrade interfaces and improve performance.","parent":"","value":134.7156862745,"color":"#535610"},{"name":"Assist with game development programming and mobile gaming projects","parent":"","value":133.7027863777,"color":"#6EFAB8"},{"name":"Help with data analysis, statistical modeling, and business reporting tasks","parent":"","value":133.7027863777,"color":"#DBF0A2"},{"name":"design, build, or maintain web sites, using authoring or scripting languages, content creation tools, management tools, and digital media.","parent":"","value":132.6898864809,"color":"#DFD32C"},{"name":"Help set up and troubleshoot software development environments and tools","parent":"","value":117.4963880289,"color":"#B9D946"},{"name":"Provide comprehensive legal assistance and document drafting across multiple practice areas","parent":"","value":117.4963880289,"color":"#10C2B4"},{"name":"Help optimize business workflows and project management systems","parent":"","value":114.4576883385,"color":"#A1F573"},{"name":"Create comprehensive business marketing and promotional content materials","parent":"","value":111.4189886481,"color":"#4C2AC3"},{"name":"Fix and improve web and mobile application UI layouts, styling, and components","parent":"","value":111.4189886481,"color":"#0912C2"},{"name":"Assist with game development programming and general gaming support","parent":"","value":109.3931888545,"color":"#1F7955"},{"name":"Help develop and debug cross-platform mobile applications with Flutter","parent":"","value":106.3544891641,"color":"#B3BE36"},{"name":"Provide comprehensive home maintenance and household management advice","parent":"","value":104.3286893705,"color":"#C25A89"},{"name":"Create comprehensive K-12 educational materials and teaching resources","parent":"","value":103.3157894737,"color":"#346311"},{"name":"Provide technical assistance and computational support for scientific research projects","parent":"","value":102.3028895769,"color":"#6DAA7F"},{"name":"Help develop, debug, and modify web applications and frontend components","parent":"","value":100.2770897833,"color":"#F83C93"},{"name":"Help discover and access entertainment content across multiple media platforms","parent":"","value":100.2770897833,"color":"#1872F7"},{"name":"Provide comprehensive information about AI systems and their capabilities","parent":"","value":99.2641898865,"color":"#95A3E4"},{"name":"Draft professional business communications and formal documents","parent":"","value":99.2641898865,"color":"#B0198C"},{"name":"troubleshoot problems involving office equipment, such as computer hardware and software.","parent":"","value":97.2383900929,"color":"#AD0F24"},{"name":"Help with Linux system administration and server management tasks","parent":"","value":97.2383900929,"color":"#44C710"},{"name":"Help implement cybersecurity measures and secure authentication systems","parent":"","value":93.1867905057,"color":"#C588C2"},{"name":"Help build complete web applications and websites from scratch","parent":"","value":89.1351909185,"color":"#A4D7D3"},{"name":"Provide personal relationship advice and life guidance support","parent":"","value":89.1351909185,"color":"#3117F2"},{"name":"Assist with creative writing across multiple genres including humor and romantic roleplay","parent":"","value":85.0835913313,"color":"#285D17"},{"name":"Help with job applications, resumes, and career documents","parent":"","value":85.0835913313,"color":"#077B77"},{"name":"Process and analyze visual media content including images and video files","parent":"","value":82.0448916409,"color":"#39446F"},{"name":"Provide sports training advice, fitness guidance, and sports-related tools and analysis","parent":"","value":82.0448916409,"color":"#7F3DB9"},{"name":"Proofread and correct grammar, spelling, and punctuation in documents","parent":"","value":80.0190918473,"color":"#360BA0"},{"name":"Provide programming education, tutoring, and software development guidance","parent":"","value":77.9932920537,"color":"#FAEB8B"},{"name":"Provide technical troubleshooting support for hardware and equipment problems","parent":"","value":76.9803921569,"color":"#22847F"},{"name":"Help create and manage professional technical documentation and writing","parent":"","value":76.9803921569,"color":"#272BE2"},{"name":"prepare, rewrite and edit copy to improve readability, or supervise others who do this work.","parent":"","value":75.9674922601,"color":"#4DBED3"},{"name":"Translate text, documents, and multimedia content between languages","parent":"","value":74.9545923633,"color":"#4BDCAE"},{"name":"edit or rewrite existing copy as necessary, and submit copy for approval by supervisor.","parent":"","value":70.9029927761,"color":"#D4C82A"},{"name":"Help develop, debug, and implement machine learning and AI systems","parent":"","value":68.8771929825,"color":"#EC8EBB"},{"name":"provide private instruction to individual or small groups of students to improve academic performance, improve occupational skills, or prepare for academic or occupational tests.","parent":"","value":66.8513931889,"color":"#A8BE0B"},{"name":"Debug and fix web application errors and technical issues","parent":"","value":66.8513931889,"color":"#4BDC5D"},{"name":"prepare and deliver lectures to undergraduate or graduate students on topics such as how to speak and write a foreign language and the cultural aspects of areas where a particular language is used.","parent":"","value":63.8126934985,"color":"#C3B7AE"},{"name":"confer with clients regarding the nature of the information processing or computation needs a computer program is to address.","parent":"","value":63.8126934985,"color":"#F7227D"},{"name":"edit, standardize, or make changes to material prepared by other writers or establishment personnel.","parent":"","value":63.8126934985,"color":"#2D6969"},{"name":"Help with cross-platform mobile app development, debugging, and feature implementation","parent":"","value":62.7997936017,"color":"#4A6953"},{"name":"Help with git, GitHub, and software version management","parent":"","value":62.7997936017,"color":"#2231D1"},{"name":"Extract and analyze information from documents and text sources","parent":"","value":61.7868937049,"color":"#E78172"},{"name":"Compare and analyze differences between concepts, items, or create assessments","parent":"","value":60.773993808,"color":"#D65E1F"},{"name":"Help with cloud infrastructure deployment and development platform configuration","parent":"","value":59.7610939112,"color":"#3A8B13"},{"name":"Provide comprehensive job search and career advancement support","parent":"","value":59.7610939112,"color":"#45CF34"},{"name":"provide information and advice to the public regarding the selection, purchase, and care of products.","parent":"","value":58.7481940144,"color":"#78D0AE"},{"name":"write, update, and maintain computer programs or software packages to handle specific jobs such as tracking inventory, storing or retrieving data, or controlling other equipment.","parent":"","value":58.7481940144,"color":"#B1CBEA"},{"name":"analyze user needs and software requirements to determine feasibility of design within time and cost constraints.","parent":"","value":57.7352941176,"color":"#318130"}]
+
+//var originalData = [{"name":"write new programs or modify existing programs to meet customer requirements, using current programming languages and technologies.","parent":"","value":3.882868937,"color":"#21C6C1"},{"name":"modify existing software to correct errors, allow it to adapt to new hardware, or to improve its performance.","parent":"","value":3.1346749226,"color":"#FF91A7"},{"name":"diagnose, troubleshoot, and resolve hardware, software, or other network and system problems, and replace defective components when necessary.","parent":"","value":2.9540763674,"color":"#61565A"},{"name":"perform routine system administrative functions such as troubleshooting, back-ups, and upgrades.","parent":"","value":2.3864809082,"color":"#702416"},{"name":"correct errors by making appropriate changes and rechecking the program to ensure that the desired results are produced.","parent":"","value":1.8188854489,"color":"#DA6EC2"},{"name":"modify existing software to correct errors, to adapt it to new hardware, or to upgrade interfaces and improve performance.","parent":"","value":1.7156862745,"color":"#12CDDB"},{"name":"design, build, or maintain web sites, using authoring or scripting languages, content creation tools, management tools, and digital media.","parent":"","value":1.6898864809,"color":"#8D8800"},{"name":"troubleshoot problems involving office equipment, such as computer hardware and software.","parent":"","value":1.2383900929,"color":"#160EB6"},{"name":"prepare, rewrite and edit copy to improve readability, or supervise others who do this work.","parent":"","value":0.9674922601,"color":"#86B2EB"},{"name":"edit or rewrite existing copy as necessary, and submit copy for approval by supervisor.","parent":"","value":0.9029927761,"color":"#819333"},{"name":"provide private instruction to individual or small groups of students to improve academic performance, improve occupational skills, or prepare for academic or occupational tests.","parent":"","value":0.8513931889,"color":"#B5011C"},{"name":"prepare and deliver lectures to undergraduate or graduate students on topics such as how to speak and write a foreign language and the cultural aspects of areas where a particular language is used.","parent":"","value":0.8126934985,"color":"#188C53"},{"name":"confer with clients regarding the nature of the information processing or computation needs a computer program is to address.","parent":"","value":0.8126934985,"color":"#C786ED"},{"name":"edit, standardize, or make changes to material prepared by other writers or establishment personnel.","parent":"","value":0.8126934985,"color":"#62C2F9"},{"name":"provide information and advice to the public regarding the selection, purchase, and care of products.","parent":"","value":0.7481940144,"color":"#71445A"},{"name":"write, update, and maintain computer programs or software packages to handle specific jobs such as tracking inventory, storing or retrieving data, or controlling other equipment.","parent":"","value":0.7481940144,"color":"#BC2F0D"},{"name":"analyze user needs and software requirements to determine feasibility of design within time and cost constraints.","parent":"","value":0.7352941176,"color":"#DAC240"},{"name":"read written materials, such as legal documents, scientific works, or news reports, and rewrite material into specified languages.","parent":"","value":0.709494324,"color":"#97ACB7"},{"name":"search electronic sources, such as databases or repositories, or manual sources for information.","parent":"","value":0.6836945304,"color":"#A3823B"},{"name":"conduct searches to find needed information, using such sources as the internet.","parent":"","value":0.6320949432,"color":"#C913D1"},{"name":"perform initial debugging procedures by reviewing configuration files, logs, or code pieces to determine breakdown source.","parent":"","value":0.6320949432,"color":"#628316"},{"name":"review and analyze computer printouts and performance indicators to locate code problems, and correct errors by correcting codes.","parent":"","value":0.6320949432,"color":"#0ECC20"},{"name":"compile and write documentation of program development and subsequent revisions, inserting comments in the coded instructions so others can understand the program.","parent":"","value":0.5933952528,"color":"#6EBDF9"},{"name":"modify existing programs to enhance efficiency.","parent":"","value":0.5933952528,"color":"#D6297E"},{"name":"answer customers' questions, and provide information on procedures or policies.","parent":"","value":0.580495356,"color":"#4C7329"},{"name":"develop new software applications or customize existing applications to meet specific scientific project needs.","parent":"","value":0.580495356,"color":"#101780"},{"name":"assist students who need extra help with their coursework outside of class.","parent":"","value":0.5675954592,"color":"#8B9EEC"},{"name":"instruct through lectures, discussions, and demonstrations in one or more subjects, such as english, mathematics, or social studies.","parent":"","value":0.5675954592,"color":"#5EAF92"},{"name":"instruct individuals in career development techniques such as job search and application strategies, resume writing, and interview skills.","parent":"","value":0.5417956656,"color":"#BB2E66"},{"name":"write, analyze, review, and rewrite programs, using workflow chart and diagram, and applying knowledge of computer capabilities, subject matter, and symbolic logic.","parent":"","value":0.5030959752,"color":"#7840ED"},{"name":"write supporting code for web applications or web sites.","parent":"","value":0.4772961816,"color":"#06CE14"},{"name":"determine sources of web page or server problems, and take action to correct such problems.","parent":"","value":0.4643962848,"color":"#C83158"},{"name":"write advertising copy for use by publication, broadcast, or internet media to promote the sale of goods and services.","parent":"","value":0.451496388,"color":"#D4A4B6"},{"name":"conduct classes, workshops, and demonstrations, and provide individual instruction to teach topics and skills such as cooking, dancing, writing, physical fitness, photography, personal finance, and flying.","parent":"","value":0.4256965944,"color":"#A00467"},{"name":"develop or apply data mining and machine learning algorithms.","parent":"","value":0.4256965944,"color":"#4D81A0"},{"name":"assess the usefulness of pre-developed application packages and adapt them to a user environment.","parent":"","value":0.4256965944,"color":"#D2233E"},{"name":"provide feedback and recommendations to developers on software usability and functionality.","parent":"","value":0.4256965944,"color":"#A18BCA"},{"name":"develop briefings, brochures, multimedia presentations, web pages, promotional products, technical illustrations, and computer artwork for use in products, technical manuals, literature, newsletters, and slide shows.","parent":"","value":0.4127966976,"color":"#978371"},{"name":"guide clients in the development of skills or strategies for dealing with their problems.","parent":"","value":0.4127966976,"color":"#3A5151"},{"name":"conduct internet-based and library research.","parent":"","value":0.3998968008,"color":"#731E51"},{"name":"consult with multiple stakeholders to define requirements and implement online features.","parent":"","value":0.3998968008,"color":"#2C3A22"},{"name":"read manuals, periodicals, and technical reports to learn how to develop programs that meet staff and user requirements.","parent":"","value":0.3998968008,"color":"#389617"},{"name":"counsel individuals and groups on basic rules of good nutrition, healthy eating habits, and nutrition monitoring to improve their quality of life.","parent":"","value":0.3740970072,"color":"#C344F9"},{"name":"analyze characteristics of animals to identify and classify them.","parent":"","value":0.3740970072,"color":"#8DAFBF"},{"name":"develop instructional materials to be used by educators and instructors.","parent":"","value":0.3611971104,"color":"#4CE3E3"},{"name":"research, compile, analyze and organize information from maps, reports, investigations, and books for use in reports and special projects.","parent":"","value":0.3482972136,"color":"#535610"},{"name":"conduct research in a particular field of knowledge and publish findings in professional journals, books, or electronic media.","parent":"","value":0.3482972136,"color":"#6EFAB8"},{"name":"answer customers' questions about products, prices, availability, or credit terms.","parent":"","value":0.3353973168,"color":"#DBF0A2"},{"name":"provide customers with travel suggestions and information sources, such as guides, directories, brochures, and maps.","parent":"","value":0.3353973168,"color":"#DFD32C"},{"name":"test machines, components, materials, or products to determine characteristics such as performance, strength, or response to stress.","parent":"","value":0.3353973168,"color":"#B9D946"},{"name":"provide technical guidance or support for the development or troubleshooting of systems.","parent":"","value":0.3353973168,"color":"#10C2B4"},{"name":"provide professional consulting services to government or industry.","parent":"","value":0.3353973168,"color":"#A1F573"},{"name":"conduct classes, workshops, and demonstrations to teach principles, techniques, or methods in subjects, such as basic english language skills, life skills, and workforce entry skills.","parent":"","value":0.32249742,"color":"#4C2AC3"},{"name":"conduct logical analyses of business, scientific, engineering, and other technical problems, formulating mathematical models of problems for solution by computers.","parent":"","value":0.3095975232,"color":"#0912C2"},{"name":"conduct research to gather information about survey topics.","parent":"","value":0.2966976264,"color":"#1F7955"},{"name":"troubleshoot network or connectivity problems for users or user groups.","parent":"","value":0.2966976264,"color":"#B3BE36"},{"name":"analyze organic or inorganic compounds to determine chemical or physical properties, composition, structure, relationships, or reactions, using chromatography, spectroscopy, or spectrophotometry techniques.","parent":"","value":0.2837977296,"color":"#C25A89"},{"name":"use computers for various applications, such as database management or word processing.","parent":"","value":0.2837977296,"color":"#346311"},{"name":"store, retrieve, and manipulate data for analysis of system capabilities and requirements.","parent":"","value":0.2837977296,"color":"#6DAA7F"},{"name":"analyze operations to evaluate performance of a company or its staff in meeting objectives or to determine areas of potential cost reduction, program improvement, or policy change.","parent":"","value":0.2837977296,"color":"#F83C93"},{"name":"design, develop and modify software systems, using scientific analysis and mathematical models to predict and measure outcome and consequences of design.","parent":"","value":0.2837977296,"color":"#1872F7"},{"name":"provide professional consulting services to government, educational institutions, or industry.","parent":"","value":0.2708978328,"color":"#95A3E4"},{"name":"review class material with students by discussing text, working solutions to problems, or reviewing worksheets or other assignments.","parent":"","value":0.2708978328,"color":"#B0198C"},{"name":"develop transactional web applications, using web programming software and knowledge of programming languages, such as hypertext markup language (html) and extensible markup language (xml).","parent":"","value":0.2708978328,"color":"#AD0F24"},{"name":"modify existing databases and database management systems or direct programmers and analysts to make changes.","parent":"","value":0.257997936,"color":"#44C710"},{"name":"reinstall software programs or adjust settings on existing software to fix machine malfunctions.","parent":"","value":0.257997936,"color":"#C588C2"},{"name":"compose letters in reply to correspondence concerning such items as requests for merchandise, damage claims, credit information requests, delinquent accounts, incorrect billing, or unsatisfactory service.","parent":"","value":0.2450980392,"color":"#A4D7D3"},{"name":"explain federal and state tax laws to individuals and companies.","parent":"","value":0.2450980392,"color":"#3117F2"},{"name":"discuss the treatment of problems with clients.","parent":"","value":0.2450980392,"color":"#285D17"},{"name":"provide advice to clients on a contract basis, working as a consultant.","parent":"","value":0.2450980392,"color":"#077B77"},{"name":"reformat documents, moving paragraphs or columns.","parent":"","value":0.2450980392,"color":"#39446F"},{"name":"analyze information to determine, recommend, and plan layout, including type of computers and peripheral equipment modifications.","parent":"","value":0.2321981424,"color":"#7F3DB9"},{"name":"write, present, and publish reports that record site history, methodology, and artifact analysis results, along with recommendations for conserving and interpreting findings.","parent":"","value":0.2321981424,"color":"#360BA0"},{"name":"test programs or databases, correct errors, and make necessary modifications.","parent":"","value":0.2321981424,"color":"#FAEB8B"},{"name":"observe and evaluate students' work to determine progress, provide feedback, and make suggestions for improvement.","parent":"","value":0.2321981424,"color":"#22847F"},{"name":"develop application-specific software.","parent":"","value":0.2321981424,"color":"#272BE2"},{"name":"evaluate or recommend software for testing or bug tracking.","parent":"","value":0.2321981424,"color":"#4DBED3"},{"name":"recommend, select, and help locate or obtain merchandise based on customer needs and desires.","parent":"","value":0.2321981424,"color":"#4BDCAE"},{"name":"answer customers' questions about products, prices, availability, product uses, and credit terms.","parent":"","value":0.2321981424,"color":"#D4C82A"},{"name":"provide occupational, educational, and other information to individuals so that they can make educational and vocational plans.","parent":"","value":0.2192982456,"color":"#EC8EBB"},{"name":"write original or adapted material for dramas, comedies, puppet shows, narration, or other performances.","parent":"","value":0.2192982456,"color":"#A8BE0B"},{"name":"participate in the work of subordinates to facilitate productivity or to overcome difficult aspects of work.","parent":"","value":0.2063983488,"color":"#4BDC5D"},{"name":"provide individual support or counseling in general wellness or nutrition.","parent":"","value":0.2063983488,"color":"#C3B7AE"},{"name":"configure servers to meet functional specifications.","parent":"","value":0.2063983488,"color":"#F7227D"},{"name":"develop instructional materials, such as lesson plans, handouts, or examinations.","parent":"","value":0.2063983488,"color":"#2D6969"},{"name":"organize information for publication and for other means of dissemination, such as use in cd-roms or internet sites.","parent":"","value":0.2063983488,"color":"#4A6953"},{"name":"read, evaluate and edit manuscripts or other materials submitted for publication and confer with authors regarding changes in content, style or organization, or publication.","parent":"","value":0.2063983488,"color":"#2231D1"},{"name":"search standard reference materials, including online sources and the internet, to answer patrons' reference questions.","parent":"","value":0.2063983488,"color":"#E78172"},{"name":"analyze information obtained from management to conceptualize and define operational problems.","parent":"","value":0.2063983488,"color":"#D65E1F"},{"name":"provide technical advice on the use of current instructional technologies, including computer-based training, desktop videoconferencing, multimedia, and distance learning technologies.","parent":"","value":0.193498452,"color":"#3A8B13"},{"name":"compute dimensions, areas, volumes, and weights.","parent":"","value":0.193498452,"color":"#45CF34"},{"name":"provide information about local features, such as shopping, dining, nightlife, or recreational destinations.","parent":"","value":0.193498452,"color":"#78D0AE"},{"name":"write, design, or edit web page content, or direct others producing content.","parent":"","value":0.193498452,"color":"#B1CBEA"},{"name":"provide assistance to students in college writing centers.","parent":"","value":0.193498452,"color":"#318130"}]
+
+var originalData = 
+
+
+[
+  { "id": "Generate Or Retrieve Other Media", "parent": "Multimedia", "color": "#98c8e3", "value": 1.1 },
+  { "id": "Create An Image", "parent": "Multimedia", "color": "#b7d6ea", "value": 4.2 },
+  { "id": "Analyze An Image", "parent": "Multimedia", "color": "#c2ddec", "value": 0.6 },
+
+  { "id": "Other / Unknown", "parent": "Other / Unknown", "color": "#fdae6b", "value": 4.1 },
+  { "id": "Asking About The Model", "parent": "Other / Unknown", "color": "#fd8d3c", "value": 0.4 },
+
+  { "id": "Tutoring Or Teaching", "parent": "Practical Guidance", "color": "#52c167", "value": 10.2 },
+  { "id": "How To Advice", "parent": "Practical Guidance", "color": "#88d291", "value": 8.5 },
+  { "id": "Health, Fitness, Beauty Or Self Care", "parent": "Practical Guidance", "color": "#8cd698", "value": 5.7 },
+  { "id": "Creative Ideation", "parent": "Practical Guidance", "color": "#b2e0b9", "value": 3.9 },
+
+  { "id": "Specific Info", "parent": "Seeking Information", "color": "#f56f75", "value": 18.3 },
+  { "id": "Purchasable Products", "parent": "Seeking Information", "color": "#f68d90", "value": 2.1 },
+  { "id": "Cooking And Recipes", "parent": "Seeking Information", "color": "#b98e90", "value": 0.9 },
+
+  { "id": "Relationships And Personal Reflection", "parent": "Self-Expression", "color": "#f0e7f4", "value": 1.9 },
+  { "id": "Greetings And Chitchat", "parent": "Self-Expression", "color": "#f4eef7", "value": 2.0 },
+  { "id": "Games And Role Play", "parent": "Self-Expression", "color": "#b6b2b8", "value": 0.4 },
+
+  { "id": "Mathematical Calculation", "parent": "Technical Help", "color": "#967c79", "value": 3.0 },
+  { "id": "Data Analysis", "parent": "Technical Help", "color": "#e6d4d1", "value": 0.4 },
+  { "id": "Computer Programming", "parent": "Technical Help", "color": "#e6d4d1", "value": 4.2 },
+
+  { "id": "Write Fiction", "parent": "Writing", "color": "#da8ec0", "value": 1.4 },
+  { "id": "Translation", "parent": "Writing", "color": "#fbb0e0", "value": 4.5 },
+  { "id": "Personal Writing Or Communication", "parent": "Writing", "color": "#fbcce9", "value": 8.0 },
+  { "id": "Edit Or Critique Provided Text", "parent": "Writing", "color": "#fbcce9", "value": 10.6 },
+  { "id": "Argument Or Summary Generation", "parent": "Writing", "color": "#fde1f2", "value": 3.6 }
+]
+
+
+
+
+
+
+
+function normalizeData(arr){
+  return arr.map(function(d){
+    var parent = d.parent || d.group || d.domain || d.category || d.type || d.class;
+    var name = d.name || d.id || d.label || d.title;
+    var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+    return { parent: parent, name: name, value: value };
+  });
+}
+var data = normalizeData(originalData);
+var groups = Array.from(new Set(data.map(function(d){ return d.parent; })));
+var inferredColors = {};
+groups.forEach(function(g){
+  var item = originalData.find(function(x){ var p = x.parent || x.group || x.domain || x.category || x.type || x.class; return p === g; });
+  inferredColors[g] = item && item.color ? item.color : null;
+});
+var fallbackPalette = ["#1F77B4","#FF7F0E","#2CA02C","#9467BD","#D62728","#17BECF","#8C564B","#E377C2","#7F7F7F","#BCBD22"];
+var groupColors = {};
+groups.forEach(function(g, i){ groupColors[g] = inferredColors[g] || fallbackPalette[i % fallbackPalette.length]; });
+var activeGroups = new Set(groups);
+function getGroupColor(parent){ return groupColors[parent] || "#666666"; }
+// function buildLegend(){
+//   var legend = document.getElementById('legend');
+//   if(!legend) return;
+//   legend.innerHTML = '';
+//   groups.forEach(function(g){
+//     var item = document.createElement('div');
+//     item.className = 'legend-item active';
+//     item.setAttribute('data-group', g);
+//     item.setAttribute('role','button');
+//     item.setAttribute('tabindex','0');
+//     item.setAttribute('aria-pressed','true');
+//     var square = document.createElement('div');
+//     square.className = 'legend-square';
+//     square.style.backgroundColor = getGroupColor(g);
+//     var label = document.createElement('span');
+//     label.textContent = g;
+//     item.appendChild(square);
+//     item.appendChild(label);
+//     item.addEventListener('click', function(){
+//       var grp = this.getAttribute('data-group');
+//       if(activeGroups.has(grp)){ activeGroups.delete(grp); } else { activeGroups.add(grp); }
+//       updateVisualization();
+//     });
+//     item.addEventListener('keydown', function(e){
+//       if(e.key === 'Enter' || e.key === ' '){
+//         e.preventDefault();
+//         var grp = this.getAttribute('data-group');
+//         if(activeGroups.has(grp)){ activeGroups.delete(grp); } else { activeGroups.add(grp); }
+//         updateVisualization();
+//       }
+//     });
+//     legend.appendChild(item);
+//   });
+// }
+var treemap = new d3plus.Treemap()
+  .select("#treemap")
+  .data(data)
+  .groupBy(["parent","name"])
+  .tooltipConfig({
+    title:function(d){ return d.name; },
+    body:function(d){
+      var base = "<strong>Class:</strong> " + (d.parent || d.id) + "<br><strong>Count:</strong> " + (d.value || 0);
+      return base;
+    }
+  })
+  .sum("value")
+  .layoutPadding(2)
+  .legend(false)
+  .color(function(d){ return getGroupColor(d.parent || d.id); })
+  .shapeConfig({
+    stroke:function(d){ if(d.depth===0){ return getGroupColor(d.id); } return "transparent"; },
+    strokeWidth:function(d){ if(d.depth===0){ return 3; } return 0; },
+    rx: 8,
+    ry: 8
+  });
+function updateVisualization(){
+  var normalized = normalizeData(originalData);
+  var filteredData = normalized.filter(function(d){ return activeGroups.has(d.parent); });
+  data = filteredData;
+  treemap.data(data).render();
+  document.querySelectorAll('.legend-item').forEach(function(item){
+    var grp = item.getAttribute('data-group');
+    var isActive = activeGroups.has(grp);
+    item.classList.toggle('inactive', !isActive);
+    item.classList.toggle('active', isActive);
+    item.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+treemap.render();
+buildLegend();
+updateVisualization();
+function debouncedCheckOverlap(){ checkOverlap(); }
+function checkOverlap(){
+  var legend = document.querySelector('.custom-legend');
+  var logo = document.querySelector('.logo');
+  var sourceText = document.querySelector('.source-text');
+  if(!legend || !logo || !sourceText) return;
+  var legendRect = legend.getBoundingClientRect();
+  var logoRect = logo.getBoundingClientRect();
+  var sourceRect = sourceText.getBoundingClientRect();
+  var logoOverlap = !(legendRect.right < logoRect.left || legendRect.left > logoRect.right || legendRect.bottom < logoRect.top || legendRect.top > logoRect.bottom);
+  var sourceOverlap = !(legendRect.right < sourceRect.left || legendRect.left > sourceRect.right || legendRect.bottom < sourceRect.top || legendRect.top > sourceRect.bottom);
+  logo.classList.toggle('overlapped', logoOverlap);
+  sourceText.classList.toggle('overlapped', sourceOverlap);
+}
+var observer = new MutationObserver(function(){ debouncedCheckOverlap(); });
+observer.observe(document.body,{childList:true,subtree:true});
+window.addEventListener('resize', debouncedCheckOverlap);
+setTimeout(debouncedCheckOverlap,200);
+</script>
+<a href="https://aiworld.eu/" target="_blank" rel="noopener">
+  <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+</a>
+<div class="source-text">Source: <a href="https://www.crunchbase.com" target="_blank" rel="noopener">Crunchbase</a></div>
+</body>
+</html>
