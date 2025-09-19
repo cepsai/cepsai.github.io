@@ -31,6 +31,8 @@ body { overflow:hidden; background:#fff; }
   gap:6px 8px; padding:8px 10px; border-radius:16px;
   backdrop-filter:blur(6px); background:rgba(255,255,255,.9);
   border:1px solid rgba(0,0,0,.06); box-shadow:0 6px 22px rgba(0,0,0,.08);
+  margin-left: var(--legendLeft, 0px);
+  margin-right: var(--legendRight, 0px);
 
   /* one-line auto-fit */
   max-width:100%; white-space:nowrap; flex-wrap:nowrap;
@@ -245,7 +247,18 @@ function fitLegendToOneLine() {
   const leftReserve = source ? (source.getBoundingClientRect().width + GAP) : 0;
   const rightReserve = logo ? (logo.getBoundingClientRect().width + GAP) : 0;
 
-  const available = container.clientWidth - leftReserve - rightReserve - 24; // 24 = side padding
+    // cap reserves so they don't exceed viewport halves (robust in iframes)
+  const vw = document.documentElement.clientWidth;
+  const lRes = Math.min(leftReserve, vw * 0.45);
+  const rRes = Math.min(rightReserve, vw * 0.45);
+
+  // push the legend away from source/logo
+  legend.style.setProperty('--legendLeft',  lRes + 'px');
+  legend.style.setProperty('--legendRight', rRes + 'px');
+
+  // compute available width using viewport (safer in iframes)
+  const available = vw - lRes - rRes - 24;
+
   const needed = legend.scrollWidth;
 
   let scale = Math.min(1, available / Math.max(1, needed));
