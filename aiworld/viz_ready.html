@@ -1,0 +1,223 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style type="text/css">
+.knitr .inline { background-color: #F7F7F7; border: solid 1px #B0B0B0; }
+.error { font-weight: bold; color: #FF0000; }
+.warning { font-weight: bold; }
+.message { font-style: italic; }
+.source, .output, .warning, .error, .message { padding: 0 1em; border: solid 1px #F7F7F7; }
+.source { background-color: #F5F5F5; }
+.rimage .left { text-align: left; }
+.rimage .right { text-align: right; }
+.rimage .center { text-align: center; }
+.hl.num { color: #AF0F91; }
+.hl.str { color: #317ECC; }
+.hl.com { color: #AD95AF; font-style: italic; }
+.hl.opt { color: #000000; }
+.hl.std { color: #585858; }
+.hl.kwa { color: #295F94; font-weight: bold; }
+.hl.kwb { color: #B05A65; }
+.hl.kwc { color: #55AA55; }
+.hl.kwd { color: #BC5A65; font-weight: bold; }
+
+/* Layout */
+body { margin: 0; overflow: hidden; }
+#treemap { position: absolute; top: 0; left: 0; right: 0; bottom: clamp(80px, 12vh, 120px); }
+
+/* Branding */
+.logo { position: absolute; bottom: clamp(6px, 4vh, 20px); right: 20px; width: clamp(80px, 10vw, 200px); pointer-events: auto; z-index: 1000; opacity: 1; transition: opacity 0.3s ease; }
+.logo.overlapped { opacity: 0.15; }
+.logo.overlapped:hover { opacity: 1; }
+.source-text { position: absolute; bottom: clamp(10px, 4vh, 30px); left: 20px; pointer-events: auto; font-size: clamp(12px, 1.5vw, 20px); font-weight: bold; color: #555555; z-index: 1000; opacity: 1; font-style: italic; transition: opacity 0.3s ease; }
+.source-text.overlapped { opacity: 0.15; }
+.source-text.overlapped:hover { opacity: 1; }
+
+/* New gradient legend (replaces the old selector bar) */
+.gradient-legend {
+  position: absolute;
+  top: calc(100vh - clamp(80px, 12vh, 120px) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 8px;
+  background: rgba(255,255,255,0.95);
+  padding: clamp(8px, 2vh, 12px) clamp(12px, 2vw, 20px);
+  border-radius: clamp(4px, 1vw, 8px);
+  box-shadow: none;
+  font-family: Arial, sans-serif;
+  font-size: clamp(12px, 1.5vw, 16px);
+  z-index: 1000;
+  transition: opacity 0.3s ease;
+}
+
+.gradient-legend.overlapped { opacity: 0.15; }
+.gradient-legend.overlapped:hover { opacity: 1; }
+
+.legend-title {
+  text-align: center;
+  font-weight: 600;
+  color: #333;
+}
+
+.legend-bar {
+  position: relative;
+  height: clamp(12px, 1.5vw, 18px);
+  width: clamp(240px, 40vw, 560px);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15);
+  /* Gradient from BLUE (3,4,94) to RED (202,240,248) */
+  background: linear-gradient(to right, rgb(3,4,94), rgb(202,240,248));
+}
+
+.legend-ticks {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9em;
+  color: #444;
+}
+
+.legend-ticks span {
+  white-space: nowrap;
+}
+</style>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+<body>
+<div id="treemap"></div>
+
+<!-- New gradient legend -->
+<div class="gradient-legend" id="gradient-legend" aria-label="Color legend for AUI metric">
+  <div class="legend-bar"></div>
+  <div class="legend-ticks">
+    <span>0 (Lowest)</span>
+    <span>7 (Highest)</span>
+  </div>
+  <div class="legend-title">Anthropic Economic Index</div>
+</div>
+
+
+<script>
+// ====== DATA (unchanged) ======
+var originalData = [{"name": "Analysis & Requirements", "parent": "NL", "value": 29.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 16.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 18.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 22.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 22.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 57.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 26.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 18.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 45.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 33.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Education & Support", "parent": "NL", "value": 44.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Education & Support", "parent": "NL", "value": 46.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 19.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 15.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Education & Support", "parent": "NL", "value": 25.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Education & Support", "parent": "NL", "value": 33.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Research & Information Gathering", "parent": "NL", "value": 31.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 24.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Research & Information Gathering", "parent": "NL", "value": 27.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Research & Information Gathering", "parent": "NL", "value": 23.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Research & Information Gathering", "parent": "NL", "value": 49.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 63.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Installation & Maintenance", "parent": "NL", "value": 16.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 31.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 141.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 29.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Management & Coordination", "parent": "NL", "value": 131.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 22.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 36.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 18.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 32.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Education & Support", "parent": "NL", "value": 28.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Education & Support", "parent": "NL", "value": 16.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 45.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 33.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 21.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 229.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 19.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Documentation & Reporting", "parent": "NL", "value": 70.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Documentation & Reporting", "parent": "NL", "value": 63.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 18.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 19.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 32.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Education & Support", "parent": "NL", "value": 42.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Education & Support", "parent": "NL", "value": 44.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 20.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 46.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 243.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 133.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 18.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 16.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 16.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 49.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 185.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Documentation & Reporting", "parent": "NL", "value": 63.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Documentation & Reporting", "parent": "NL", "value": 75.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 19.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 15.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 26.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 33.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 16.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 15.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 58.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Management & Coordination", "parent": "NL", "value": 17.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Education & Support", "parent": "NL", "value": 66.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 26.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 21.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Education & Support", "parent": "NL", "value": 15.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 26.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 31.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Documentation & Reporting", "parent": "NL", "value": 55.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 16.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 18.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Documentation & Reporting", "parent": "NL", "value": 19.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 20.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 27.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 49.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 21.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Research & Information Gathering", "parent": "NL", "value": 53.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Research & Information Gathering", "parent": "NL", "value": 16.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 22.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "NL", "value": 26.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Software Development/Programming", "parent": "NL", "value": 18.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 23.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Customer/User Support", "parent": "NL", "value": 96.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Management & Coordination", "parent": "NL", "value": 22.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Documentation & Reporting", "parent": "NL", "value": 35.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 301.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Documentation & Reporting", "parent": "NL", "value": 17.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Documentation & Reporting", "parent": "NL", "value": 37.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Analysis & Requirements", "parent": "NL", "value": 39.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Documentation & Reporting", "parent": "NL", "value": 15.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Documentation & Reporting", "parent": "NL", "value": 18.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Documentation & Reporting", "parent": "NL", "value": 58.0, "color": "#4C5B97", "metric": "2.58"}, {"name": "Other", "parent": "IL", "value": 18.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 15.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 17.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 16.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 36.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 15.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 17.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 70.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 36.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 28.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 84.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 41.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 260.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 57.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 19.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 18.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 36.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 44.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Research & Information Gathering", "parent": "IL", "value": 44.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 25.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Research & Information Gathering", "parent": "IL", "value": 22.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Research & Information Gathering", "parent": "IL", "value": 28.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Research & Information Gathering", "parent": "IL", "value": 63.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 63.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 16.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 24.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 172.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 29.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 33.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 22.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 18.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Management & Coordination", "parent": "IL", "value": 174.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 18.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 40.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 24.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 26.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 46.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 86.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 58.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 44.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 42.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 17.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 20.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 16.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 16.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 33.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 240.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 22.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 16.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 24.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 57.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 100.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 27.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Research & Information Gathering", "parent": "IL", "value": 22.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 45.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 18.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 49.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 17.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 76.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 20.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 24.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 18.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 42.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 274.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 203.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Installation & Maintenance", "parent": "IL", "value": 17.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 46.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 33.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 47.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 76.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 22.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 180.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 15.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 18.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 23.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 17.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 110.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 18.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 95.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 16.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 16.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 16.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 27.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 20.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 60.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 25.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 28.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 21.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 26.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 53.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 25.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Management & Coordination", "parent": "IL", "value": 39.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 112.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 22.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 20.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Education & Support", "parent": "IL", "value": 17.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 30.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 56.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 33.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 132.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 37.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 20.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 46.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 16.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 43.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 33.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 58.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 72.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 23.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Research & Information Gathering", "parent": "IL", "value": 82.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Research & Information Gathering", "parent": "IL", "value": 26.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 23.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 25.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 20.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 21.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 22.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Customer/User Support", "parent": "IL", "value": 127.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Management & Coordination", "parent": "IL", "value": 32.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Other", "parent": "IL", "value": 17.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Software Development/Programming", "parent": "IL", "value": 20.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 30.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 23.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 387.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 18.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 38.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Analysis & Requirements", "parent": "IL", "value": 45.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 35.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 28.0, "color": "#CAF0F8", "metric": "7.04"}, {"name": "Documentation & Reporting", "parent": "IL", "value": 90.0, "color": "#CAF0F8", "metric": "7.04"}]
+// ====== Helpers ======
+function normalizeData(arr){
+  return arr.map(function(d){
+    var parent = d.parent || d.group || d.domain || d.category || d.type || d.class;
+    var name = d.name || d.id || d.label || d.title;
+    var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+    // Keep metric as TEXT to avoid any numeric aggregation
+    var metricText = (d.metric != null) ? (d.metric + "") : null;
+    return { parent: parent, name: name, value: value, metricText: metricText };
+  });
+}
+
+// Build a lookup of metrics per (parent,name) so tooltips can list them without aggregating
+var data = normalizeData(originalData);
+var groups = Array.from(new Set(data.map(function(d){ return d.parent; })));
+var metricsByKey = {};
+data.forEach(function(d){
+  var key = d.parent + "||" + d.name;
+  if(!metricsByKey[key]) metricsByKey[key] = [];
+  if(d.metricText != null) metricsByKey[key].push(d.metricText);
+});
+
+// Colors per group (fallbacks)
+var inferredColors = {};
+groups.forEach(function(g){
+  var item = originalData.find(function(x){ var p = x.parent || x.group || x.domain || x.category || x.type || x.class; return p === g; });
+  inferredColors[g] = item && item.color ? item.color : null;
+});
+var fallbackPalette = ["#1F77B4","#FF7F0E","#2CA02C","#9467BD","#D62728","#17BECF","#8C564B","#E377C2","#7F7F7F","#BCBD22"];
+
+function extractParentLabel(obj){
+  if(obj == null) return '';
+  if(typeof obj.parent === 'string') return obj.parent;
+  if(obj.parent && typeof obj.parent.id === 'string') return obj.parent.id;
+  if(obj.data){
+    if(typeof obj.data.parent === 'string') return obj.data.parent;
+    if(obj.data.parent && typeof obj.data.parent.id === 'string') return obj.data.parent.id;
+  }
+  if(typeof obj.id === 'string') return obj.id;
+  return '';
+}
+
+// ====== Build treemap ======
+var treemap = new d3plus.Treemap()
+  .select("#treemap")
+  .data(data)
+  .groupBy(["parent","name"])
+  .tooltipConfig({
+    title:function(d){ return d.name; },
+    body:function(d){
+      var parts = [];
+      var parentLabel = extractParentLabel(d);
+      parts.push("<strong>Class:</strong> " + (parentLabel || ''));
+      var countVal = (d.value != null) ? d.value : (d.data && d.data.value != null ? d.data.value : 0);
+      parts.push("<strong>Count:</strong> " + countVal);
+
+      // Show ALL metrics belonging to this node (as plain text), without aggregating
+      var key = parentLabel + "||" + d.name;
+      var list = (metricsByKey[key] || []).slice(); // copy
+      // Deduplicate while preserving order
+      var seen = {};
+      var unique = [];
+      list.forEach(function(m){ if(m != null && !seen[m]){ seen[m] = true; unique.push(m); }});
+
+      if(unique.length){
+        parts.push("<strong>AUI metric(s):</strong> " + unique.join(", "));
+      }else{
+        parts.push("<strong>AUI metric(s):</strong> N/D");
+      }
+      return parts.join("<br>");
+    }
+  })
+  .sum("value") // only value is aggregated for size
+  .layoutPadding(2)
+  .legend(false)
+  // Color is now categorical by group; metric is ONLY shown as text in tooltip
+  .color(function(d){
+    var p = extractParentLabel(d);
+    var idx = groups.indexOf(p);
+    return inferredColors[p] || fallbackPalette[(idx >= 0 ? idx : 0) % fallbackPalette.length];
+  })
+  .shapeConfig({
+    stroke: function(d){ return "transparent"; },
+    strokeWidth: function(d){ return 0; },
+    rx: 8,
+    ry: 8
+  });
+
+treemap.render();
+
+// ====== Overlap handling (legend vs. logo/source) ======
+function checkOverlap(){
+  var legend = document.querySelector('.gradient-legend');
+  var logo = document.querySelector('.logo');
+  var sourceText = document.querySelector('.source-text');
+  if(!legend || !logo || !sourceText) return;
+  var legendRect = legend.getBoundingClientRect();
+  var logoRect = logo.getBoundingClientRect();
+  var sourceRect = sourceText.getBoundingClientRect();
+  var logoOverlap = !(legendRect.right < logoRect.left || legendRect.left > logoRect.right || legendRect.bottom < logoRect.top || legendRect.top > logoRect.bottom);
+  var sourceOverlap = !(legendRect.right < sourceRect.left || legendRect.left > sourceRect.right || legendRect.bottom < sourceRect.top || legendRect.top > sourceRect.bottom);
+  logo.classList.toggle('overlapped', logoOverlap);
+  sourceText.classList.toggle('overlapped', sourceOverlap);
+}
+var observer = new MutationObserver(function(){ checkOverlap(); });
+observer.observe(document.body,{childList:true,subtree:true});
+window.addEventListener('resize', checkOverlap);
+setTimeout(checkOverlap, 200);
+</script>
+
+<a href="https://aiworld.eu/" target="_blank" rel="noopener">
+  <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+</a>
+<div class="source-text">Source: <a href="https://www.anthropic.com/economic-index" target="_blank" rel="noopener">Anthropic</a></div>
+</body>
+</html>
+
