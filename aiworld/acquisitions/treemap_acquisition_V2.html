@@ -1,0 +1,620 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style type="text/css">
+.knitr .inline { background-color: #F7F7F7; border: solid 1px #B0B0B0; }
+.error { font-weight: bold; color: #FF0000; }
+.warning { font-weight: bold; }
+.message { font-style: italic; }
+.source, .output, .warning, .error, .message { padding: 0 1em; border: solid 1px #F7F7F7; }
+.source { background-color: #F5F5F5; }
+.rimage .left { text-align: left; }
+.rimage .right { text-align: right; }
+.rimage .center { text-align: center; }
+.hl.num { color: #AF0F91; }
+.hl.str { color: #317ECC; }
+.hl.com { color: #AD95AF; font-style: italic; }
+.hl.opt { color: #000000; }
+.hl.std { color: #585858; }
+.hl.kwa { color: #295F94; font-weight: bold; }
+.hl.kwb { color: #B05A65; }
+.hl.kwc { color: #55AA55; }
+.hl.kwd { color: #BC5A65; font-weight: bold; }
+body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-serif; }
+
+.viz-grid { display: grid; grid-template-rows: 17fr 2fr 1fr; grid-template-columns: 1fr 1fr; height: 100vh; width: 100vw; box-sizing: border-box; padding-bottom: clamp(8px, 2vh, 18px); }
+#container1 { grid-row: 1; grid-column: 1 / span 2; overflow: hidden; min-height: 0; }
+#container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+#container3 { grid-row: 3; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 20px; overflow: hidden; min-width: 0; }
+#container4 { grid-row: 3; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; padding: 0 20px; overflow: hidden; min-width: 0; }
+#container4 a { height: 100%; display: flex; align-items: center; }
+
+#treemap { width: 100%; height: 100%; min-height: 0; min-width: 0; }
+.logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
+.source-text { font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal; }
+.source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; font-style: normal; }
+.source-text a:visited { color: #2756d3; }
+.custom-legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: clamp(6px, 1.5vw, 14px); background: rgba(255, 255, 255, 0.9); padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 16px); border-radius: clamp(6px, 1.2vw, 12px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: auto; max-width: 100%; max-height: 100%; font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; }
+.legend-item { display: flex; align-items: center; gap: 6px; cursor: pointer; transition: opacity 0.2s ease; font-weight: 600; color: #333; position: relative; }
+.legend-item.inactive { opacity: 0.35; }
+.legend-square { width: clamp(10px, 1.2vw, 14px); height: clamp(10px, 1.2vw, 14px); border-radius: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+.legend-item:focus-visible { outline: 2px solid rgba(0,0,0,0.5); outline-offset: 2px; }
+.d3plus-tooltip {white-space: normal; word-wrap: break-word; max-width: 250px;  }
+
+@media (max-height: 500px) {
+  .viz-grid { grid-template-rows: 1fr; grid-template-columns: 1fr; }
+  #container1 { grid-row: 1; grid-column: 1; }
+  #container2, #container3, #container4 { display: none !important; }
+  .custom-legend, .source-text, .logo { display: none !important; }
+}
+</style>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1" class="container treemap-container">
+    <div id="treemap"></div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div class="custom-legend" id="legend"></div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text">Source: <a href="https://cdn.openai.com/pdf/3c7f7e1b-36c4-446b-916c-11183e4266b7/chatgpt-usage-and-adoption-patterns-at-work.pdf" target="_blank">ChatGPT Usage Report</a></div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+    </a>
+  </div>
+</div>
+<script>
+var originalData = [
+  {
+    "name": "Scale AI acquired by Meta",
+    "parent": "Scale AI",
+    "value": 14300000000,
+    "color": "#126782",
+    "storie": "Scale AI provides a data-oriented platform that assists in the development of AI applications. And Meta is a social technology company that enables people to connect, find communities, and grow businesses."
+  },
+  {
+    "name": "Core Scientific acquired by CoreWeave",
+    "parent": "Core Scientific",
+    "value": 9000000000,
+    "color": "#73D2DE",
+    "storie": "Core Scientific is an AI infrastructure company that operates blockchain data centers and manufactures digital currency mining servers. And CoreWeave is a cloud-based AI infrastructure company offering GPU cloud services to simplify AI and machine learning workloads."
+  },
+  {
+    "name": "Io acquired by OpenAI",
+    "parent": "Io",
+    "value": 6500000000,
+    "color": "#D81159",
+    "storie": "Io develops AI-powered devices that reimagine how users interact with technology, moving beyond traditional smartphones and screens. And OpenAI creates artificial intelligence technologies to assist with tasks and provide support for human activities."
+  },
+  {
+    "name": "Shutterstock acquired by Getty Images",
+    "parent": "Shutterstock",
+    "value": 3700000000,
+    "color": "#FFBC42",
+    "storie": "Shutterstock offers an online platform that enables its users to find and buy images, vectors, videos, and music. And Getty Images is a visual media company that captures, creates, and preserves content to elevate visual communications."
+  },
+  {
+    "name": "Windsurf acquired by OpenAI",
+    "parent": "Windsurf",
+    "value": 3000000000,
+    "color": "#F24B04",
+    "storie": "Windsurf provides an AI coding assistant and an integrated development environment for developers. And OpenAI creates artificial intelligence technologies to assist with tasks and provide support for human activities."
+  },
+  {
+    "name": "Moveworks acquired by ServiceNow",
+    "parent": "Moveworks",
+    "value": 2850000000,
+    "color": "#CC92C2",
+    "storie": "Moveworks offers an AI-powered assistant designed to enhance workflows and automate tasks within enterprises. And ServiceNow is an AI platform that delivers IT operations, field service management, and app engine solutions."
+  },
+  {
+    "name": "Weights & Biases acquired by CoreWeave",
+    "parent": "Others",
+    "value": 1700000000,
+    "color": "#808080",
+    "storie": "Weights & Biases is a developer-first MLOps platform that builds machine learning performance visualization tools. And CoreWeave is a cloud-based AI infrastructure company offering GPU cloud services to simplify AI and machine learning workloads."
+  },
+  {
+    "name": "Metaphysic acquired by Brahma",
+    "parent": "Others",
+    "value": 1430000000,
+    "color": "#126782",
+    "storie": "Metaphysic specializes in AI-generated, photorealistic content for entertainment, offering tools to protect digital likeness rights. And Brahma is an AI and content technology company that provides every organization with a strategy for creating generative AI content."
+  },
+  {
+    "name": "PROS acquired by Thoma Bravo",
+    "parent": "Others",
+    "value": 1400000000,
+    "color": "#73D2DE",
+    "storie": "PROS provides AI-based solutions to businesses to achieve growth through digital selling and eCommerce channels. And Thoma Bravo is a private equity firm that focuses on investing in software and technology companies."
+  },
+  {
+    "name": "Iodine Software acquired by Waystar",
+    "parent": "Others",
+    "value": 1250000000,
+    "color": "#D81159",
+    "storie": "Iodine Software is a healthcare software company that offers machine learning to improve patient care. And Waystar is a technology platform that provides healthcare revenue cycle management solutions."
+  },
+  {
+    "name": "Sana acquired by Workday",
+    "parent": "Others",
+    "value": 1100000000,
+    "color": "#FFBC42",
+    "storie": "Sana is an artificial intelligence company that develops tools designed to manage and enhance organizational knowledge. And Workday provides SaaS-based enterprise solutions for a company's human resources and financial management activities."
+  },
+  {
+    "name": "DX acquired by Atlassian",
+    "parent": "Others",
+    "value": 1000000000,
+    "color": "#F24B04",
+    "storie": "DX is a developer intelligence platform that measures productivity and guides AI transformation. And Atlassian is a software company that offers proprietary software products for teamwork, project management, and software development."
+  },
+  {
+    "name": "Cognigy acquired by NICE Systems",
+    "parent": "Others",
+    "value": 955000000,
+    "color": "#CC92C2",
+    "storie": "Cognigy is an enterprise conversational AI platform designed to automate customer and employee support processes. And NICE Systems provides intent-based solutions that capture and analyze client interactions and transactions for businesses."
+  },
+  {
+    "name": "EvolutionIQ acquired by CCC Intelligent Solutions",
+    "parent": "Others",
+    "value": 730000000,
+    "color": "#808080",
+    "storie": "EvolutionIQ is an AI company that offers claims guidance solutions for insurance companies. And CCC Intelligent Solutions is a SaaS platform that offers digital and data services for the insurance and automotive industries."
+  },
+  {
+    "name": "Touchcast acquired by Infinite Reality",
+    "parent": "Others",
+    "value": 500000000,
+    "color": "#126782",
+    "storie": "Touchcast is a generative AI platform using AI and mixed reality to create immersive, interactive virtual and hybrid event experiences. And Infinite Reality using AI to create interactive 3D websites, virtual showrooms, and XR media."
+  },
+  {
+    "name": "Brightflag acquired by Wolters Kluwer",
+    "parent": "Others",
+    "value": 479792820,
+    "color": "#73D2DE",
+    "storie": "Brightflag is a legal technology company that provides a legal spend management and matter management platform for corporate legal teams. And Wolters Kluwer is an information services company specializing in software solutions and services for the healthcare and legal sectors."
+  },
+  {
+    "name": "OfferFit acquired by Braze",
+    "parent": "Others",
+    "value": 325000000,
+    "color": "#D81159",
+    "storie": "OfferFit is an AI-powered experimentation platform that automates decision-making and personalization for businesses. And Braze is a customer engagement platform that enables customer-centric interactions between brands and consumers."
+  },
+  {
+    "name": "Kinara acquired by NXP Semiconductors",
+    "parent": "Others",
+    "value": 307000000,
+    "color": "#FFBC42",
+    "storie": "Kinara develops low-power, energy-efficient, and programmable discrete neural processing units to deploy edge AI applications. And NXP Semiconductors produces secure connectivity solutions for embedded applications."
+  },
+  {
+    "name": "Findings acquired by Diginex",
+    "parent": "Others",
+    "value": 305000000,
+    "color": "#F24B04",
+    "storie": "Findings provides a scalable platform of assessment powered by artificial intelligence. And Diginex is a financial services company that provides businesses with tools to manage ESG, supply chain data collection, and reporting."
+  },
+  {
+    "name": "Windward acquired by FTV Capital",
+    "parent": "Others",
+    "value": 270000000,
+    "color": "#CC92C2",
+    "storie": "Windward is an intelligence company that merges AI and big data to digitize the maritime industry. And FTV Capital is a growth equity firm focused on enterprise solutions, financial services, and payments and transaction processing."
+  },
+  {
+    "name": "Prompt Security acquired by SentinelOne",
+    "parent": "Others",
+    "value": 250000000,
+    "color": "#808080",
+    "storie": "Prompt Security enables organizations to adopt Generative AI safely and securely with a complete platform for GenAI Security. And SentinelOne is an autonomous cybersecurity solution company."
+  },
+  {
+    "name": "Daedalean acquired by Destinus",
+    "parent": "Others",
+    "value": 222441918,
+    "color": "#126782",
+    "storie": "Daedalean is building autonomous piloting software systems for civil aircraft of today and advanced aerial mobility of tomorrow. And Destinus is a vertically integrated European manufacturer of flying systems for civil and military uses."
+  },
+  {
+    "name": "Voyage AI acquired by MongoDB",
+    "parent": "Others",
+    "value": 220000000,
+    "color": "#73D2DE",
+    "storie": "Voyage AI develops embedding models and rerankers for precise and efficient search and RAG. And MongoDB is a next-generation database that helps businesses transform their industries by harnessing the power of data."
+  },
+  {
+    "name": "blockchAIn Digital Infrastructure acquired by Signing Day Sports",
+    "parent": "Others",
+    "value": 215000000,
+    "color": "#D81159",
+    "storie": "BlockchAIn Digital Infrastructure is a technology company that specializes in blockchain-based digital infrastructure solutions. And Signing Day Sports develops a sports recruitment platform that revolutionizes the recruiting process for student-athletes and coaches."
+  },
+  {
+    "name": "CalypsoAI acquired by F5",
+    "parent": "Others",
+    "value": 180000000,
+    "color": "#FFBC42",
+    "storie": "CalypsoAI is an AI security platform that provides agentic red-teaming, real-time defense, and automated security enforcement. And F5 is a multi-cloud application services and security company that specializes in application security, performance, and delivery."
+  },
+  {
+    "name": "Cylance acquired by Arctic Wolf",
+    "parent": "Others",
+    "value": 160000000,
+    "color": "#F24B04",
+    "storie": "Cylance is a global provider of cybersecurity products and services using A.I. and machine learning to solve security problems. And Arctic Wolf is a cyber security company that provides cloud-native security operations technology to reduce cyber risks."
+  },
+  {
+    "name": "Atero acquired by Crusoe Energy Systems",
+    "parent": "Others",
+    "value": 150000000,
+    "color": "#CC92C2",
+    "storie": "Atero provides a proprietary technology platform that improves GPU management and memory optimization for AI. And Crusoe is a developer of AI-based cloud infrastructure that provides computing for artificial intelligence workloads."
+  },
+  {
+    "name": "Greenscreens AI acquired by Triumph Financial",
+    "parent": "Others",
+    "value": 140000000,
+    "color": "#808080",
+    "storie": "Greenscreens.ai provides pricing infrastructure and market insights for the freight industry. And Triumph Financial is a dynamic firm that offers accounts receivables financing, commercial lending, banking, and payment solutions."
+  },
+  {
+    "name": "Base44 acquired by Wix",
+    "parent": "Others",
+    "value": 80000000,
+    "color": "#126782",
+    "storie": "Base44 is a no-code platform that enables users to build and deploy web and mobile apps using natural language prompts. And Wix provides a platform for the development of cloud data services for millions of registered users worldwide."
+  },
+  {
+    "name": "Genoox acquired by Qiagen",
+    "parent": "Others",
+    "value": 70000000,
+    "color": "#73D2DE",
+    "storie": "Genoox uses the power of the community to make genomic data actionable with a mission to create the largest RWE genomic and clinical dataset And QIAGEN provides technologies and products for preanalytical sample preparation and linked molecular assay solutions."
+  },
+  {
+    "name": "Greenbids acquired by Perion",
+    "parent": "Others",
+    "value": 65000000,
+    "color": "#D81159",
+    "storie": "Greenbids is an AI-powered media buying optimization platform that enhances digital advertising performance while reducing carbon emissions. And Perion offers a digital advertising platform specializing in search, display, video, and social media to optimize marketing campaigns."
+  },
+  {
+    "name": "Pathway Medical acquired by Doximity",
+    "parent": "Others",
+    "value": 63000000,
+    "color": "#FFBC42",
+    "storie": "Empowering clinicians and healthcare organizations to provide better, more efficient care. And Doximity is a digital platform for medical professionals that provides verified clinical membership with digital tools built for medicine."
+  },
+  {
+    "name": "The Missing Link acquired by Infosys",
+    "parent": "Others",
+    "value": 62272159,
+    "color": "#F24B04",
+    "storie": "The Missing Link is an IT company that offers cybersecurity, IT cloud, and AI automation services. And Infosys is a technology company that offers consulting, outsourcing, cloud infrastructure, program management, and software services."
+  },
+  {
+    "name": "Interactions acquired by SoundHound",
+    "parent": "Others",
+    "value": 60000000,
+    "color": "#CC92C2",
+    "storie": "Interactions develops award-winning intelligent virtual assistant solutions used by Fortune 500 companies worldwide. And SoundHound AI provides voice AI solutions for brands and products."
+  },
+  {
+    "name": "Quicklizard acquired by Riverwood Capital",
+    "parent": "Others",
+    "value": 52414151,
+    "color": "#808080",
+    "storie": "Quicklizard is a leading AI dynamic pricing platform for retailers and D2C brands And Riverwood Capital invests in technology companies in need of financial and intellectual capital to scale."
+  },
+  {
+    "name": "Seez acquired by Pinewood Technologies Group",
+    "parent": "Others",
+    "value": 42000000,
+    "color": "#126782",
+    "storie": "Seez is a full online buying platform for dealers to sell their cars fully online. And Pinewood Technologies Group is a dealer management system & is the all-in-one system for car, truck and motorcycle retailers."
+  },
+  {
+    "name": "Digitrax AI acquired by AIBotics",
+    "parent": "Others",
+    "value": 40000000,
+    "color": "#73D2DE",
+    "storie": "Music Tech Company Building Web3 AI Music Platform & Interactive Music Offers For The Metaverse And AIBotics is a pioneering holding company focused on artificial intelligence (AI) and robotics."
+  },
+  {
+    "name": "Mosaic.tech acquired by HiBob",
+    "parent": "Others",
+    "value": 35000000,
+    "color": "#D81159",
+    "storie": "Mosaic.tech is a finance platform that provides predictive reporting capabilities to assist with financial strategy and planning. And HiBob is a people management platform that offers benefits administration, payroll, and employee engagement solutions."
+  },
+  {
+    "name": "TrueLark acquired by Weave",
+    "parent": "Others",
+    "value": 35000000,
+    "color": "#FFBC42",
+    "storie": "TrueLark is an AI-powered customer communications platform enabling brands to attract, support, and up-sell customers. And Weave makes communicating with customers easier for businesses by integrating features like texting, phone service, fax, and reviews."
+  },
+  {
+    "name": "Fabric Genomics (formerly Omicia) acquired by GeneDx",
+    "parent": "Others",
+    "value": 33000000,
+    "color": "#F24B04",
+    "storie": "Global healthcare platform for genomics-driven precision medicine. Fabric' proven AI algorithms power genomic insights. And GeneDx uses artificial intelligence and machine learning to analyze patient data to provide insights to transform the practice of medicine."
+  },
+  {
+    "name": "BuddyPro acquired by ANTCO.",
+    "parent": "Others",
+    "value": 20886937,
+    "color": "#CC92C2",
+    "storie": "BuddyPro is a software company that offers a platform for home services with booking, planning, and payment options. And ANTCO is an investment company focusing on driving growth in companies in sectors such as SaaS, e-commerce, etc."
+  },
+  {
+    "name": "emotion3D acquired by indie Semiconductor",
+    "parent": "Others",
+    "value": 20000000,
+    "color": "#808080",
+    "storie": "Emotion3D specializes in the touchless human analysis using two-dimensional and three-dimensional imaging technologies. And Indie is a technology company focusing on the autotech revolution, automotive semiconductors, and software platforms."
+  },
+  {
+    "name": "Earth Science Analytics acquired by IMDEX",
+    "parent": "Others",
+    "value": 16957333,
+    "color": "#126782",
+    "storie": "Earth Science Analytics is an Artificial Intelligence petroleum geoscience software provider And IMDEX develop cloud-connected devices and drilling optimisation products."
+  },
+  {
+    "name": "Earth Science Analytics acquired by Imdex",
+    "parent": "Others",
+    "value": 16707449,
+    "color": "#73D2DE",
+    "storie": "Earth Science Analytics is an Artificial Intelligence petroleum geoscience software provider And Imdex is a mining tech company that manufactures mining equipment such as drilling machines and control equipment."
+  },
+  {
+    "name": "Mad Street Den acquired by M2P Fintech",
+    "parent": "Others",
+    "value": 15000000,
+    "color": "#D81159",
+    "storie": "Mad Street Den is a computer vision and artificial intelligence startup founded with a mission to make people all over the globe. And M2P Fintech is a fintech solutions company that provides API infrastructure for payments, lending, and banking services."
+  },
+  {
+    "name": "Ufactory acquired by Cheetah Mobile",
+    "parent": "Others",
+    "value": 13862959,
+    "color": "#FFBC42",
+    "storie": "UFACTORY is a tech start-up that had created the world’s first desktop robotic arm, the uArm. And Cheetah Mobile is a mobile internet company that develops mobile applications and provides internet security software for its clients."
+  },
+  {
+    "name": "Complexica acquired by Prophecy International Pty Ltd",
+    "parent": "Others",
+    "value": 12399402,
+    "color": "#F24B04",
+    "storie": "Complexica is an Australian company specializing in artificial intelligence software. And Prophecy is a software company that delivers dependable, secure, and trustworthy software solutions to markets worldwide."
+  },
+  {
+    "name": "Ai Palette acquired by GlobalData",
+    "parent": "Others",
+    "value": 11500000,
+    "color": "#CC92C2",
+    "storie": "Ai Palette delivers AI-driven product development solutions to businesses operating in the food and consumer packaged goods (CPG) sectors. And GlobalData is a data analytics and consulting company that specializes in reports services."
+  },
+  {
+    "name": "AIHeadHunter acquired by Ehave",
+    "parent": "Others",
+    "value": 10000000,
+    "color": "#808080",
+    "storie": "AIHeadHunter is an AI-powered recruitment platform that provides automated candidate sourcing and interview scheduling solutions. And Ehave is a healthcare technology company that offers digital therapeutic services for patients."
+  },
+  {
+    "name": "Magic Engine acquired by Tansun",
+    "parent": "Others",
+    "value": 4260355,
+    "color": "#126782",
+    "storie": "Magic Engine is an intelligent service provider for AI decision-making. And Tansun provides finance, banking, and IT solutions."
+  },
+  {
+    "name": "GroupSense acquired by Cognyte",
+    "parent": "Others",
+    "value": 4000000,
+    "color": "#73D2DE",
+    "storie": "GroupSense is a provider of cyber intelligence services filled with search tools, feeds, and briefings. And Cognyte offers analytics software for government & enterprise that prevent threats to personal safety, business continuity & cyber security."
+  },
+  {
+    "name": "Almondo acquired by TENDA",
+    "parent": "Others",
+    "value": 3234932,
+    "color": "#D81159",
+    "storie": "Almondo is an artificial intelligence company that provides AI products development, marketing, and technical support services. And TENDA is an IT solutions company offering work style transformation consulting, digital transformation solutions, and game development."
+  },
+  {
+    "name": "Userdesk acquired by Medimi",
+    "parent": "Others",
+    "value": 1953960,
+    "color": "#FFBC42",
+    "storie": "Userdesk is an AI-powered solution that provides automated help for systems, webshops, and digital services. And Medimi develops solutions that provide healthcare recipients and staff with safe and efficient drug management."
+  },
+  {
+    "name": "Hunter Sales acquired by Clara Technologies Corp",
+    "parent": "Others",
+    "value": 1924888,
+    "color": "#F24B04",
+    "storie": "Hunter Sales is a platform and application that uses artificial intelligence for sales. And Clara Technologies is revolutionizing sales performance,"
+  },
+  {
+    "name": "Pixel Roads acquired by ADSPLAY",
+    "parent": "Others",
+    "value": 1544707,
+    "color": "#CC92C2",
+    "storie": "Pixel Roads is an digital marketing platform that integrates multiple channels like programmatic, native, paid search, audio, and DOOH. And AdsPlay offers solutions for brand communication, programmatic media and disruptive media formats"
+  },
+  {
+    "name": "Remine acquired by Place",
+    "parent": "Others",
+    "value": 1500000,
+    "color": "#808080",
+    "storie": "Remine is an MLS platform in 40 markets and available to more than 825,000 agents and their clients. And Place is a real estate technology platform providing technology and services to real estate agents."
+  },
+  {
+    "name": "Plus acquired by Churchill Capital Corp IX",
+    "parent": "Others",
+    "value": 1200000,
+    "color": "#126782",
+    "storie": "Plus is an AI company whose mission is to build “driving intelligence” to power an autonomous future And Churchill employs investment models for public equity vehicles, blending a preeminent advisory firm with proven public company expertise."
+  },
+  {
+    "name": "Tazzweed acquired by Neu Ocean Technologies",
+    "parent": "Others",
+    "value": 1200000,
+    "color": "#73D2DE",
+    "storie": "Tazzweed provides digital procurement and outsourcing solutions for sales teams. And Neu Ocean Technologies is a business transformation company that offers AI powered intelligence solutions for businesses of various sizes."
+  },
+  {
+    "name": "Ecom industries acquired by Smaart Company",
+    "parent": "Others",
+    "value": 1000000,
+    "color": "#D81159",
+    "storie": "Ecom industries focuses on developing machine learning pipelines, integrating payment systems, and leveraging Web3 and AI technologies. And Smaart Company offers accounting, bookkeeping, payroll, tax planning, and forensic accounting services for individuals and businesses."
+  },
+  {
+    "name": "Mingaku acquired by SUCCEED",
+    "parent": "Others",
+    "value": 140635,
+    "color": "#FFBC42",
+    "storie": "Mingaku is an ed-tech company that develops an online platform for students to engage in studies with guidance. And SUCCEED is an IT company that provides computer software development services."
+  },
+  {
+    "name": "Saga Lab acquired by AGT Venture",
+    "parent": "Others",
+    "value": 80000,
+    "color": "#F24B04",
+    "storie": "Saga Lab is an interdisciplinary AI innovation research lab dedicated to integrating artificial intelligence into the humanities. And Ash Group of Technology (AGT) is a dynamic and diversified joint venture that converges technology Related Business!"
+  }
+];
+function normalizeData(arr){
+  return arr.map(function(d){
+    var parent = d.parent || d.group || d.domain || d.category || d.type || d.class;
+    var name = d.name || d.id || d.label || d.title;
+    var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+    var storie = d.storie || d.story || d.description;
+    if(!storie){
+      // default synthetic example until real data arrives
+      storie = (name && parent) ? (name + " — operación de M&A (ejemplo) en el sector " + parent + ".") : "Descripción no disponible.";
+    }
+    return { parent: parent, name: name, value: value, storie: storie };
+  });
+}
+var data = normalizeData(originalData);
+var groups = Array.from(new Set(data.map(function(d){ return d.parent; })));
+var inferredColors = {};
+groups.forEach(function(g){
+  var item = originalData.find(function(x){ var p = x.parent || x.group || x.domain || x.category || x.type || x.class; return p === g; });
+  inferredColors[g] = item && item.color ? item.color : null;
+});
+var fallbackPalette = ["#1F77B4","#FF7F0E","#2CA02C","#9467BD","#D62728","#17BECF","#8C564B","#E377C2","#7F7F7F","#BCBD22"];
+var groupColors = {};
+groups.forEach(function(g, i){ groupColors[g] = inferredColors[g] || fallbackPalette[i % fallbackPalette.length]; });
+var activeGroups = new Set(groups);
+function getGroupColor(parent){ return groupColors[parent] || "#666666"; }
+function buildLegend(){
+  var legend = document.getElementById('legend');
+  if(!legend) return;
+  legend.innerHTML = '';
+  groups.forEach(function(g){
+    var item = document.createElement('div');
+    item.className = 'legend-item active';
+    item.setAttribute('data-group', g);
+    item.setAttribute('role','button');
+    item.setAttribute('tabindex','0');
+    item.setAttribute('aria-pressed','true');
+    var square = document.createElement('div');
+    square.className = 'legend-square';
+    square.style.backgroundColor = getGroupColor(g);
+    var label = document.createElement('span');
+    label.textContent = g;
+    item.appendChild(square);
+    item.appendChild(label);
+    item.addEventListener('click', function(){
+      var grp = this.getAttribute('data-group');
+      if(activeGroups.has(grp)){ activeGroups.delete(grp); } else { activeGroups.add(grp); }
+      updateVisualization();
+    });
+    item.addEventListener('keydown', function(e){
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        var grp = this.getAttribute('data-group');
+        if(activeGroups.has(grp)){ activeGroups.delete(grp); } else { activeGroups.add(grp); }
+        updateVisualization();
+      }
+    });
+    legend.appendChild(item);
+  });
+}
+var treemap = new d3plus.Treemap()
+  .select("#treemap")
+  .data(data)
+  .groupBy(["parent","name"])
+  .tooltipConfig({
+    title:function(d){ return d.name; },
+    body:function(d){
+      var base = "<strong>Sector:</strong> " + (d.parent || d.id) + "<br><strong>Count:</strong> " + (d.value || 0);
+      var storie = (d.storie) ? d.storie : "Descripción no disponible.";
+      return base + "<br><strong>Storie:</strong> " + storie;
+    }
+  })
+  .sum("value")
+  .layoutPadding(2)
+  .legend(false)
+  .color(function(d){ return getGroupColor(d.parent || d.id); })
+  .shapeConfig({
+    rx: 6,
+    ry: 6,
+    stroke:function(d){ if(d.depth===0){ return getGroupColor(d.id); } return "transparent"; },
+    strokeWidth:function(d){ if(d.depth===0){ return 3; } return 0; }
+  });
+function updateVisualization(){
+  var normalized = normalizeData(originalData);
+  var filteredData = normalized.filter(function(d){ return activeGroups.has(d.parent); });
+  data = filteredData;
+  treemap.data(data).render();
+  document.querySelectorAll('.legend-item').forEach(function(item){
+    var grp = item.getAttribute('data-group');
+    var isActive = activeGroups.has(grp);
+    item.classList.toggle('inactive', !isActive);
+    item.classList.toggle('active', isActive);
+    item.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+treemap.render();
+buildLegend();
+updateVisualization();
+function renderToContainerSize(){
+  var el = document.getElementById('treemap');
+  if(!el) return;
+  var rect = el.getBoundingClientRect();
+  try {
+    if(typeof treemap.width === 'function') treemap.width(rect.width);
+    if(typeof treemap.height === 'function') treemap.height(rect.height);
+  } catch(e) {}
+  treemap.render();
+}
+var _resizeTimer;
+window.addEventListener('resize', function(){
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(renderToContainerSize, 120);
+});
+if (typeof ResizeObserver !== 'undefined') {
+  var _ro = new ResizeObserver(function(){ renderToContainerSize(); });
+  _ro.observe(document.getElementById('treemap'));
+}
+</script>
+</body>
+</html>

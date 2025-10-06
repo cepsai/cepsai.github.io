@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lineplot Interactivo</title>
+<style>
+  body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-serif; }
+
+  /* Layout inspirado en tu treemap */
+  .viz-grid { display: grid; grid-template-rows: 17fr 2fr 1fr; grid-template-columns: 1fr 1fr; height: 100vh; width: 100vw; box-sizing: border-box; padding-bottom: clamp(8px, 2vh, 18px); }
+  #container1 { grid-row: 1; grid-column: 1 / span 2; position: relative; overflow: hidden; min-height: 0; }
+  #container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  #container3 { grid-row: 3; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 20px; overflow: hidden; min-width: 0; }
+  #container4 { grid-row: 3; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; padding: 0 20px; overflow: hidden; min-width: 0; }
+  #container4 a { height: 100%; display: flex; align-items: center; }
+
+  #chart { width: 100%; height: 100%; min-height: 0; min-width: 0; }
+  .logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
+  .source-text { font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal; }
+  .source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; font-style: normal; }
+  .source-text a:visited { color: #2756d3; }
+
+  .custom-legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: clamp(6px, 1.5vw, 14px); background: rgba(255, 255, 255, 0.9); padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 16px); border-radius: clamp(6px, 1.2vw, 12px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: auto; max-width: 100%; max-height: 100%; font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; }
+  .legend-item { display: flex; align-items: center; gap: 6px; cursor: pointer; transition: opacity 0.2s ease; font-weight: 600; color: #333; position: relative; }
+  .legend-item.inactive { opacity: 0.35; }
+  .legend-square { width: clamp(10px, 1.2vw, 14px); height: clamp(10px, 1.2vw, 14px); border-radius: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+  .legend-item:focus-visible { outline: 2px solid rgba(0,0,0,0.5); outline-offset: 2px; }
+
+  .tooltip { position: absolute; pointer-events: none; background: rgba(255,255,255,0.95); border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; padding: 8px 10px; font-size: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); opacity: 0; transform: translate(-50%, -120%); }
+  .tooltip strong { display: inline-block; min-width: 60px; }
+
+  .axis path, .axis line { stroke: #bbb; }
+  .grid line { stroke: #eee; }
+
+  /* NUEVO: más grande el texto de los ejes */
+  .axis text {
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  @media (max-height: 500px) {
+    .viz-grid { grid-template-rows: 1fr; grid-template-columns: 1fr; }
+    #container1 { grid-row: 1; grid-column: 1; }
+    #container2, #container3, #container4 { display: none !important; }
+    .custom-legend, .source-text, .logo { display: none !important; }
+  }
+</style>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <div class="viz-grid">
+    <div id="container1" class="container chart-container">
+      <div id="chart"></div>
+      <div id="tooltip" class="tooltip" aria-hidden="true"></div>
+    </div>
+    <div id="container2" class="container legend-container">
+      <div class="custom-legend" id="legend"></div>
+    </div>
+    <div id="container3" class="container source-container">
+      <div class="source-text">Source: <a href="" target="_blank" rel="noopener">Crunchbase</a></div>
+    </div>
+    <div id="container4" class="container logo-container">
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="Logo"/>
+      </a>
+    </div>
+  </div>
+
+<script>
+var originalData = [
+  {
+    "date": "2025-01-01",
+    "series": "Acquisition",
+    "value": 2,
+    "color": "#219EBC"
+  },
+  {
+    "date": "2025-01-01",
+    "series": "Merge",
+    "value": 0,
+    "color": "#FFBC42"
+  },
+  {
+    "date": "2025-02-01",
+    "series": "Acquisition",
+    "value": 38,
+    "color": "#219EBC"
+  },
+  {
+    "date": "2025-02-01",
+    "series": "Merge",
+    "value": 4,
+    "color": "#FFBC42"
+  },
+  {
+    "date": "2025-03-01",
+    "series": "Acquisition",
+    "value": 84,
+    "color": "#219EBC"
+  },
+  {
+    "date": "2025-03-01",
+    "series": "Merge",
+    "value": 10,
+    "color": "#FFBC42"
+  },
+  {
+    "date": "2025-04-01",
+    "series": "Acquisition",
+    "value": 131,
+    "color": "#219EBC"
+  },
+  {
+    "date": "2025-04-01",
+    "series": "Merge",
+    "value": 12,
+    "color": "#FFBC42"
+  },
+  {
+    "date": "2025-05-01",
+    "series": "Merge",
+    "value": 14,
+    "color": "#FFBC42"
+  },
+  {
+    "date": "2025-05-01",
+    "series": "Acquisition",
+    "value": 179,
+    "color": "#219EBC"
+  },
+  {
+    "date": "2025-06-01",
+    "series": "Acquisition",
+    "value": 232,
+    "color": "#219EBC"
+  },
+  {
+    "date": "2025-06-01",
+    "series": "Merge",
+    "value": 17,
+    "color": "#FFBC42"
+  },
+  {
+    "date": "2025-07-01",
+    "series": "Acquisition",
+    "value": 275,
+    "color": "#219EBC"
+  },
+  {
+    "date": "2025-07-01",
+    "series": "Merge",
+    "value": 23,
+    "color": "#FFBC42"
+  },
+  {
+    "date": "2025-08-01",
+    "series": "Acquisition",
+    "value": 321,
+    "color": "#219EBC"
+  },
+  {
+    "date": "2025-08-01",
+    "series": "Merge",
+    "value": 26,
+    "color": "#FFBC42"
+  },
+  {
+    "date": "2025-09-01",
+    "series": "Acquisition",
+    "value": 367,
+    "color": "#219EBC"
+  },
+  {
+    "date": "2025-09-01",
+    "series": "Merge",
+    "value": 28,
+    "color": "#FFBC42"
+  }
+];
+var dateFormat = "%Y-%m-%d";
+
+// 2) Normalización flexible de data
+function normalizeData(arr){
+  var parse = d3.utcParse(dateFormat);
+  return arr.map(function(d){
+    var s = d.series || d.group || d.parent || d.category || d.name;
+    var dateStr = d.date || d.period || d.x;
+    var val = (d.value != null) ? +d.value : (d.y != null) ? +d.y : (d.count != null) ? +d.count : NaN;
+    var color = d.color || null;
+    var dt = (dateStr instanceof Date) ? dateStr : parse(dateStr);
+    return { series: s, date: dt, value: val, color: color };
+  }).filter(function(d){ return d.series && d.date && !isNaN(d.value); });
+}
+
+// 3) Colores por serie (opcionalmente inferidos de "color")
+function inferSeriesColors(rows){
+  var fallback = ["#1F77B4","#FF7F0E","#2CA02C","#9467BD","#D62728","#17BECF","#8C564B","#E377C2","#7F7F7F","#BCBD22"];
+  var bySeries = Array.from(new Set(rows.map(function(r){ return r.series; })));
+  var map = {};
+  bySeries.forEach(function(s, i){
+    var withColor = originalData.find(function(x){
+      var xs = x.series || x.group || x.parent || x.category || x.name;
+      return xs === s && x.color;
+    });
+    map[s] = withColor && withColor.color ? withColor.color : fallback[i % fallback.length];
+  });
+  return map;
+}
+
+// 4) Estado global
+var rows = normalizeData(originalData).sort(function(a,b){ return a.date - b.date; });
+var seriesList = Array.from(new Set(rows.map(function(d){ return d.series; })));
+var seriesColors = inferSeriesColors(rows);
+var activeSeries = new Set(seriesList);
+
+// 5) Leyenda interactiva
+function buildLegend(){
+  var legend = document.getElementById('legend');
+  legend.innerHTML = '';
+  seriesList.forEach(function(s){
+    var item = document.createElement('div');
+    item.className = 'legend-item active';
+    item.setAttribute('data-series', s);
+    item.setAttribute('role','button');
+    item.setAttribute('tabindex','0');
+    item.setAttribute('aria-pressed','true');
+
+    var square = document.createElement('div');
+    square.className = 'legend-square';
+    square.style.backgroundColor = seriesColors[s];
+
+    var label = document.createElement('span');
+    label.textContent = s;
+
+    item.appendChild(square);
+    item.appendChild(label);
+
+    function toggle(){
+      if(activeSeries.has(s)) activeSeries.delete(s); else activeSeries.add(s);
+      item.classList.toggle('inactive', !activeSeries.has(s));
+      item.classList.toggle('active', activeSeries.has(s));
+      item.setAttribute('aria-pressed', activeSeries.has(s) ? 'true' : 'false');
+      renderChart();
+    }
+    item.addEventListener('click', toggle);
+    item.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+
+    legend.appendChild(item);
+  });
+}
+
+// 6) Render del chart responsive
+var svg, gAxisX, gAxisY, gGrid, gLines, gDots, gMarkers, overlay;
+var margin = { top: 24, right: 56, bottom: 40, left: 56 };
+var x = d3.scaleUtc();
+var y = d3.scaleLinear();
+var line = d3.line().x(function(d){ return x(d.date); }).y(function(d){ return y(d.value); }).curve(d3.curveMonotoneX);
+var tooltip = document.getElementById('tooltip');
+
+function renderChart(){
+  var container = document.getElementById('chart');
+  var rect = container.getBoundingClientRect();
+  var width = Math.max(200, rect.width);
+  var height = Math.max(160, rect.height);
+
+  // Inicializar SVG una sola vez
+  if(!svg){
+    svg = d3.select(container).append('svg').attr('width', width).attr('height', height);
+    gGrid  = svg.append('g').attr('class','grid');
+    gAxisX = svg.append('g').attr('class','axis axis--x');
+    gAxisY = svg.append('g').attr('class','axis axis--y');
+    gLines = svg.append('g').attr('class','lines');
+    gMarkers = svg.append('g').attr('class','markers'); // NUEVO: grupo para markers visibles
+    gDots  = svg.append('g').attr('class','dots');      // foco/hover
+    overlay = svg.append('rect').attr('fill','transparent').style('cursor','crosshair');
+  } else {
+    svg.attr('width', width).attr('height', height);
+  }
+
+  var innerW = width - margin.left - margin.right;
+  var innerH = height - margin.top - margin.bottom;
+
+  // Filtrar series activas y agrupar por serie
+  var activeRows = rows.filter(function(r){ return activeSeries.has(r.series); });
+  var grouped = d3.group(activeRows, function(d){ return d.series; });
+
+  // Dominios
+  var xDomain = d3.extent(activeRows, function(d){ return d.date; });
+  if(!xDomain[0] || !xDomain[1]){ xDomain = [new Date(), new Date()]; }
+  var yMax = d3.max(activeRows, function(d){ return d.value; });
+  if(yMax == null){ yMax = 1; }
+
+  // Forzar que Y empiece en 0
+  x.range([margin.left, margin.left + innerW]).domain(xDomain).nice();
+  y.range([margin.top + innerH, margin.top]).domain([0, yMax]).nice();
+
+  // Ejes
+  gAxisX.attr('transform', 'translate(0,' + (margin.top + innerH) + ')').call(d3.axisBottom(x).ticks(Math.min(8, innerW/80)));
+  gAxisY.attr('transform', 'translate(' + margin.left + ',0)').call(d3.axisLeft(y).ticks(6));
+
+  // Líneas por serie
+  var seriesData = Array.from(grouped, function([key, vals]){ return { key: key, color: seriesColors[key], values: vals }; });
+  var lineSel = gLines.selectAll('.series-line').data(seriesData, function(d){ return d.key; });
+  lineSel.enter().append('path')
+      .attr('class','series-line')
+      .attr('fill','none')
+      .attr('stroke-width', 4.5)
+      .attr('stroke-linecap','round')
+      .attr('stroke-linejoin','round')
+      .merge(lineSel)
+      .attr('stroke', function(d){ return d.color; })
+      .attr('d', function(d){ return line(d.values); });
+  lineSel.exit().remove();
+
+  // MARKERS circulares en cada punto (persistentes)
+  var markers = gMarkers.selectAll('.series-dot').data(activeRows, function(d){ return d.series + '-' + d.date.getTime(); });
+  markers.enter().append('circle')
+      .attr('class','series-dot')
+      .attr('r', 7)
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 0.5)
+      .merge(markers)
+      .attr('fill', function(d){ return seriesColors[d.series]; })
+      .attr('cx', function(d){ return x(d.date); })
+      .attr('cy', function(d){ return y(d.value); });
+  markers.exit().remove();
+
+  // Overlay para interacción (tooltip + focus dot)
+  overlay
+    .attr('x', margin.left).attr('y', margin.top)
+    .attr('width', innerW).attr('height', innerH)
+    .on('mousemove', pointermoved)
+    .on('mouseleave', pointerleft)
+    .on('touchmove', pointermoved)
+    .on('touchend', pointerleft);
+
+  // Precomputar puntos en pixeles para nearest
+  var allPts = [];
+  seriesData.forEach(function(s){
+    s.values.forEach(function(v){
+      allPts.push({ series: s.key, color: s.color, date: v.date, value: v.value, px: x(v.date), py: y(v.value) });
+    });
+  });
+
+  function pointermoved(event){
+    var p = d3.pointer(event, this);
+    var mx = p[0], my = p[1];
+    // Buscar punto más cercano por distancia euclidiana en pixeles
+    var best = null, bestDist = Infinity;
+    for(var i=0;i<allPts.length;i++){
+      var dx = allPts[i].px - mx;
+      var dy = allPts[i].py - my;
+      var d2 = dx*dx + dy*dy;
+      if(d2 < bestDist){ bestDist = d2; best = allPts[i]; }
+    }
+    if(!best) return;
+
+    // Actualizar tooltip
+    var fDate = d3.utcFormat('%Y-%m-%d')(best.date);
+    tooltip.innerHTML = '<div><strong>' + best.series + '</strong></div>' +
+                        '<div><strong>Date:</strong> ' + fDate + '</div>' +
+                        '<div><strong>Count:</strong> ' + best.value + '</div>';
+    tooltip.style.opacity = 1;
+    tooltip.style.left = (best.px) + 'px';
+    tooltip.style.top  = (best.py) + 'px';
+    tooltip.setAttribute('aria-hidden','false');
+
+    // Punto de foco visual
+    var dot = gDots.selectAll('.focus-dot').data([best]);
+    dot.enter().append('circle')
+      .attr('class','focus-dot')
+      .attr('r', 5)
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 1.5)
+      .merge(dot)
+      .attr('fill', function(d){ return d.color; })
+      .attr('cx', function(d){ return d.px; })
+      .attr('cy', function(d){ return d.py; });
+  }
+
+  function pointerleft(){
+    tooltip.style.opacity = 0;
+    tooltip.setAttribute('aria-hidden','true');
+    gDots.selectAll('.focus-dot').data([]).exit().remove();
+  }
+}
+
+// 7) Render inicial + leyenda + resize
+buildLegend();
+renderChart();
+
+var _resizeTimer;
+window.addEventListener('resize', function(){
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(renderChart, 120);
+});
+if (typeof ResizeObserver !== 'undefined') {
+  var _ro = new ResizeObserver(function(){ renderChart(); });
+  _ro.observe(document.getElementById('chart'));
+}
+</script>
+</body>
+</html>
