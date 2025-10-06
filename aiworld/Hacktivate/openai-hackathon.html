@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hacktivate AI — Policy Wheel</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+html,body{height:100%;}
+body{margin:0;overflow:hidden;background:#fff;color:#111;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;height:100vh;}
+.viz-grid{display:grid;grid-template-rows:17fr 2fr 1fr;grid-template-columns:1fr 1fr;height:100vh;width:100vw;box-sizing:border-box;padding-bottom:clamp(8px,2vh,18px);}
+#container1{grid-row:1;grid-column:1 / span 2;display:flex;overflow:hidden;min-height:0;align-items:center;justify-content:center;}
+#container1 .chart-wrapper{flex:1 1 auto;display:flex;min-width:0;height:100%;}
+#container1 .chart-wrapper-inner{flex:1 1 auto;display:flex;min-width:0;height:100%;}
+#viz{position:relative;width:100%;height:100%;min-width:0;min-height:0;}
+#wheelSVG{display:block;width:100%;height:100%;}
+#container2{grid-row:2;grid-column:1 / span 2;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+#container3{grid-row:3;grid-column:1;display:flex;align-items:center;justify-content:flex-start;padding:0 20px;overflow:hidden;min-width:0;}
+#container4{grid-row:3;grid-column:2;display:flex;align-items:center;justify-content:flex-end;padding:0 20px;overflow:hidden;min-width:0;}
+#container4 a{height:100%;display:flex;align-items:center;}
+.custom-legend{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:clamp(6px,1.5vw,14px);background:rgba(255,255,255,0.9);padding:clamp(6px,1.2vh,10px) clamp(10px,2vw,16px);border-radius:clamp(6px,1.2vw,12px);box-shadow:0 2px 8px rgba(0,0,0,0.1);overflow:auto;max-width:100%;max-height:100%;font-size:clamp(10px,1.6vw,16px);}
+.legend-item{display:flex;align-items:center;gap:6px;cursor:pointer;transition:opacity .2s ease;font-weight:600;color:#333;}
+.legend-item.dim{opacity:.35;}
+.legend-item:focus-visible{outline:2px solid rgba(0,0,0,.5);outline-offset:2px;}
+.legend-square{width:clamp(10px,1.2vw,14px);height:clamp(10px,1.2vw,14px);border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,0.15) inset;}
+.source-text{font-size:clamp(10px,1.6vw,16px);font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-style:normal;}
+.source-text a{color:#2756d3;text-decoration:underline;cursor:pointer;font-style:normal;}
+.source-text a:visited{color:#2756d3;}
+.logo{height:100%;width:auto;max-height:100%;max-width:100%;pointer-events:auto;object-fit:contain;}
+@media (max-height:500px){.viz-grid{grid-template-rows:1fr;grid-template-columns:1fr;padding-bottom:0;}#container2,#container3,#container4{display:none !important;}}
+.small-circle{transition:r .2s ease;}
+.central-circle{transition:fill .5s ease;}
+.circle-icon{pointer-events:none;}
+.full-group{transition:transform .2s ease,opacity .3s ease;transform-origin:center center;}
+.interactive-circle{cursor:pointer;}
+.line{transition:stroke-width .2s ease,stroke .2s ease,stroke-dasharray .2s ease,opacity .3s ease;}
+.main-text,.sub-text{transition:opacity .3s ease;}
+.main-text{transition:opacity .3s ease,transform .3s ease;}
+.sub-text{opacity:0;}
+</style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1" class="container chart-container">
+    <div class="chart-wrapper">
+      <div class="chart-wrapper-inner">
+        <div id="viz">
+          <svg id="wheelSVG" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet"></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div class="custom-legend" id="legend"></div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text">Source: <a href="https://openai.com/global-affairs/accelerating-ai-uptake-in-europe/" target="_blank">OpenAI's Hacktivate AI Report</a></div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+    </a>
+  </div>
+</div>
+<script>
+const svg=document.getElementById('wheelSVG');const NS='http://www.w3.org/2000/svg';
+let centerX,centerY,circleRadius,smallRadius;
+const numSmallCircles=20;
+const circleTexts=[
+'Individual AI Learning Accounts',
+'Employer AI Training Credits',
+'AI Champions Network',
+'AI Learning Vouchers',
+'AI Thesis Connect',
+'First-Adoption Grace Period',
+'Data & Compute Exchange',
+'Applied AI Booster',
+'Smart Funds',
+'Fast-Track Standards',
+'Operational Agentic Heroes',
+'European GovAI Hub',
+'AI Readiness Index',
+'Real-Time LLM Monitor',
+'Relentless Harmonisation',
+'Innovative Institutions',
+'Inclusive AI Program',
+'EUasis (Special AI Zones)',
+'Draghi\'s Den (Growth Capital)',
+'EuroBridge (Corp-Startup Connector)'
+];
+const circleTracks=[
+'AI-ready workforce',
+'AI-ready workforce',
+'Adoption incentives',
+'Adoption incentives',
+'Adoption incentives',
+'Adoption incentives',
+'Technical bottlenecks',
+'Technical bottlenecks',
+'Technical bottlenecks',
+'Technical bottlenecks',
+'AI uptake in governments',
+'AI uptake in governments',
+'Monitoring & readiness',
+'Monitoring & readiness',
+'Macro policies',
+'Macro policies',
+'Macro policies',
+'Ecosystem collaboration',
+'Ecosystem collaboration',
+'Ecosystem collaboration'
+];
+const trackColors={
+'AI-ready workforce':'#205bca',
+'Adoption incentives':'#fbac1d',
+'Technical bottlenecks':'#33bbc3',
+'AI uptake in governments':'#5122c0',
+'Monitoring & readiness':'#68c64a',
+'Macro policies':'#f14684',
+'Ecosystem collaboration':'#a9c728'
+};
+const getColor=(i)=>trackColors[circleTracks[i]]||'#ffffff';
+const circleSubtexts=[
+['Personal budgets to fund adults\' AI upskilling with portable credits.'],
+['Tax or grant credits that reimburse firms for accredited AI training.'],
+['A cross-sector cadre of practitioners that mentor organizations on AI adoption.'],
+['Co-financed vouchers employees can use for certified AI courses.'],
+['Match students’ theses with real company AI problems to speed transfer.'],
+['Regulatory leeway and support for early AI deployments to learn safely.'],
+['Shared marketplaces for datasets and compute with clear governance.'],
+['Demand-driven funding for pilots that turn proven AI into production.'],
+['Outcome-based public funds that crowd in private capital for AI projects.'],
+['Rapid, pragmatic technical standards and tooling for safe deployment.'],
+['Task-specific government agents that automate routine public services.'],
+['A central unit providing models, tooling, and procurement templates for EU governments.'],
+['Comparable metrics to benchmark sectors and countries on AI adoption capacity.'],
+['Live monitoring of model behavior, performance, and incidents.'],
+['Reduce cross-border regulatory friction for scaling AI solutions.'],
+['Modernize public bodies to buy, build, and govern AI effectively.'],
+['Targeted support so SMEs and underserved workers benefit from AI.'],
+['Designated zones with simplified rules to trial high-impact AI.'],
+['Large-scale growth capital to scale European AI winners.'],
+['Match corporates with startups for enterprise AI deals.']
+];
+const circleIcons=[
+'id-badge-2.svg','receipt-2.svg','affiliate.svg','ticket.svg','school.svg',
+'hourglass-low.svg','database-heart.svg','rocket.svg','chart-arrows-vertical.svg','file-certificate.svg',
+'robot.svg','building-community.svg','gauge.svg','activity.svg','arrows-join.svg',
+'bulb.svg','users-group.svg','map-pin-star.svg','currency-euro.svg','building-bridge.svg'
+];
+
+const defaultTextOffsetList=[
+  {x:0,y:10},
+  {x:2,y:10},
+  {x:8,y:5},
+  {x:20,y:-10},
+  {x:30,y:5},
+  {x:-10,y:30},
+  {x:20,y:25},
+  {x:-25,y:0},
+  {x:-15,y:0},
+  {x:-10,y:0},
+  {x:-8,y:10},
+  {x:-10,y:15},
+  {x:-15,y:15},
+  {x:-15,y:10},
+  {x:-20,y:5},
+  {x:25,y:-12},
+  {x:-5,y:-5},
+  {x:15,y:5},
+  {x:10,y:10},
+  {x:10,y:12}
+];
+
+const hoverTextOffsetList=[
+  {x:-30,y:0},
+  {x:-30,y:10},
+  {x:-20,y:-20},
+  {x:-5,y:-30},
+  {x:15,y:-40},
+  {x:0,y:-15},
+  {x:20,y:-10},
+  {x:-5,y:-25},
+  {x:10,y:-15},
+  {x:30,y:-10},
+  {x:30,y:0},
+  {x:20,y:20},
+  {x:20,y:20},
+  {x:5,y:30},
+  {x:-15,y:20},
+  {x:0,y:10},
+  {x:0,y:15},
+  {x:0,y:20},
+  {x:-15,y:20},
+  {x:-15,y:10}
+];
+
+const subtextBreakWordList=[
+'', '', '', '', '', '',
+'', '', '', '', '',
+'', '', '', '', '',
+'', '', '', ''
+];
+
+const allMainTexts=[];
+const allSubtexts=[];
+const allGroups=[];
+const allLines=[];
+let selectedTracks=new Set();
+
+function resolveUnit(val,base,em){
+  const scale=base/1000;
+  if(typeof val==='number'&&isFinite(val)){return val*scale;}
+  if(typeof val==='string'){
+    const s=val.trim();
+    if(s.endsWith('%')){return (parseFloat(s)/100)*base;}
+    if(s.toLowerCase().endsWith('em')){return parseFloat(s)*em;}
+    if(s.toLowerCase().endsWith('px')){return parseFloat(s)*scale;}
+    const n=Number(s);
+    if(isFinite(n)){return n*scale;}
+  }
+  return 0;
+}
+
+function resolveOffsetPair(spec,base,em){
+  const x=resolveUnit(spec&&spec.x!==undefined?spec.x:0,base,em);
+  const y=resolveUnit(spec&&spec.y!==undefined?spec.y:0,base,em);
+  return {x,y};
+}
+
+function splitByWordOnce(str,word){
+  if(!word||!word.trim()){return null;}
+  const idx=str.indexOf(word);
+  if(idx<0){return null;}
+  const before=str.slice(0,idx).trim();
+  const after=str.slice(idx).trim();
+  return [before,after];
+}
+
+function wrapSvgTitle(textNode,content,x,lineHeight,textAnchor){
+  const createTspan=(initial)=>{const t=document.createElementNS(NS,'tspan');t.setAttribute('x',x);t.setAttribute('dy',initial?'0':String(lineHeight));textNode.appendChild(t);return t;};
+  const setSingleLine=()=>{textNode.textContent='';const t=createTspan(true);t.textContent=content;};
+  const applyWrap=(availablePx)=>{textNode.textContent='';const words=content.split(/\s+/).filter(Boolean);let t=createTspan(true);let line=words.shift()||'';t.textContent=line;for(const w of words){const test=line+' '+w;t.textContent=test;if(t.getComputedTextLength()>availablePx&&line.length>0){t.textContent=line;line=w;t=createTspan(false);t.textContent=line;}else{line=test;}}};
+  const measureAndWrap=()=>{setSingleLine();const rect=textNode.getBoundingClientRect();const viewportPadding=16;const safetyMargin=lineHeight*1.2;const leftLimit=viewportPadding;const rightLimit=Math.max(viewportPadding,window.innerWidth-viewportPadding);let needsWrap=false;let availablePx=0;if(textAnchor==='start'){if(rect.right>rightLimit-safetyMargin){needsWrap=true;availablePx=Math.max(0,rightLimit-safetyMargin-rect.left);}}else{if(rect.left<leftLimit+safetyMargin){needsWrap=true;availablePx=Math.max(0,rect.right-(leftLimit+safetyMargin));}}if(needsWrap&&availablePx>0){applyWrap(availablePx);}return Math.max(1,textNode.childNodes.length);};
+  return measureAndWrap();
+}
+
+function wrapSvgSubtext(textNode,texts,x,lineHeight,textAnchor,breakWord){
+  if(!Array.isArray(texts)){return;}
+  const normalized=texts.map((entry)=>{if(typeof entry!=='string'){return String(entry??'');}return entry.trim();});
+  const createTspan=(initial)=>{const t=document.createElementNS(NS,'tspan');t.setAttribute('x',x);t.setAttribute('dy',initial?'0':String(lineHeight));textNode.appendChild(t);return t;};
+  const setParagraphsLoose=(paragraphs)=>{textNode.textContent='';let isFirst=true;paragraphs.forEach((para,idx)=>{const t=createTspan(isFirst);t.textContent=para;isFirst=false;if(idx<paragraphs.length-1){const spacer=createTspan(false);spacer.textContent='';}});};
+  const setLinesTight=(lines)=>{textNode.textContent='';let isFirst=true;lines.forEach((ln)=>{const t=createTspan(isFirst);t.textContent=ln;isFirst=false;});};
+  const applyWrap=(availablePx)=>{textNode.textContent='';let isFirstLine=true;normalized.forEach((entry,entryIdx)=>{const words=entry.split(/\s+/).filter(Boolean);if(words.length===0){const blank=createTspan(isFirstLine);blank.textContent='';isFirstLine=false;}else{let tspan=createTspan(isFirstLine);let currentLine=words[0];tspan.textContent=currentLine;isFirstLine=false;for(let wIdx=1;wIdx<words.length;wIdx+=1){const word=words[wIdx];const testLine=currentLine+' '+word;tspan.textContent=testLine;if(tspan.getComputedTextLength()>availablePx&&currentLine.length>0){tspan.textContent=currentLine;currentLine=word;tspan=createTspan(false);tspan.textContent=currentLine;}else{currentLine=testLine;}}}if(entryIdx<normalized.length-1){const spacer=createTspan(false);spacer.textContent='';}});};
+  const evaluateLayout=()=>{setParagraphsLoose(normalized);const rect=textNode.getBoundingClientRect();const viewportPadding=16;const safetyMargin=Math.max(24,lineHeight*1.4);const leftLimit=viewportPadding;const rightLimit=Math.max(viewportPadding,window.innerWidth-viewportPadding);let needsWrap=false;let availablePx=0;if(textAnchor==='start'){if(rect.right>rightLimit-safetyMargin){needsWrap=true;availablePx=Math.max(0,rightLimit-safetyMargin-rect.left);}}else if(textAnchor==='end'){if(rect.left<leftLimit+safetyMargin){needsWrap=true;availablePx=Math.max(0,rect.right-(leftLimit+safetyMargin));}}else{const fitsRight=rect.right<=rightLimit-safetyMargin;const fitsLeft=rect.left>=leftLimit+safetyMargin;if(!fitsRight||!fitsLeft){needsWrap=true;const rightAvail=Math.max(0,rightLimit-safetyMargin-rect.left);const leftAvail=Math.max(0,rect.right-(leftLimit+safetyMargin));availablePx=Math.max(0,Math.min(rightAvail,leftAvail));}}if(needsWrap&&availablePx>0){const joined=normalized.join(' ').trim();const split=splitByWordOnce(joined,breakWord);if(split&&split[0].length>0&&split[1].length>0){setLinesTight(split);const r=textNode.getBoundingClientRect();const tooWide=(textAnchor==='start')?(r.right>rightLimit-safetyMargin):(r.left<leftLimit+safetyMargin);if(tooWide){applyWrap(availablePx);}return true;}applyWrap(availablePx);return true;}return false;};
+  evaluateLayout();
+  requestAnimationFrame(evaluateLayout);
+}
+
+function buildLegend(){
+  const legend=document.getElementById('legend');
+  legend.innerHTML='';
+  const tracks=Object.keys(trackColors);
+  tracks.forEach((t)=>{
+    const item=document.createElement('div');
+    item.className='legend-item';
+    item.setAttribute('role','button');
+    item.setAttribute('tabindex','0');
+    item.setAttribute('aria-pressed','false');
+    const square=document.createElement('div');
+    square.className='legend-square';
+    square.style.background=trackColors[t];
+    const span=document.createElement('span');
+    span.textContent=t;
+    item.appendChild(square);
+    item.appendChild(span);
+    item.addEventListener('click',function(){if(selectedTracks.has(t)){selectedTracks.delete(t);}else{selectedTracks.add(t);}updateLegendStyles();updateTrackHighlight();});
+    item.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();if(selectedTracks.has(t)){selectedTracks.delete(t);}else{selectedTracks.add(t);}updateLegendStyles();updateTrackHighlight();}});
+    legend.appendChild(item);
+  });
+  updateLegendStyles();
+}
+
+function updateLegendStyles(){
+  const items=document.querySelectorAll('#legend .legend-item');
+  const tracks=Object.keys(trackColors);
+  items.forEach((el,idx)=>{
+    const t=tracks[idx];
+    const anySelected=selectedTracks.size>0;
+    const isSelected=selectedTracks.has(t);
+    if(anySelected&&!isSelected){el.classList.add('dim');}else{el.classList.remove('dim');}
+    el.setAttribute('aria-pressed',isSelected?'true':'false');
+  });
+}
+
+function updateTrackHighlight(){
+  allGroups.forEach((g,i)=>{
+    const match=(selectedTracks.size===0)||selectedTracks.has(circleTracks[i]);
+    const targetOpacity=match?'1':'0.4';
+    g.style.opacity=targetOpacity;
+    g.style.pointerEvents='auto';
+    if(allLines[i]){allLines[i].style.opacity=targetOpacity;allLines[i].style.pointerEvents='auto';}
+  });
+}
+
+function createWheel(){
+  svg.innerHTML='';
+  allMainTexts.length=0;
+  allSubtexts.length=0;
+  allGroups.length=0;
+  allLines.length=0;
+  const viz=document.getElementById('viz');
+  const rect=viz.getBoundingClientRect();
+  const shortest=Math.min(rect.width,rect.height);
+  const padding=Math.max(24,Math.min(rect.width,rect.height)*0.06);
+  const svgSize=Math.max(280,shortest-padding);
+  svg.setAttribute('viewBox','0 0 '+svgSize+' '+svgSize);
+  const svgWidth=svgSize;
+  const svgHeight=svgSize;
+  centerX=svgWidth/2;
+  centerY=svgHeight/2;
+  circleRadius=svgHeight*0.35;
+  smallRadius=circleRadius*0.14;
+  const defs=document.createElementNS(NS,'defs');
+  svg.appendChild(defs);
+  const linesGroup=document.createElementNS(NS,'g');svg.appendChild(linesGroup);
+  const centralRadius=circleRadius*0.3;
+  const centralCircle=document.createElementNS(NS,'circle');
+  centralCircle.setAttribute('cx',centerX);centralCircle.setAttribute('cy',centerY);centralCircle.setAttribute('r',centralRadius);centralCircle.setAttribute('fill','#ffffff');centralCircle.setAttribute('class','central-circle');svg.appendChild(centralCircle);
+  const centralLogo=document.createElementNS(NS,'image');
+  centralLogo.setAttribute('href','https://upload.wikimedia.org/wikipedia/commons/6/66/OpenAI_logo_2025_%28symbol%29.svg');
+  const logoSize=centralRadius*1.3;
+  centralLogo.setAttribute('x',centerX-logoSize/2);
+  centralLogo.setAttribute('y',centerY-logoSize/2);
+  centralLogo.setAttribute('width',logoSize);
+  centralLogo.setAttribute('height',logoSize);
+  centralLogo.setAttribute('pointer-events','none');
+  svg.appendChild(centralLogo);
+  const initialOffset=svgSize*0.01;const finalOffset=svgSize*0.048;
+  const baseStrokeWidth=Math.max(0.6,svgSize*0.0012);
+  const dashLength=Math.max(4,baseStrokeWidth*4);
+  for(let i=0;i<numSmallCircles;i+=1){
+    const angle=2*Math.PI/numSmallCircles*i;
+    const x=centerX+circleRadius*Math.cos(angle);const y=centerY+circleRadius*Math.sin(angle);
+    const grad=document.createElementNS(NS,'linearGradient');
+    const gradId='line-grad-'+i;
+    grad.setAttribute('id',gradId);
+    grad.setAttribute('gradientUnits','userSpaceOnUse');
+    grad.setAttribute('x1',centerX);
+    grad.setAttribute('y1',centerY);
+    grad.setAttribute('x2',x);
+    grad.setAttribute('y2',y);
+    const stop0=document.createElementNS(NS,'stop');
+    stop0.setAttribute('offset','0%');
+    stop0.setAttribute('stop-color','#000');
+    stop0.setAttribute('stop-opacity','0');
+    const stop1=document.createElementNS(NS,'stop');
+    stop1.setAttribute('offset','70%');
+    stop1.setAttribute('stop-color','#000');
+    stop1.setAttribute('stop-opacity','0.45');
+    const stop2=document.createElementNS(NS,'stop');
+    stop2.setAttribute('offset','100%');
+    stop2.setAttribute('stop-color','#000');
+    stop2.setAttribute('stop-opacity','0.6');
+    grad.appendChild(stop0);grad.appendChild(stop1);grad.appendChild(stop2);
+    defs.appendChild(grad);
+    const line=document.createElementNS(NS,'line');
+    line.setAttribute('x1',centerX);
+    line.setAttribute('y1',centerY);
+    line.setAttribute('x2',x);
+    line.setAttribute('y2',y);
+    line.setAttribute('stroke','url(#'+gradId+')');
+    const lineDash=dashLength+','+dashLength;
+    line.setAttribute('stroke-dasharray',lineDash);
+    line.setAttribute('vector-effect','non-scaling-stroke');
+    line.setAttribute('class','line');
+    line.setAttribute('stroke-width',baseStrokeWidth.toString());
+    linesGroup.appendChild(line);
+    allLines.push(line);
+    const originalStrokeWidth=baseStrokeWidth;
+    const fullGroup=document.createElementNS(NS,'g');
+    fullGroup.setAttribute('class','full-group interactive-circle');
+    fullGroup.setAttribute('data-index',i.toString());
+    fullGroup.setAttribute('data-track',circleTracks[i]);
+    svg.appendChild(fullGroup);
+    allGroups.push(fullGroup);
+    const circleGroup=document.createElementNS(NS,'g');
+    circleGroup.setAttribute('class','circle-group');
+    fullGroup.appendChild(circleGroup);
+    circleGroup.lineElement=line;
+    circleGroup.lineDash=lineDash;
+    const smallCircle=document.createElementNS(NS,'circle');
+    smallCircle.setAttribute('cx',x);
+    smallCircle.setAttribute('cy',y);
+    smallCircle.setAttribute('r',smallRadius);
+    smallCircle.setAttribute('fill',getColor(i));
+    smallCircle.setAttribute('class','small-circle');
+    circleGroup.appendChild(smallCircle);
+    const iconPath=circleIcons[i];
+    if(iconPath){
+      const iconSize=smallRadius*1.2;
+      const icon=document.createElementNS(NS,'image');
+      icon.setAttribute('href',iconPath);
+      icon.setAttribute('x',x-iconSize/2);
+      icon.setAttribute('y',y-iconSize/2);
+      icon.setAttribute('width',iconSize);
+      icon.setAttribute('height',iconSize);
+      icon.setAttribute('class','circle-icon');
+      circleGroup.appendChild(icon);
+    }
+    const finalDistance=circleRadius+smallRadius+finalOffset;
+    const initDistance=circleRadius+smallRadius+initialOffset;
+    const mainTextFontSize=smallRadius*0.6;
+    const hoverOffset=resolveOffsetPair(hoverTextOffsetList[i]||{x:0,y:0},svgSize,mainTextFontSize);
+    const defaultOffset=resolveOffsetPair(defaultTextOffsetList[i]||{x:0,y:0},svgSize,mainTextFontSize);
+    const finalX=centerX+finalDistance*Math.cos(angle)+hoverOffset.x;
+    const finalY=centerY+finalDistance*Math.sin(angle)+hoverOffset.y;
+    const initX=centerX+initDistance*Math.cos(angle)+defaultOffset.x;
+    const initY=centerY+initDistance*Math.sin(angle)+defaultOffset.y;
+    const textAnchor=Math.cos(angle)>0?'start':'end';
+    const mainText=document.createElementNS(NS,'text');
+    const lineHeightMain=mainTextFontSize*1.2;
+    const dx=initX-finalX;
+    const dy=initY-finalY;
+    mainText.setAttribute('class','main-text');
+    mainText.setAttribute('x',finalX);
+    mainText.setAttribute('y',finalY);
+    mainText.setAttribute('text-anchor',textAnchor);
+    mainText.setAttribute('fill',getColor(i));
+    mainText.setAttribute('font-size',mainTextFontSize);
+    mainText.setAttribute('font-weight','bold');
+    const initialTransform='translate('+dx+'px,'+dy+'px)';
+    mainText.style.transform=initialTransform;
+    fullGroup.appendChild(mainText);
+    const linesUsed=wrapSvgTitle(mainText,circleTexts[i],finalX,lineHeightMain,textAnchor);
+    allMainTexts.push(mainText);
+    circleGroup.initialTransform=initialTransform;
+    const subtextFontSize=smallRadius*0.35;
+    const lineHeightSub=subtextFontSize*1.2;
+    const subtextGroup=document.createElementNS(NS,'text');
+    subtextGroup.setAttribute('class','sub-text');
+    subtextGroup.setAttribute('x',finalX);
+    subtextGroup.setAttribute('y',finalY+(lineHeightMain*linesUsed));
+    subtextGroup.setAttribute('text-anchor',textAnchor);
+    subtextGroup.setAttribute('fill','#000');
+    subtextGroup.setAttribute('font-size',subtextFontSize);
+    subtextGroup.setAttribute('alignment-baseline','hanging');
+    fullGroup.appendChild(subtextGroup);
+    wrapSvgSubtext(subtextGroup,circleSubtexts[i],finalX,lineHeightSub,textAnchor,subtextBreakWordList[i]);
+    allSubtexts.push(subtextGroup);
+    circleGroup.mainText=mainText;circleGroup.subtextGroup=subtextGroup;
+    circleGroup.addEventListener('mouseenter',()=>{
+      const hoverScale=1.18;
+      const translateFactor=hoverScale-1;
+      fullGroup.dataset.prevOpacity=fullGroup.style.opacity;
+      fullGroup.style.opacity='1';
+      if(allLines[i]){allLines[i].dataset.prevOpacity=allLines[i].style.opacity;allLines[i].style.opacity='1';}
+      fullGroup.setAttribute('transform','translate('+(-(x-centerX)*translateFactor)+','+(-(y-centerY)*translateFactor)+') scale('+hoverScale+')');
+      centralCircle.setAttribute('fill',getColor(i));
+      const hoverStrokeWidth=Math.max(originalStrokeWidth*7,svgSize*0.0045);
+      circleGroup.lineElement.setAttribute('stroke-width',hoverStrokeWidth.toString());
+      circleGroup.lineElement.setAttribute('stroke',getColor(i));
+      circleGroup.lineElement.setAttribute('stroke-dasharray','');
+      mainText.style.transform='translate(0,0)';
+      allMainTexts.forEach((t)=>{if(t!==mainText){t.style.opacity='0.4';}});
+      allSubtexts.forEach((t)=>{t.style.opacity=t===circleGroup.subtextGroup?'1':'0';});
+    });
+    circleGroup.addEventListener('mouseleave',()=>{
+      fullGroup.setAttribute('transform','');
+      centralCircle.setAttribute('fill','#ffffff');
+      circleGroup.lineElement.setAttribute('stroke-width',originalStrokeWidth.toString());
+      circleGroup.lineElement.setAttribute('stroke','url(#'+gradId+')');
+      circleGroup.lineElement.setAttribute('stroke-dasharray',circleGroup.lineDash);
+      mainText.style.transform=circleGroup.initialTransform;
+      allMainTexts.forEach((t)=>{t.style.opacity='1';});
+      allSubtexts.forEach((t)=>{t.style.opacity='0';});
+      fullGroup.style.opacity=fullGroup.dataset.prevOpacity||'';
+      if(allLines[i]){allLines[i].style.opacity=allLines[i].dataset.prevOpacity||'';}
+      updateTrackHighlight();
+    });
+  }
+  updateTrackHighlight();
+}
+
+function onResize(){createWheel();}
+
+buildLegend();
+createWheel();
+window.addEventListener('resize',onResize);
+const vizEl=document.getElementById('viz');
+if(typeof ResizeObserver!=='undefined'&&vizEl){
+  const chartObserver=new ResizeObserver(function(){createWheel();});
+  chartObserver.observe(vizEl);
+}
+</script>
+</body>
+</html>
