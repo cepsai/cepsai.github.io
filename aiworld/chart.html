@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Circle Packing simple</title>
+<style>
+  html,body{height:100%;margin:0;font-family:system-ui,Arial}
+  #chart{width:100vw;height:100vh}
+  svg{width:100%;height:100%}
+  .node{cursor:default}
+  .node text{pointer-events:none;fill:#000;font-weight:600;text-anchor:middle}
+  .tooltip{
+    position:fixed;pointer-events:none;padding:6px 8px;border-radius:6px;
+    background:#111;color:#fff;font-size:12px;display:none
+  }
+</style>
+</head>
+<body>
+<div id="chart"></div>
+<div id="tooltip" class="tooltip"></div>
+
+<!-- D3 -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script>
+/* === 1) Pega tus datos aquí ===
+  Debe tener columnas: id, value, Country, Category
+*/
+const data = [
+  {
+    "id": "OpenAI (US)",
+    "Country": "United States",
+    "value": 6600000000,
+    "Category": "Education"
+  },
+  {
+    "id": "Cerebras Systems (US)",
+    "Country": "United States",
+    "value": 1100000000,
+    "Category": "Industry & Mobility"
+  },
+  {
+    "id": "Nscale (GB)",
+    "Country": "United Kingdom",
+    "value": 433000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Periodic Labs (US)",
+    "Country": "United States",
+    "value": 300000000,
+    "Category": "Education"
+  },
+  {
+    "id": "Vercel (US)",
+    "Country": "United States",
+    "value": 300000000,
+    "Category": "Industry & Mobility"
+  },
+  {
+    "id": "Rebellions (KR)",
+    "Country": "South Korea",
+    "value": 250000000,
+    "Category": "Industry & Mobility"
+  },
+  {
+    "id": "Eve (US)",
+    "Country": "United States",
+    "value": 103000000,
+    "Category": "Legal & Compliance"
+  },
+  {
+    "id": "Supabase (US)",
+    "Country": "United States",
+    "value": 100000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Pendo (US)",
+    "Country": "United States",
+    "value": 100000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "DualEntry (US)",
+    "Country": "United States",
+    "value": 90000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Feedzai (PT)",
+    "Country": "Portugal",
+    "value": 75000000,
+    "Category": "Finance"
+  },
+  {
+    "id": "Heidi Health (AU)",
+    "Country": "Australia",
+    "value": 65000000,
+    "Category": "Health"
+  },
+  {
+    "id": "Axiom Math AI (US)",
+    "Country": "United States",
+    "value": 64000000,
+    "Category": "Education"
+  },
+  {
+    "id": "Phaidra (US)",
+    "Country": "United States",
+    "value": 50000000,
+    "Category": "Education"
+  },
+  {
+    "id": "Simple (CY)",
+    "Country": "Cyprus",
+    "value": 35000000,
+    "Category": "Health"
+  },
+  {
+    "id": "M.AI Unbound, Inc (US)",
+    "Country": "United States",
+    "value": 25000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Summation (US)",
+    "Country": "United States",
+    "value": 21000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Lexroom.ai (IT)",
+    "Country": "Italy",
+    "value": 19000000,
+    "Category": "Legal & Compliance"
+  },
+  {
+    "id": "Blossom Health (US)",
+    "Country": "United States",
+    "value": 18400000,
+    "Category": "Health"
+  },
+  {
+    "id": "Zania (US)",
+    "Country": "United States",
+    "value": 18000000,
+    "Category": "Legal & Compliance"
+  },
+  {
+    "id": "Deciphex (IE)",
+    "Country": "Ireland",
+    "value": 17595535,
+    "Category": "Health"
+  },
+  {
+    "id": "Alex AI (US)",
+    "Country": "United States",
+    "value": 17000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Lastro (BR)",
+    "Country": "Brazil",
+    "value": 15995484,
+    "Category": "Finance"
+  },
+  {
+    "id": "StratifAI (DE)",
+    "Country": "Germany",
+    "value": 14679339,
+    "Category": "Health"
+  },
+  {
+    "id": "Audioshake (US)",
+    "Country": "United States",
+    "value": 14000000,
+    "Category": "Education"
+  },
+  {
+    "id": "CYVL (US)",
+    "Country": "United States",
+    "value": 14000000,
+    "Category": "Industry & Mobility"
+  },
+  {
+    "id": "Summation (US)",
+    "Country": "United States",
+    "value": 12374999,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Price.com (US)",
+    "Country": "United States",
+    "value": 12000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Anything (US)",
+    "Country": "United States",
+    "value": 11000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Confido Health (US)",
+    "Country": "United States",
+    "value": 10000000,
+    "Category": "Health"
+  },
+  {
+    "id": "Talus Network (US)",
+    "Country": "United States",
+    "value": 10000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "GreyLabs AI (IN)",
+    "Country": "India",
+    "value": 9579051,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "TiHive Technologies (FR)",
+    "Country": "France",
+    "value": 9384285,
+    "Category": "Industry & Mobility"
+  },
+  {
+    "id": "Arzeda (US)",
+    "Country": "United States",
+    "value": 7800000,
+    "Category": "Health"
+  },
+  {
+    "id": "Orbotix (RO)",
+    "Country": "Romania",
+    "value": 7642294,
+    "Category": "Legal & Compliance"
+  },
+  {
+    "id": "I-Genie (US)",
+    "Country": "United States",
+    "value": 7500000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Korea Deep Learning (KR)",
+    "Country": "South Korea",
+    "value": 7126533,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Tier IV (JP)",
+    "Country": "Japan",
+    "value": 7000000,
+    "Category": "Industry & Mobility"
+  },
+  {
+    "id": "Dashmote (NL)",
+    "Country": "The Netherlands",
+    "value": 6000000,
+    "Category": "Education"
+  },
+  {
+    "id": "Trig (GB)",
+    "Country": "United Kingdom",
+    "value": 6000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Lunos (US)",
+    "Country": "United States",
+    "value": 5000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "MythWorx (US)",
+    "Country": "United States",
+    "value": 5000000,
+    "Category": "Health"
+  },
+  {
+    "id": "Fleak (US)",
+    "Country": "United States",
+    "value": 5000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Assessli (IN)",
+    "Country": "India",
+    "value": 4996959,
+    "Category": "Education"
+  },
+  {
+    "id": "DataJoint (US)",
+    "Country": "United States",
+    "value": 4900000,
+    "Category": "Education"
+  },
+  {
+    "id": "Flai (US)",
+    "Country": "United States",
+    "value": 4500000,
+    "Category": "Industry & Mobility"
+  },
+  {
+    "id": "Bookline (ES)",
+    "Country": "Spain",
+    "value": 4110215,
+    "Category": "Health"
+  },
+  {
+    "id": "Ignosis (IN)",
+    "Country": "India",
+    "value": 4000000,
+    "Category": "Finance"
+  },
+  {
+    "id": "viboo (CH)",
+    "Country": "Switzerland",
+    "value": 3879934,
+    "Category": "Education"
+  },
+  {
+    "id": "Arqh (CH)",
+    "Country": "Switzerland",
+    "value": 3800000,
+    "Category": "Industry & Mobility"
+  },
+  {
+    "id": "Clarifeye (US)",
+    "Country": "United States",
+    "value": 3662759,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Actual AI (US)",
+    "Country": "United States",
+    "value": 3200000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Stelrix (US)",
+    "Country": "United States",
+    "value": 2500000,
+    "Category": "Finance"
+  },
+  {
+    "id": "MiChamba (US)",
+    "Country": "United States",
+    "value": 2250000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "HELIOS (US)",
+    "Country": "United States",
+    "value": 2200000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Ainekko (US)",
+    "Country": "United States",
+    "value": 2150000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Personal Health Tech (JP)",
+    "Country": "Japan",
+    "value": 2038622,
+    "Category": "Health"
+  },
+  {
+    "id": "Climaty AI (AE)",
+    "Country": "United Arab Emirates",
+    "value": 2000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Infrrd (US)",
+    "Country": "United States",
+    "value": 1999994,
+    "Category": "Finance"
+  },
+  {
+    "id": "Clear (NL)",
+    "Country": "The Netherlands",
+    "value": 1993429,
+    "Category": "Health"
+  },
+  {
+    "id": "Sera (EE)",
+    "Country": "Estonia",
+    "value": 1759940,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Hupside (US)",
+    "Country": "United States",
+    "value": 1700000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Enhance Labs (AU)",
+    "Country": "Australia",
+    "value": 1520752,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Zwayam (IN)",
+    "Country": "India",
+    "value": 1351496,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "AndromedAI (IT)",
+    "Country": "Italy",
+    "value": 1289866,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Beem (US)",
+    "Country": "United States",
+    "value": 1000000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Immersely (GB)",
+    "Country": "United Kingdom",
+    "value": 537795,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Mohi (US)",
+    "Country": "United States",
+    "value": 500000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Patrol 6 (US)",
+    "Country": "United States",
+    "value": 213341,
+    "Category": "Industry & Mobility"
+  },
+  {
+    "id": "LUXE AI (US)",
+    "Country": "United States",
+    "value": 100000,
+    "Category": "Software, Data & Cyber"
+  },
+  {
+    "id": "Kimaru AI (US)",
+    "Country": "United States",
+    "value": 75000,
+    "Category": "Industry & Mobility"
+  },
+  {
+    "id": "Apptronik (US)",
+    "Country": "United States",
+    "value": 64500,
+    "Category": "Industry & Mobility"
+  },
+  {
+    "id": "Belto (US)",
+    "Country": "United States",
+    "value": 30000,
+    "Category": "Industry & Mobility"
+  }
+];
+
+// === 2) Construir jerarquía: raíz -> Category -> empresas
+const groups = d3.group(data, d => d.Category);
+const hierarchyData = {
+  name: "root",
+  children: Array.from(groups, ([cat, items]) => ({
+    name: cat,
+    children: items.map(d => ({ ...d, name: d.id }))
+  }))
+};
+
+// === 3) SVG y layout
+const container = document.getElementById("chart");
+const width  = container.clientWidth  || 900;
+const height = container.clientHeight || 600;
+
+const svg = d3.select("#chart").append("svg")
+  .attr("viewBox", [0, 0, width, height]);
+const SCALE = 1.2;
+const root = d3.hierarchy(hierarchyData)
+  .sum(d => d.value || 0)
+  .sort((a,b) => (b.value||0) - (a.value||0));
+
+d3.pack().size([width, height]).padding(5)(root);
+
+// === 4) Colores por Category
+const COUNTRY_COLORS = {
+  "Health": "#FF6B6B",
+  "Legal & Compliance":"#4DABF7",
+  "Finance": "#51CF66",
+  "Education": "#FAB005",
+  "Industry & Mobility":" #845EF7",
+  "Software, Data & Cyber": "#EFA753",
+};
+const DEFAULT_COLOR = "#9AA0A6"; // color por defecto si aparece un país nuevo
+[, , , , , ]
+function getColor(country) {
+  return COUNTRY_COLORS[country] || DEFAULT_COLOR;
+}
+// === 5) Dibujar círculos y etiquetas
+const g = svg.append("g")
+  .attr("transform", `translate(${width/2},${height/2}) scale(${SCALE}) translate(${-width/2},${-height/2})`);
+const nodes = g.selectAll("g.node")
+  .data(root.descendants().slice(1)) // omite la raíz
+  .join("g")
+    .attr("class","node")
+    .attr("transform", d => `translate(${d.x},${d.y})`);
+
+nodes.append("circle")
+  .attr("r", d => d.r)
+  .attr("fill", d => d.children ? "#f5f5f5" : getColor(d.data.Category || d.parent.data.name))
+  .attr("stroke","#000")
+  .attr("stroke-width", 1.5)
+  .attr("fill-opacity", d => d.children ? 1 : 0.9);
+
+// Etiquetas: muestra nombre si cabe
+nodes.filter(d => !d.children).append("text")
+  .attr("dy", ".32em")
+  .attr("font-size", d => Math.max(12, Math.min(24, d.r * 0.60))) // <— más grande
+  .text(d => d.data.id)
+  .each(function(d){
+    // Reducir fuente si no cabe dentro del círculo
+    const el = d3.select(this);
+    let size = parseFloat(el.attr("font-size"));
+    // mientras el texto sea más ancho que ~1.85 diámetros, reduce
+    while (this.getBBox().width > d.r * 1.85 && size > 9) {
+      size -= 1;
+      el.attr("font-size", size);
+    }
+    // Si aún no cabe, lo dejamos sin romper (puedes optar por quitarlo)
+    if (this.getBBox().width > d.r * 1.95) {
+      // Opcional: comenta la siguiente línea si prefieres que quede aunque sobresalga
+      // el.remove();
+    }
+  });
+
+// === 6) Tooltip simple
+const tip = d3.select("#tooltip");
+nodes.on("mousemove", (event, d) => {
+  if (d.children) return; // solo hojas (empresas)
+  tip.style("display","block")
+     .style("left", (event.clientX + 10) + "px")
+     .style("top",  (event.clientY + 10) + "px")
+     .html(`<strong>${d.data.id}</strong><br>
+            Valor: ${d.data.value}<br>
+            País: ${d.data.Country}<br>
+            Category: ${d.data.Category}`);
+}).on("mouseleave", () => tip.style("display","none"));
+</script>
+</body>
+</html>
