@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HF Orgs Line Chart v2.0</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+html, body { height: 100%; }
+body { 
+    margin: 0; 
+    overflow: hidden; 
+    background: #ffffff; 
+    color: #111; 
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif; 
+    height: 100vh; 
+}
+.viz-grid { 
+    display: grid; 
+    grid-template-rows: auto 17fr 3fr 1fr; 
+    grid-template-columns: 1fr 1fr; 
+    height: 100vh; 
+    width: 100%; 
+    box-sizing: border-box; 
+    padding-bottom: clamp(4px, 2vh, 10px); 
+}
+#containerTitle { 
+    grid-row: 1; 
+    grid-column: 1 / span 2; 
+    display: flex; 
+    align-items: flex-end; 
+    justify-content: flex-start; 
+    padding: clamp(8px, 2vh, 16px) clamp(16px, 3vw, 32px); 
+}
+.viz-title-block { 
+    display: flex; 
+    flex-direction: column; 
+    gap: clamp(4px, 0.8vh, 10px); 
+    width: 100%;
+    max-width: 100%;
+}
+.viz-main-title { 
+    font-size: clamp(20px, 3vw, 34px); 
+    font-weight: 700; 
+    color: #101a35; 
+    text-align: left; 
+    line-height: 1.2; 
+    margin: 0; 
+    max-width: 100%;
+}
+.viz-subtitle { 
+    font-size: clamp(13px, 2vw, 22px); 
+    font-weight: 600; 
+    color: #1f2a44; 
+    text-align: left; 
+    max-width: 100%; 
+    line-height: 1.3; 
+}
+#container1 { 
+    grid-row: 2; 
+    grid-column: 1 / span 2; 
+    display: flex; 
+    overflow: hidden; 
+    min-height: 0; 
+    column-gap: 0; 
+    padding: 0 12px;
+}
+#container1 .y-axis-container { 
+    flex: 0 0 clamp(22px, 2.4vw, 32px); 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    min-width: 0;
+    border-right: 1px solid rgba(0,0,0,0.1); 
+    box-sizing: border-box; 
+    padding: 0 2px; 
+}
+#container1 .y-axis-label { 
+    writing-mode: vertical-rl; 
+    transform: rotate(180deg); 
+    text-align: center; 
+    font-weight: 600; 
+    font-size: clamp(11px, 1.2vw, 16px); 
+    color: #333; 
+}
+#container1 .chart-wrapper { 
+    flex: 1 1 auto; 
+    display: flex; 
+    min-width: 0; 
+    height: 100%; 
+    margin-left: -6px;
+}
+#container1 .chart-wrapper-inner { 
+    flex: 1 1 auto; 
+    display: flex; 
+    min-width: 0; 
+    height: 100%; 
+}
+
+#container2 { grid-row: 3; 
+    grid-column: 1 / span 2; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 10px;
+    overflow: hidden; 
+    font-size: clamp(10px, 1.6vw, 16px); 
+    padding: 6px 10px; 
+}
+.metric-buttons { 
+    display: flex; 
+    flex-wrap: wrap; 
+    align-items: center; 
+    justify-content: center; 
+    gap: 8px 10px; 
+}
+.metric-btn { 
+    padding: 6px 10px; 
+    border-radius: 8px; 
+    border: 1px solid #cfd2d7; 
+    background: #fff; 
+    font-weight: 600; 
+    cursor: pointer; 
+    user-select: none; 
+    transition: transform .08s ease, background .12s ease; 
+}
+.metric-btn:hover { 
+    transform: translateY(-1px); 
+}
+.metric-btn.active { 
+    background: #2756d3; 
+    color: #fff; 
+    border-color: #2756d3; 
+}
+
+#container3 { 
+    grid-row: 4; 
+    grid-column: 1; 
+    display: flex; 
+    align-items: center; 
+    justify-content: flex-start; 
+    padding: 0 20px; 
+    overflow: hidden; 
+    min-width: 0;
+}
+#container4 { 
+    grid-row: 4; 
+    grid-column: 2; 
+    display: flex; 
+    align-items: center; 
+    justify-content: flex-end; 
+    padding: 0 20px; 
+    overflow: hidden; 
+    min-width: 0; 
+}
+#container4 a { 
+    height: 100%; 
+    display: flex; 
+    align-items: center; 
+}
+
+.source-text { 
+    font-size: clamp(10px, 1.6vw, 16px); 
+    font-weight: 600; 
+    color: #333; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+    max-width: 100%; 
+    font-style: normal; 
+}
+.source-text a { 
+    color: #2756d3; 
+    text-decoration: underline; 
+    cursor: pointer; 
+    font-style: normal; 
+}
+.source-text a:visited { 
+    color: #2756d3; 
+}
+.logo { 
+    height: 100%; 
+    width: auto; 
+    max-height: 100%; 
+    max-width: 100%; 
+    pointer-events: auto; 
+    object-fit: contain; 
+}
+
+@media (max-height: 500px) {
+  .viz-grid { 
+    grid-template-rows: 1fr; 
+    grid-template-columns: 1fr; 
+    padding-bottom: 0; }
+  #containerTitle, #container2, #container3, #container4 { display: none !important; }
+  #container1 { grid-row: 1; 
+    grid-column: 1; }
+}
+
+#viz { 
+    position: relative; 
+    width: 100%; 
+    height: 105%; 
+    min-width: 0; 
+    min-height: 0; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+}
+#chart { 
+    display: block; 
+    width: 100%; 
+    height: 95%; 
+}
+#tooltip { 
+    position: absolute; 
+    background: #fff; 
+    border: 1px solid #d9d9df; 
+    border-radius: 6px; 
+    padding: 6px 8px; 
+    font-size: 12px; 
+    pointer-events: none; 
+    opacity: 0; 
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08); 
+    transition: opacity .12s ease; 
+}
+
+.axis path, .axis line { stroke: #cfd2d7; }
+.tick text { font-size: clamp(8px, 0.9vw, 11px); }
+.grid line { stroke: rgba(230,232,239,0.45); }
+.grid .domain { display: none; }
+.final-label { font-weight: 600; pointer-events: none; }
+.year-dividers line { stroke: #cfd2d7; stroke-width: 1; }
+.year-dividers text { fill: #6e7485; font-weight: 600; pointer-events: none; letter-spacing: 0.01em; }
+</style>
+
+</head>
+<body>
+<div class="viz-layout" id="vizLayout">
+  <div class="viz-grid">
+    <div id="containerTitle" class="container title-container">
+      <div class="viz-title-block">
+        <h1 id="vizMainTitle" class="viz-main-title">Race for Open-Source AI Dominance</h1>
+        <div id="vizSubtitle" class="viz-subtitle">Loading data…</div>
+      </div>
+    </div>
+    <div id="container1" class="container chart-container">
+      <div class="y-axis-container">
+        <div class="y-axis-label" id="yLabel">Cumulative value</div>
+      </div>
+      <div class="chart-wrapper">
+        <div class="chart-wrapper-inner">
+          <div id="viz">
+            <svg id="chart"></svg>
+            <div id="tooltip"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="container2" class="container legend-container"></div>
+    <div id="container3" class="container source-container">
+      <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank" rel="noopener">HuggingFace</a></div>
+    </div>
+    <div id="container4" class="container logo-container">
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+const svg=d3.select("#chart");
+const tooltip=d3.select("#tooltip");
+const legendEl=d3.select("#legend");
+const yLabelEl=document.getElementById("yLabel");
+const titleContainer=document.getElementById("containerTitle");
+const subtitleEl=document.getElementById("vizSubtitle");
+const vizLayout=document.getElementById("vizLayout");
+const colorScale=d3.scaleOrdinal(d3.schemeTableau10);
+const orgMeta=new Map();
+const MONTH_LABELS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function getMonthLabel(month){
+  if(Number.isInteger(month)&&month>=0&&month<MONTH_LABELS.length){ return MONTH_LABELS[month]; }
+  if(Number.isFinite(month)){ return `M${month+1}`; }
+  return "M";
+}
+const METRICS=[
+  {key:"repos_total",weekKey:"repos_week",label:"Repos"},
+  {key:"likes_total",weekKey:"likes_week",label:"Likes"},
+  {key:"downloads_total",weekKey:"downloads_week",label:"Downloads"},
+  {key:"spaces_total",weekKey:"spaces_week",label:"Spaces"},
+  {key:"datasets_total",weekKey:"datasets_week",label:"Datasets"},
+  {key:"models_total",weekKey:"models_week",label:"Models"}
+];
+let currentMetric="repos_total";
+let currentMode="cumulative";
+let currentPeriod="weekly";
+let currentScale="absolute";
+let currentNormMode="againstStart";
+let lastAbsoluteMode="cumulative";
+let rawById=[];
+let series=[];
+let currentTimeline=[];
+let active=new Map();
+let currentRange={startIndex:0,endIndex:0};
+let rangeDirty=false;
+let sliderPanelEl=null;
+let sliderInitialized=false;
+let sliderVisible=true;
+let titleVisible=true;
+let legendFullIds=[];
+let legendCurrentIds=[];
+let currentFilter={ percent:100, metric:METRICS.length?METRICS[0].key:null };
+let suppressAnimationNextRender=false;
+
+function capitalizeFirst(text){
+  if(typeof text!=="string"||!text.length){ return text||""; }
+  return text.charAt(0).toUpperCase()+text.slice(1);
+}
+
+function getPeriodDisplayLabel(){
+  switch(currentPeriod){
+    case "monthly": return "Monthly data";
+    case "yearly": return "Yearly data";
+    default: return "Weekly data";
+  }
+}
+
+function getScaleDescriptor(){
+  if(currentScale==="normalized"){
+    return currentNormMode==="againstPrevious"?"Indexed to previous period":"Indexed to start period";
+  }
+  if(currentScale==="log"){
+    return "Log scale";
+  }
+  return "Absolute values";
+}
+
+function getModeDescriptor(){
+  if(currentScale==="normalized"){ return null; }
+  if(currentMode==="perWeek"){ return `Per ${getPeriodLabel()}`; }
+  return "Cumulative totals";
+}
+
+function getActiveIds(){
+  const ids=rawById.map(s=>s.id);
+  return ids.filter(id=>active.get(id)!==false);
+}
+
+function formatOrgSummary(){
+  const allIds=rawById.map(s=>s.id);
+  if(!allIds.length){ return ""; }
+  const activeIds=getActiveIds();
+  if(!activeIds.length){ return "No organizations selected"; }
+  if(activeIds.length===allIds.length){
+    return `All ${allIds.length} organizations`;
+  }
+  const shown=activeIds.slice(0,3);
+  const remaining=activeIds.length-shown.length;
+  return remaining>0?`${shown.join(", ")} (+${remaining} more)`:shown.join(", ");
+}
+
+function formatTitleDate(info){
+  if(!info){ return ""; }
+  const label=info.label||`Period ${info.coord??""}`;
+  return stripTimePrefix(label);
+}
+
+function formatRangeText(timelineSlice){
+  if(!currentTimeline.length){ return { text:"No data", coversAll:false, startLabel:"", endLabel:"" }; }
+  const {startIndex,endIndex}=getClampedRangeIndices();
+  const fallback=currentTimeline.slice(startIndex,Math.min(endIndex+1,currentTimeline.length));
+  const slice=(timelineSlice&&timelineSlice.length)?timelineSlice:fallback;
+  if(!slice.length){ return { text:"No data", coversAll:false, startLabel:"", endLabel:"" }; }
+  const startInfo=slice[0];
+  const endInfo=slice[slice.length-1];
+  const startLabel=formatTitleDate(startInfo);
+  const endLabel=formatTitleDate(endInfo);
+  const coversAll=startIndex===0&&endIndex===currentTimeline.length-1;
+  let text="";
+  if(startLabel===endLabel){
+    text=startLabel;
+  }else{
+    text=`${startLabel} – ${endLabel}`;
+  }
+  return { text, coversAll, startLabel, endLabel };
+}
+
+function updateTitle(timelineSlice){
+  if(!subtitleEl){ return; }
+  if(!rawById.length||!currentTimeline.length){
+    subtitleEl.textContent="No data available";
+    return;
+  }
+  const metricDef=getMetricDefinition();
+  const metricLabel=metricDef?metricDef.label:"Metric";
+  const periodWord=getPeriodAdjective();
+  let subjectText=metricLabel;
+  if(currentScale!=="normalized"){
+    if(currentMode==="perWeek"){
+      subjectText=`${metricLabel} per ${getPeriodLabel()}`;
+    }else if(currentMode==="cumulative"){
+      const prefix=periodWord?`${capitalizeFirst(periodWord)} `:"";
+      subjectText=`${prefix}cumulative ${metricLabel}`;
+    }else if(periodWord){
+      subjectText=`${capitalizeFirst(periodWord)} ${metricLabel}`;
+    }
+  }else if(periodWord){
+    subjectText=`${capitalizeFirst(periodWord)} ${metricLabel}`;
+  }
+  if(!subjectText){ subjectText=metricLabel; }
+  let sentence=`${subjectText}`;
+  if(currentScale==="normalized"){
+    sentence+=currentNormMode==="againstPrevious"?" indexed to the previous period":" indexed to the starting period";
+  }else if(currentScale==="log"){
+    sentence+=" on a log scale";
+  }else{
+    sentence+=" in absolute values";
+  }
+  const rangeSummary=formatRangeText(timelineSlice);
+  if(rangeSummary&&rangeSummary.text){ sentence+=` from ${rangeSummary.text}`; }
+  if(rangeSummary&&rangeSummary.coversAll){ sentence+=" (full timeline)"; }
+  subtitleEl.textContent=sentence;
+}
+
+function getOrgInfo(id){
+  return orgMeta.get(id)||null;
+}
+
+function getSeriesColor(id){
+  const info=getOrgInfo(id);
+  if(info&&info.color){ return info.color; }
+  return colorScale(id);
+}
+
+function sanitizeForId(value){
+  return String(value||"").toLowerCase().replace(/[^a-z0-9]+/g,"-");
+}
+
+function ensureLogoPattern(id,logoUrl){
+  if(!logoUrl){ return null; }
+  const sanitized=sanitizeForId(id);
+  const patternId=`logo-pattern-${sanitized}`;
+  const defs=svg.selectAll("defs.logo-patterns").data([null]).join("defs").attr("class","logo-patterns");
+  const pattern=defs.selectAll(`pattern#${patternId}`).data([logoUrl]).join(
+    enter=>{
+      const p=enter.append("pattern").attr("id",patternId).attr("patternUnits","objectBoundingBox").attr("patternContentUnits","objectBoundingBox").attr("width",1).attr("height",1);
+      p.append("image").attr("href",logoUrl).attr("xlink:href",logoUrl).attr("width",1).attr("height",1).attr("preserveAspectRatio","xMidYMid slice");
+      return p;
+    },
+    update=>update
+  );
+  pattern.select("image").attr("href",logoUrl).attr("xlink:href",logoUrl);
+  return patternId;
+}
+
+function arraysEqual(a,b){
+  if(a===b){ return true; }
+  if(!Array.isArray(a)||!Array.isArray(b)||a.length!==b.length){ return false; }
+  for(let i=0;i<a.length;i++){
+    if(a[i]!==b[i]){ return false; }
+  }
+  return true;
+}
+
+function clampFilterPercent(value){
+  const num=Number(value);
+  if(!Number.isFinite(num)){ return 100; }
+  if(num<0){ return 0; }
+  if(num>100){ return 100; }
+  return num;
+}
+
+function getFilterLimitCount(percent,totalCount){
+  const total=Math.max(0,totalCount|0);
+  const normalized=clampFilterPercent(percent);
+  if(!total){ return 0; }
+  if(normalized>=100){ return null; }
+  const count=Math.ceil(total*normalized/100);
+  return Math.max(0,Math.min(count,total));
+}
+
+function computeTopIdsFromScores(limitCount,scoresMap){
+  if(limitCount===null){ return legendFullIds.slice(); }
+  if(!Number.isFinite(limitCount)||limitCount<=0){ return []; }
+  const entries=Array.from(scoresMap.entries()).map(([id,score])=>({ id, score:Number.isFinite(score)?score:-Infinity }));
+  entries.sort((a,b)=>{
+    if(b.score===a.score){
+      return a.id.localeCompare(b.id);
+    }
+    return (b.score??-Infinity)-(a.score??-Infinity);
+  });
+  return entries.slice(0,Math.min(limitCount,entries.length)).map(entry=>entry.id);
+}
+
+function buildSeriesForMetric(metricKey){
+  if(!metricKey||!currentTimeline.length){ return []; }
+  const period=currentPeriod;
+  const isPerPeriod=currentMode==="perWeek";
+  return rawById.map(({id, values})=>{
+    const aggregated=new Map();
+    values.forEach(entry=>{
+      const info=getPeriodInfo(entry,period);
+      if(!info){ return; }
+      const target=aggregated.get(info.order)||{sum:0,last:null};
+      const metricValue=+entry[metricKey]||0;
+      if(isPerPeriod){
+        target.sum+=metricValue;
+      }else{
+        target.last=metricValue;
+      }
+      aggregated.set(info.order,target);
+    });
+    const result=[];
+    let running=0;
+    currentTimeline.forEach(info=>{
+      const dataPoint=aggregated.get(info.order);
+      let rawValue=0;
+      if(isPerPeriod){
+        rawValue=dataPoint?dataPoint.sum:0;
+      }else{
+        if(dataPoint&&typeof dataPoint.last==="number"){
+          running=dataPoint.last;
+        }
+        rawValue=running;
+      }
+      result.push({
+        w:info.coord,
+        rawValue,
+        value:rawValue,
+        label:info.label,
+        actualLabel:info.label,
+        relativeLabel:null,
+        order:info.order,
+        date:info.date,
+        relativeIndex:info.relativeIndex,
+        absoluteIndex:info.absoluteIndex
+      });
+    });
+    return { id, values:result };
+  });
+}
+
+function transformSeriesForRange(seriesData,startIndex,endIndex){
+  return seriesData.map(s=>{
+    const slice=s.values.filter(v=>v.relativeIndex>=startIndex&&v.relativeIndex<=endIndex);
+    if(!slice.length){ return { id:s.id, values:[] }; }
+    if(currentScale==="normalized"){
+      if(currentNormMode==="againstPrevious"){
+        const values=normalizeAgainstPrevious(slice);
+        return { id:s.id, values };
+      }
+      const values=normalizeAgainstStart(slice);
+      return { id:s.id, values };
+    }
+    if(currentMode==="cumulative"){
+      const baseRaw=slice[0]?.rawValue||0;
+      const values=slice.map(v=>({...v, value:v.rawValue-baseRaw}));
+      return { id:s.id, values };
+    }
+    return { id:s.id, values:slice };
+  });
+}
+
+function computeScoresFromSeries(seriesData){
+  const scores=new Map();
+  seriesData.forEach(s=>{
+    const values=s.values;
+    const last=values&&values.length?values[values.length-1]:null;
+    const score=last&&Number.isFinite(last.value)?last.value:-Infinity;
+    scores.set(s.id,score);
+  });
+  return scores;
+}
+
+function computeDownloadsPerRepoScores(startIndex,endIndex){
+  const downloadsSeries=transformSeriesForRange(buildSeriesForMetric("downloads_total"),startIndex,endIndex);
+  const reposSeries=transformSeriesForRange(buildSeriesForMetric("repos_total"),startIndex,endIndex);
+  const repoScores=new Map();
+  reposSeries.forEach(s=>{
+    const values=s.values;
+    const last=values&&values.length?values[values.length-1]:null;
+    const value=last&&Number.isFinite(last.value)?last.value:0;
+    repoScores.set(s.id,value);
+  });
+  const scores=new Map();
+  downloadsSeries.forEach(s=>{
+    const values=s.values;
+    const last=values&&values.length?values[values.length-1]:null;
+    const downloads=last&&Number.isFinite(last.value)?last.value:0;
+    const repos=repoScores.has(s.id)?repoScores.get(s.id):0;
+    const safeRepos=Math.abs(repos)>1e-9?repos:1;
+    const ratio=downloads/safeRepos;
+    scores.set(s.id,Number.isFinite(ratio)?ratio:0);
+  });
+  reposSeries.forEach(s=>{
+    if(scores.has(s.id)){ return; }
+    const repos=repoScores.get(s.id)||0;
+    const safeRepos=Math.abs(repos)>1e-9?repos:1;
+    scores.set(s.id,0/safeRepos);
+  });
+  legendFullIds.forEach(id=>{
+    if(!scores.has(id)){ scores.set(id,0); }
+  });
+  return scores;
+}
+
+function parseDateYYYYMMDD(s){
+  if(typeof s!=="string"||!s){ return null; }
+  const m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(!m){ return null; }
+  const y=+m[1];
+  const mo=+m[2]-1;
+  const d=+m[3];
+  return new Date(Date.UTC(y,mo,d));
+}
+
+function formatValue(v){
+  if(!Number.isFinite(v)){ return "0"; }
+  if(currentScale==="normalized"){ return d3.format(".2~f")(v); }
+  return d3.format(",")(v);
+}
+
+function formatRawValue(v){
+  if(!Number.isFinite(v)){ return "0"; }
+  return d3.format(",")(v);
+}
+
+function getPeriodLabel(){
+  switch(currentPeriod){
+    case "monthly": return "month";
+    case "yearly": return "year";
+    default: return "week";
+  }
+}
+
+function getPeriodAdjective(){
+  switch(currentPeriod){
+    case "monthly": return "monthly";
+    case "yearly": return "yearly";
+    default: return "weekly";
+  }
+}
+
+function getMetricDefinition(){
+  return METRICS.find(m=>m.key===currentMetric)||METRICS[0];
+}
+
+function getActiveMetricKey(){
+  const def=getMetricDefinition();
+  return currentMode==="perWeek"&&def.weekKey?def.weekKey:def.key;
+}
+
+function getModeSuffix(){
+  return currentMode==="perWeek"?`(per ${getPeriodLabel()})`:"(total)";
+}
+
+function getScaleSuffix(){
+  if(currentScale==="normalized"){
+    if(currentNormMode==="againstPrevious"){ return " (indexed to previous=1)"; }
+    return " (indexed to start=1)";
+  }
+  if(currentScale==="log"){ return " (log scale)"; }
+  return "";
+}
+
+function addDays(date,days){
+  if(!date){ return null; }
+  const next=new Date(date.getTime());
+  next.setUTCDate(next.getUTCDate()+days);
+  return next;
+}
+
+function formatWeekLabel(date){
+  if(!date){ return "Week"; }
+  const month=getMonthLabel(date.getUTCMonth());
+  const day=date.getUTCDate();
+  const year=date.getUTCFullYear();
+  return `Week of ${month} ${day}, ${year}`;
+}
+
+function formatMonthLabel(date){
+  if(!date){ return "Month"; }
+  const month=getMonthLabel(date.getUTCMonth());
+  const year=date.getUTCFullYear();
+  return `Month of ${month} ${year}`;
+}
+
+function stripTimePrefix(label){
+  if(typeof label!=="string"){ return label; }
+  return label.replace(/^(Week|Month)\s+of\s+/i,"");
+}
+
+function getRelativePeriodLabel(index){
+  const unit=currentPeriod==="monthly"?"Month":currentPeriod==="yearly"?"Year":"Week";
+  return `${unit} ${index}`;
+}
+
+function orderToYearMonth(order){
+  const year=Math.floor(order/12);
+  const month=order-year*12;
+  return { year, month };
+}
+
+function getPeriodInfo(entry, period){
+  if(!entry){ return null; }
+  if(period==="monthly"){
+    const date=entry.__monthDate||entry.__date||null;
+    const year=date?date.getUTCFullYear():Number.isFinite(+entry.year)?+entry.year:NaN;
+    if(!Number.isFinite(year)){ return null; }
+    const month=date?date.getUTCMonth():Number.isFinite(+entry.month)?(+entry.month-1):NaN;
+    const order=year*12+month;
+    const label=date?formatMonthLabel(date):`${getMonthLabel(month)} ${year}`;
+    return { order, label, date:date||new Date(Date.UTC(year,month,1)), year, month };
+  }
+  if(period==="yearly"){
+    const year=Number.isFinite(+entry.year)?+entry.year:NaN;
+    if(!Number.isFinite(year)){ return null; }
+    return { order:year, label:`${year}`, date:new Date(Date.UTC(year,0,1)), year, month:null };
+  }
+  const weekCount=Number.isFinite(+entry.week_count)?+entry.week_count:NaN;
+  if(!Number.isFinite(weekCount)){ return null; }
+  const date=entry.__weekDate||entry.__date||null;
+  const label=date?formatWeekLabel(date):`Week ${weekCount}`;
+  return { order:weekCount, label, date:date, year:date?date.getUTCFullYear():Number.isFinite(+entry.year)?+entry.year:undefined, month:date?date.getUTCMonth():undefined };
+}
+
+function createInfoFromOrder(order, period, baseInfo){
+  if(period==="monthly"){
+    const {year, month}=orderToYearMonth(order);
+    const date=new Date(Date.UTC(year,month,1));
+    return { order, label:formatMonthLabel(date), date, year, month };
+  }
+  if(period==="yearly"){
+    const year=order;
+    return { order, label:`${year}`, date:new Date(Date.UTC(year,0,1)), year, month:null };
+  }
+  let date=null;
+  if(baseInfo&&baseInfo.date&&Number.isFinite(baseInfo.order)){
+    const diff=order-baseInfo.order;
+    date=addDays(baseInfo.date,diff*7);
+  }
+  return { order, label:date?formatWeekLabel(date):`Week ${order}`, date:date, year:date?date.getUTCFullYear():undefined, month:date?date.getUTCMonth():undefined };
+}
+
+function updateAxisLabel(){
+  const def=getMetricDefinition();
+  if(!def){ return; }
+  const descriptors=[];
+  if(currentScale!=="normalized"){ descriptors.push(getModeSuffix()); }
+  const scaleSuffix=getScaleSuffix();
+  if(scaleSuffix){ descriptors.push(scaleSuffix); }
+  const descriptorText=descriptors.join(" ").trim();
+  const textParts=[def.label];
+  if(descriptorText){ textParts.push(descriptorText); }
+  const labelText=textParts.join(" ");
+  yLabelEl.textContent=labelText;
+}
+
+function buildLegend(ids){
+  const list=Array.isArray(ids)?ids.slice():[];
+  list.forEach(id=>{ if(!active.has(id)){ active.set(id,true); } });
+  legendCurrentIds=list.slice();
+  if(legendEl.empty()){ return; }
+  legendEl.selectAll("*").remove();
+  const items=legendEl.selectAll(".legend-item").data(list,d=>d).enter().append("div").attr("class","legend-item").attr("role","button").attr("tabindex",0).attr("aria-pressed","true");
+  items.append("div").attr("class","legend-square").style("background",d=>getSeriesColor(d));
+  items.append("span").text(d=>d);
+  function toggle(_,id){
+    const curr=active.get(id);
+    active.set(id,!curr);
+    d3.select(this).classed("dim",!active.get(id)).attr("aria-pressed",active.get(id)?"true":"false");
+    render();
+  }
+  items.on("click",toggle).on("keydown",function(e,id){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle.call(this,e,id); } });
+  refreshLegendState();
+}
+
+function refreshLegendState(){
+  if(legendEl.empty()){ return; }
+  legendEl.selectAll(".legend-item").attr("aria-pressed",d=>active.get(d)?"true":"false").classed("dim",d=>!active.get(d));
+}
+
+function onConfigModeChange(mode){
+  if(!mode||mode===currentMode||currentScale==="normalized"){ return; }
+  lastAbsoluteMode=mode;
+  currentMode=mode;
+  if(window.ConfigTab&&typeof window.ConfigTab.setMode==="function"){ window.ConfigTab.setMode(currentMode); }
+  updateAxisLabel();
+  buildSeriesFromRaw();
+  render();
+}
+
+function onConfigMetricChange(metric){
+  if(!metric||metric===currentMetric){ return; }
+  currentMetric=metric;
+  if(window.ConfigTab&&typeof window.ConfigTab.setMetric==="function"){ window.ConfigTab.setMetric(currentMetric); }
+  updateAxisLabel();
+  buildSeriesFromRaw();
+  render();
+}
+
+function onConfigPeriodChange(period){
+  if(!period||period===currentPeriod){ return; }
+  currentPeriod=period;
+  if(window.ConfigTab&&typeof window.ConfigTab.setPeriod==="function"){ window.ConfigTab.setPeriod(currentPeriod); }
+  updateAxisLabel();
+  buildSeriesFromRaw();
+  render();
+}
+
+function onConfigScaleChange(scale){
+  if(!scale||scale===currentScale){ return; }
+  const previousScale=currentScale;
+  currentScale=scale;
+  if(currentScale==="normalized"){
+    lastAbsoluteMode=currentMode;
+    currentMode="cumulative";
+    if(window.ConfigTab&&typeof window.ConfigTab.setMode==="function"){ window.ConfigTab.setMode(currentMode); }
+    if(window.ConfigTab&&typeof window.ConfigTab.setModeDisabled==="function"){ window.ConfigTab.setModeDisabled(true); }
+    if(window.ConfigTab&&typeof window.ConfigTab.setNormModeVisible==="function"){ window.ConfigTab.setNormModeVisible(true); }
+  }else{
+    if(window.ConfigTab&&typeof window.ConfigTab.setModeDisabled==="function"){ window.ConfigTab.setModeDisabled(false); }
+    if(previousScale==="normalized"){
+      currentMode=lastAbsoluteMode||currentMode||"cumulative";
+      if(window.ConfigTab&&typeof window.ConfigTab.setMode==="function"){ window.ConfigTab.setMode(currentMode); }
+    }
+    if(window.ConfigTab&&typeof window.ConfigTab.setNormModeVisible==="function"){ window.ConfigTab.setNormModeVisible(false); }
+  }
+  if(window.ConfigTab&&typeof window.ConfigTab.setScale==="function"){ window.ConfigTab.setScale(currentScale); }
+  updateAxisLabel();
+  buildSeriesFromRaw();
+  render();
+}
+
+function onConfigTopFilterChange(filter){
+  if(!filter||typeof filter!=="object"){ return; }
+  const percent=clampFilterPercent(filter.percent);
+  const metricKey=typeof filter.metric==="string"&&filter.metric.trim().length?filter.metric.trim():null;
+  const fallbackMetric=currentFilter.metric|| (METRICS.length?METRICS[0].key:null);
+  currentFilter={ percent, metric:metricKey||fallbackMetric };
+  if(window.ConfigTab&&typeof window.ConfigTab.setTopFilter==="function"){
+    window.ConfigTab.setTopFilter(currentFilter);
+  }
+  render();
+}
+
+function onConfigNormModeChange(mode){
+  if(!mode||mode===currentNormMode){ return; }
+  currentNormMode=mode;
+  if(window.ConfigTab&&typeof window.ConfigTab.setNormMode==="function"){ window.ConfigTab.setNormMode(currentNormMode); }
+  updateAxisLabel();
+  buildSeriesFromRaw();
+  render();
+}
+
+function getRangeUnit(){
+  switch(currentPeriod){
+    case "monthly": return "Month";
+    case "yearly": return "Year";
+    default: return "Week";
+  }
+}
+
+function formatRangeLabelByIndex(idx){
+  if(!Number.isInteger(idx)||idx<0||idx>=currentTimeline.length){ return "N/A"; }
+  const info=currentTimeline[idx];
+  if(!info){ return "N/A"; }
+  return info.label||`Period ${info.coord}`;
+}
+
+function getClampedRangeIndices(){
+  if(!currentTimeline.length){ return {startIndex:0,endIndex:0,maxIndex:-1}; }
+  const maxIndex=currentTimeline.length-1;
+  const rawStart=Number.isFinite(currentRange.startIndex)?currentRange.startIndex:0;
+  const rawEnd=Number.isFinite(currentRange.endIndex)?currentRange.endIndex:maxIndex;
+  const startIndex=Math.max(0,Math.min(rawStart,maxIndex));
+  const endIndex=Math.max(startIndex,Math.min(rawEnd,maxIndex));
+  return {startIndex,endIndex,maxIndex};
+}
+
+function syncRangeWithTimeline(){
+  const length=currentTimeline.length;
+  if(!length){
+    currentRange.startIndex=0;
+    currentRange.endIndex=0;
+    if(sliderInitialized&&window.RangeSlider&&typeof window.RangeSlider.update==="function"){
+      window.RangeSlider.update({ min:0, max:0, start:0, end:0, getLabel:()=> "N/A", unitLabel:getRangeUnit() });
+    }
+    return;
+  }
+  const maxIndex=length-1;
+  let start=rangeDirty?currentRange.startIndex:0;
+  let end=rangeDirty?currentRange.endIndex:maxIndex;
+  start=Math.max(0,Math.min(Number.isFinite(start)?start:0,maxIndex));
+  end=Math.max(start,Math.min(Number.isFinite(end)?end:maxIndex,maxIndex));
+  currentRange.startIndex=start;
+  currentRange.endIndex=end;
+  if(sliderInitialized&&window.RangeSlider&&typeof window.RangeSlider.update==="function"){
+    window.RangeSlider.update({ min:0, max:maxIndex, start, end, getLabel:formatRangeLabelByIndex, unitLabel:getRangeUnit() });
+  }
+}
+
+function handleRangeChange(range){
+  if(!range||!currentTimeline.length){ return; }
+  if(!sliderVisible){ return; }
+  const start=Number.isFinite(range.start)?Math.floor(range.start):0;
+  const end=Number.isFinite(range.end)?Math.floor(range.end):0;
+  const maxIndex=currentTimeline.length-1;
+  const clampedStart=Math.max(0,Math.min(start,maxIndex));
+  const clampedEnd=Math.max(clampedStart,Math.min(end,maxIndex));
+  if(clampedStart===currentRange.startIndex&&clampedEnd===currentRange.endIndex){ return; }
+  rangeDirty=true;
+  suppressAnimationNextRender=true;
+  currentRange.startIndex=clampedStart;
+  currentRange.endIndex=clampedEnd;
+  if(tooltip){ tooltip.style("opacity",0); }
+  render();
+}
+
+function removeDuplicateSliderPanels(){
+  const panels=document.querySelectorAll("#sliderPanel");
+  if(panels.length>1){ panels.forEach((el,i)=>{ if(i>0){ el.remove(); } }); }
+}
+
+function setSliderVisibility(visible,options={}){
+  const next=!!visible;
+  const previous=sliderVisible;
+  sliderVisible=next;
+  removeDuplicateSliderPanels();
+  const existing=document.getElementById("sliderPanel");
+  if(sliderVisible){
+    if(existing){
+      sliderPanelEl=existing;
+      sliderPanelEl.style.display="";
+      if(!sliderInitialized&&window.RangeSlider&&typeof window.RangeSlider.init==="function"){
+        window.RangeSlider.init({ containerEl: sliderPanelEl, onChange: handleRangeChange });
+        sliderInitialized=true;
+      }
+    }else{
+      loadSlider();
+    }
+  }else{
+    if(existing){ existing.style.display="none"; }
+  }
+  if(previous!==sliderVisible){
+    if(window.ConfigTab&&typeof window.ConfigTab.setSliderVisible==="function"&&!options.skipConfig){ window.ConfigTab.setSliderVisible(sliderVisible); }
+    syncRangeWithTimeline();
+    render();
+  }
+}
+
+function setTitleVisibility(visible,options={}){
+  const next=!!visible;
+  titleVisible=next;
+  if(titleContainer){
+    titleContainer.style.display=titleVisible?"":"none";
+  }
+  if(!options.skipConfig&&window.ConfigTab&&typeof window.ConfigTab.setTitleVisible==="function"){
+    window.ConfigTab.setTitleVisible(titleVisible);
+  }
+}
+
+setTitleVisibility(titleVisible,{skipConfig:true});
+
+async function loadSlider(){
+  const container=document.getElementById("container2");
+  if(!container){ return; }
+  if(document.getElementById("sliderPanel")){
+    sliderPanelEl=document.getElementById("sliderPanel");
+    sliderPanelEl.style.display=sliderVisible?"":"none";
+    if(sliderVisible&&!sliderInitialized&&window.RangeSlider&&typeof window.RangeSlider.init==="function"){
+      window.RangeSlider.init({ containerEl: sliderPanelEl, onChange: handleRangeChange });
+      sliderInitialized=true;
+      syncRangeWithTimeline();
+    }
+    return;
+  }
+  try{
+    const response=await fetch("./slider.html");
+    if(!response.ok){ throw new Error(`HTTP ${response.status}`); }
+    const text=await response.text();
+    const parser=new DOMParser();
+    const doc=parser.parseFromString(text,"text/html");
+    if(!document.querySelector('style[data-origin="range-slider"]')){
+      const styles=doc.querySelectorAll("style");
+      styles.forEach(style=>{ style.dataset.origin="range-slider"; document.head.appendChild(style); });
+    }
+    const panel=doc.querySelector("#sliderPanel");
+    if(panel){
+      const legend=document.getElementById("legend");
+      if(legend&&legend.parentNode){ legend.parentNode.insertBefore(panel,legend); } else { container.insertBefore(panel,container.firstChild); }
+      sliderPanelEl=panel;
+      sliderPanelEl.style.display=sliderVisible?"":"none";
+    }
+    if(!document.querySelector('script[data-origin="range-slider"]')){
+      const scripts=doc.querySelectorAll("script");
+      scripts.forEach(snippet=>{
+        const script=document.createElement("script");
+        if(snippet.src){ script.src=snippet.src; } else { script.textContent=snippet.textContent; }
+        script.dataset.origin="range-slider";
+        document.body.appendChild(script);
+      });
+    }
+    if(sliderVisible&&window.RangeSlider&&typeof window.RangeSlider.init==="function"&&sliderPanelEl){
+      window.RangeSlider.init({ containerEl: sliderPanelEl, onChange: handleRangeChange });
+      sliderInitialized=true;
+      syncRangeWithTimeline();
+    }
+    removeDuplicateSliderPanels();
+  }catch(err){
+    console.error("Failed to load slider:",err);
+  }
+}
+
+function readToggleState(group, attr){
+  try{
+    if(!group){ return null; }
+    const buttons=Array.from(group.querySelectorAll("button"));
+    if(!buttons.length){ return null; }
+    const showBtn=buttons.find(b=>b.dataset?.[attr]==="show");
+    const hideBtn=buttons.find(b=>b.dataset?.[attr]==="hide");
+    const showActive=showBtn&&(showBtn.getAttribute("aria-pressed")==="true"||showBtn.classList.contains("active"));
+    const hideActive=hideBtn&&(hideBtn.getAttribute("aria-pressed")==="true"||hideBtn.classList.contains("active"));
+    if(showActive&&!hideActive){ return true; }
+    if(hideActive&&!showActive){ return false; }
+  }catch(e){}
+  return null;
+}
+
+function readTimeSliderStateFromPanel(panel){
+  try{
+    const group=panel.querySelector("#configSliderButtons");
+    const state=readToggleState(group,"slider");
+    if(state!==null){ return state; }
+  }catch(e){}
+  return sliderVisible;
+}
+
+function wireConfigSliderBridge(panel){
+  try{
+    const sliderGroup=panel.querySelector("#configSliderButtons");
+    const titleGroup=panel.querySelector("#configTitleButtons");
+    const initialSlider=readToggleState(sliderGroup,"slider");
+    setSliderVisibility(initialSlider===null?sliderVisible:initialSlider,{skipConfig:true});
+    if(sliderGroup){
+      sliderGroup.addEventListener("click",function(e){
+        const btn=e.target&&e.target.closest(".config-slider-btn");
+        if(!btn){ return; }
+        const wantsVisible=btn.dataset.slider!=="hide";
+        setSliderVisibility(wantsVisible);
+      });
+    }
+    const initialTitle=readToggleState(titleGroup,"title");
+    setTitleVisibility(initialTitle===null?titleVisible:initialTitle,{skipConfig:true});
+    if(titleGroup){
+      titleGroup.addEventListener("click",function(e){
+        const btn=e.target&&e.target.closest(".config-title-btn");
+        if(!btn){ return; }
+        const wantsVisible=btn.dataset.title!=="hide";
+        setTitleVisibility(wantsVisible);
+      });
+    }
+    if(window.ConfigTab){
+      window.ConfigTab.onSliderVisibleChange=function(visible){ setSliderVisibility(!!visible); };
+      window.ConfigTab.onTitleVisibleChange=function(visible){ setTitleVisibility(!!visible); };
+    }
+    window.setTimelineVisible=function(visible){ setSliderVisibility(!!visible); };
+    window.addEventListener("timelineVisibilityChange",function(e){ setSliderVisibility(!!(e&&e.detail)); });
+    window.addEventListener("config:timeline",function(e){ setSliderVisibility(!!(e&&e.detail)); });
+    window.addEventListener("message",function(e){
+      const d=e&&e.data;
+      if(d&&d.type==="config:timeline"){ setSliderVisibility(!!d.visible); }
+    });
+  }catch(e){}
+}
+
+async function loadConfigTab(){
+  if(!vizLayout){ return; }
+  try{
+    const response=await fetch("./tab.html");
+    if(!response.ok){ throw new Error(`HTTP ${response.status}`); }
+    const text=await response.text();
+    const parser=new DOMParser();
+    const doc=parser.parseFromString(text,"text/html");
+    if(!document.querySelector('style[data-origin="config-tab"]')){
+      const styles=doc.querySelectorAll("style");
+      styles.forEach(style=>{ style.dataset.origin="config-tab"; document.head.appendChild(style); });
+    }
+    const panel=doc.querySelector("#configPanel");
+    if(panel){ vizLayout.appendChild(panel); }
+    if(!document.querySelector('script[data-origin="config-tab"]')){
+      const scripts=doc.querySelectorAll("script");
+      scripts.forEach(snippet=>{
+        const script=document.createElement("script");
+        if(snippet.src){ script.src=snippet.src; }else{ script.textContent=snippet.textContent; }
+        script.dataset.origin="config-tab";
+        document.body.appendChild(script);
+      });
+    }
+    if(window.ConfigTab&&typeof window.ConfigTab.init==="function"){
+      window.ConfigTab.init({
+        panelEl: document.getElementById("configPanel"),
+        initialMode: currentMode,
+        initialPeriod: currentPeriod,
+        initialScale: currentScale,
+        initialNormMode: currentNormMode,
+        initialMetric: currentMetric,
+        initialSliderVisible: sliderVisible,
+        initialTitleVisible: titleVisible,
+        initialTopFilter: currentFilter,
+        metrics: METRICS,
+        onModeChange:onConfigModeChange,
+        onPeriodChange:onConfigPeriodChange,
+        onScaleChange:onConfigScaleChange,
+        onNormModeChange:onConfigNormModeChange,
+        onMetricChange:onConfigMetricChange,
+        onSliderVisibilityChange:setSliderVisibility,
+        onTitleVisibilityChange:setTitleVisibility,
+        onTopFilterChange:onConfigTopFilterChange,
+        onTitleVisibilityChange:setTitleVisibility
+      });
+    }
+    const panelEl=document.getElementById("configPanel");
+    if(panelEl){ wireConfigSliderBridge(panelEl); }
+  }catch(err){
+    console.error("Failed to load config tab:",err);
+  }
+}
+
+function load(){
+  Promise.all([
+    fetch("./data.json").then(r=>r.json()),
+    fetch("./orgs.json").then(r=>r.ok?r.json():[]).catch(()=>[])
+  ]).then(([json, orgList])=>{
+    orgMeta.clear();
+    if(Array.isArray(orgList)){
+      orgList.forEach(entry=>{
+        if(entry&&entry.id){
+          orgMeta.set(entry.id,{ color:entry.color||null, logo:entry.logo||null });
+        }
+      });
+    }
+    const grouped=d3.groups(json,d=>d.id).map(([id,arr])=>{
+      arr.sort((a,b)=>+a.week_count-+b.week_count);
+      const enriched=arr.map(entry=>{
+        const weekDate=parseDateYYYYMMDD(entry.week_date);
+        const monthDate=parseDateYYYYMMDD(entry.month_date);
+        return {...entry, __weekDate:weekDate, __monthDate:monthDate, __date:weekDate||null};
+      });
+      return {id, values:enriched};
+    });
+    rawById=grouped;
+    const ids=rawById.map(s=>s.id);
+    ids.forEach(id=>active.set(id,true));
+    colorScale.domain(ids);
+    legendFullIds=ids.slice();
+    const defaultMetric=METRICS.length?METRICS[0].key:null;
+    let filterMetric=currentFilter.metric;
+    if(!filterMetric|| (filterMetric!=="downloads_per_repo"&&!METRICS.some(m=>m.key===filterMetric))){
+      filterMetric=defaultMetric;
+    }
+    currentFilter={ percent:clampFilterPercent(currentFilter.percent), metric:filterMetric };
+    updateAxisLabel();
+    if(window.ConfigTab&&typeof window.ConfigTab.setMetrics==="function"){ window.ConfigTab.setMetrics(METRICS,currentMetric); }
+    if(window.ConfigTab&&typeof window.ConfigTab.setScale==="function"){ window.ConfigTab.setScale(currentScale); }
+    if(window.ConfigTab&&typeof window.ConfigTab.setModeDisabled==="function"){ window.ConfigTab.setModeDisabled(currentScale==="normalized"); }
+    if(window.ConfigTab&&typeof window.ConfigTab.setNormModeVisible==="function"){ window.ConfigTab.setNormModeVisible(currentScale==="normalized"); }
+    if(window.ConfigTab&&typeof window.ConfigTab.setNormMode==="function"){ window.ConfigTab.setNormMode(currentNormMode); }
+    if(window.ConfigTab&&typeof window.ConfigTab.setSliderVisible==="function"){ window.ConfigTab.setSliderVisible(sliderVisible); }
+    if(window.ConfigTab&&typeof window.ConfigTab.setTitleVisible==="function"){ window.ConfigTab.setTitleVisible(titleVisible); }
+    if(window.ConfigTab&&typeof window.ConfigTab.setTopFilter==="function"){ window.ConfigTab.setTopFilter(currentFilter); }
+    if(window.ConfigTab&&typeof window.ConfigTab.setSliderVisible==="function"){ window.ConfigTab.setSliderVisible(sliderVisible); }
+    if(window.ConfigTab&&typeof window.ConfigTab.setTitleVisible==="function"){ window.ConfigTab.setTitleVisible(titleVisible); }
+    buildLegend(ids);
+    buildSeriesFromRaw();
+    render();
+  }).catch(()=>{
+    orgMeta.clear();
+    rawById=[];
+    series=[];
+    currentTimeline=[];
+    legendFullIds=[];
+    legendCurrentIds=[];
+    syncRangeWithTimeline();
+    render();
+  });
+}
+
+function buildSeriesFromRaw(){
+  const metricKey=getActiveMetricKey();
+  const isPerPeriod=currentMode==="perWeek";
+  const period=currentPeriod;
+  const infoByOrder=new Map();
+  rawById.forEach(({values})=>{
+    values.forEach(entry=>{
+      const info=getPeriodInfo(entry,period);
+      if(!info){ return; }
+      const existing=infoByOrder.get(info.order);
+      if(existing){
+        if(!existing.date&&info.date){ infoByOrder.set(info.order,{...existing,date:info.date}); }
+      }else{
+        infoByOrder.set(info.order,{...info});
+      }
+    });
+  });
+  const sortedInfos=Array.from(infoByOrder.values()).sort((a,b)=>a.order-b.order);
+  if(!sortedInfos.length){
+    series=[];
+    currentTimeline=[];
+    return;
+  }
+  const baseInfo=sortedInfos.find(info=>info.date)||sortedInfos[0];
+
+  const minOrder=sortedInfos[0].order;
+  const maxOrder=sortedInfos[sortedInfos.length-1].order;
+  const timeline=[];
+  for(let order=minOrder,index=1; order<=maxOrder; order++, index++){
+    let info=infoByOrder.get(order);
+    if(info){ info={...info}; } else { info=createInfoFromOrder(order,period,baseInfo); }
+    if(period==="weekly"&&!info.date&&baseInfo&&baseInfo.date){
+      const diff=order-baseInfo.order;
+      info.date=addDays(baseInfo.date,diff*7);
+    }
+    if(!info.label){
+      if(period==="monthly"){
+        const {year,month}=orderToYearMonth(order);
+        info.label=formatMonthLabel(new Date(Date.UTC(year,month,1)));
+      }else if(period==="yearly"){
+        info.label=`${order}`;
+      }else{
+        info.label=formatWeekLabel(info.date);
+      }
+    }
+    if(period==="monthly"&&(!Number.isInteger(info.month)||!Number.isInteger(info.year))){
+      const {year,month}=orderToYearMonth(order);
+      info.month=month;
+      info.year=year;
+    }
+    if(period==="weekly"&&info.date){
+      info.year=info.date.getUTCFullYear();
+      info.month=info.date.getUTCMonth();
+    }
+    info.index=index;
+    timeline.push(info);
+  }
+  timeline.forEach((info,idx)=>{ info.relativeIndex=idx; info.absoluteIndex=info.index; info.coord=info.index; });
+  currentTimeline=timeline;
+
+  series=rawById.map(({id, values})=>{
+    const aggregated=new Map();
+    values.forEach(entry=>{
+      const info=getPeriodInfo(entry,period);
+      if(!info){ return; }
+      const target=aggregated.get(info.order)||{sum:0,last:null};
+      if(isPerPeriod){ target.sum+=+entry[metricKey]||0; } else { target.last=+entry[metricKey]||0; }
+      aggregated.set(info.order,target);
+    });
+    const result=[];
+    let running=0;
+    currentTimeline.forEach(info=>{
+      const dataPoint=aggregated.get(info.order);
+      let rawValue=0;
+      if(isPerPeriod){ rawValue=dataPoint?dataPoint.sum:0; } else { if(dataPoint&&typeof dataPoint.last==="number"){ running=dataPoint.last; } rawValue=running; }
+      result.push({ w:info.coord, rawValue, value:rawValue, label:info.label, actualLabel:info.label, relativeLabel:null, order:info.order, date:info.date, relativeIndex:info.relativeIndex, absoluteIndex:info.absoluteIndex });
+    });
+    return {id, values:result};
+  });
+  syncRangeWithTimeline();
+}
+
+function measureLabelWidth(labels,fontSize){
+  const g=svg.append("g").attr("opacity",0).attr("transform","translate(-9999,-9999)");
+  const t=g.selectAll("text").data(labels).enter().append("text").style("font-size",fontSize+"px").text(d=>d);
+  let w=0;
+  t.each(function(){ w=Math.max(w,this.getComputedTextLength()); });
+  g.remove();
+  return w;
+}
+
+function getTimelineInfoByCoord(coord){
+  if(!currentTimeline.length||!Number.isFinite(coord)){ return null; }
+  const idx=Math.round(coord)-1;
+  if(idx<0||idx>=currentTimeline.length){ return null; }
+  return currentTimeline[idx];
+}
+
+function formatTimelineTick(value){
+  if(!currentTimeline.length){ return ""; }
+  const info=getTimelineInfoByCoord(value);
+  if(!info){ return ""; }
+  if(currentPeriod==="yearly"){ return `${info.year||info.order}`; }
+  if(currentPeriod==="monthly"){
+    if(Number.isInteger(info.month)){ return getMonthLabel(info.month); }
+    const label=info.label||"";
+    return stripTimePrefix(label);
+  }
+  if(currentPeriod==="weekly"){
+    const prev=getTimelineInfoByCoord(value-1);
+    const isMonthStart=!prev||prev.month!==info.month||prev.year!==info.year;
+    if(isMonthStart&&Number.isInteger(info.month)){
+      return getMonthLabel(info.month);
+    }
+    return "";
+  }
+  const label=info.label||"";
+  return stripTimePrefix(label);
+}
+
+function getPointLabel(point){
+  if(!point){ return ""; }
+  const info=getTimelineInfoByCoord(point.w);
+  if(!info){ return ""; }
+  return info.label||`Period ${point.w}`;
+}
+
+function createTooltipHtml(point,labelText,metricDef){
+  const metricName=metricDef?metricDef.label:"";
+  const modeLabel=currentScale==="normalized"?"":getModeSuffix();
+  const scaleLabel=currentScale==="normalized"?"":getScaleSuffix();
+  const lines=[];
+  lines.push(`<strong>${point.id}</strong>`);
+  lines.push(labelText);
+  if(currentScale==="normalized"){
+    const indexValue=formatValue(point.value);
+    lines.push(`Index: ${indexValue}`);
+    const actualSuffix=[metricName].filter(Boolean).join(" ").trim();
+    const actualValue=formatRawValue(point.rawValue??point.value);
+    lines.push(`Actual: ${actualValue}${actualSuffix?` ${actualSuffix}`:""}`);
+  }else{
+    let descriptor=[metricName,modeLabel,scaleLabel].filter(Boolean).join(" ").trim();
+    descriptor=descriptor?` ${descriptor}`:"";
+    const valueText=`${formatValue(point.value)}${descriptor}`.trim();
+    lines.push(valueText);
+  }
+  return lines.join("<br>");
+}
+
+function findNormalizationBaseEntry(slice){
+  if(!Array.isArray(slice)){ return { index:-1, value:null }; }
+  for(let i=0;i<slice.length;i++){
+    const entry=slice[i];
+    if(!entry){ continue; }
+    const raw=entry.rawValue;
+    if(Number.isFinite(raw)&&Math.abs(raw)>0){
+      return { index:i, value:raw };
+    }
+  }
+  return { index:-1, value:null };
+}
+
+function normalizeAgainstStart(slice){
+  if(!Array.isArray(slice)||!slice.length){ return []; }
+  const { index:baseIndex, value:divisor }=findNormalizationBaseEntry(slice);
+  if(Number.isFinite(divisor)&&Math.abs(divisor)>0){
+    return slice.map((entry,idx)=>{
+      const raw=entry&&Number.isFinite(entry.rawValue)?entry.rawValue:null;
+      let value=(Number.isFinite(raw)&&divisor)?(raw/divisor):0;
+      if(idx===baseIndex){ value=1; }
+      return { ...entry, value };
+    });
+  }
+  return slice.map(entry=>({ ...entry, value:1 }));
+}
+
+function normalizeAgainstPrevious(slice){
+  if(!Array.isArray(slice)||!slice.length){ return []; }
+  const result=[];
+  slice.forEach((entry,idx)=>{
+    let value=1;
+    if(idx>0){
+      const prevRaw=slice[idx-1]?.rawValue;
+      if(Number.isFinite(prevRaw)&&Math.abs(prevRaw)>0){
+        const raw=entry?.rawValue;
+        value=Number.isFinite(raw)?(raw/prevRaw):0;
+      }else{
+        const fallback=result[idx-1]?.value;
+        value=Number.isFinite(fallback)?fallback:1;
+      }
+    }
+    result.push({ ...entry, value });
+  });
+  return result;
+}
+
+function decimateTicksHalf(ticks){
+  if(!Array.isArray(ticks)||ticks.length<=2){ return ticks; }
+  const res=[];
+  for(let i=0;i<ticks.length;i++){
+    if(i===0||i===ticks.length-1||i%2===0){ res.push(ticks[i]); }
+  }
+  return Array.from(new Set(res));
+}
+
+function render(){
+  const viz=document.getElementById("viz");
+  const rect=viz.getBoundingClientRect();
+  const fullW=rect.width;
+  const fullH=rect.height;
+  const axisContainer=document.querySelector("#container1 .y-axis-container");
+  const axisContainerWidth=axisContainer?axisContainer.getBoundingClientRect().width:24;
+  svg.attr("width",fullW).attr("height",fullH);
+  const tickFont=Math.max(9,Math.min(13,fullW/110));
+  const finalLabelFontSize=6;
+  const yearAxisLabelPadding=tickFont+16;
+  const yearLabelTextOffset=yearAxisLabelPadding+tickFont+8;
+  const yearDecorationAllowance=yearLabelTextOffset+tickFont+18;
+  if(!currentTimeline.length){
+    svg.selectAll("*").remove();
+    updateTitle([]);
+    suppressAnimationNextRender=false;
+    return;
+  }
+  const {startIndex,endIndex}=getClampedRangeIndices();
+  const timelineSlice=currentTimeline.filter(info=>info.relativeIndex>=startIndex&&info.relativeIndex<=endIndex);
+  if(!timelineSlice.length){
+    svg.selectAll("*").remove();
+    updateTitle([]);
+    suppressAnimationNextRender=false;
+    return;
+  }
+  const shouldShowYearDividers=(currentPeriod==="weekly"||currentPeriod==="monthly")&&timelineSlice.some(info=>Number.isInteger(info.year));
+  updateTitle(timelineSlice);
+  const rangeMinCoord=timelineSlice[0].coord;
+  const rangeMaxCoord=timelineSlice[timelineSlice.length-1].coord;
+  const singlePoint=rangeMinCoord===rangeMaxCoord;
+  const domainMin=singlePoint?rangeMinCoord-0.5:rangeMinCoord;
+  const domainMax=singlePoint?rangeMaxCoord+0.5:rangeMaxCoord;
+
+  const filteredSeries=transformSeriesForRange(series,startIndex,endIndex);
+  const filterMetricKey=currentFilter.metric||currentMetric;
+  const filterPercent=Number.isFinite(currentFilter.percent)?currentFilter.percent:100;
+  const limitCount=getFilterLimitCount(filterPercent,legendFullIds.length);
+  let filterScores;
+  if(filterMetricKey==="downloads_per_repo"){
+    filterScores=computeDownloadsPerRepoScores(startIndex,endIndex);
+  }else if(filterMetricKey===currentMetric){
+    filterScores=computeScoresFromSeries(filteredSeries);
+  }else{
+    const baseSeries=buildSeriesForMetric(filterMetricKey);
+    const transformed=transformSeriesForRange(baseSeries,startIndex,endIndex);
+    filterScores=computeScoresFromSeries(transformed);
+  }
+
+  if(limitCount===null){
+    legendFullIds.forEach(id=>active.set(id,true));
+    if(!arraysEqual(legendCurrentIds,legendFullIds)){ buildLegend(legendFullIds); }
+  }else if(limitCount<=0){
+    legendFullIds.forEach(id=>active.set(id,false));
+    if(!arraysEqual(legendCurrentIds,[])){ buildLegend([]); }
+  }else{
+    const topIds=computeTopIdsFromScores(limitCount,filterScores);
+    const uniqueTopIds=Array.from(new Set(topIds));
+    legendFullIds.forEach(id=>{ active.set(id,uniqueTopIds.includes(id)); });
+    if(!arraysEqual(legendCurrentIds,uniqueTopIds)){ buildLegend(uniqueTopIds); }
+  }
+  refreshLegendState();
+
+  const activeSeries=filteredSeries.filter(s=>active.get(s.id));
+  const visibleSeries=activeSeries.filter(s=>s.values.length);
+  const visiblePointCount=visibleSeries.reduce((sum,s)=>sum+s.values.length,0);
+  const densePointMode=visiblePointCount>100;
+  const seriesForScale=visibleSeries.length?visibleSeries:activeSeries.length?activeSeries:filteredSeries;
+  const useLogScale=currentScale==="log";
+  let yMax=d3.max(seriesForScale,s=>d3.max(s.values,v=>v.value));
+  let yMin=d3.min(seriesForScale,s=>d3.min(s.values,v=>v.value));
+  if(!Number.isFinite(yMax)){ yMax=1; }
+  if(!Number.isFinite(yMin)){ yMin=useLogScale?1:0; }
+  if(yMax<yMin){ const swap=yMax; yMax=yMin; yMin=swap; }
+
+  let minPositive=Infinity;
+  let maxPositive=-Infinity;
+  if(useLogScale){
+    seriesForScale.forEach(s=>{
+      s.values.forEach(v=>{
+        if(Number.isFinite(v.value)&&v.value>0){
+          if(v.value<minPositive){ minPositive=v.value; }
+          if(v.value>maxPositive){ maxPositive=v.value; }
+        }
+      });
+    });
+  }
+
+  const tickTarget=Math.max(3,Math.round(fullH*0.6/60));
+  let yTickValues=[];
+  let safeMinPositive=null;
+
+  if(useLogScale){
+    if(!Number.isFinite(minPositive)||minPositive<=0){ minPositive=1; }
+    if(!Number.isFinite(maxPositive)||maxPositive<=0){ maxPositive=minPositive; }
+    yMin=minPositive;
+    if(Number.isFinite(maxPositive)&&maxPositive>yMin){
+      yMax=maxPositive;
+    }else{
+      yMax=yMin*10;
+    }
+    if(yMax<=yMin){ yMax=yMin*10; }
+    const tmpY=d3.scaleLog().base(10).domain([yMin,yMax]);
+    yTickValues=tmpY.ticks(tickTarget);
+    yTickValues=[yMin,...yTickValues,yMax];
+    yTickValues=yTickValues.filter(v=>Number.isFinite(v)&&v>=yMin&&v<=yMax);
+    yTickValues=Array.from(new Set(yTickValues)).sort((a,b)=>a-b);
+    safeMinPositive=yMin;
+  }else{
+    if(yMax===yMin){
+      const pad=Math.abs(yMax)||1;
+      yMax=yMax+pad*0.05;
+    }
+    const tmpY=d3.scaleLinear().domain([yMin,yMax]).range([100,0]);
+    yTickValues=tmpY.ticks(tickTarget);
+    if(!yTickValues.includes(yMin)){ yTickValues=[yMin,...yTickValues]; }
+    if(!yTickValues.includes(yMax)){ yTickValues=[...yTickValues,yMax]; }
+    yTickValues=Array.from(new Set(yTickValues)).sort((a,b)=>a-b);
+  }
+  const yTicks=yTickValues.map(formatValue);
+  const yLabelW=measureLabelWidth(yTicks,tickFont);
+
+  let bottomMargin=Math.max(36,fullH*0.16,yearDecorationAllowance);
+  const margin={ top:Math.max(10,fullH*0.04), right:Math.max(16,fullW*0.05), bottom:bottomMargin, left:Math.max(8,axisContainerWidth+yLabelW+6) };
+
+  const width=Math.max(0,fullW-margin.left-margin.right);
+  const height=Math.max(0,fullH-margin.top-margin.bottom);
+  const gRoot=svg.selectAll("g.root").data([null]).join("g").attr("class","root").attr("transform",`translate(${margin.left},${margin.top})`);
+  if(width<=0||height<=0){
+    suppressAnimationNextRender=false;
+    return;
+  }
+
+  const x=d3.scaleLinear().domain([domainMin,domainMax]).range([0,width]);
+  const y=useLogScale?d3.scaleLog().base(10).domain([yMin,yMax]).range([height,0]).clamp(true):d3.scaleLinear().domain([yMin,yMax]).range([height,0]);
+  const valueForPlot=d=>{
+    const val=d.value;
+    if(!Number.isFinite(val)){
+      return useLogScale?(safeMinPositive||1):0;
+    }
+    if(useLogScale){
+      return Math.max(val,safeMinPositive||1);
+    }
+    return val;
+  };
+  const xTickCount=Math.max(3,Math.round(width/90));
+  const allowedCoords=new Set(timelineSlice.map(info=>info.coord));
+  let fullXTicks=[];
+  let axisXTicks=[];
+  if(currentPeriod==="weekly"){
+    const allCoords=timelineSlice.map(info=>info.coord);
+    const monthStartCoords=[];
+    timelineSlice.forEach((info,idx)=>{
+      const isFirst=idx===0;
+      const prev=isFirst?null:timelineSlice[idx-1];
+      const monthChanged=isFirst||!prev||prev.month!==info.month||prev.year!==info.year;
+      if(monthChanged){ monthStartCoords.push(info.coord); }
+    });
+    const baseTicks=new Set([rangeMinCoord,rangeMaxCoord]);
+    monthStartCoords.forEach(coord=>{ if(allowedCoords.has(coord)){ baseTicks.add(coord); } });
+    let monthTicks=Array.from(baseTicks).filter(coord=>allowedCoords.has(coord)).sort((a,b)=>a-b);
+    const monthLabels=monthTicks.map(coord=>{
+      const info=getTimelineInfoByCoord(coord);
+      if(!info||!Number.isInteger(info.month)){ return ""; }
+      return getMonthLabel(info.month);
+    });
+    const approxMonthLabelWidth=monthLabels.length?measureLabelWidth(monthLabels,tickFont):0;
+    const minTickSpacing=Math.max(approxMonthLabelWidth?approxMonthLabelWidth+12:60,40);
+    const filteredMonthTicks=[];
+    if(monthTicks.length){
+      filteredMonthTicks.push(monthTicks[0]);
+      for(let i=1;i<monthTicks.length-1;i++){
+        const coord=monthTicks[i];
+        const last=filteredMonthTicks[filteredMonthTicks.length-1];
+        if(x(coord)-x(last)>=minTickSpacing){
+          filteredMonthTicks.push(coord);
+        }
+      }
+      const lastCoord=monthTicks[monthTicks.length-1];
+      const lastKept=filteredMonthTicks[filteredMonthTicks.length-1];
+      if(lastCoord!==lastKept){
+        if(x(lastCoord)-x(lastKept)<minTickSpacing&&filteredMonthTicks.length>1){
+          filteredMonthTicks[filteredMonthTicks.length-1]=lastCoord;
+        }else{
+          filteredMonthTicks.push(lastCoord);
+        }
+      }
+    }
+    const weekCoords=allCoords.filter(coord=>!filteredMonthTicks.includes(coord));
+    const targetTickCount=Math.min(Math.floor(width/Math.max(minTickSpacing,1)), filteredMonthTicks.length+weekCoords.length);
+    const tickArray=filteredMonthTicks.slice();
+    if(targetTickCount>tickArray.length){
+      const tryAddTick=coord=>{
+        const pos=x(coord);
+        for(let i=0;i<tickArray.length;i++){
+          const existingPos=x(tickArray[i]);
+          if(Math.abs(existingPos-pos)<minTickSpacing){ return false; }
+        }
+        tickArray.push(coord);
+        tickArray.sort((a,b)=>a-b);
+        return true;
+      };
+      for(let i=0;i<weekCoords.length&&tickArray.length<targetTickCount;i++){
+        const coord=weekCoords[i];
+        if(!allowedCoords.has(coord)){ continue; }
+        tryAddTick(coord);
+      }
+    }
+    axisXTicks=tickArray;
+    fullXTicks=tickArray.slice();
+  }else{
+    let rawTicks=d3.ticks(rangeMinCoord,rangeMaxCoord,xTickCount);
+    rawTicks=rawTicks.map(val=>Math.round(val));
+    rawTicks=Array.from(new Set(rawTicks)).filter(t=>allowedCoords.has(t));
+    if(singlePoint){
+      rawTicks=[rangeMinCoord];
+    }else{
+      if(!rawTicks.includes(rangeMinCoord)){ rawTicks.unshift(rangeMinCoord); }
+      if(!rawTicks.includes(rangeMaxCoord)){ rawTicks.push(rangeMaxCoord); }
+    }
+    rawTicks.sort((a,b)=>a-b);
+    fullXTicks=rawTicks;
+    axisXTicks=decimateTicksHalf(rawTicks);
+  }
+
+  const gridX=gRoot.selectAll("g.grid-x").data([null]).join("g").attr("class","grid grid-x").attr("transform",`translate(0,${height})`);
+  gridX.call(d3.axisBottom(x).tickValues(fullXTicks).tickSize(-height).tickFormat(""));
+  const gridY=gRoot.selectAll("g.grid-y").data([null]).join("g").attr("class","grid grid-y");
+  gridY.call(d3.axisLeft(y).tickValues(yTickValues).tickSize(-width).tickFormat(""));
+  gridX.select(".domain").remove();
+  gridY.select(".domain").remove();
+
+  const xAxis=gRoot.selectAll("g.x").data([null]).join("g").attr("class","axis x").attr("transform",`translate(0,${height})`);
+  const yAxis=gRoot.selectAll("g.y").data([null]).join("g").attr("class","axis y");
+  xAxis.call(d3.axisBottom(x).tickValues(axisXTicks).tickFormat(formatTimelineTick));
+  yAxis.call(d3.axisLeft(y).tickValues(yTickValues).tickFormat(formatValue).tickPadding(2));
+  svg.selectAll(".axis text").style("font-size",tickFont+"px");
+
+  if(shouldShowYearDividers){
+    const yearRanges=[];
+    let currentYear=null;
+    let startCoord=null;
+    let lastCoord=null;
+    timelineSlice.forEach(info=>{
+        const infoYear=Number.isInteger(info.year)?info.year:(info.date instanceof Date?info.date.getUTCFullYear():null);
+        if(infoYear===null){ return; }
+        if(currentYear===null){
+        currentYear=infoYear;
+        startCoord=info.coord;
+        lastCoord=info.coord;
+        return;
+        }
+        if(infoYear!==currentYear){
+        yearRanges.push({ year:currentYear, startCoord, endCoord:lastCoord??startCoord });
+        currentYear=infoYear;
+        startCoord=info.coord;
+        }
+        lastCoord=info.coord;
+    });
+    if(currentYear!==null){
+        yearRanges.push({ year:currentYear, startCoord:startCoord??timelineSlice[0].coord, endCoord:lastCoord??timelineSlice[timelineSlice.length-1].coord });
+    }
+    const rangesAvailable=yearRanges.filter(range=>Number.isFinite(range.startCoord)&&Number.isFinite(range.endCoord));
+    const baseCoord=timelineSlice[0]?.coord;
+    let halfStep=null;
+    if(timelineSlice.length>1){
+        const next=timelineSlice.find(info=>info.coord!==baseCoord);
+        if(next){ halfStep=Math.abs(x(next.coord)-x(baseCoord))/2; }
+    }
+    if(!Number.isFinite(halfStep)||halfStep<=0){
+        halfStep=timelineSlice.length>1?(width/(timelineSlice.length-1))/2:width/2;
+    }
+    const rangesForRender=rangesAvailable.map(range=>{
+        const startX=Math.max(0,x(range.startCoord)-halfStep);
+        const endX=Math.min(width,x(range.endCoord)+halfStep);
+        return { ...range, startX, endX, labelX:(startX+endX)/2 };
+    }).filter(range=>Number.isFinite(range.startX)&&Number.isFinite(range.endX)&&range.endX>range.startX+0.5);
+    const yearLabelFontSize=Math.max(9,Math.min(13,tickFont+1));
+    const group=gRoot.selectAll("g.year-dividers")
+    .data([null])
+    .join("g")
+    .attr("class","year-dividers")
+    .attr("transform",`translate(0,${height})`);
+
+    const items=group.selectAll("g.year-divider").data(rangesForRender,d=>`${d.year}-${d.startCoord}-${d.endCoord}`);
+    items.exit().remove();
+    const enter=items.enter().append("g").attr("class","year-divider");
+    enter.append("line").attr("class","year-line");
+    enter.append("line").attr("class","year-cap-start");
+    enter.append("line").attr("class","year-cap-end");
+    enter.append("text").attr("class","year-label").attr("text-anchor","middle").attr("dominant-baseline","alphabetic");
+    const merged=enter.merge(items);
+    const lineY=yearAxisLabelPadding;
+    const labelY=yearLabelTextOffset;
+    merged.select(".year-line")
+        .attr("x1",d=>d.startX).attr("x2",d=>d.endX)
+        .attr("y1",lineY).attr("y2",lineY)
+        .attr("stroke-width",1).attr("stroke","#cfd2d7");
+    merged.select(".year-cap-start")
+        .attr("x1",d=>d.startX).attr("x2",d=>d.startX)
+        .attr("y1",lineY-4).attr("y2",lineY+4)
+        .attr("stroke-width",1).attr("stroke","#cfd2d7");
+    merged.select(".year-cap-end")
+        .attr("x1",d=>d.endX).attr("x2",d=>d.endX)
+        .attr("y1",lineY-4).attr("y2",lineY+4)
+        .attr("stroke-width",1).attr("stroke","#cfd2d7");
+    merged.select(".year-label")
+        .attr("x",d=>d.labelX).attr("y",labelY)
+        .text(d=>d.year)
+        .style("font-size",yearLabelFontSize+"px")
+        .style("fill","#6e7485");
+    }else{
+    gRoot.selectAll("g.year-dividers").remove();
+    }
+
+  const minWindowSize=480;
+  const maxWindowSize=1400;
+  const windowMeasure=Math.max(width,height);
+  const windowSpan=Math.max(1,maxWindowSize-minWindowSize);
+  const windowRatio=Math.max(0,Math.min(1,(windowMeasure-minWindowSize)/windowSpan));
+  const smallRadiusBase=2.4;
+  let smallRadius=smallRadiusBase*(0.8+windowRatio*(2-0.8));
+  if(densePointMode){ smallRadius*=0.6; }
+  const finalRadiusBase=6;
+  const finalRadius=finalRadiusBase*(1+windowRatio);
+  const finalHoverRadius=finalRadius*1.18;
+  const hoverRadius=smallRadius*1.6;
+  const lineW=0.9+windowRatio*1.6;
+  const lineGen=d3.line().x(d=>x(d.w)).y(d=>y(valueForPlot(d)));
+  const shouldAnimate=!suppressAnimationNextRender;
+  const transitionDuration=shouldAnimate?360:0;
+  const exitDuration=shouldAnimate?Math.round(transitionDuration*0.6):0;
+  const easeFn=d3.easeCubicOut;
+
+  const seriesSel=gRoot.selectAll("path.series").data(visibleSeries,d=>d.id);
+  const seriesExit=seriesSel.exit().interrupt();
+  if(shouldAnimate){
+    seriesExit.transition().duration(exitDuration).attr("opacity",0).remove();
+  }else{
+    seriesExit.remove();
+  }
+  const seriesEnter=seriesSel.enter().append("path").attr("class","series").attr("fill","none").attr("stroke",d=>getSeriesColor(d.id)).attr("stroke-width",lineW).attr("d",d=>lineGen(d.values)).attr("opacity",shouldAnimate?0:1);
+  const seriesMerged=seriesEnter.merge(seriesSel);
+  if(shouldAnimate){
+    seriesMerged.interrupt().transition().duration(transitionDuration).ease(easeFn).attr("stroke-width",lineW).attr("stroke",d=>getSeriesColor(d.id)).attr("d",d=>lineGen(d.values)).attr("opacity",1);
+  }else{
+    seriesMerged.interrupt().attr("stroke-width",lineW).attr("stroke",d=>getSeriesColor(d.id)).attr("d",d=>lineGen(d.values)).attr("opacity",1);
+  }
+
+  const groupsSel=gRoot.selectAll("g.dots").data(visibleSeries,d=>d.id);
+  const groupsExit=groupsSel.exit().interrupt();
+  if(shouldAnimate){
+    groupsExit.transition().duration(exitDuration).style("opacity",0).remove();
+  }else{
+    groupsExit.remove();
+  }
+  const groupsEnter=groupsSel.enter().append("g").attr("class","dots").style("opacity",shouldAnimate?0:1);
+  const groupsMerged=groupsEnter.merge(groupsSel);
+  if(shouldAnimate){
+    groupsMerged.interrupt().transition().duration(transitionDuration).ease(easeFn).style("opacity",1);
+  }else{
+    groupsMerged.interrupt().style("opacity",1);
+  }
+
+  groupsMerged.each(function(s){
+    const baseR=smallRadius;
+    const seriesColor=getSeriesColor(s.id);
+    const orgInfo=getOrgInfo(s.id);
+    const patternId=orgInfo&&orgInfo.logo?ensureLogoPattern(s.id,orgInfo.logo):null;
+    const finalFillValue=patternId?`url(#${patternId})`:"#ffffff";
+    const data=s.values.map((v,i)=>({ id:s.id, w:v.w, value:v.value, rawValue:v.rawValue, plotValue:valueForPlot(v), label:v.label, actualLabel:v.actualLabel, relativeLabel:v.relativeLabel, relativeIndex:v.relativeIndex, order:v.order, date:v.date, isFinal:i===s.values.length-1 }));
+    const sel=d3.select(this).selectAll("circle.dot").data(data,d=>`${d.id}-${d.w}`);
+    const exitSel=sel.exit().interrupt();
+    if(shouldAnimate){
+      exitSel.transition().duration(exitDuration).attr("opacity",0).remove();
+    }else{
+      exitSel.remove();
+    }
+    const enterSel=sel.enter().append("circle").attr("class","dot").attr("opacity",shouldAnimate?0:1).attr("stroke-width",1).style("pointer-events","all").attr("cx",d=>x(d.w)).attr("cy",d=>y(d.plotValue)).attr("r",d=>d.isFinal?finalRadius:baseR).attr("fill",d=>d.isFinal?finalFillValue:seriesColor).attr("stroke",seriesColor);
+    const mergedSel=enterSel.merge(sel);
+    if(shouldAnimate){
+      mergedSel.interrupt().transition().duration(transitionDuration).ease(easeFn).attr("opacity",1).attr("cx",d=>x(d.w)).attr("cy",d=>y(d.plotValue)).attr("r",d=>d.isFinal?finalRadius:baseR).attr("fill",d=>d.isFinal?finalFillValue:seriesColor).attr("stroke",seriesColor);
+    }else{
+      mergedSel.interrupt().attr("opacity",1).attr("cx",d=>x(d.w)).attr("cy",d=>y(d.plotValue)).attr("r",d=>d.isFinal?finalRadius:baseR).attr("fill",d=>d.isFinal?finalFillValue:seriesColor).attr("stroke",seriesColor);
+    }
+    mergedSel.on("pointerenter",function(event,d){
+      const cx=+this.getAttribute("cx")+margin.left;
+      const cy=+this.getAttribute("cy")+margin.top;
+      const targetRadius=d.isFinal?finalHoverRadius:hoverRadius;
+      d3.select(this).raise().transition().duration(160).attr("r",targetRadius);
+      const metricDef=getMetricDefinition();
+      const labelText=getPointLabel(d);
+      const tooltipHtml=createTooltipHtml(d,labelText,metricDef);
+      tooltip.style("opacity",1).style("left",cx+10+"px").style("top",cy-10+"px").html(tooltipHtml);
+    }).on("pointermove",function(){
+      const cx=+this.getAttribute("cx")+margin.left;
+      const cy=+this.getAttribute("cy")+margin.top;
+      tooltip.style("left",cx+10+"px").style("top",cy-10+"px");
+    }).on("pointerleave",function(event,d){
+      const resetRadius=d.isFinal?finalRadius:baseR;
+      d3.select(this).transition().duration(160).attr("r",resetRadius);
+      tooltip.style("opacity",0);
+    });
+  });
+
+  const minLabelDisplayWidth=380;
+  const minLabelDisplayHeight=240;
+  const shouldShowLabels=visibleSeries.length>0&&width>minLabelDisplayWidth&&height>minLabelDisplayHeight&&windowMeasure>minWindowSize+1;
+  const labelPadding=6;
+  const labelOffset=finalRadius+labelPadding;
+  const estimateWidth=text=>Math.max(0,(text?text.length:0)*finalLabelFontSize*0.6);
+  const minVerticalGap=finalLabelFontSize+4;
+  let finalLabelData=[];
+  if(shouldShowLabels){
+    const baseData=visibleSeries.map(s=>{
+      if(!s.values.length){ return null; }
+      const last=s.values[s.values.length-1];
+      const text=s.id;
+      const baseX=x(last.w);
+      return {
+        id:s.id,
+        x:baseX,
+        y:y(valueForPlot(last)),
+        text,
+        displayX:baseX+labelOffset,
+        width:estimateWidth(text)
+      };
+    }).filter(Boolean);
+    const filtered=[];
+    baseData.sort((a,b)=>a.y===b.y?b.displayX-a.displayX:a.y-b.y).forEach(candidate=>{
+      const overlaps=filtered.some(placed=>{
+        const verticalOverlap=Math.abs(candidate.y-placed.y)<minVerticalGap;
+        const horizontalOverlap=Math.abs(candidate.displayX-placed.displayX)<Math.max(candidate.width,placed.width);
+        return verticalOverlap&&horizontalOverlap;
+      });
+      if(!overlaps){
+        filtered.push(candidate);
+      }
+    });
+    finalLabelData=filtered;
+  }
+  const labelsSel=gRoot.selectAll("text.final-label").data(finalLabelData,d=>d.id);
+  const labelsExit=labelsSel.exit().interrupt();
+  if(shouldAnimate){
+    labelsExit.transition().duration(exitDuration).attr("opacity",0).remove();
+  }else{
+    labelsExit.remove();
+  }
+  const labelsEnter=labelsSel.enter().append("text").attr("class","final-label").attr("text-anchor","start").attr("dominant-baseline","middle").style("pointer-events","none").style("font-size",finalLabelFontSize+"px").attr("opacity",shouldAnimate?0:1).attr("x",d=>d.displayX).attr("y",d=>d.y);
+  const labelsMerged=labelsEnter.merge(labelsSel);
+  labelsMerged.interrupt();
+  labelsMerged.text(d=>d.text).style("font-size",finalLabelFontSize+"px").style("fill",d=>getSeriesColor(d.id));
+  if(shouldAnimate){
+    labelsMerged.transition().duration(transitionDuration).ease(easeFn).attr("x",d=>d.displayX).attr("y",d=>d.y).attr("opacity",1);
+  }else{
+    labelsMerged.attr("x",d=>d.displayX).attr("y",d=>d.y).attr("opacity",1);
+  }
+
+  svg.selectAll("rect.pointer-capture").remove();
+  suppressAnimationNextRender=false;
+}
+
+loadSlider();
+loadConfigTab();
+load();
+window.addEventListener("resize",function(){ render(); });
+const vizEl=document.getElementById("viz");
+if(typeof ResizeObserver!=="undefined"&&vizEl){
+  const chartObserver=new ResizeObserver(function(){ render(); });
+  chartObserver.observe(vizEl);
+}
+</script>
+</body>
+</html>

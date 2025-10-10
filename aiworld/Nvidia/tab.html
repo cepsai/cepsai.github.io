@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Config Tab</title>
+<style>
+:root { --config-panel-width: clamp(240px, 24vw, 320px); --config-tab-width: clamp(40px, 5vw, 54px); --config-hidden-gap: clamp(8px, 1vw, 14px); --config-active-width: clamp(240px, 24vw, 320px); }
+.viz-layout { position: relative; width: 100%; height: 100vh; display: flex; align-items: stretch; justify-content: flex-start; overflow: hidden; min-width: 0; }
+.viz-grid { flex: 1 1 auto; min-width: 0; width: 100%; transition: width .28s ease; }
+body.config-open .viz-grid { width: max(0px, calc(100% - var(--config-active-width))); }
+.config-panel { position: absolute; top: 0; right: calc(-1 * (var(--config-panel-width) + var(--config-tab-width) + var(--config-hidden-gap))); height: 100vh; width: var(--config-panel-width); max-width: 90vw; display: flex; flex-direction: column; background: rgba(255,255,255,0.95); border-radius: 18px 0 0 18px; box-shadow: -8px 0 18px rgba(0,0,0,0.12); padding: clamp(18px, 3vh, 26px) clamp(16px, 3vw, 28px); transition: right .28s ease; z-index: 10; }
+.config-panel.open { right: 0; }
+.config-tab { position: absolute; top: 50%; left: calc(-1 * var(--config-tab-width)); transform: translateY(-50%); width: var(--config-tab-width); height: var(--config-tab-width); border: none; border-radius: 14px 0 0 14px; background: rgba(171, 171, 171, 0.65); display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 10px; opacity: 0.7; transition: background .2s ease, opacity .2s ease, box-shadow .2s ease; }
+.config-tab img { width: 70%; height: 70%; pointer-events: none; }
+.config-panel:not(.open) .config-tab:hover { opacity: 1; background: rgba(255, 255, 255, 0.92); }
+.config-panel.open .config-tab { opacity: 1; background: #2756d3; box-shadow: -4px 0 12px rgba(0,0,0,0.18); }
+.config-content { display: flex; flex-direction: column; gap: clamp(12px, 2vh, 18px); height: 100%; overflow-y: auto; padding-top: clamp(6px, 1vh, 10px); }
+.config-section { display: flex; flex-direction: column; gap: clamp(8px, 1.8vh, 12px); }
+.config-section-title { font-size: clamp(12px, 1.8vw, 16px); font-weight: 700; color: #1f2a44; margin: 0; }
+.config-subsection { display: flex; flex-direction: column; gap: clamp(6px, 1.2vh, 10px); }
+.config-subsection + .config-subsection { margin-top: clamp(8px, 1.6vh, 12px); }
+.config-subsection-title { font-size: clamp(11px, 1.6vw, 15px); font-weight: 600; color: #26344f; margin: 0; }
+.config-buttons { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: stretch; }
+.config-buttons.interruptor { flex-wrap: nowrap; gap: 0; border: 1px solid #d5d9e6; border-radius: 12px; overflow: hidden; background: rgba(243,245,250,0.92); }
+.config-toggle { flex: 1 1 auto; min-width: 0; border: none; background: transparent; padding: 9px 14px; font-size: clamp(11px, 1.6vw, 15px); font-weight: 600; color: #26344f; cursor: pointer; transition: background .18s ease, color .18s ease; }
+.config-buttons.interruptor .config-toggle + .config-toggle { border-left: 1px solid #d5d9e6; }
+.config-buttons.interruptor .config-toggle.active { background: #2756d3; color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2); }
+.config-toggle:focus-visible { outline: 2px solid rgba(39,86,211,0.5); outline-offset: -2px; }
+.config-toggle[disabled] { cursor: default; opacity: 0.6; }
+.config-toggle.mode-disabled { background: rgba(230,233,244,0.6); color: #7a8094; box-shadow: none; }
+.config-buttons.metric-chain { gap: 10px; border: none; padding: 0; background: transparent; }
+.config-field { display: flex; flex-direction: column; gap: 6px; }
+.config-field-label { font-size: clamp(11px, 1.6vw, 15px); font-weight: 600; color: #26344f; }
+.config-input-wrapper { position: relative; display: flex; align-items: center; }
+.config-input { width: 100%; border: 1px solid #cfd2d7; border-radius: 12px; padding: 10px 36px 10px 14px; font-size: clamp(11px, 1.6vw, 15px); font-weight: 600; color: #1f2a44; background: #fff; transition: border-color .18s ease, box-shadow .18s ease; }
+.config-input:focus { outline: none; border-color: #2756d3; box-shadow: 0 0 0 3px rgba(39,86,211,0.2); }
+.config-input-suffix { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-size: clamp(11px, 1.6vw, 15px); font-weight: 600; color: #7a8094; pointer-events: none; }
+.config-select { width: 100%; border: 1px solid #cfd2d7; border-radius: 12px; padding: 10px 14px; font-size: clamp(11px, 1.6vw, 15px); font-weight: 600; color: #1f2a44; background: #fff; transition: border-color .18s ease, box-shadow .18s ease; appearance: none; background-image: linear-gradient(45deg, transparent 50%, #7a8094 50%), linear-gradient(135deg, #7a8094 50%, transparent 50%); background-position: calc(100% - 20px) calc(50% - 4px), calc(100% - 14px) calc(50% - 4px); background-size: 6px 6px, 6px 6px; background-repeat: no-repeat; }
+.config-select:focus { outline: none; border-color: #2756d3; box-shadow: 0 0 0 3px rgba(39,86,211,0.2); }
+.config-metric-btn { flex: 0 1 auto; border: 1px solid #cfd2d7; border-radius: 999px; background: #fff; padding: 8px 16px; font-size: clamp(11px, 1.6vw, 15px); font-weight: 600; color: #1f2a44; cursor: pointer; transition: background .18s ease, color .18s ease, border-color .18s ease, box-shadow .18s ease; }
+.config-metric-btn:hover:not(.active) { background: rgba(39,86,211,0.1); }
+.config-metric-btn.active { background: #2756d3; color: #fff; border-color: #2756d3; box-shadow: 0 6px 16px rgba(39,86,211,0.18); }
+.config-metric-btn:focus-visible { outline: 2px solid rgba(39,86,211,0.5); outline-offset: 2px; }
+.config-panel[data-hidden="true"] { display: none !important; }
+.hidden { display: none !important; }
+
+@media (max-width: 900px), (max-height: 520px) {
+  body.config-open .viz-grid { width: 100%; }
+}
+</style>
+</head>
+<body>
+<aside id="configPanel" class="config-panel" aria-hidden="true">
+  <button id="configToggle" class="config-tab" aria-label="Open configuration panel" aria-expanded="false">
+    <img src="./gear.svg" alt="" aria-hidden="true">
+  </button>
+  <div class="config-content">
+    <div class="config-section">
+      <p class="config-section-title">Mode</p>
+      <div class="config-buttons interruptor" id="configModeButtons">
+        <button type="button" class="config-toggle config-mode-btn active" data-mode="cumulative">Cumulative</button>
+        <button type="button" class="config-toggle config-mode-btn" data-mode="perWeek">Per period</button>
+      </div>
+    </div>
+    <div class="config-section">
+      <p class="config-section-title">Aggregation</p>
+      <div class="config-buttons interruptor" id="configPeriodButtons">
+        <button type="button" class="config-toggle config-period-btn active" data-period="weekly">Weekly</button>
+        <button type="button" class="config-toggle config-period-btn" data-period="monthly">Monthly</button>
+        <button type="button" class="config-toggle config-period-btn" data-period="yearly">Yearly</button>
+      </div>
+    </div>
+    <div class="config-section">
+      <p class="config-section-title">Scale</p>
+      <div class="config-buttons interruptor" id="configScaleButtons">
+        <button type="button" class="config-toggle config-scale-btn active" data-scale="absolute">Absolute Growth</button>
+        <button type="button" class="config-toggle config-scale-btn" data-scale="normalized">Normalized Growth</button>
+        <button type="button" class="config-toggle config-scale-btn" data-scale="log">Log Scale</button>
+      </div>
+    </div>
+    <div class="config-section hidden" id="configNormSection" aria-hidden="true">
+      <p class="config-section-title">Normalized Mode</p>
+      <div class="config-buttons interruptor" id="configNormButtons">
+        <button type="button" class="config-toggle config-norm-btn active" data-norm="againstStart">Against start</button>
+        <button type="button" class="config-toggle config-norm-btn" data-norm="againstPrevious">Against previous period</button>
+      </div>
+    </div>
+    <div class="config-section">
+      <p class="config-section-title">Display Elements</p>
+      <div class="config-subsection">
+        <p class="config-subsection-title">Time Slider</p>
+        <div class="config-buttons interruptor" id="configSliderButtons">
+          <button type="button" class="config-toggle config-slider-btn active" data-slider="show">Show</button>
+          <button type="button" class="config-toggle config-slider-btn" data-slider="hide">Hide</button>
+        </div>
+      </div>
+      <div class="config-subsection">
+        <p class="config-subsection-title">Title</p>
+        <div class="config-buttons interruptor" id="configTitleButtons">
+          <button type="button" class="config-toggle config-title-btn active" data-title="show">Show</button>
+          <button type="button" class="config-toggle config-title-btn" data-title="hide">Hide</button>
+        </div>
+      </div>
+    </div>
+    <div class="config-section">
+      <p class="config-section-title">Filtering</p>
+      <div class="config-subsection">
+        <div class="config-field">
+          <label for="configFilterPercent" class="config-field-label">Show top</label>
+          <div class="config-input-wrapper">
+            <input type="number" id="configFilterPercent" class="config-input" min="0" max="100" step="1" value="100" inputmode="decimal" aria-describedby="configFilterPercentSuffix">
+            <span id="configFilterPercentSuffix" class="config-input-suffix">%</span>
+          </div>
+        </div>
+        <div class="config-field">
+          <label for="configFilterMetric" class="config-field-label">Based on</label>
+          <select id="configFilterMetric" class="config-select" aria-label="Filtering metric"></select>
+        </div>
+      </div>
+      <div class="config-subsection">
+        <p class="config-subsection-title">Organizations</p>
+        <div class="config-buttons interruptor" id="configOrgButtons">
+          <button type="button" class="config-toggle config-org-btn active" data-org="companies">Companies</button>
+          <button type="button" class="config-toggle config-org-btn" data-org="noncompanies">Not Companies</button>
+          <button type="button" class="config-toggle config-org-btn" data-org="all">All</button>
+        </div>
+      </div>
+    </div>
+    <div class="config-section">
+      <p class="config-section-title">Metric</p>
+      <div class="config-buttons metric-chain" id="configMetricButtons" role="group" aria-label="Metric selection"></div>
+    </div>
+  </div>
+</aside>
+<script>
+(function(){
+  const STATE={
+    panel:null,
+    toggle:null,
+    modeButtons:[],
+    periodButtons:[],
+    scaleButtons:[],
+    normContainer:null,
+    normButtons:[],
+    sliderContainer:null,
+    sliderButtons:[],
+    titleContainer:null,
+    titleButtons:[],
+    filterPercentInput:null,
+    filterMetricSelect:null,
+    filterOptions:[],
+    metricContainer:null,
+    metricButtons:[],
+    metrics:[],
+    onModeChange:null,
+    onPeriodChange:null,
+    onScaleChange:null,
+    onNormModeChange:null,
+    onMetricChange:null,
+    onSliderVisibilityChange:null,
+    onTitleVisibilityChange:null,
+    onTopFilterChange:null,
+    escHandler:null,
+    currentMode:"cumulative",
+    currentPeriod:"weekly",
+    currentScale:"absolute",
+    currentNormMode:"againstStart",
+    currentMetric:null,
+    sliderVisible:true,
+    titleVisible:true,
+    currentFilterPercent:100,
+    currentFilterMetric:null,
+    modeDisabled:false,
+    isHidden:false,
+    mediaQuery:null,
+    mediaHandler:null,
+    resizeHandler:null,
+    metricHandler:null,
+    sliderHandler:null,
+    titleHandler:null,
+    filterPercentHandler:null,
+    filterPercentBlurHandler:null,
+    filterMetricHandler:null,
+    normHandler:null,
+    orgContainer:null,
+    orgButtons:[],
+    currentOrgFilter:"companies",
+    onOrgFilterChange:null,
+    orgHandler:null
+  };
+  const HIDE_MEDIA="(max-width: 900px), (max-height: 520px)";
+
+  function updateActiveWidth(){
+    if(!STATE.panel){ return; }
+    if(STATE.panel.getAttribute("data-hidden")==="true"){
+      document.documentElement.style.setProperty("--config-active-width","0px");
+      return;
+    }
+    const rect=STATE.panel.getBoundingClientRect();
+    const width=Math.max(0,Math.min(rect.width,window.innerWidth));
+    document.documentElement.style.setProperty("--config-active-width",`${width}px`);
+  }
+
+  function applyHiddenState(shouldHide){
+    STATE.isHidden=!!shouldHide;
+    if(!STATE.panel){ return; }
+    if(shouldHide){
+      STATE.panel.setAttribute("data-hidden","true");
+      if(STATE.toggle){
+        STATE.toggle.disabled=true;
+      }
+      setOpen(false);
+    }else{
+      STATE.panel.removeAttribute("data-hidden");
+      if(STATE.toggle){
+        STATE.toggle.disabled=false;
+      }
+      updateActiveWidth();
+    }
+  }
+
+  function setupResponsiveGuard(){
+    if(typeof window.matchMedia!=="function"){ return; }
+    if(STATE.mediaQuery&&STATE.mediaHandler){
+      if(typeof STATE.mediaQuery.removeEventListener==="function"){
+        STATE.mediaQuery.removeEventListener("change",STATE.mediaHandler);
+      }else if(typeof STATE.mediaQuery.removeListener==="function"){
+        STATE.mediaQuery.removeListener(STATE.mediaHandler);
+      }
+    }
+    const mq=window.matchMedia(HIDE_MEDIA);
+    STATE.mediaQuery=mq;
+    STATE.mediaHandler=function(event){ applyHiddenState(event.matches); };
+    applyHiddenState(mq.matches);
+    if(typeof mq.addEventListener==="function"){
+      mq.addEventListener("change",STATE.mediaHandler);
+    }else if(typeof mq.addListener==="function"){
+      mq.addListener(STATE.mediaHandler);
+    }
+  }
+
+  function setOpen(open){
+    if(!STATE.panel){ return; }
+    if(open&&STATE.isHidden){ open=false; }
+    STATE.panel.classList.toggle("open",open);
+    STATE.panel.setAttribute("aria-hidden",open?"false":"true");
+    if(STATE.toggle){
+      STATE.toggle.setAttribute("aria-expanded",open?"true":"false");
+      STATE.toggle.setAttribute("aria-label",open?"Close configuration panel":"Open configuration panel");
+    }
+    document.body.classList.toggle("config-open",open);
+    updateActiveWidth();
+  }
+
+  function updateModeActive(){
+    if(!STATE.modeButtons.length){ return; }
+    STATE.modeButtons.forEach(btn=>{
+      const isActive=!STATE.modeDisabled&&btn.dataset.mode===STATE.currentMode;
+      btn.classList.toggle("active",isActive);
+      btn.setAttribute("aria-pressed",isActive?"true":"false");
+      if(STATE.modeDisabled){
+        btn.classList.add("mode-disabled");
+      }else{
+        btn.classList.remove("mode-disabled");
+      }
+    });
+  }
+
+  function updatePeriodActive(){
+    if(!STATE.periodButtons.length){ return; }
+    STATE.periodButtons.forEach(btn=>{
+      const isActive=btn.dataset.period===STATE.currentPeriod;
+      btn.classList.toggle("active",isActive);
+      btn.setAttribute("aria-pressed",isActive?"true":"false");
+    });
+  }
+
+  function updateScaleActive(){
+    if(!STATE.scaleButtons.length){ return; }
+    STATE.scaleButtons.forEach(btn=>{
+      const isActive=btn.dataset.scale===STATE.currentScale;
+      btn.classList.toggle("active",isActive);
+      btn.setAttribute("aria-pressed",isActive?"true":"false");
+    });
+  }
+
+  function updateNormActive(){
+    if(!STATE.normButtons.length){ return; }
+    STATE.normButtons.forEach(btn=>{
+      const isActive=btn.dataset.norm===STATE.currentNormMode;
+      btn.classList.toggle("active",isActive);
+      btn.setAttribute("aria-pressed",isActive?"true":"false");
+    });
+  }
+
+  function updateSliderActive(){
+    if(!STATE.sliderButtons.length){ return; }
+    STATE.sliderButtons.forEach(btn=>{
+      const wantsVisible=btn.dataset.slider!=="hide";
+      const isActive=STATE.sliderVisible===wantsVisible;
+      btn.classList.toggle("active",isActive);
+      btn.setAttribute("aria-pressed",isActive?"true":"false");
+    });
+  }
+
+  function updateTitleActive(){
+    if(!STATE.titleButtons.length){ return; }
+    STATE.titleButtons.forEach(btn=>{
+      const wantsVisible=btn.dataset.title!=="hide";
+      const isActive=STATE.titleVisible===wantsVisible;
+      btn.classList.toggle("active",isActive);
+      btn.setAttribute("aria-pressed",isActive?"true":"false");
+    });
+  }
+
+  function clampPercent(value, fallback){
+    const baseFallback=Number.isFinite(fallback)?fallback:(STATE.currentFilterPercent??100);
+    const num=Number(value);
+    if(!Number.isFinite(num)){ return baseFallback; }
+    if(num<0){ return 0; }
+    if(num>100){ return 100; }
+    return Math.round(num*100)/100;
+  }
+
+  function emitFilterChange(){
+    if(typeof STATE.onTopFilterChange!=="function"){ return; }
+    const payload={
+      percent: STATE.currentFilterPercent,
+      metric: STATE.currentFilterMetric
+    };
+    STATE.onTopFilterChange(payload);
+  }
+
+  function updateFilterPercentInput(){
+    if(!STATE.filterPercentInput){ return; }
+    const value=STATE.currentFilterPercent;
+    STATE.filterPercentInput.value=Number.isFinite(value)?String(value):"";
+  }
+
+  function updateFilterMetricSelect(){
+    if(!STATE.filterMetricSelect){ return; }
+    if(!STATE.filterMetricSelect.options.length){
+      STATE.filterMetricSelect.value="";
+      return;
+    }
+    const target=STATE.currentFilterMetric;
+    if(target){
+      const optionExists=Array.from(STATE.filterMetricSelect.options).some(opt=>opt.value===target);
+      if(optionExists){
+        STATE.filterMetricSelect.value=target;
+        return;
+      }
+    }
+    STATE.filterMetricSelect.selectedIndex=0;
+    STATE.currentFilterMetric=STATE.filterMetricSelect.value||null;
+  }
+
+  function deriveFilterOptions(metricsList){
+    const options=[];
+    const seen=new Set();
+    if(Array.isArray(metricsList)){
+      metricsList.forEach(metric=>{
+        if(!metric||!metric.key||seen.has(metric.key)){ return; }
+        seen.add(metric.key);
+        options.push({ key:metric.key, label:metric.label||metric.key });
+      });
+    }
+    const extraKey="downloads_per_repo";
+    if(!seen.has(extraKey)){
+      options.push({ key:extraKey, label:"downloads/repos" });
+      seen.add(extraKey);
+    }
+    return options;
+  }
+
+  function normalizeFilter(filter){
+    if(filter==null){ return { percent:100, metric:null }; }
+    if(typeof filter==="object"&&!Array.isArray(filter)){
+      const metric=typeof filter.metric==="string"&&filter.metric?filter.metric:null;
+      const percent=clampPercent(filter.percent,100);
+      return { percent, metric };
+    }
+    if(typeof filter==="string"){
+      if(filter==="all"){ return { percent:100, metric:null }; }
+      const extracted=parseFloat(filter.replace(/[^0-9.]+/g,""));
+      if(Number.isFinite(extracted)){ return { percent:clampPercent(extracted,100), metric:null }; }
+    }
+    if(Number.isFinite(filter)){ return { percent:clampPercent(filter,100), metric:null }; }
+    return { percent:STATE.currentFilterPercent??100, metric:STATE.currentFilterMetric };
+  }
+
+  function normalizeOrgFilter(value){
+    if(value==null){ return "all"; }
+    const text=String(value).trim().toLowerCase();
+    if(text==="companies"||text==="company"){ return "companies"; }
+    if(text==="noncompanies"||text==="non-companies"||text==="noncompany"){ return "noncompanies"; }
+    return "all";
+  }
+
+  function buildFilterOptions(){
+    if(!STATE.filterMetricSelect){ return; }
+    const select=STATE.filterMetricSelect;
+    const current=STATE.currentFilterMetric;
+    select.innerHTML="";
+    STATE.filterOptions.forEach(option=>{
+      if(!option||!option.key){ return; }
+      const opt=document.createElement("option");
+      opt.value=option.key;
+      opt.textContent=option.label||option.key;
+      select.appendChild(opt);
+    });
+    if(current&&STATE.filterOptions.some(option=>option&&option.key===current)){
+      select.value=current;
+    }else if(select.options.length){
+      select.selectedIndex=0;
+      STATE.currentFilterMetric=select.value||null;
+    }else{
+      STATE.currentFilterMetric=null;
+    }
+  }
+
+  function handleFilterPercentInput(event){
+    const next=clampPercent(event.target.value);
+    if(next===STATE.currentFilterPercent){ return; }
+    STATE.currentFilterPercent=next;
+    updateFilterPercentInput();
+    emitFilterChange();
+  }
+
+  function handleFilterPercentBlur(event){
+    const next=clampPercent(event.target.value);
+    if(next!==STATE.currentFilterPercent){
+      STATE.currentFilterPercent=next;
+    }
+    updateFilterPercentInput();
+  }
+
+  function handleFilterMetricChange(event){
+    const value=event.target.value||null;
+    if(value===STATE.currentFilterMetric){ return; }
+    STATE.currentFilterMetric=value;
+    emitFilterChange();
+  }
+
+  function updateMetricActive(){
+    if(!STATE.metricButtons.length){ return; }
+    STATE.metricButtons.forEach(btn=>{
+      const isActive=btn.dataset.metric===STATE.currentMetric;
+      btn.classList.toggle("active",isActive);
+      btn.setAttribute("aria-pressed",isActive?"true":"false");
+    });
+  }
+
+  function buildMetricButtons(){
+    if(!STATE.metricContainer){ return; }
+    STATE.metricContainer.innerHTML="";
+    STATE.metricButtons=[];
+    if(!Array.isArray(STATE.metrics)||!STATE.metrics.length){ return; }
+    STATE.metrics.forEach(metric=>{
+      if(!metric||!metric.key){ return; }
+      const btn=document.createElement("button");
+      btn.type="button";
+      btn.className="config-metric-btn";
+      btn.dataset.metric=metric.key;
+      btn.textContent=metric.label||metric.key;
+      btn.setAttribute("aria-pressed","false");
+      STATE.metricContainer.appendChild(btn);
+      STATE.metricButtons.push(btn);
+    });
+    updateMetricActive();
+  }
+
+  function handleToggle(){
+    if(!STATE.panel||STATE.isHidden){ return; }
+    setOpen(!STATE.panel.classList.contains("open"));
+  }
+
+  function handleModeClick(event){
+    if(STATE.modeDisabled){ return; }
+    const btn=event.target.closest(".config-mode-btn");
+    if(!btn){ return; }
+    const nextMode=btn.dataset.mode;
+    if(!nextMode||nextMode===STATE.currentMode){ return; }
+    STATE.currentMode=nextMode;
+    updateModeActive();
+    if(typeof STATE.onModeChange==="function"){
+      STATE.onModeChange(nextMode);
+    }
+  }
+
+  function handleMetricClick(event){
+    const btn=event.target.closest(".config-metric-btn");
+    if(!btn){ return; }
+    const nextMetric=btn.dataset.metric;
+    if(!nextMetric||nextMetric===STATE.currentMetric){ return; }
+    STATE.currentMetric=nextMetric;
+    updateMetricActive();
+    if(typeof STATE.onMetricChange==="function"){
+      STATE.onMetricChange(nextMetric);
+    }
+  }
+
+  function handlePeriodClick(event){
+    const btn=event.target.closest(".config-period-btn");
+    if(!btn){ return; }
+    const nextPeriod=btn.dataset.period;
+    if(!nextPeriod||nextPeriod===STATE.currentPeriod){ return; }
+    STATE.currentPeriod=nextPeriod;
+    updatePeriodActive();
+    if(typeof STATE.onPeriodChange==="function"){
+      STATE.onPeriodChange(nextPeriod);
+    }
+  }
+
+  function handleScaleClick(event){
+    const btn=event.target.closest(".config-scale-btn");
+    if(!btn){ return; }
+    const nextScale=btn.dataset.scale;
+    if(!nextScale||nextScale===STATE.currentScale){ return; }
+    STATE.currentScale=nextScale;
+    updateScaleActive();
+    if(typeof STATE.onScaleChange==="function"){
+      STATE.onScaleChange(nextScale);
+    }
+  }
+
+  function handleNormClick(event){
+    const btn=event.target.closest(".config-norm-btn");
+    if(!btn){ return; }
+    const next=btn.dataset.norm;
+    if(!next||next===STATE.currentNormMode){ return; }
+    STATE.currentNormMode=next;
+    updateNormActive();
+    if(typeof STATE.onNormModeChange==="function"){
+      STATE.onNormModeChange(next);
+    }
+  }
+
+  function handleSliderClick(event){
+    const btn=event.target.closest(".config-slider-btn");
+    if(!btn){ return; }
+    const wantsVisible=btn.dataset.slider!=="hide";
+    if(wantsVisible===STATE.sliderVisible){ return; }
+    STATE.sliderVisible=wantsVisible;
+    updateSliderActive();
+    if(typeof STATE.onSliderVisibilityChange==="function"){
+      STATE.onSliderVisibilityChange(wantsVisible);
+    }
+  }
+
+  function handleTitleClick(event){
+    const btn=event.target.closest(".config-title-btn");
+    if(!btn){ return; }
+    const wantsVisible=btn.dataset.title!=="hide";
+    if(wantsVisible===STATE.titleVisible){ return; }
+    STATE.titleVisible=wantsVisible;
+    updateTitleActive();
+    if(typeof STATE.onTitleVisibilityChange==="function"){
+      STATE.onTitleVisibilityChange(wantsVisible);
+    }
+  }
+
+  function handleEsc(event){
+    if(event.key==="Escape"&&STATE.panel&&STATE.panel.classList.contains("open")){
+      setOpen(false);
+    }
+  }
+
+  function updateOrgActive(){
+    if(!STATE.orgButtons.length){ return; }
+    STATE.orgButtons.forEach(btn=>{
+      const isActive=btn.dataset.org===STATE.currentOrgFilter;
+      btn.classList.toggle("active",isActive);
+      btn.setAttribute("aria-pressed",isActive?"true":"false");
+    });
+  }
+
+  function handleOrgClick(event){
+    const btn=event.target.closest(".config-org-btn");
+    if(!btn){ return; }
+    const next=normalizeOrgFilter(btn.dataset.org);
+    if(next===STATE.currentOrgFilter){ return; }
+    STATE.currentOrgFilter=next;
+    updateOrgActive();
+    if(typeof STATE.onOrgFilterChange==="function"){ STATE.onOrgFilterChange(next); }
+  }
+
+  function init({ panelEl, onModeChange, onPeriodChange, onScaleChange, onNormModeChange, onMetricChange, onSliderVisibilityChange, onTitleVisibilityChange, onTopFilterChange, onOrgFilterChange, metrics=[], initialMode="cumulative", initialPeriod="weekly", initialScale="absolute", initialNormMode="againstStart", initialMetric=null, initialSliderVisible=true, initialTitleVisible=true, initialTopFilter="all", initialOrgFilter="companies" }={}){
+    STATE.panel=panelEl||document.getElementById("configPanel");
+    if(!STATE.panel){ return; }
+    STATE.onModeChange=onModeChange;
+    STATE.onPeriodChange=onPeriodChange;
+    STATE.onScaleChange=onScaleChange;
+    STATE.onNormModeChange=onNormModeChange;
+    STATE.onMetricChange=onMetricChange;
+    STATE.onSliderVisibilityChange=onSliderVisibilityChange;
+    STATE.onTitleVisibilityChange=onTitleVisibilityChange;
+    STATE.onTopFilterChange=onTopFilterChange;
+    STATE.onOrgFilterChange=onOrgFilterChange;
+    STATE.toggle=STATE.panel.querySelector("#configToggle");
+    const buttonsContainer=STATE.panel.querySelector("#configModeButtons");
+    const periodContainer=STATE.panel.querySelector("#configPeriodButtons");
+    const scaleContainer=STATE.panel.querySelector("#configScaleButtons");
+    if(STATE.sliderContainer&&STATE.sliderHandler){
+      STATE.sliderContainer.removeEventListener("click",STATE.sliderHandler);
+    }
+    STATE.sliderContainer=STATE.panel.querySelector("#configSliderButtons");
+    STATE.sliderHandler=handleSliderClick;
+    if(STATE.sliderContainer){
+      STATE.sliderContainer.addEventListener("click",STATE.sliderHandler);
+      STATE.sliderButtons=Array.from(STATE.sliderContainer.querySelectorAll(".config-slider-btn"));
+    }else{
+      STATE.sliderButtons=[];
+    }
+    if(STATE.metricContainer&&STATE.metricHandler){
+      STATE.metricContainer.removeEventListener("click",STATE.metricHandler);
+    }
+    STATE.metricContainer=STATE.panel.querySelector("#configMetricButtons");
+    STATE.modeButtons=Array.from(STATE.panel.querySelectorAll(".config-mode-btn"));
+    STATE.periodButtons=Array.from(STATE.panel.querySelectorAll(".config-period-btn"));
+    STATE.scaleButtons=Array.from(STATE.panel.querySelectorAll(".config-scale-btn"));
+    if(STATE.titleContainer&&STATE.titleHandler){
+      STATE.titleContainer.removeEventListener("click",STATE.titleHandler);
+    }
+    STATE.titleContainer=STATE.panel.querySelector("#configTitleButtons");
+    STATE.titleHandler=handleTitleClick;
+    if(STATE.titleContainer){
+      STATE.titleContainer.addEventListener("click",STATE.titleHandler);
+      STATE.titleButtons=Array.from(STATE.titleContainer.querySelectorAll(".config-title-btn"));
+    }else{
+      STATE.titleButtons=[];
+    }
+    if(STATE.orgContainer&&STATE.orgHandler){
+      STATE.orgContainer.removeEventListener("click",STATE.orgHandler);
+    }
+    STATE.orgContainer=STATE.panel.querySelector("#configOrgButtons");
+    STATE.orgHandler=handleOrgClick;
+    if(STATE.orgContainer){
+      STATE.orgContainer.addEventListener("click",STATE.orgHandler);
+      STATE.orgButtons=Array.from(STATE.orgContainer.querySelectorAll(".config-org-btn"));
+    }else{
+      STATE.orgButtons=[];
+    }
+    if(STATE.filterPercentInput){
+      if(STATE.filterPercentHandler){
+        STATE.filterPercentInput.removeEventListener("input",STATE.filterPercentHandler);
+        STATE.filterPercentInput.removeEventListener("change",STATE.filterPercentHandler);
+      }
+      if(STATE.filterPercentBlurHandler){
+        STATE.filterPercentInput.removeEventListener("blur",STATE.filterPercentBlurHandler);
+      }
+    }
+    STATE.filterPercentInput=STATE.panel.querySelector("#configFilterPercent");
+    STATE.filterPercentHandler=handleFilterPercentInput;
+    STATE.filterPercentBlurHandler=handleFilterPercentBlur;
+    if(STATE.filterPercentInput){
+      STATE.filterPercentInput.addEventListener("input",STATE.filterPercentHandler);
+      STATE.filterPercentInput.addEventListener("change",STATE.filterPercentHandler);
+      STATE.filterPercentInput.addEventListener("blur",STATE.filterPercentBlurHandler);
+    }
+    if(STATE.filterMetricSelect&&STATE.filterMetricHandler){
+      STATE.filterMetricSelect.removeEventListener("change",STATE.filterMetricHandler);
+    }
+    STATE.filterMetricSelect=STATE.panel.querySelector("#configFilterMetric");
+    STATE.filterMetricHandler=handleFilterMetricChange;
+    if(STATE.filterMetricSelect){
+      STATE.filterMetricSelect.addEventListener("change",STATE.filterMetricHandler);
+    }
+    if(STATE.normContainer&&STATE.normHandler){
+      STATE.normContainer.removeEventListener("click",STATE.normHandler);
+    }
+    STATE.normContainer=STATE.panel.querySelector("#configNormButtons");
+    STATE.normHandler=handleNormClick;
+    if(STATE.normContainer){
+      STATE.normContainer.addEventListener("click",STATE.normHandler);
+      STATE.normButtons=Array.from(STATE.normContainer.querySelectorAll(".config-norm-btn"));
+    }else{
+      STATE.normButtons=[];
+    }
+    STATE.currentMode=initialMode;
+    STATE.currentPeriod=initialPeriod;
+    STATE.currentScale=initialScale;
+    STATE.currentNormMode=initialNormMode;
+    STATE.modeDisabled=false;
+    STATE.metrics=Array.isArray(metrics)?metrics.slice():[];
+    STATE.filterOptions=deriveFilterOptions(STATE.metrics);
+    STATE.currentMetric=initialMetric||(STATE.metrics.length?STATE.metrics[0].key:null);
+    const normalizedFilter=normalizeFilter(initialTopFilter);
+    STATE.currentFilterPercent=clampPercent(normalizedFilter.percent,100);
+    STATE.currentFilterMetric=normalizedFilter.metric;
+    if(STATE.filterOptions.length&&!STATE.filterOptions.some(option=>option&&option.key===STATE.currentFilterMetric)){
+      STATE.currentFilterMetric=STATE.filterOptions[0]?.key||null;
+    }
+    STATE.sliderVisible=!!initialSliderVisible;
+    STATE.titleVisible=!!initialTitleVisible;
+    STATE.currentOrgFilter=normalizeOrgFilter(initialOrgFilter);
+    if(STATE.toggle){
+      STATE.toggle.addEventListener("click",handleToggle);
+    }
+    if(buttonsContainer){
+      buttonsContainer.addEventListener("click",handleModeClick);
+    }
+    if(periodContainer){
+      periodContainer.addEventListener("click",handlePeriodClick);
+    }
+    if(scaleContainer){
+      scaleContainer.addEventListener("click",handleScaleClick);
+    }
+    if(STATE.metricContainer){
+      STATE.metricHandler=handleMetricClick;
+      STATE.metricContainer.addEventListener("click",STATE.metricHandler);
+    }
+    if(STATE.escHandler){
+      window.removeEventListener("keydown",STATE.escHandler);
+    }
+    STATE.escHandler=handleEsc;
+    window.addEventListener("keydown",STATE.escHandler);
+    if(STATE.resizeHandler){
+      window.removeEventListener("resize",STATE.resizeHandler);
+    }
+    STATE.resizeHandler=updateActiveWidth;
+    window.addEventListener("resize",STATE.resizeHandler);
+    setupResponsiveGuard();
+    setModeDisabled(initialScale==="normalized");
+    setNormModeVisible(initialScale==="normalized");
+    updateModeActive();
+    updatePeriodActive();
+    updateScaleActive();
+    updateNormActive();
+    updateSliderActive();
+    updateTitleActive();
+    updateOrgActive();
+    buildMetricButtons();
+    buildFilterOptions();
+    updateFilterPercentInput();
+    updateFilterMetricSelect();
+    setOpen(false);
+  }
+
+  function setMode(mode){
+    if(!mode){ return; }
+    STATE.currentMode=mode;
+    updateModeActive();
+  }
+
+  function setModeDisabled(disabled){
+    STATE.modeDisabled=!!disabled;
+    STATE.modeButtons.forEach(btn=>{
+      btn.disabled=STATE.modeDisabled;
+      if(STATE.modeDisabled){
+        btn.classList.remove("active");
+        btn.setAttribute("aria-pressed","false");
+      }
+    });
+    updateModeActive();
+  }
+
+  function setPeriod(period){
+    if(!period){ return; }
+    STATE.currentPeriod=period;
+    updatePeriodActive();
+  }
+
+  function setScale(scale){
+    if(!scale){ return; }
+    STATE.currentScale=scale;
+    updateScaleActive();
+  }
+
+  function setNormModeVisible(visible){
+    const section=document.getElementById("configNormSection");
+    if(!section){ return; }
+    section.classList.toggle("hidden",!visible);
+    section.setAttribute("aria-hidden",visible?"false":"true");
+  }
+
+  function setNormMode(mode){
+    if(!mode){ return; }
+    STATE.currentNormMode=mode;
+    updateNormActive();
+  }
+
+  function setSliderVisible(visible){
+    STATE.sliderVisible=!!visible;
+    updateSliderActive();
+  }
+
+  function setTitleVisible(visible){
+    STATE.titleVisible=!!visible;
+    updateTitleActive();
+  }
+
+  function setTopFilter(filter){
+    const normalized=normalizeFilter(filter);
+    STATE.currentFilterPercent=clampPercent(normalized.percent,STATE.currentFilterPercent??100);
+    STATE.currentFilterMetric=normalized.metric;
+    if(STATE.filterOptions.length&&!STATE.filterOptions.some(option=>option&&option.key===STATE.currentFilterMetric)){
+      STATE.currentFilterMetric=STATE.filterOptions[0]?.key||null;
+    }
+    updateFilterPercentInput();
+    buildFilterOptions();
+    updateFilterMetricSelect();
+  }
+
+  function setMetric(metric){
+    if(!metric){ return; }
+    STATE.currentMetric=metric;
+    updateMetricActive();
+  }
+
+  function setOrgFilter(filter){
+    STATE.currentOrgFilter=normalizeOrgFilter(filter);
+    updateOrgActive();
+  }
+
+  function setMetrics(metrics=[], currentMetric){
+    STATE.metrics=Array.isArray(metrics)?metrics.slice():[];
+    if(currentMetric){
+      STATE.currentMetric=currentMetric;
+    }else if(!STATE.metrics.some(m=>m&&m.key===STATE.currentMetric)){
+      STATE.currentMetric=STATE.metrics.length?STATE.metrics[0].key:null;
+    }
+    STATE.filterOptions=deriveFilterOptions(STATE.metrics);
+    if(STATE.filterOptions.length&&!STATE.filterOptions.some(option=>option&&option.key===STATE.currentFilterMetric)){
+      STATE.currentFilterMetric=STATE.filterOptions[0]?.key||null;
+    }
+    buildMetricButtons();
+    buildFilterOptions();
+    updateFilterMetricSelect();
+  }
+
+  function setPanelOpen(open){
+    setOpen(!!open);
+  }
+
+  window.ConfigTab={ init, setMode, setPeriod, setScale, setNormModeVisible, setNormMode, setSliderVisible, setTitleVisible, setTopFilter, setMetric, setMetrics, setModeDisabled, setOrgFilter, setOpen:setPanelOpen };
+})();
+</script>
+</body>
+</html>
