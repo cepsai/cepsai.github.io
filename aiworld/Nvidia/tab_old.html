@@ -14,7 +14,7 @@ body.config-open .viz-grid { width: max(0px, calc(100% - var(--config-active-wid
 .config-tab img { width: 70%; height: 70%; pointer-events: none; }
 .config-panel:not(.open) .config-tab:hover { opacity: 1; background: rgba(255, 255, 255, 0.92); }
 .config-panel.open .config-tab { opacity: 1; background: #2756d3; box-shadow: -4px 0 12px rgba(0,0,0,0.18); }
-.config-content { display: flex; flex-direction: column; gap: clamp(12px, 2vh, 18px); flex: 1 1 auto; padding-right: clamp(8px, 1vw, 16px); padding-top: clamp(6px, 1vh, 10px); }
+.config-content { display: flex; flex-direction: column; gap: clamp(12px, 2vh, 18px); height: 100%; overflow-y: auto; padding-top: clamp(6px, 1vh, 10px); }
 .config-section { display: flex; flex-direction: column; gap: clamp(8px, 1.8vh, 12px); }
 .config-section-title { font-size: clamp(12px, 1.8vw, 16px); font-weight: 700; color: #1f2a44; margin: 0; }
 .config-subsection { display: flex; flex-direction: column; gap: clamp(6px, 1.2vh, 10px); }
@@ -119,19 +119,10 @@ body.config-open .viz-grid { width: max(0px, calc(100% - var(--config-active-wid
       </div>
       <div class="config-subsection">
         <p class="config-subsection-title">Organizations</p>
-      <div class="config-buttons interruptor" id="configOrgButtons">
-        <button type="button" class="config-toggle config-org-btn active" data-org="companies">Companies</button>
-        <button type="button" class="config-toggle config-org-btn" data-org="noncompanies">Not Companies</button>
-        <button type="button" class="config-toggle config-org-btn" data-org="all">All</button>
-      </div>
-      </div>
-      <div class="config-subsection">
-        <p class="config-subsection-title">Region</p>
-        <div class="config-buttons interruptor" id="configRegionButtons">
-          <button type="button" class="config-toggle config-region-btn active" data-region="all">All</button>
-          <button type="button" class="config-toggle config-region-btn" data-region="north-america">North America</button>
-          <button type="button" class="config-toggle config-region-btn" data-region="europe">Europe</button>
-          <button type="button" class="config-toggle config-region-btn" data-region="china">China</button>
+        <div class="config-buttons interruptor" id="configOrgButtons">
+          <button type="button" class="config-toggle config-org-btn active" data-org="companies">Companies</button>
+          <button type="button" class="config-toggle config-org-btn" data-org="noncompanies">Not Companies</button>
+          <button type="button" class="config-toggle config-org-btn" data-org="all">All</button>
         </div>
       </div>
     </div>
@@ -195,13 +186,7 @@ body.config-open .viz-grid { width: max(0px, calc(100% - var(--config-active-wid
     orgButtons:[],
     currentOrgFilter:"companies",
     onOrgFilterChange:null,
-    orgHandler:null,
-    regionContainer: null,
-    regionButtons: [],
-    currentRegionFilter: "all",
-    onRegionFilterChange: null,
-    regionHandler: null,
-    outsideClickHandler: null
+    orgHandler:null
   };
   const HIDE_MEDIA="(max-width: 900px), (max-height: 520px)";
 
@@ -264,14 +249,6 @@ body.config-open .viz-grid { width: max(0px, calc(100% - var(--config-active-wid
       STATE.toggle.setAttribute("aria-label",open?"Close configuration panel":"Open configuration panel");
     }
     document.body.classList.toggle("config-open",open);
-    if(open){
-      if(!STATE.outsideClickHandler){
-        STATE.outsideClickHandler=handleOutsidePointerDown;
-      }
-      document.addEventListener("pointerdown",STATE.outsideClickHandler,true);
-    }else if(STATE.outsideClickHandler){
-      document.removeEventListener("pointerdown",STATE.outsideClickHandler,true);
-    }
     updateActiveWidth();
   }
 
@@ -417,15 +394,6 @@ body.config-open .viz-grid { width: max(0px, calc(100% - var(--config-active-wid
     const text=String(value).trim().toLowerCase();
     if(text==="companies"||text==="company"){ return "companies"; }
     if(text==="noncompanies"||text==="non-companies"||text==="noncompany"){ return "noncompanies"; }
-    return "all";
-  }
-
-  function normalizeRegionFilter(value){
-    if(value==null){ return "all"; }
-    const text=String(value).trim().toLowerCase();
-    if(text==="north america"||text==="north-america"||text==="na"){ return "north-america"; }
-    if(text==="europe"){ return "europe"; }
-    if(text==="china"){ return "china"; }
     return "all";
   }
 
@@ -598,14 +566,6 @@ body.config-open .viz-grid { width: max(0px, calc(100% - var(--config-active-wid
     }
   }
 
-  function handleOutsidePointerDown(event){
-    if(!STATE.panel||!STATE.panel.classList.contains("open")){ return; }
-    const target=event.target;
-    if(STATE.panel.contains(target)){ return; }
-    if(STATE.toggle&&STATE.toggle.contains(target)){ return; }
-    setOpen(false);
-  }
-
   function updateOrgActive(){
     if(!STATE.orgButtons.length){ return; }
     STATE.orgButtons.forEach(btn=>{
@@ -625,27 +585,7 @@ body.config-open .viz-grid { width: max(0px, calc(100% - var(--config-active-wid
     if(typeof STATE.onOrgFilterChange==="function"){ STATE.onOrgFilterChange(next); }
   }
 
-  function updateRegionActive(){
-    if(!STATE.regionButtons.length){ return; }
-    STATE.regionButtons.forEach(btn=>{
-      const value=normalizeRegionFilter(btn.dataset.region);
-      const isActive=value===STATE.currentRegionFilter;
-      btn.classList.toggle("active",isActive);
-      btn.setAttribute("aria-pressed",isActive?"true":"false");
-    });
-  }
-
-  function handleRegionClick(event){
-    const btn=event.target.closest(".config-region-btn");
-    if(!btn){ return; }
-    const next=normalizeRegionFilter(btn.dataset.region);
-    if(next===STATE.currentRegionFilter){ return; }
-    STATE.currentRegionFilter=next;
-    updateRegionActive();
-    if(typeof STATE.onRegionFilterChange==="function"){ STATE.onRegionFilterChange(next); }
-  }
-
-  function init({ panelEl, onModeChange, onPeriodChange, onScaleChange, onNormModeChange, onMetricChange, onSliderVisibilityChange, onTitleVisibilityChange, onTopFilterChange, onOrgFilterChange, onRegionFilterChange, metrics=[], initialMode="cumulative", initialPeriod="weekly", initialScale="absolute", initialNormMode="againstStart", initialMetric=null, initialSliderVisible=true, initialTitleVisible=true, initialTopFilter="all", initialOrgFilter="companies", initialRegionFilter="all" }={}){
+  function init({ panelEl, onModeChange, onPeriodChange, onScaleChange, onNormModeChange, onMetricChange, onSliderVisibilityChange, onTitleVisibilityChange, onTopFilterChange, onOrgFilterChange, metrics=[], initialMode="cumulative", initialPeriod="weekly", initialScale="absolute", initialNormMode="againstStart", initialMetric=null, initialSliderVisible=true, initialTitleVisible=true, initialTopFilter="all", initialOrgFilter="companies" }={}){
     STATE.panel=panelEl||document.getElementById("configPanel");
     if(!STATE.panel){ return; }
     STATE.onModeChange=onModeChange;
@@ -657,7 +597,6 @@ body.config-open .viz-grid { width: max(0px, calc(100% - var(--config-active-wid
     STATE.onTitleVisibilityChange=onTitleVisibilityChange;
     STATE.onTopFilterChange=onTopFilterChange;
     STATE.onOrgFilterChange=onOrgFilterChange;
-    STATE.onRegionFilterChange=onRegionFilterChange;
     STATE.toggle=STATE.panel.querySelector("#configToggle");
     const buttonsContainer=STATE.panel.querySelector("#configModeButtons");
     const periodContainer=STATE.panel.querySelector("#configPeriodButtons");
@@ -701,17 +640,6 @@ body.config-open .viz-grid { width: max(0px, calc(100% - var(--config-active-wid
       STATE.orgButtons=Array.from(STATE.orgContainer.querySelectorAll(".config-org-btn"));
     }else{
       STATE.orgButtons=[];
-    }
-    if(STATE.regionContainer&&STATE.regionHandler){
-      STATE.regionContainer.removeEventListener("click",STATE.regionHandler);
-    }
-    STATE.regionContainer=STATE.panel.querySelector("#configRegionButtons");
-    STATE.regionHandler=handleRegionClick;
-    if(STATE.regionContainer){
-      STATE.regionContainer.addEventListener("click",STATE.regionHandler);
-      STATE.regionButtons=Array.from(STATE.regionContainer.querySelectorAll(".config-region-btn"));
-    }else{
-      STATE.regionButtons=[];
     }
     if(STATE.filterPercentInput){
       if(STATE.filterPercentHandler){
@@ -766,7 +694,6 @@ body.config-open .viz-grid { width: max(0px, calc(100% - var(--config-active-wid
     STATE.sliderVisible=!!initialSliderVisible;
     STATE.titleVisible=!!initialTitleVisible;
     STATE.currentOrgFilter=normalizeOrgFilter(initialOrgFilter);
-    STATE.currentRegionFilter=normalizeRegionFilter(initialRegionFilter);
     if(STATE.toggle){
       STATE.toggle.addEventListener("click",handleToggle);
     }
@@ -803,7 +730,6 @@ body.config-open .viz-grid { width: max(0px, calc(100% - var(--config-active-wid
     updateSliderActive();
     updateTitleActive();
     updateOrgActive();
-    updateRegionActive();
     buildMetricButtons();
     buildFilterOptions();
     updateFilterPercentInput();
@@ -885,11 +811,6 @@ body.config-open .viz-grid { width: max(0px, calc(100% - var(--config-active-wid
   function setOrgFilter(filter){
     STATE.currentOrgFilter=normalizeOrgFilter(filter);
     updateOrgActive();
-  }
-
-  function setRegionFilter(filter){
-    STATE.currentRegionFilter=normalizeRegionFilter(filter);
-    updateRegionActive();
   }
 
   function setMetrics(metrics=[], currentMetric){
