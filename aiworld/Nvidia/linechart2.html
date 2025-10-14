@@ -5,23 +5,144 @@
 <title>HF Orgs Line Chart v2.0</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
+:root {
+  --viz-body-bg: #ffffff;
+  --viz-body-text: #111111;
+  --viz-title-color: #101a35;
+  --viz-subtitle-color: #1f2a44;
+  --viz-axis-label: #333333;
+  --viz-divider: rgba(0,0,0,0.1);
+  --viz-card-bg: #ffffff;
+  --viz-panel-bg: rgba(255,255,255,0.95);
+  --viz-panel-surface: rgba(255,255,255,0.72);
+  --viz-tooltip-bg: #ffffff;
+  --viz-tooltip-border: #d9d9df;
+  --viz-muted-text: #6e7485;
+  --viz-source-text: #333333;
+  --viz-link-color: #2756d3;
+  --viz-axis-line: #cfd2d7;
+  --viz-grid-line: rgba(230,232,239,0.45);
+  --viz-border-color: #cfd2d7;
+  --viz-control-bg: #ffffff;
+  --viz-control-text: #1f2a44;
+  --viz-track-bg: #e2e5f1;
+  --viz-selection-color: #2756d3;
+  --viz-disabled-border: #aeb4c4;
+  --viz-disabled-fill: #f0f1f5;
+  --viz-elevation-shadow: rgba(0,0,0,0.18);
+  color-scheme: light;
+}
+
+body.theme-dark {
+  --viz-body-bg: #0b1120;
+  --viz-body-text: #e2e8f0;
+  --viz-title-color: #f8fafc;
+  --viz-subtitle-color: #cbd5f5;
+  --viz-axis-label: #cbd5f5;
+  --viz-divider: rgba(148,163,184,0.3);
+  --viz-card-bg: #16213a;
+  --viz-panel-bg: rgba(15,23,42,0.92);
+  --viz-panel-surface: rgba(15,23,42,0.82);
+  --viz-tooltip-bg: #111c2f;
+  --viz-tooltip-border: rgba(148,163,184,0.45);
+  --viz-muted-text: #8da2c9;
+  --viz-source-text: #cbd5f5;
+  --viz-link-color: #93c5fd;
+  --viz-axis-line: rgba(148,163,184,0.45);
+  --viz-grid-line: rgba(71,85,105,0.45);
+  --viz-border-color: rgba(148,163,184,0.35);
+  --viz-control-bg: #15213a;
+  --viz-control-text: #e2e8f0;
+  --viz-track-bg: rgba(46,64,104,0.78);
+  --viz-selection-color: #4f8bff;
+  --viz-disabled-border: rgba(148,163,184,0.3);
+  --viz-disabled-fill: rgba(45,55,72,0.75);
+  --viz-elevation-shadow: rgba(7,12,24,0.65);
+  color-scheme: dark;
+}
+
 html, body { height: 100%; }
 body { 
     margin: 0; 
     overflow: hidden; 
-    background: #ffffff; 
-    color: #111; 
+    background: var(--viz-body-bg, #ffffff); 
+    color: var(--viz-body-text, #111); 
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif; 
     height: 100vh; 
 }
 .viz-grid { 
-    display: grid; 
-    grid-template-rows: auto 17fr 3fr 1fr; 
-    grid-template-columns: 1fr 1fr; 
-    height: 100vh; 
+  display: grid; 
+  grid-template-rows: auto var(--row-chart,17fr) var(--row-slider,3fr) 1fr; 
+  grid-template-columns: 1fr 1fr; 
+  height: 100vh; 
+  width: 100%; 
+  box-sizing: border-box; 
+  padding-bottom: clamp(4px, 2vh, 10px); 
+}
+
+.viz-layout { 
+    position: relative; 
     width: 100%; 
-    box-sizing: border-box; 
-    padding-bottom: clamp(4px, 2vh, 10px); 
+    height: 100vh; 
+    min-height: 100vh; 
+    display: flex; 
+    align-items: stretch; 
+    justify-content: flex-start; 
+    overflow: hidden; 
+    min-width: 0; 
+}
+
+.viz-download-button { 
+    width: clamp(16px, 2vw, 30px); 
+    height: clamp(16px, 2vw, 30px); 
+    border-radius: 25%; 
+    border: none; 
+    background-color: rgba(39,86,211,0.92); 
+    color: #ffffff; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    cursor: pointer; 
+    transition: transform .16s ease, box-shadow .18s ease, background-color .18s ease; 
+    z-index: 12; 
+    flex-shrink: 0; 
+}
+
+.viz-download-button:hover { 
+    transform: translateY(-1px); 
+    background-color: #7573d2; 
+}
+
+.viz-download-button:active { 
+    transform: translateY(0); 
+    background-color: rgba(39,86,211,0.85); 
+}
+
+.viz-download-button:disabled { 
+    opacity: 0.7; 
+    cursor: wait; 
+    transform: none; 
+}
+
+.viz-download-button:focus-visible { 
+    outline: 2px solid rgba(39,86,211,0.4); 
+    outline-offset: 3px; 
+}
+
+.viz-download-button img { 
+    width: 88%; 
+    height: 88%; 
+    pointer-events: none; 
+    filter: brightness(0) invert(1); 
+}
+
+body.slider-hidden .viz-grid { 
+  --row-chart: 20fr; 
+  --row-slider: 0fr; 
+}
+
+body.slider-hidden #container2 { 
+  display: none; 
 }
 #containerTitle { 
     grid-row: 1; 
@@ -41,7 +162,7 @@ body {
 .viz-main-title { 
     font-size: clamp(20px, 3vw, 34px); 
     font-weight: 700; 
-    color: #101a35; 
+    color: var(--viz-title-color, #101a35); 
     text-align: left; 
     line-height: 1.2; 
     margin: 0; 
@@ -50,7 +171,7 @@ body {
 .viz-subtitle { 
     font-size: clamp(13px, 2vw, 22px); 
     font-weight: 600; 
-    color: #1f2a44; 
+    color: var(--viz-subtitle-color, #1f2a44); 
     text-align: left; 
     max-width: 100%; 
     line-height: 1.3; 
@@ -65,14 +186,14 @@ body {
     padding: 0 12px;
 }
 #container1 .y-axis-container { 
-    flex: 0 0 clamp(22px, 2.4vw, 32px); 
+    flex: 0 0 clamp(32px, 3vw, 46px); 
     display: flex; 
     align-items: center; 
     justify-content: center;
     min-width: 0;
-    border-right: 1px solid rgba(0,0,0,0.1); 
+    border-right: 1px solid var(--viz-divider, rgba(0,0,0,0.1)); 
     box-sizing: border-box; 
-    padding: 0 2px; 
+    padding: 0 6px; 
 }
 #container1 .y-axis-label { 
     writing-mode: vertical-rl; 
@@ -80,7 +201,9 @@ body {
     text-align: center; 
     font-weight: 600; 
     font-size: clamp(11px, 1.2vw, 16px); 
-    color: #333; 
+    color: var(--viz-axis-label, #333); 
+    line-height: 1.2; 
+    letter-spacing: 0.04em; 
 }
 #container1 .chart-wrapper { 
     flex: 1 1 auto; 
@@ -117,8 +240,9 @@ body {
 .metric-btn { 
     padding: 6px 10px; 
     border-radius: 8px; 
-    border: 1px solid #cfd2d7; 
-    background: #fff; 
+    border: 1px solid var(--viz-divider, #cfd2d7); 
+    background: var(--viz-card-bg, #fff); 
+    color: var(--viz-body-text, #111); 
     font-weight: 600; 
     cursor: pointer; 
     user-select: none; 
@@ -149,9 +273,13 @@ body {
     display: flex; 
     align-items: center; 
     justify-content: flex-end; 
+    gap: clamp(10px, 2vw, 16px); 
     padding: 0 20px; 
     overflow: hidden; 
     min-width: 0; 
+}
+#container4 .logo { 
+    flex-shrink: 0; 
 }
 #container4 a { 
     height: 100%; 
@@ -162,7 +290,7 @@ body {
 .source-text { 
     font-size: clamp(10px, 1.6vw, 16px); 
     font-weight: 600; 
-    color: #333; 
+    color: var(--viz-source-text, #333); 
     white-space: nowrap; 
     overflow: hidden; 
     text-overflow: ellipsis; 
@@ -170,13 +298,13 @@ body {
     font-style: normal; 
 }
 .source-text a { 
-    color: #2756d3; 
+    color: var(--viz-link-color, #2756d3); 
     text-decoration: underline; 
     cursor: pointer; 
     font-style: normal; 
 }
 .source-text a:visited { 
-    color: #2756d3; 
+    color: var(--viz-link-color, #2756d3); 
 }
 .logo { 
     height: 100%; 
@@ -214,24 +342,36 @@ body {
 }
 #tooltip { 
     position: absolute; 
-    background: #fff; 
-    border: 1px solid #d9d9df; 
+    background: var(--viz-tooltip-bg, #fff); 
+    border: 1px solid var(--viz-tooltip-border, #d9d9df); 
     border-radius: 6px; 
     padding: 6px 8px; 
     font-size: 12px; 
+    color: var(--viz-body-text, #111); 
     pointer-events: none; 
     opacity: 0; 
     box-shadow: 0 4px 14px rgba(0,0,0,0.08); 
     transition: opacity .12s ease; 
 }
 
-.axis path, .axis line { stroke: #cfd2d7; }
-.tick text { font-size: clamp(8px, 0.9vw, 11px); }
-.grid line { stroke: rgba(230,232,239,0.45); }
+.axis path, .axis line { stroke: var(--viz-axis-line, #cfd2d7); }
+.tick text { font-size: clamp(8px, 0.9vw, 11px); fill: var(--viz-axis-label, #333); }
+.grid line { stroke: var(--viz-grid-line, rgba(230,232,239,0.45)); }
 .grid .domain { display: none; }
-.final-label { font-weight: 600; pointer-events: none; }
-.year-dividers line { stroke: #cfd2d7; stroke-width: 1; }
-.year-dividers text { fill: #6e7485; font-weight: 600; pointer-events: none; letter-spacing: 0.01em; }
+.final-label { 
+  font-weight: 600; 
+  pointer-events: none; 
+}
+.year-dividers line { 
+  stroke: var(--viz-axis-line, #cfd2d7); 
+  stroke-width: 1; 
+}
+.year-dividers text { 
+  fill: var(--viz-muted-text, #6e7485); 
+  font-weight: 600; 
+  pointer-events: none; 
+  letter-spacing: 0.01em; 
+}
 </style>
 
 </head>
@@ -240,7 +380,7 @@ body {
   <div class="viz-grid">
     <div id="containerTitle" class="container title-container">
       <div class="viz-title-block">
-        <h1 id="vizMainTitle" class="viz-main-title">Race for Open-Source AI Dominance</h1>
+        <h1 id="vizMainTitle" class="viz-main-title">Leaders in Open-Source AI Development</h1>
         <div id="vizSubtitle" class="viz-subtitle">Loading data…</div>
       </div>
     </div>
@@ -263,13 +403,13 @@ body {
     </div>
     <div id="container4" class="container logo-container">
       <a href="https://aiworld.eu/" target="_blank" rel="noopener">
-        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+        <img src="logo.svg" class="logo" alt="AI World logo" crossorigin="anonymous">
       </a>
     </div>
   </div>
 </div>
 
-<script>
+<script id="vizScript">
 const svg=d3.select("#chart");
 const tooltip=d3.select("#tooltip");
 const legendEl=d3.select("#legend");
@@ -277,8 +417,19 @@ const yLabelEl=document.getElementById("yLabel");
 const titleContainer=document.getElementById("containerTitle");
 const subtitleEl=document.getElementById("vizSubtitle");
 const vizLayout=document.getElementById("vizLayout");
+const downloadButton=document.getElementById("downloadButton");
 const colorScale=d3.scaleOrdinal(d3.schemeTableau10);
 const orgMeta=new Map();
+const INLINE_EXPORT=window.__INLINE_EXPORT__||null;
+const IS_EXPORT_MODE=!!(INLINE_EXPORT&&INLINE_EXPORT.exportMode);
+const INLINE_DATA=INLINE_EXPORT&&Array.isArray(INLINE_EXPORT.data)?INLINE_EXPORT.data:null;
+const INLINE_ORGS=INLINE_EXPORT&&Array.isArray(INLINE_EXPORT.orgs)?INLINE_EXPORT.orgs:null;
+const INLINE_STATE=INLINE_EXPORT&&INLINE_EXPORT.state&&typeof INLINE_EXPORT.state==="object"?INLINE_EXPORT.state:null;
+let inlineActiveIdSet=INLINE_STATE&&Array.isArray(INLINE_STATE.activeIds)?new Set(INLINE_STATE.activeIds):null;
+const SCREENSHOT_TARGET_SELECTOR=".viz-grid";
+const HTML2CANVAS_SRC="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+let html2canvasLoadingPromise=null;
+const LOGO_PRELOADS=new Map();
 const MONTH_LABELS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 function getMonthLabel(month){
   if(Number.isInteger(month)&&month>=0&&month<MONTH_LABELS.length){ return MONTH_LABELS[month]; }
@@ -312,7 +463,95 @@ let titleVisible=true;
 let legendFullIds=[];
 let legendCurrentIds=[];
 let currentFilter={ percent:100, metric:METRICS.length?METRICS[0].key:null };
+let currentOrgFilter="companies";
+let currentRegionFilter="all";
+let currentTheme="dark";
 let suppressAnimationNextRender=false;
+
+function isTransparentColor(color){
+  if(!color){ return true; }
+  const normalized=color.trim().toLowerCase();
+  if(!normalized||normalized==="transparent"){ return true; }
+  const match=normalized.match(/rgba?\(([^)]+)\)/i);
+  if(!match){ return false; }
+  const parts=match[1].split(",").map(part=>part.trim());
+  if(parts.length<4){ return false; }
+  const alpha=parseFloat(parts[3]);
+  return !Number.isFinite(alpha)||alpha===0;
+}
+
+function resolveBackgroundColor(element){
+  let current=element;
+  while(current){
+    const color=window.getComputedStyle(current).backgroundColor;
+    if(!isTransparentColor(color)){ return color; }
+    current=current.parentElement;
+  }
+  const bodyColor=window.getComputedStyle(document.body).backgroundColor;
+  return isTransparentColor(bodyColor)?getCssVar("--viz-body-bg","#ffffff"):bodyColor;
+}
+
+function getCssVar(name,fallback=""){
+  if(!name){ return fallback; }
+  try{
+    const value=getComputedStyle(document.documentElement).getPropertyValue(name);
+    if(value&&value.trim()){ return value.trim(); }
+  }catch(err){}
+  return fallback;
+}
+
+function preloadLogo(url){
+  if(!url){ return null; }
+  const existing=LOGO_PRELOADS.get(url);
+  if(existing){ return existing.promise; }
+  const img=new Image();
+  img.crossOrigin="anonymous";
+  const promise=new Promise(resolve=>{
+    img.onload=()=>resolve(true);
+    img.onerror=()=>resolve(false);
+  });
+  LOGO_PRELOADS.set(url,{ promise, image:img });
+  img.src=url;
+  return promise;
+}
+
+function getPreloadedLogo(url){
+  if(!url){ return null; }
+  const entry=LOGO_PRELOADS.get(url);
+  if(!entry){ return null; }
+  const { image }=entry;
+  if(image&&image.complete){ return image; }
+  return null;
+}
+
+if(INLINE_STATE){
+  if(typeof INLINE_STATE.currentMetric==="string"){ currentMetric=INLINE_STATE.currentMetric; }
+  if(typeof INLINE_STATE.currentMode==="string"){ currentMode=INLINE_STATE.currentMode; }
+  if(typeof INLINE_STATE.currentPeriod==="string"){ currentPeriod=INLINE_STATE.currentPeriod; }
+  if(typeof INLINE_STATE.currentScale==="string"){ currentScale=INLINE_STATE.currentScale; }
+  if(typeof INLINE_STATE.currentNormMode==="string"){ currentNormMode=INLINE_STATE.currentNormMode; }
+  if(typeof INLINE_STATE.lastAbsoluteMode==="string"){ lastAbsoluteMode=INLINE_STATE.lastAbsoluteMode; }
+  if(typeof INLINE_STATE.sliderVisible==="boolean"){ sliderVisible=INLINE_STATE.sliderVisible; }
+  if(typeof INLINE_STATE.titleVisible==="boolean"){ titleVisible=INLINE_STATE.titleVisible; }
+  if(INLINE_STATE.currentFilter&&typeof INLINE_STATE.currentFilter==="object"){
+    const percent=clampFilterPercent(INLINE_STATE.currentFilter.percent);
+    const metricKey=typeof INLINE_STATE.currentFilter.metric==="string"?INLINE_STATE.currentFilter.metric:null;
+    currentFilter={ percent, metric:metricKey };
+  }
+  if(typeof INLINE_STATE.currentOrgFilter==="string"){ currentOrgFilter=normalizeOrgFilter(INLINE_STATE.currentOrgFilter); }
+  if(typeof INLINE_STATE.currentRegionFilter==="string"){ currentRegionFilter=normalizeRegionFilter(INLINE_STATE.currentRegionFilter); }
+  if(typeof INLINE_STATE.theme==="string"){ currentTheme=INLINE_STATE.theme==="dark"?"dark":"light"; }
+  if(Number.isFinite(INLINE_STATE.rangeStart)||Number.isFinite(INLINE_STATE.rangeEnd)){
+    const start=Number.isFinite(INLINE_STATE.rangeStart)?INLINE_STATE.rangeStart:0;
+    const end=Number.isFinite(INLINE_STATE.rangeEnd)?INLINE_STATE.rangeEnd:INLINE_STATE.rangeStart;
+    currentRange={ startIndex:start, endIndex:end };
+    rangeDirty=true;
+    suppressAnimationNextRender=true;
+  }
+  if(INLINE_STATE.rangeDirty===true){
+    rangeDirty=true;
+  }
+}
 
 function capitalizeFirst(text){
   if(typeof text!=="string"||!text.length){ return text||""; }
@@ -446,12 +685,12 @@ function ensureLogoPattern(id,logoUrl){
   const pattern=defs.selectAll(`pattern#${patternId}`).data([logoUrl]).join(
     enter=>{
       const p=enter.append("pattern").attr("id",patternId).attr("patternUnits","objectBoundingBox").attr("patternContentUnits","objectBoundingBox").attr("width",1).attr("height",1);
-      p.append("image").attr("href",logoUrl).attr("xlink:href",logoUrl).attr("width",1).attr("height",1).attr("preserveAspectRatio","xMidYMid slice");
+      p.append("image").attr("href",logoUrl).attr("xlink:href",logoUrl).attr("width",1).attr("height",1).attr("preserveAspectRatio","xMidYMid slice").attr("crossorigin","anonymous");
       return p;
     },
     update=>update
   );
-  pattern.select("image").attr("href",logoUrl).attr("xlink:href",logoUrl);
+  pattern.select("image").attr("href",logoUrl).attr("xlink:href",logoUrl).attr("crossorigin","anonymous");
   return patternId;
 }
 
@@ -481,6 +720,102 @@ function getFilterLimitCount(percent,totalCount){
   return Math.max(0,Math.min(count,total));
 }
 
+function normalizeOrgFilter(value){
+  const text=String(value??"").trim().toLowerCase();
+  if(text==="companies"||text==="company"){ return "companies"; }
+  if(text==="noncompanies"||text==="non-companies"||text==="noncompany"){ return "noncompanies"; }
+  return "all";
+}
+
+function matchesOrgFilter(id){
+  if(!id){ return false; }
+  if(currentOrgFilter==="all"){ return true; }
+  const info=getOrgInfo(id);
+  const isCompany=info?info.company===true:false;
+  if(currentOrgFilter==="companies"){ return isCompany; }
+  if(currentOrgFilter==="noncompanies"){ return !isCompany; }
+  return true;
+}
+
+function normalizeRegionKey(value){
+  const text=String(value??"").trim().toLowerCase();
+  if(text==="north america"||text==="north-america"||text==="na"){ return "north-america"; }
+  if(text==="europe"){ return "europe"; }
+  if(text==="china"){ return "china"; }
+  return text||null;
+}
+
+function normalizeRegionFilter(value){
+  const text=String(value??"").trim().toLowerCase();
+  if(text==="north america"||text==="north-america"||text==="na"){ return "north-america"; }
+  if(text==="europe"){ return "europe"; }
+  if(text==="china"){ return "china"; }
+  return "all";
+}
+
+function normalizeTheme(value){
+  return value==="dark"?"dark":"light";
+}
+
+function matchesRegionFilter(id){
+  if(currentRegionFilter==="all"){ return true; }
+  const info=getOrgInfo(id);
+  if(!info){ return false; }
+  return info.regionKey===currentRegionFilter;
+}
+
+function matchesAllFilters(id){
+  return matchesOrgFilter(id)&&matchesRegionFilter(id);
+}
+
+function filterSeriesByOrg(seriesData){
+  if(!Array.isArray(seriesData)){ return []; }
+  return seriesData.filter(entry=>matchesAllFilters(entry&&entry.id));
+}
+
+function updateLegendIds(){
+  const filteredIds=rawById.map(({id})=>id).filter(matchesAllFilters);
+  legendFullIds=filteredIds;
+  rawById.forEach(({id})=>{
+    if(matchesAllFilters(id)){
+      active.set(id,true);
+    }else{
+      active.set(id,false);
+    }
+  });
+  if(!arraysEqual(legendCurrentIds,filteredIds)){
+    buildLegend(filteredIds);
+  }else{
+    refreshLegendState();
+  }
+}
+
+function setOrgFilter(filter,options={}){
+  const next=normalizeOrgFilter(filter);
+  if(next===currentOrgFilter&&!options.force){ return; }
+  currentOrgFilter=next;
+  updateLegendIds();
+  if(!options.skipConfig&&window.ConfigTab&&typeof window.ConfigTab.setOrgFilter==="function"){
+    window.ConfigTab.setOrgFilter(currentOrgFilter);
+  }
+  if(!options.skipRender){
+    render();
+  }
+}
+
+function setRegionFilter(filter,options={}){
+  const next=normalizeRegionFilter(filter);
+  if(next===currentRegionFilter&&!options.force){ return; }
+  currentRegionFilter=next;
+  updateLegendIds();
+  if(!options.skipConfig&&window.ConfigTab&&typeof window.ConfigTab.setRegionFilter==="function"){
+    window.ConfigTab.setRegionFilter(currentRegionFilter);
+  }
+  if(!options.skipRender){
+    render();
+  }
+}
+
 function computeTopIdsFromScores(limitCount,scoresMap){
   if(limitCount===null){ return legendFullIds.slice(); }
   if(!Number.isFinite(limitCount)||limitCount<=0){ return []; }
@@ -498,7 +833,7 @@ function buildSeriesForMetric(metricKey){
   if(!metricKey||!currentTimeline.length){ return []; }
   const period=currentPeriod;
   const isPerPeriod=currentMode==="perWeek";
-  return rawById.map(({id, values})=>{
+  return rawById.filter(({id})=>matchesAllFilters(id)).map(({id, values})=>{
     const aggregated=new Map();
     values.forEach(entry=>{
       const info=getPeriodInfo(entry,period);
@@ -517,18 +852,30 @@ function buildSeriesForMetric(metricKey){
     currentTimeline.forEach(info=>{
       const dataPoint=aggregated.get(info.order);
       let rawValue=0;
+      let endValue=running;
       if(isPerPeriod){
         rawValue=dataPoint?dataPoint.sum:0;
+        endValue=rawValue;
       }else{
-        if(dataPoint&&typeof dataPoint.last==="number"){
-          running=dataPoint.last;
+        if(currentMode==="cumulative"){
+          rawValue=running;
+          if(dataPoint&&typeof dataPoint.last==="number"){
+            running=dataPoint.last;
+          }
+          endValue=running;
+        }else{
+          if(dataPoint&&typeof dataPoint.last==="number"){
+            running=dataPoint.last;
+          }
+          rawValue=running;
+          endValue=running;
         }
-        rawValue=running;
       }
       result.push({
         w:info.coord,
         rawValue,
         value:rawValue,
+        endValue,
         label:info.label,
         actualLabel:info.label,
         relativeLabel:null,
@@ -555,11 +902,20 @@ function transformSeriesForRange(seriesData,startIndex,endIndex){
       return { id:s.id, values };
     }
     if(currentMode==="cumulative"){
-      const baseRaw=slice[0]?.rawValue||0;
-      const values=slice.map(v=>({...v, value:v.rawValue-baseRaw}));
+      const baseRaw=slice.length? (Number.isFinite(slice[0].rawValue)?slice[0].rawValue:0):0;
+      const baseEnd=slice.length? (Number.isFinite(slice[0].endValue)?slice[0].endValue:baseRaw):baseRaw;
+      const values=slice.map(v=>{
+        const startValue=v.rawValue-baseRaw;
+        const endValue=(Number.isFinite(v.endValue)?v.endValue:(Number.isFinite(v.rawValue)?v.rawValue:0))-baseEnd;
+        return { ...v, value:startValue, startValue, displayEndValue:endValue };
+      });
       return { id:s.id, values };
     }
-    return { id:s.id, values:slice };
+    const adjusted=slice.map(v=>{
+      const displayEnd=Number.isFinite(v.endValue)?v.endValue:(Number.isFinite(v.value)?v.value:0);
+      return { ...v, displayEndValue:displayEnd };
+    });
+    return { id:s.id, values:adjusted };
   });
 }
 
@@ -568,27 +924,34 @@ function computeScoresFromSeries(seriesData){
   seriesData.forEach(s=>{
     const values=s.values;
     const last=values&&values.length?values[values.length-1]:null;
-    const score=last&&Number.isFinite(last.value)?last.value:-Infinity;
+    let score=-Infinity;
+    if(last){
+      if(Number.isFinite(last.displayEndValue)){
+        score=last.displayEndValue;
+      }else if(Number.isFinite(last.value)){
+        score=last.value;
+      }
+    }
     scores.set(s.id,score);
   });
   return scores;
 }
 
 function computeDownloadsPerRepoScores(startIndex,endIndex){
-  const downloadsSeries=transformSeriesForRange(buildSeriesForMetric("downloads_total"),startIndex,endIndex);
-  const reposSeries=transformSeriesForRange(buildSeriesForMetric("repos_total"),startIndex,endIndex);
+  const downloadsSeries=filterSeriesByOrg(transformSeriesForRange(buildSeriesForMetric("downloads_total"),startIndex,endIndex));
+  const reposSeries=filterSeriesByOrg(transformSeriesForRange(buildSeriesForMetric("repos_total"),startIndex,endIndex));
   const repoScores=new Map();
   reposSeries.forEach(s=>{
     const values=s.values;
     const last=values&&values.length?values[values.length-1]:null;
-    const value=last&&Number.isFinite(last.value)?last.value:0;
+    const value=last&&Number.isFinite(last.displayEndValue)?last.displayEndValue:(last&&Number.isFinite(last.value)?last.value:0);
     repoScores.set(s.id,value);
   });
   const scores=new Map();
   downloadsSeries.forEach(s=>{
     const values=s.values;
     const last=values&&values.length?values[values.length-1]:null;
-    const downloads=last&&Number.isFinite(last.value)?last.value:0;
+    const downloads=last&&Number.isFinite(last.displayEndValue)?last.displayEndValue:(last&&Number.isFinite(last.value)?last.value:0);
     const repos=repoScores.has(s.id)?repoScores.get(s.id):0;
     const safeRepos=Math.abs(repos)>1e-9?repos:1;
     const ratio=downloads/safeRepos;
@@ -846,6 +1209,14 @@ function onConfigTopFilterChange(filter){
   render();
 }
 
+function onConfigOrgFilterChange(filter){
+  setOrgFilter(filter);
+}
+
+function onConfigRegionFilterChange(filter){
+  setRegionFilter(filter);
+}
+
 function onConfigNormModeChange(mode){
   if(!mode||mode===currentNormMode){ return; }
   currentNormMode=mode;
@@ -891,7 +1262,7 @@ function syncRangeWithTimeline(){
     return;
   }
   const maxIndex=length-1;
-  let start=rangeDirty?currentRange.startIndex:0;
+  let start=rangeDirty?currentRange.startIndex:148;
   let end=rangeDirty?currentRange.endIndex:maxIndex;
   start=Math.max(0,Math.min(Number.isFinite(start)?start:0,maxIndex));
   end=Math.max(start,Math.min(Number.isFinite(end)?end:maxIndex,maxIndex));
@@ -944,10 +1315,28 @@ function setSliderVisibility(visible,options={}){
   }else{
     if(existing){ existing.style.display="none"; }
   }
+  document.body.classList.toggle("slider-hidden",!sliderVisible);
   if(previous!==sliderVisible){
     if(window.ConfigTab&&typeof window.ConfigTab.setSliderVisible==="function"&&!options.skipConfig){ window.ConfigTab.setSliderVisible(sliderVisible); }
     syncRangeWithTimeline();
     render();
+  }
+}
+
+function setTheme(theme,options={}){
+  const next=normalizeTheme(theme);
+  const previous=currentTheme;
+  currentTheme=next;
+  document.body.classList.toggle("theme-dark",next==="dark");
+  document.body.dataset.theme=next;
+  if(previous!==next){
+    document.documentElement.setAttribute("data-theme",next);
+    if(!options.skipRender){
+      render();
+    }
+  }
+  if(!options.skipConfig&&window.ConfigTab&&typeof window.ConfigTab.setTheme==="function"){
+    window.ConfigTab.setTheme(next);
   }
 }
 
@@ -962,7 +1351,9 @@ function setTitleVisibility(visible,options={}){
   }
 }
 
+setTheme(currentTheme,{skipConfig:true,skipRender:true});
 setTitleVisibility(titleVisible,{skipConfig:true});
+setSliderVisibility(sliderVisible,{skipConfig:true});
 
 async function loadSlider(){
   const container=document.getElementById("container2");
@@ -1102,6 +1493,8 @@ async function loadConfigTab(){
     if(window.ConfigTab&&typeof window.ConfigTab.init==="function"){
       window.ConfigTab.init({
         panelEl: document.getElementById("configPanel"),
+        onThemeChange:setTheme,
+        initialTheme: currentTheme,
         initialMode: currentMode,
         initialPeriod: currentPeriod,
         initialScale: currentScale,
@@ -1110,6 +1503,8 @@ async function loadConfigTab(){
         initialSliderVisible: sliderVisible,
         initialTitleVisible: titleVisible,
         initialTopFilter: currentFilter,
+        initialOrgFilter: currentOrgFilter,
+        initialRegionFilter: currentRegionFilter,
         metrics: METRICS,
         onModeChange:onConfigModeChange,
         onPeriodChange:onConfigPeriodChange,
@@ -1117,9 +1512,10 @@ async function loadConfigTab(){
         onNormModeChange:onConfigNormModeChange,
         onMetricChange:onConfigMetricChange,
         onSliderVisibilityChange:setSliderVisibility,
-        onTitleVisibilityChange:setTitleVisibility,
         onTopFilterChange:onConfigTopFilterChange,
-        onTitleVisibilityChange:setTitleVisibility
+        onTitleVisibilityChange:setTitleVisibility,
+        onOrgFilterChange:onConfigOrgFilterChange,
+        onRegionFilterChange:onConfigRegionFilterChange
       });
     }
     const panelEl=document.getElementById("configPanel");
@@ -1130,19 +1526,28 @@ async function loadConfigTab(){
 }
 
 function load(){
-  Promise.all([
-    fetch("./data.json").then(r=>r.json()),
-    fetch("./orgs.json").then(r=>r.ok?r.json():[]).catch(()=>[])
-  ]).then(([json, orgList])=>{
+  const dataPromise=INLINE_DATA?Promise.resolve(INLINE_DATA):fetch("./data_v1.json").then(r=>r.json());
+  const orgPromise=INLINE_ORGS?Promise.resolve(INLINE_ORGS):fetch("./orgs.json").then(r=>r.ok?r.json():[]).catch(()=>[]);
+  Promise.all([dataPromise, orgPromise]).then(([json, orgList])=>{
+    const sourceData=Array.isArray(json)?json.slice():[];
+    const sourceOrgList=Array.isArray(orgList)?orgList.slice():[];
     orgMeta.clear();
-    if(Array.isArray(orgList)){
-      orgList.forEach(entry=>{
+    if(Array.isArray(sourceOrgList)){
+      sourceOrgList.forEach(entry=>{
         if(entry&&entry.id){
-          orgMeta.set(entry.id,{ color:entry.color||null, logo:entry.logo||null });
+          const regionText=typeof entry.region==="string"?entry.region.trim():null;
+          preloadLogo(entry.logo);
+          orgMeta.set(entry.id,{
+            color:entry.color||null,
+            logo:entry.logo||null,
+            company:entry.company===true,
+            region:regionText,
+            regionKey:normalizeRegionKey(regionText)
+          });
         }
       });
     }
-    const grouped=d3.groups(json,d=>d.id).map(([id,arr])=>{
+    const grouped=d3.groups(sourceData,d=>d.id).map(([id,arr])=>{
       arr.sort((a,b)=>+a.week_count-+b.week_count);
       const enriched=arr.map(entry=>{
         const weekDate=parseDateYYYYMMDD(entry.week_date);
@@ -1153,15 +1558,20 @@ function load(){
     });
     rawById=grouped;
     const ids=rawById.map(s=>s.id);
-    ids.forEach(id=>active.set(id,true));
+    ids.forEach(id=>{
+      const shouldBeActive=inlineActiveIdSet?inlineActiveIdSet.has(id):true;
+      active.set(id,shouldBeActive);
+    });
+    inlineActiveIdSet=null;
     colorScale.domain(ids);
-    legendFullIds=ids.slice();
     const defaultMetric=METRICS.length?METRICS[0].key:null;
     let filterMetric=currentFilter.metric;
     if(!filterMetric|| (filterMetric!=="downloads_per_repo"&&!METRICS.some(m=>m.key===filterMetric))){
       filterMetric=defaultMetric;
     }
     currentFilter={ percent:clampFilterPercent(currentFilter.percent), metric:filterMetric };
+    setRegionFilter(currentRegionFilter,{ force:true, skipConfig:true, skipRender:true });
+    setOrgFilter(currentOrgFilter,{ force:true, skipConfig:true, skipRender:true });
     updateAxisLabel();
     if(window.ConfigTab&&typeof window.ConfigTab.setMetrics==="function"){ window.ConfigTab.setMetrics(METRICS,currentMetric); }
     if(window.ConfigTab&&typeof window.ConfigTab.setScale==="function"){ window.ConfigTab.setScale(currentScale); }
@@ -1173,7 +1583,8 @@ function load(){
     if(window.ConfigTab&&typeof window.ConfigTab.setTopFilter==="function"){ window.ConfigTab.setTopFilter(currentFilter); }
     if(window.ConfigTab&&typeof window.ConfigTab.setSliderVisible==="function"){ window.ConfigTab.setSliderVisible(sliderVisible); }
     if(window.ConfigTab&&typeof window.ConfigTab.setTitleVisible==="function"){ window.ConfigTab.setTitleVisible(titleVisible); }
-    buildLegend(ids);
+    if(window.ConfigTab&&typeof window.ConfigTab.setOrgFilter==="function"){ window.ConfigTab.setOrgFilter(currentOrgFilter); }
+    if(window.ConfigTab&&typeof window.ConfigTab.setRegionFilter==="function"){ window.ConfigTab.setRegionFilter(currentRegionFilter); }
     buildSeriesFromRaw();
     render();
   }).catch(()=>{
@@ -1262,8 +1673,26 @@ function buildSeriesFromRaw(){
     currentTimeline.forEach(info=>{
       const dataPoint=aggregated.get(info.order);
       let rawValue=0;
-      if(isPerPeriod){ rawValue=dataPoint?dataPoint.sum:0; } else { if(dataPoint&&typeof dataPoint.last==="number"){ running=dataPoint.last; } rawValue=running; }
-      result.push({ w:info.coord, rawValue, value:rawValue, label:info.label, actualLabel:info.label, relativeLabel:null, order:info.order, date:info.date, relativeIndex:info.relativeIndex, absoluteIndex:info.absoluteIndex });
+      let endValue=running;
+      if(isPerPeriod){
+        rawValue=dataPoint?dataPoint.sum:0;
+        endValue=rawValue;
+      }else{
+        if(currentMode==="cumulative"){
+          rawValue=running;
+          if(dataPoint&&typeof dataPoint.last==="number"){
+            running=dataPoint.last;
+          }
+          endValue=running;
+        }else{
+          if(dataPoint&&typeof dataPoint.last==="number"){
+            running=dataPoint.last;
+          }
+          rawValue=running;
+          endValue=running;
+        }
+      }
+      result.push({ w:info.coord, rawValue, value:rawValue, endValue, label:info.label, actualLabel:info.label, relativeLabel:null, order:info.order, date:info.date, relativeIndex:info.relativeIndex, absoluteIndex:info.absoluteIndex });
     });
     return {id, values:result};
   });
@@ -1315,6 +1744,20 @@ function getPointLabel(point){
   return info.label||`Period ${point.w}`;
 }
 
+function getHoveredPeriodCount(point){
+  if(currentMode==="perWeek"){
+    return Number.isFinite(point.value)?point.value:0;
+  }
+  const s=series.find(s=>s.id===point.id);
+  if(!s||!Array.isArray(s.values)){ return 0; }
+  const idx=Number.isInteger(point.relativeIndex)?point.relativeIndex:0;
+  const prevEntry=idx>0?s.values[idx-1]:null;
+  const prevEnd=prevEntry&&Number.isFinite(prevEntry.endValue)?prevEntry.endValue:(prevEntry&&Number.isFinite(prevEntry.rawValue)?prevEntry.rawValue:0);
+  const currEnd=Number.isFinite(point.endValue)?point.endValue:(Number.isFinite(point.rawValue)?point.rawValue:0);
+  const delta=currEnd-prevEnd;
+  return Number.isFinite(delta)?delta:0;
+};
+
 function createTooltipHtml(point,labelText,metricDef){
   const metricName=metricDef?metricDef.label:"";
   const modeLabel=currentScale==="normalized"?"":getModeSuffix();
@@ -1328,14 +1771,20 @@ function createTooltipHtml(point,labelText,metricDef){
     const actualSuffix=[metricName].filter(Boolean).join(" ").trim();
     const actualValue=formatRawValue(point.rawValue??point.value);
     lines.push(`Actual: ${actualValue}${actualSuffix?` ${actualSuffix}`:""}`);
+  }else if(currentMode==="cumulative"){
+    const unitSuffix=metricName?` ${metricName}`:"";
+    lines.push(`So far: ${formatValue(point.value)}${unitSuffix}`);
   }else{
     let descriptor=[metricName,modeLabel,scaleLabel].filter(Boolean).join(" ").trim();
     descriptor=descriptor?` ${descriptor}`:"";
     const valueText=`${formatValue(point.value)}${descriptor}`.trim();
     lines.push(valueText);
   }
+  const periodLabel=currentPeriod==="weekly"?"This week":currentPeriod==="monthly"?"This month":currentPeriod==="yearly"?"This year":"This period";
+  const perCount=getHoveredPeriodCount(point);
+  lines.push(`${periodLabel}: ${formatRawValue(perCount)}${metricName?` ${metricName}`:""}`);
   return lines.join("<br>");
-}
+};
 
 function findNormalizationBaseEntry(slice){
   if(!Array.isArray(slice)){ return { index:-1, value:null }; }
@@ -1428,7 +1877,8 @@ function render(){
   const domainMin=singlePoint?rangeMinCoord-0.5:rangeMinCoord;
   const domainMax=singlePoint?rangeMaxCoord+0.5:rangeMaxCoord;
 
-  const filteredSeries=transformSeriesForRange(series,startIndex,endIndex);
+  const orgFilteredSeries=filterSeriesByOrg(series);
+  const filteredSeries=transformSeriesForRange(orgFilteredSeries,startIndex,endIndex);
   const filterMetricKey=currentFilter.metric||currentMetric;
   const filterPercent=Number.isFinite(currentFilter.percent)?currentFilter.percent:100;
   const limitCount=getFilterLimitCount(filterPercent,legendFullIds.length);
@@ -1438,7 +1888,7 @@ function render(){
   }else if(filterMetricKey===currentMetric){
     filterScores=computeScoresFromSeries(filteredSeries);
   }else{
-    const baseSeries=buildSeriesForMetric(filterMetricKey);
+    const baseSeries=filterSeriesByOrg(buildSeriesForMetric(filterMetricKey));
     const transformed=transformSeriesForRange(baseSeries,startIndex,endIndex);
     filterScores=computeScoresFromSeries(transformed);
   }
@@ -1688,23 +2138,25 @@ function render(){
     const merged=enter.merge(items);
     const lineY=yearAxisLabelPadding;
     const labelY=yearLabelTextOffset;
+    const axisLineColor=getCssVar("--viz-axis-line","#cfd2d7");
+    const mutedLabelColor=getCssVar("--viz-muted-text","#6e7485");
     merged.select(".year-line")
         .attr("x1",d=>d.startX).attr("x2",d=>d.endX)
         .attr("y1",lineY).attr("y2",lineY)
-        .attr("stroke-width",1).attr("stroke","#cfd2d7");
+        .attr("stroke-width",1).attr("stroke",axisLineColor);
     merged.select(".year-cap-start")
         .attr("x1",d=>d.startX).attr("x2",d=>d.startX)
         .attr("y1",lineY-4).attr("y2",lineY+4)
-        .attr("stroke-width",1).attr("stroke","#cfd2d7");
+        .attr("stroke-width",1).attr("stroke",axisLineColor);
     merged.select(".year-cap-end")
         .attr("x1",d=>d.endX).attr("x2",d=>d.endX)
         .attr("y1",lineY-4).attr("y2",lineY+4)
-        .attr("stroke-width",1).attr("stroke","#cfd2d7");
+        .attr("stroke-width",1).attr("stroke",axisLineColor);
     merged.select(".year-label")
         .attr("x",d=>d.labelX).attr("y",labelY)
         .text(d=>d.year)
         .style("font-size",yearLabelFontSize+"px")
-        .style("fill","#6e7485");
+        .style("fill",mutedLabelColor);
     }else{
     gRoot.selectAll("g.year-dividers").remove();
     }
@@ -1719,7 +2171,9 @@ function render(){
   if(densePointMode){ smallRadius*=0.6; }
   const finalRadiusBase=6;
   const finalRadius=finalRadiusBase*(1+windowRatio);
+  const finalLogoRadius=finalRadius*(1+0.2*windowRatio);
   const finalHoverRadius=finalRadius*1.18;
+  const finalLogoHoverRadius=finalLogoRadius*1.12;
   const hoverRadius=smallRadius*1.6;
   const lineW=0.9+windowRatio*1.6;
   const lineGen=d3.line().x(d=>x(d.w)).y(d=>y(valueForPlot(d)));
@@ -1763,8 +2217,37 @@ function render(){
     const seriesColor=getSeriesColor(s.id);
     const orgInfo=getOrgInfo(s.id);
     const patternId=orgInfo&&orgInfo.logo?ensureLogoPattern(s.id,orgInfo.logo):null;
-    const finalFillValue=patternId?`url(#${patternId})`:"#ffffff";
-    const data=s.values.map((v,i)=>({ id:s.id, w:v.w, value:v.value, rawValue:v.rawValue, plotValue:valueForPlot(v), label:v.label, actualLabel:v.actualLabel, relativeLabel:v.relativeLabel, relativeIndex:v.relativeIndex, order:v.order, date:v.date, isFinal:i===s.values.length-1 }));
+    const defaultDotFill=getCssVar("--viz-body-bg","#ffffff");
+    const finalFillValue=patternId?`url(#${patternId})`:defaultDotFill;
+    const getDotRadius=datum=>datum.isFinal?(datum.logoUrl?finalLogoRadius:finalRadius):baseR;
+    const getHoverRadius=datum=>datum.isFinal?(datum.logoUrl?finalLogoHoverRadius:finalHoverRadius):hoverRadius;
+    const data=s.values.map((v,i)=>({
+      id:s.id,
+      w:v.w,
+      value:v.value,
+      rawValue:v.rawValue,
+      endValue:v.endValue,
+      displayEndValue:v.displayEndValue,
+      plotValue:valueForPlot(v),
+      label:v.label,
+      actualLabel:v.actualLabel,
+      relativeLabel:v.relativeLabel,
+      relativeIndex:v.relativeIndex,
+      order:v.order,
+      date:v.date,
+      isFinal:i===s.values.length-1,
+      logoUrl:orgInfo&&orgInfo.logo?orgInfo.logo:null
+    }));
+    const logoData=data.filter(d=>d.isFinal&&d.logoUrl);
+    const bgSel=d3.select(this).selectAll("circle.dot-logo-bg").data(logoData,d=>`${d.id}-${d.w}`);
+    const bgEnter=bgSel.enter().append("circle").attr("class","dot-logo-bg").attr("pointer-events","none").lower();
+    bgEnter.merge(bgSel)
+      .attr("cx",d=>x(d.w))
+      .attr("cy",d=>y(d.plotValue))
+      .attr("r",d=>getDotRadius(d))
+      .attr("fill",defaultDotFill)
+      .attr("data-key",d=>`${d.id}-${d.w}`);
+    bgSel.exit().remove();
     const sel=d3.select(this).selectAll("circle.dot").data(data,d=>`${d.id}-${d.w}`);
     const exitSel=sel.exit().interrupt();
     if(shouldAnimate){
@@ -1772,29 +2255,55 @@ function render(){
     }else{
       exitSel.remove();
     }
-    const enterSel=sel.enter().append("circle").attr("class","dot").attr("opacity",shouldAnimate?0:1).attr("stroke-width",1).style("pointer-events","all").attr("cx",d=>x(d.w)).attr("cy",d=>y(d.plotValue)).attr("r",d=>d.isFinal?finalRadius:baseR).attr("fill",d=>d.isFinal?finalFillValue:seriesColor).attr("stroke",seriesColor);
+    const enterSel=sel.enter().append("circle").attr("class","dot").attr("opacity",shouldAnimate?0:1).attr("stroke-width",1).style("pointer-events","all").attr("cx",d=>x(d.w)).attr("cy",d=>y(d.plotValue)).attr("r",d=>getDotRadius(d)).attr("fill",d=>d.isFinal?finalFillValue:seriesColor).attr("stroke",seriesColor).attr("data-logo-url",d=>(d.isFinal&&d.logoUrl)?d.logoUrl:null);
     const mergedSel=enterSel.merge(sel);
     if(shouldAnimate){
-      mergedSel.interrupt().transition().duration(transitionDuration).ease(easeFn).attr("opacity",1).attr("cx",d=>x(d.w)).attr("cy",d=>y(d.plotValue)).attr("r",d=>d.isFinal?finalRadius:baseR).attr("fill",d=>d.isFinal?finalFillValue:seriesColor).attr("stroke",seriesColor);
+      mergedSel.interrupt().transition().duration(transitionDuration).ease(easeFn).attr("opacity",1).attr("cx",d=>x(d.w)).attr("cy",d=>y(d.plotValue)).attr("r",d=>getDotRadius(d)).attr("fill",d=>d.isFinal?finalFillValue:seriesColor).attr("stroke",seriesColor).attr("data-logo-url",d=>(d.isFinal&&d.logoUrl)?d.logoUrl:null);
     }else{
-      mergedSel.interrupt().attr("opacity",1).attr("cx",d=>x(d.w)).attr("cy",d=>y(d.plotValue)).attr("r",d=>d.isFinal?finalRadius:baseR).attr("fill",d=>d.isFinal?finalFillValue:seriesColor).attr("stroke",seriesColor);
+      mergedSel.interrupt().attr("opacity",1).attr("cx",d=>x(d.w)).attr("cy",d=>y(d.plotValue)).attr("r",d=>getDotRadius(d)).attr("fill",d=>d.isFinal?finalFillValue:seriesColor).attr("stroke",seriesColor).attr("data-logo-url",d=>(d.isFinal&&d.logoUrl)?d.logoUrl:null);
     }
-    mergedSel.on("pointerenter",function(event,d){
-      const cx=+this.getAttribute("cx")+margin.left;
-      const cy=+this.getAttribute("cy")+margin.top;
-      const targetRadius=d.isFinal?finalHoverRadius:hoverRadius;
-      d3.select(this).raise().transition().duration(160).attr("r",targetRadius);
+  mergedSel
+    .on("pointerenter",function(event,d){
+      const seriesPath=gRoot.selectAll("path.series").filter(series=>series.id===d.id);
+      seriesPath.raise();
+      const parentGroup=d3.select(this.parentNode);
+      parentGroup.raise();
+      const finalLabel=gRoot.selectAll("text.final-label").filter(label=>label.id===d.id);
+      finalLabel.raise();
+      const bgCircle=parentGroup.select(`circle.dot-logo-bg[data-key="${d.id}-${d.w}"]`);
+      const targetRadius=getHoverRadius(d);
+      const circleSel=d3.select(this).raise();
+      circleSel.transition().duration(160).attr("r",targetRadius);
+      if(!bgCircle.empty()){
+        bgCircle.transition().duration(160).attr("r",targetRadius);
+      }
       const metricDef=getMetricDefinition();
       const labelText=getPointLabel(d);
       const tooltipHtml=createTooltipHtml(d,labelText,metricDef);
-      tooltip.style("opacity",1).style("left",cx+10+"px").style("top",cy-10+"px").html(tooltipHtml);
-    }).on("pointermove",function(){
-      const cx=+this.getAttribute("cx")+margin.left;
-      const cy=+this.getAttribute("cy")+margin.top;
-      tooltip.style("left",cx+10+"px").style("top",cy-10+"px");
-    }).on("pointerleave",function(event,d){
-      const resetRadius=d.isFinal?finalRadius:baseR;
-      d3.select(this).transition().duration(160).attr("r",resetRadius);
+      const vizBox=document.getElementById("viz").getBoundingClientRect();
+      const tipW=(tooltip.node()&&tooltip.node().offsetWidth)||0;
+      const mouseX=event.clientX-vizBox.left;
+      const mouseY=event.clientY-vizBox.top;
+      const tx=mouseX-tipW-10;
+      const ty=mouseY-10;
+      tooltip.style("opacity",1).style("left",tx+"px").style("top",ty+"px").html(tooltipHtml);
+    })
+    .on("pointermove",function(event){
+      const vizBox=document.getElementById("viz").getBoundingClientRect();
+      const tipW=(tooltip.node()&&tooltip.node().offsetWidth)||0;
+      const mouseX=event.clientX-vizBox.left;
+      const mouseY=event.clientY-vizBox.top;
+      const tx=mouseX-tipW-10;
+      const ty=mouseY-10;
+      tooltip.style("left",tx+"px").style("top",ty+"px");
+    })
+    .on("pointerleave",function(event,d){
+      const baseRadius=getDotRadius(d);
+      d3.select(this).transition().duration(160).attr("r",baseRadius);
+      const bgCircle=d3.select(this.parentNode).select(`circle.dot-logo-bg[data-key="${d.id}-${d.w}"]`);
+      if(!bgCircle.empty()){
+        bgCircle.transition().duration(160).attr("r",baseRadius);
+      }
       tooltip.style("opacity",0);
     });
   });
@@ -1856,8 +2365,169 @@ function render(){
   suppressAnimationNextRender=false;
 }
 
+function formatTimestamp(date){
+  const pad=value=>String(value).padStart(2,"0");
+  const year=date.getFullYear();
+  const month=pad(date.getMonth()+1);
+  const day=pad(date.getDate());
+  const hours=pad(date.getHours());
+  const mins=pad(date.getMinutes());
+  return `${year}${month}${day}-${hours}${mins}`;
+}
+
+function buildScreenshotFilename(){
+  const metricDef=getMetricDefinition();
+  const label=metricDef?metricDef.label:currentMetric;
+  const slug=sanitizeForId(label||"view");
+  const timestamp=formatTimestamp(new Date());
+  return `viz-screenshot-${slug||"view"}-${timestamp}.png`;
+}
+
+function triggerDownloadUrl(url,filename,shouldRevoke){
+  const link=document.createElement("a");
+  link.href=url;
+  link.download=filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  if(shouldRevoke){
+    window.setTimeout(()=>{ URL.revokeObjectURL(url); },0);
+  }
+}
+
+function ensureHtml2Canvas(){
+  if(window.html2canvas){ return Promise.resolve(window.html2canvas); }
+  if(html2canvasLoadingPromise){ return html2canvasLoadingPromise; }
+  html2canvasLoadingPromise=new Promise((resolve,reject)=>{
+    let script=document.getElementById("html2canvas-loader");
+    if(!script){
+      script=document.createElement("script");
+      script.id="html2canvas-loader";
+      script.src=HTML2CANVAS_SRC;
+      script.defer=true;
+      script.crossOrigin="anonymous";
+      document.head.appendChild(script);
+    }
+    const handleLoad=()=>{
+      script.removeEventListener("load",handleLoad);
+      script.removeEventListener("error",handleError);
+      if(window.html2canvas){
+        resolve(window.html2canvas);
+      }else{
+        html2canvasLoadingPromise=null;
+        reject(new Error("html2canvas loaded but is unavailable"));
+      }
+    };
+    const handleError=()=>{
+      script.removeEventListener("load",handleLoad);
+      script.removeEventListener("error",handleError);
+      html2canvasLoadingPromise=null;
+      reject(new Error("Failed to load html2canvas"));
+    };
+    script.addEventListener("load",handleLoad,{ once:true });
+    script.addEventListener("error",handleError,{ once:true });
+  });
+  return html2canvasLoadingPromise;
+}
+
+async function convertCanvasToBlob(canvas){
+  if(!canvas){ throw new Error("Canvas not available"); }
+  if(canvas.toBlob){
+    return new Promise((resolve,reject)=>{
+      canvas.toBlob(blob=>{
+        if(blob){ resolve(blob); }else{ reject(new Error("Canvas blob conversion failed")); }
+      },"image/png");
+    });
+  }
+  const dataUrl=canvas.toDataURL("image/png");
+  if(!dataUrl){ throw new Error("Unable to serialize canvas"); }
+  const byteString=atob(dataUrl.split(",")[1]);
+  const len=byteString.length;
+  const array=new Uint8Array(len);
+  for(let i=0;i<len;i++){ array[i]=byteString.charCodeAt(i); }
+  return new Blob([array],{ type:"image/png" });
+}
+
+function drawFinalNodeLogosOnCanvas(canvas,target){
+  if(!canvas||!target){ return; }
+  const ctx=canvas.getContext("2d");
+  if(!ctx){ return; }
+  const targetRect=target.getBoundingClientRect();
+  if(!targetRect||targetRect.width===0||targetRect.height===0){ return; }
+  const scaleX=canvas.width/targetRect.width;
+  const scaleY=canvas.height/targetRect.height;
+  const circles=Array.from(document.querySelectorAll("#chart circle.dot[data-logo-url]"));
+  circles.forEach(circle=>{
+    const logoUrl=circle.getAttribute("data-logo-url");
+    if(!logoUrl){ return; }
+    const image=getPreloadedLogo(logoUrl);
+    if(!image){ return; }
+    const circleRect=circle.getBoundingClientRect();
+    const radius=Math.max(circleRect.width,circleRect.height)/2;
+    if(radius<=0){ return; }
+    const centerX=(circleRect.left-targetRect.left)+radius;
+    const centerY=(circleRect.top-targetRect.top)+radius;
+    const drawRadius=Math.max(radius*scaleX,radius*scaleY);
+    const drawX=centerX*scaleX;
+    const drawY=centerY*scaleY;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(drawX,drawY,drawRadius,0,Math.PI*2);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(image,drawX-drawRadius,drawY-drawRadius,drawRadius*2,drawRadius*2);
+    ctx.restore();
+  });
+}
+
+async function handleDownloadClick(){
+  if(!downloadButton||downloadButton.disabled){ return; }
+  downloadButton.disabled=true;
+  downloadButton.setAttribute("aria-busy","true");
+  try{
+    const html2canvasLib=await ensureHtml2Canvas();
+    if(!html2canvasLib){ throw new Error("html2canvas is not available"); }
+    const target=document.querySelector(SCREENSHOT_TARGET_SELECTOR);
+    if(!target){ throw new Error("Screenshot target not found"); }
+    const preloadPromises=Array.from(LOGO_PRELOADS.values()).map(entry=>entry.promise);
+    if(preloadPromises.length){ await Promise.allSettled(preloadPromises); }
+    const background=resolveBackgroundColor(target)||getCssVar("--viz-body-bg","#ffffff");
+    const scale=Math.min(3, window.devicePixelRatio||2);
+    const canvas=await html2canvasLib(target,{
+      backgroundColor: background,
+      useCORS: true,
+      scale,
+      logging: false,
+      imageTimeout: 15000,
+      ignoreElements: element=>{
+        if(!element){ return false; }
+        if(element.id==="downloadButton"){ return true; }
+        if(element.classList&&element.classList.contains("viz-download-button")){ return true; }
+        if(element.id==="sliderPanel"){ return true; }
+        if(element.closest&&element.closest("#sliderPanel")){ return true; }
+        return element.classList&&element.classList.contains("config-tab");
+      }
+    });
+    drawFinalNodeLogosOnCanvas(canvas,target);
+    const blob=await convertCanvasToBlob(canvas);
+    const url=URL.createObjectURL(blob);
+    triggerDownloadUrl(url,buildScreenshotFilename(),true);
+  }catch(err){
+    console.error("Failed to save visualization screenshot:",err);
+  }finally{
+    downloadButton.disabled=false;
+    downloadButton.removeAttribute("aria-busy");
+  }
+}
+
+if(downloadButton){
+  downloadButton.addEventListener("click",handleDownloadClick);
+}
+
 loadSlider();
-loadConfigTab();
+if(!IS_EXPORT_MODE){
+  loadConfigTab();
+}
 load();
 window.addEventListener("resize",function(){ render(); });
 const vizEl=document.getElementById("viz");
