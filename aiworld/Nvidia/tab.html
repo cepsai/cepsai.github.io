@@ -140,14 +140,6 @@ body.theme-dark .config-panel:not(.open) .config-tab:hover { background: rgba(71
         </div>
       </div>
       <div class="config-subsection">
-        <p class="config-subsection-title">Min Spaces</p>
-        <div class="config-buttons interruptor" id="configMinSpacesButtons" role="group" aria-label="Minimum spaces"></div>
-      </div>
-      <div class="config-subsection">
-        <p class="config-subsection-title">Min Downloads</p>
-        <div class="config-buttons interruptor" id="configMinDownloadsButtons" role="group" aria-label="Minimum downloads"></div>
-      </div>
-      <div class="config-subsection">
         <p class="config-subsection-title">Organizations</p>
       <div class="config-buttons interruptor" id="configOrgButtons">
         <button type="button" class="config-toggle config-org-btn active" data-org="companies">Companies</button>
@@ -224,20 +216,8 @@ body.theme-dark .config-panel:not(.open) .config-tab:hover { background: rgba(71
     sliderHandler:null,
     titleHandler:null,
     filterPercentHandler:null,
-   filterPercentBlurHandler:null,
-   filterMetricHandler:null,
-    minSpacesContainer:null,
-    minSpacesButtons:[],
-    currentMinSpaces:null,
-    minSpacesOptions:[],
-    onMinSpacesChange:null,
-    minSpacesHandler:null,
-    minDownloadsContainer:null,
-    minDownloadsButtons:[],
-    currentMinDownloads:null,
-    minDownloadsOptions:[],
-    onMinDownloadsChange:null,
-    minDownloadsHandler:null,
+    filterPercentBlurHandler:null,
+    filterMetricHandler:null,
     normHandler:null,
     orgContainer:null,
     orgButtons:[],
@@ -491,42 +471,6 @@ body.theme-dark .config-panel:not(.open) .config-tab:hover { background: rgba(71
     return "all";
   }
 
-  function normalizeThresholdOptions(options){
-    if(!Array.isArray(options)){ return []; }
-    const unique=[];
-    options.forEach(entry=>{
-      const value=Number(entry);
-      if(Number.isFinite(value)&&!unique.includes(value)){
-        unique.push(value);
-      }
-    });
-    unique.sort((a,b)=>a-b);
-    return unique;
-  }
-
-  function normalizeThresholdValue(value,list){
-    if(!Array.isArray(list)||!list.length){ return null; }
-    const numeric=Number(value);
-    if(Number.isFinite(numeric)&&list.includes(numeric)){
-      return numeric;
-    }
-    return list[0];
-  }
-
-  function normalizeMinSpaces(value){
-    return normalizeThresholdValue(value,STATE.minSpacesOptions);
-  }
-
-  function normalizeMinDownloads(value){
-    return normalizeThresholdValue(value,STATE.minDownloadsOptions);
-  }
-
-  function formatThresholdLabel(value){
-    if(!Number.isFinite(value)){ return "Any"; }
-    const formatted=new Intl.NumberFormat("en-US").format(value);
-    return `${formatted}`;
-  }
-
   function buildFilterOptions(){
     if(!STATE.filterMetricSelect){ return; }
     const select=STATE.filterMetricSelect;
@@ -598,61 +542,6 @@ body.theme-dark .config-panel:not(.open) .config-tab:hover { background: rgba(71
       STATE.metricButtons.push(btn);
     });
     updateMetricActive();
-  }
-
-  function applyThresholdSectionState(container,buttons){
-    if(!container){ return; }
-    const wrapper=container.closest(".config-subsection");
-    if(!wrapper){ return; }
-    const isEmpty=!buttons||!buttons.length;
-    wrapper.classList.toggle("hidden",isEmpty);
-    wrapper.setAttribute("aria-hidden",isEmpty?"true":"false");
-  }
-
-  function buildMinSpacesButtons(){
-    if(!STATE.minSpacesContainer){
-      STATE.minSpacesButtons=[];
-      return;
-    }
-    STATE.minSpacesContainer.innerHTML="";
-    STATE.minSpacesButtons=[];
-    if(Array.isArray(STATE.minSpacesOptions)&&STATE.minSpacesOptions.length){
-      STATE.minSpacesOptions.forEach(option=>{
-        const btn=document.createElement("button");
-        btn.type="button";
-        btn.className="config-toggle config-min-spaces-btn";
-        btn.dataset.minSpaces=String(option);
-        btn.textContent=formatThresholdLabel(option);
-        btn.setAttribute("aria-pressed","false");
-        STATE.minSpacesContainer.appendChild(btn);
-        STATE.minSpacesButtons.push(btn);
-      });
-    }
-    updateMinSpacesActive();
-    applyThresholdSectionState(STATE.minSpacesContainer,STATE.minSpacesButtons);
-  }
-
-  function buildMinDownloadsButtons(){
-    if(!STATE.minDownloadsContainer){
-      STATE.minDownloadsButtons=[];
-      return;
-    }
-    STATE.minDownloadsContainer.innerHTML="";
-    STATE.minDownloadsButtons=[];
-    if(Array.isArray(STATE.minDownloadsOptions)&&STATE.minDownloadsOptions.length){
-      STATE.minDownloadsOptions.forEach(option=>{
-        const btn=document.createElement("button");
-        btn.type="button";
-        btn.className="config-toggle config-min-downloads-btn";
-        btn.dataset.minDownloads=String(option);
-        btn.textContent=formatThresholdLabel(option);
-        btn.setAttribute("aria-pressed","false");
-        STATE.minDownloadsContainer.appendChild(btn);
-        STATE.minDownloadsButtons.push(btn);
-      });
-    }
-    updateMinDownloadsActive();
-    applyThresholdSectionState(STATE.minDownloadsContainer,STATE.minDownloadsButtons);
   }
 
   function handleToggle(){
@@ -771,60 +660,6 @@ body.theme-dark .config-panel:not(.open) .config-tab:hover { background: rgba(71
     setOpen(false);
   }
 
-  function updateMinSpacesActive(){
-    if(!STATE.minSpacesContainer){ return; }
-    const current=STATE.currentMinSpaces;
-    if(!STATE.minSpacesButtons.length){
-      applyThresholdSectionState(STATE.minSpacesContainer,STATE.minSpacesButtons);
-      return;
-    }
-    STATE.minSpacesButtons.forEach(btn=>{
-      const value=Number(btn.dataset.minSpaces);
-      const normalized=Number.isFinite(value)?value:null;
-      const isActive=normalized!=null&&normalized===current;
-      btn.classList.toggle("active",isActive);
-      btn.setAttribute("aria-pressed",isActive?"true":"false");
-    });
-    applyThresholdSectionState(STATE.minSpacesContainer,STATE.minSpacesButtons);
-  }
-
-  function handleMinSpacesClick(event){
-    const btn=event.target.closest(".config-min-spaces-btn");
-    if(!btn){ return; }
-    const next=normalizeMinSpaces(btn.dataset.minSpaces);
-    if(next==null||next===STATE.currentMinSpaces){ return; }
-    STATE.currentMinSpaces=next;
-    updateMinSpacesActive();
-    if(typeof STATE.onMinSpacesChange==="function"){ STATE.onMinSpacesChange(next); }
-  }
-
-  function updateMinDownloadsActive(){
-    if(!STATE.minDownloadsContainer){ return; }
-    const current=STATE.currentMinDownloads;
-    if(!STATE.minDownloadsButtons.length){
-      applyThresholdSectionState(STATE.minDownloadsContainer,STATE.minDownloadsButtons);
-      return;
-    }
-    STATE.minDownloadsButtons.forEach(btn=>{
-      const value=Number(btn.dataset.minDownloads);
-      const normalized=Number.isFinite(value)?value:null;
-      const isActive=normalized!=null&&normalized===current;
-      btn.classList.toggle("active",isActive);
-      btn.setAttribute("aria-pressed",isActive?"true":"false");
-    });
-    applyThresholdSectionState(STATE.minDownloadsContainer,STATE.minDownloadsButtons);
-  }
-
-  function handleMinDownloadsClick(event){
-    const btn=event.target.closest(".config-min-downloads-btn");
-    if(!btn){ return; }
-    const next=normalizeMinDownloads(btn.dataset.minDownloads);
-    if(next==null||next===STATE.currentMinDownloads){ return; }
-    STATE.currentMinDownloads=next;
-    updateMinDownloadsActive();
-    if(typeof STATE.onMinDownloadsChange==="function"){ STATE.onMinDownloadsChange(next); }
-  }
-
   function updateOrgActive(){
     if(!STATE.orgButtons.length){ return; }
     STATE.orgButtons.forEach(btn=>{
@@ -864,7 +699,7 @@ body.theme-dark .config-panel:not(.open) .config-tab:hover { background: rgba(71
     if(typeof STATE.onRegionFilterChange==="function"){ STATE.onRegionFilterChange(next); }
   }
 
-  function init({ panelEl, onThemeChange, onModeChange, onPeriodChange, onScaleChange, onNormModeChange, onMetricChange, onSliderVisibilityChange, onTitleVisibilityChange, onTopFilterChange, onOrgFilterChange, onRegionFilterChange, onMinSpacesChange, onMinDownloadsChange, metrics=[], minSpacesOptions=[], minDownloadsOptions=[], initialTheme="light", initialMode="cumulative", initialPeriod="weekly", initialScale="absolute", initialNormMode="againstStart", initialMetric=null, initialSliderVisible=true, initialTitleVisible=true, initialTopFilter="all", initialOrgFilter="companies", initialRegionFilter="all", initialMinSpaces=null, initialMinDownloads=null }={}){
+  function init({ panelEl, onThemeChange, onModeChange, onPeriodChange, onScaleChange, onNormModeChange, onMetricChange, onSliderVisibilityChange, onTitleVisibilityChange, onTopFilterChange, onOrgFilterChange, onRegionFilterChange, metrics=[], initialTheme="light", initialMode="cumulative", initialPeriod="weekly", initialScale="absolute", initialNormMode="againstStart", initialMetric=null, initialSliderVisible=true, initialTitleVisible=true, initialTopFilter="all", initialOrgFilter="companies", initialRegionFilter="all" }={}){
     STATE.panel=panelEl||document.getElementById("configPanel");
     if(!STATE.panel){ return; }
     STATE.onThemeChange=onThemeChange;
@@ -878,8 +713,6 @@ body.theme-dark .config-panel:not(.open) .config-tab:hover { background: rgba(71
     STATE.onTopFilterChange=onTopFilterChange;
     STATE.onOrgFilterChange=onOrgFilterChange;
     STATE.onRegionFilterChange=onRegionFilterChange;
-    STATE.onMinSpacesChange=onMinSpacesChange;
-    STATE.onMinDownloadsChange=onMinDownloadsChange;
     if(STATE.themeContainer&&STATE.themeHandler){
       STATE.themeContainer.removeEventListener("click",STATE.themeHandler);
     }
@@ -971,24 +804,6 @@ body.theme-dark .config-panel:not(.open) .config-tab:hover { background: rgba(71
     if(STATE.filterMetricSelect){
       STATE.filterMetricSelect.addEventListener("change",STATE.filterMetricHandler);
     }
-    if(STATE.minSpacesContainer&&STATE.minSpacesHandler){
-      STATE.minSpacesContainer.removeEventListener("click",STATE.minSpacesHandler);
-    }
-    STATE.minSpacesContainer=STATE.panel.querySelector("#configMinSpacesButtons");
-    STATE.minSpacesHandler=handleMinSpacesClick;
-    if(STATE.minSpacesContainer){
-      STATE.minSpacesContainer.addEventListener("click",STATE.minSpacesHandler);
-    }
-    STATE.minSpacesButtons=[];
-    if(STATE.minDownloadsContainer&&STATE.minDownloadsHandler){
-      STATE.minDownloadsContainer.removeEventListener("click",STATE.minDownloadsHandler);
-    }
-    STATE.minDownloadsContainer=STATE.panel.querySelector("#configMinDownloadsButtons");
-    STATE.minDownloadsHandler=handleMinDownloadsClick;
-    if(STATE.minDownloadsContainer){
-      STATE.minDownloadsContainer.addEventListener("click",STATE.minDownloadsHandler);
-    }
-    STATE.minDownloadsButtons=[];
     if(STATE.normContainer&&STATE.normHandler){
       STATE.normContainer.removeEventListener("click",STATE.normHandler);
     }
@@ -1015,10 +830,6 @@ body.theme-dark .config-panel:not(.open) .config-tab:hover { background: rgba(71
     if(STATE.filterOptions.length&&!STATE.filterOptions.some(option=>option&&option.key===STATE.currentFilterMetric)){
       STATE.currentFilterMetric=STATE.filterOptions[0]?.key||null;
     }
-    STATE.minSpacesOptions=normalizeThresholdOptions(minSpacesOptions);
-    STATE.minDownloadsOptions=normalizeThresholdOptions(minDownloadsOptions);
-    STATE.currentMinSpaces=STATE.minSpacesOptions.length?normalizeMinSpaces(initialMinSpaces):null;
-    STATE.currentMinDownloads=STATE.minDownloadsOptions.length?normalizeMinDownloads(initialMinDownloads):null;
     STATE.sliderVisible=!!initialSliderVisible;
     STATE.titleVisible=!!initialTitleVisible;
     STATE.currentOrgFilter=normalizeOrgFilter(initialOrgFilter);
@@ -1063,12 +874,8 @@ body.theme-dark .config-panel:not(.open) .config-tab:hover { background: rgba(71
     updateRegionActive();
     buildMetricButtons();
     buildFilterOptions();
-    buildMinSpacesButtons();
-    buildMinDownloadsButtons();
     updateFilterPercentInput();
     updateFilterMetricSelect();
-    updateMinSpacesActive();
-    updateMinDownloadsActive();
     setOpen(false);
   }
 
@@ -1158,22 +965,6 @@ body.theme-dark .config-panel:not(.open) .config-tab:hover { background: rgba(71
     updateRegionActive();
   }
 
-  function setMinSpaces(value){
-    if(!Array.isArray(STATE.minSpacesOptions)||!STATE.minSpacesOptions.length){ return; }
-    const normalized=normalizeMinSpaces(value);
-    if(normalized==null){ return; }
-    STATE.currentMinSpaces=normalized;
-    updateMinSpacesActive();
-  }
-
-  function setMinDownloads(value){
-    if(!Array.isArray(STATE.minDownloadsOptions)||!STATE.minDownloadsOptions.length){ return; }
-    const normalized=normalizeMinDownloads(value);
-    if(normalized==null){ return; }
-    STATE.currentMinDownloads=normalized;
-    updateMinDownloadsActive();
-  }
-
   function setMetrics(metrics=[], currentMetric){
     STATE.metrics=Array.isArray(metrics)?metrics.slice():[];
     if(currentMetric){
@@ -1194,7 +985,7 @@ body.theme-dark .config-panel:not(.open) .config-tab:hover { background: rgba(71
     setOpen(!!open);
   }
 
-  window.ConfigTab={ init, setMode, setPeriod, setScale, setNormModeVisible, setNormMode, setSliderVisible, setTitleVisible, setTheme, setTopFilter, setMetric, setMetrics, setModeDisabled, setOrgFilter, setRegionFilter, setMinSpaces, setMinDownloads, setOpen:setPanelOpen };
+  window.ConfigTab={ init, setMode, setPeriod, setScale, setNormModeVisible, setNormMode, setSliderVisible, setTitleVisible, setTheme, setTopFilter, setMetric, setMetrics, setModeDisabled, setOrgFilter, setRegionFilter, setOpen:setPanelOpen };
 })();
 </script>
 </body>
