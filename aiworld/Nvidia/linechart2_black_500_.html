@@ -476,6 +476,12 @@ const METRICS=[
   {key:"datasets_total",weekKey:"datasets_week",label:"Datasets"},
   {key:"models_total",weekKey:"models_week",label:"Models"}
 ];
+const MIN_SPACES_OPTIONS=[10,50,100];
+const MIN_DOWNLOAD_OPTIONS=[100,250,500,750,1000,5000,10000];
+const DATA_BASE_PATH="./data";
+const DATA_FILE_PREFIX="org_weeks_";
+const DATA_FILE_SUFFIX=".json";
+const dataCache=new Map();
 let currentMetric="repos_total";
 let currentMode="cumulative";
 let currentPeriod="weekly";
@@ -499,6 +505,10 @@ let currentOrgFilter="companies";
 let currentRegionFilter="all";
 let currentTheme="dark";
 let suppressAnimationNextRender=false;
+let currentMinSpaces=MIN_SPACES_OPTIONS[0];
+let currentMinDownloads=MIN_DOWNLOAD_OPTIONS[0];
+let dataLoadToken=0;
+let orgListPromise=null;
 
 function isTransparentColor(color){
   if(!color){ return true; }
@@ -556,6 +566,37 @@ function getPreloadedLogo(url){
   return null;
 }
 
+function normalizeThresholdOption(value, options, fallback){
+  if(!Array.isArray(options)||!options.length){
+    return Number.isFinite(fallback)?fallback:null;
+  }
+  const numeric=Number(value);
+  if(Number.isFinite(numeric)&&options.includes(numeric)){
+    return numeric;
+  }
+  if(Number.isFinite(fallback)&&options.includes(fallback)){
+    return fallback;
+  }
+  return options[0];
+}
+
+function normalizeMinSpaces(value){
+  return normalizeThresholdOption(value,MIN_SPACES_OPTIONS,MIN_SPACES_OPTIONS[0]);
+}
+
+function normalizeMinDownloads(value){
+  return normalizeThresholdOption(value,MIN_DOWNLOAD_OPTIONS,MIN_DOWNLOAD_OPTIONS[0]);
+}
+
+function buildDataKey(minSpaces,minDownloads){
+  return `${minSpaces}_${minDownloads}`;
+}
+
+function buildDataUrl(minSpaces,minDownloads){
+  const thresholdKey=buildDataKey(minSpaces,minDownloads);
+  return `${DATA_BASE_PATH}/${DATA_FILE_PREFIX}${thresholdKey}${DATA_FILE_SUFFIX}`;
+}
+
 if(INLINE_STATE){
   if(typeof INLINE_STATE.currentMetric==="string"){ currentMetric=INLINE_STATE.currentMetric; }
   if(typeof INLINE_STATE.currentMode==="string"){ currentMode=INLINE_STATE.currentMode; }
@@ -572,6 +613,8 @@ if(INLINE_STATE){
   }
   if(typeof INLINE_STATE.currentOrgFilter==="string"){ currentOrgFilter=normalizeOrgFilter(INLINE_STATE.currentOrgFilter); }
   if(typeof INLINE_STATE.currentRegionFilter==="string"){ currentRegionFilter=normalizeRegionFilter(INLINE_STATE.currentRegionFilter); }
+  if(Number.isFinite(INLINE_STATE.currentMinSpaces)){ currentMinSpaces=normalizeMinSpaces(INLINE_STATE.currentMinSpaces); }
+  if(Number.isFinite(INLINE_STATE.currentMinDownloads)){ currentMinDownloads=normalizeMinDownloads(INLINE_STATE.currentMinDownloads); }
   if(typeof INLINE_STATE.theme==="string"){ currentTheme=INLINE_STATE.theme==="dark"?"dark":"light"; }
   if(Number.isFinite(INLINE_STATE.rangeStart)||Number.isFinite(INLINE_STATE.rangeEnd)){
     const start=Number.isFinite(INLINE_STATE.rangeStart)?INLINE_STATE.rangeStart:0;
@@ -845,6 +888,30 @@ function setRegionFilter(filter,options={}){
   }
   if(!options.skipRender){
     render();
+  }
+}
+
+function setMinSpaces(value,options={}){
+  const next=normalizeMinSpaces(value);
+  if(next===currentMinSpaces&&!options.force){ return; }
+  currentMinSpaces=next;
+  if(!options.skipConfig&&window.ConfigTab&&typeof window.ConfigTab.setMinSpaces==="function"){
+    window.ConfigTab.setMinSpaces(currentMinSpaces);
+  }
+  if(!options.skipLoad){
+    load();
+  }
+}
+
+function setMinDownloads(value,options={}){
+  const next=normalizeMinDownloads(value);
+  if(next===currentMinDownloads&&!options.force){ return; }
+  currentMinDownloads=next;
+  if(!options.skipConfig&&window.ConfigTab&&typeof window.ConfigTab.setMinDownloads==="function"){
+    window.ConfigTab.setMinDownloads(currentMinDownloads);
+  }
+  if(!options.skipLoad){
+    load();
   }
 }
 
@@ -1249,6 +1316,14 @@ function onConfigRegionFilterChange(filter){
   setRegionFilter(filter);
 }
 
+function onConfigMinSpacesChange(value){
+  setMinSpaces(value);
+}
+
+function onConfigMinDownloadsChange(value){
+  setMinDownloads(value);
+}
+
 function onConfigNormModeChange(mode){
   if(!mode||mode===currentNormMode){ return; }
   currentNormMode=mode;
@@ -1537,7 +1612,11 @@ async function loadConfigTab(){
         initialTopFilter: currentFilter,
         initialOrgFilter: currentOrgFilter,
         initialRegionFilter: currentRegionFilter,
+        initialMinSpaces: currentMinSpaces,
+        initialMinDownloads: currentMinDownloads,
         metrics: METRICS,
+        minSpacesOptions: MIN_SPACES_OPTIONS,
+        minDownloadsOptions: MIN_DOWNLOAD_OPTIONS,
         onModeChange:onConfigModeChange,
         onPeriodChange:onConfigPeriodChange,
         onScaleChange:onConfigScaleChange,
@@ -1547,7 +1626,9 @@ async function loadConfigTab(){
         onTopFilterChange:onConfigTopFilterChange,
         onTitleVisibilityChange:setTitleVisibility,
         onOrgFilterChange:onConfigOrgFilterChange,
-        onRegionFilterChange:onConfigRegionFilterChange
+        onRegionFilterChange:onConfigRegionFilterChange,
+        onMinSpacesChange:onConfigMinSpacesChange,
+        onMinDownloadsChange:onConfigMinDownloadsChange
       });
     }
     const panelEl=document.getElementById("configPanel");
@@ -2549,6 +2630,134 @@ async function handleDownloadClick(){
   }finally{
     downloadButton.disabled=false;
     downloadButton.removeAttribute("aria-busy");
+  }
+}
+
+async function fetchDataSource(minSpaces,minDownloads){
+  if(INLINE_DATA){
+    return Array.isArray(INLINE_DATA)?INLINE_DATA:[];
+  }
+  const key=buildDataKey(minSpaces,minDownloads);
+  if(dataCache.has(key)){
+    return dataCache.get(key);
+  }
+  const url=buildDataUrl(minSpaces,minDownloads);
+  const response=await fetch(url);
+  if(!response.ok){
+    throw new Error(`HTTP ${response.status} while fetching ${url}`);
+  }
+  const json=await response.json();
+  dataCache.set(key,json);
+  return json;
+}
+
+function loadOrgList(){
+  if(orgListPromise){
+    return orgListPromise;
+  }
+  if(INLINE_ORGS){
+    orgListPromise=Promise.resolve(INLINE_ORGS);
+  }else{
+    orgListPromise=fetch("./orgs.json").then(r=>r.ok?r.json():[]).catch(()=>[]);
+  }
+  return orgListPromise;
+}
+
+function applyData(json,orgList){
+  const sourceData=Array.isArray(json)?json.slice():[];
+  const sourceOrgList=Array.isArray(orgList)?orgList.slice():[];
+  orgMeta.clear();
+  if(Array.isArray(sourceOrgList)){
+    sourceOrgList.forEach(entry=>{
+      if(entry&&entry.id){
+        const regionText=typeof entry.region==="string"?entry.region.trim():null;
+        preloadLogo(entry.logo);
+        orgMeta.set(entry.id,{
+          color:entry.color||null,
+          logo:entry.logo||null,
+          company:entry.company===true,
+          region:regionText,
+          regionKey:normalizeRegionKey(regionText)
+        });
+      }
+    });
+  }
+  const grouped=d3.groups(sourceData,d=>d.id).map(([id,arr])=>{
+    arr.sort((a,b)=>+a.week_count-+b.week_count);
+    const enriched=arr.map(entry=>{
+      const weekDate=parseDateYYYYMMDD(entry.week_date);
+      const monthDate=parseDateYYYYMMDD(entry.month_date);
+      return {...entry, __weekDate:weekDate, __monthDate:monthDate, __date:weekDate||null};
+    });
+    return {id, values:enriched};
+  });
+  rawById=grouped;
+  const ids=rawById.map(s=>s.id);
+  const previousActive=active instanceof Map?active:new Map();
+  const nextActive=new Map();
+  ids.forEach(id=>{
+    let shouldBeActive=true;
+    if(inlineActiveIdSet){
+      shouldBeActive=inlineActiveIdSet.has(id);
+    }else if(previousActive.has(id)){
+      shouldBeActive=previousActive.get(id);
+    }
+    nextActive.set(id,shouldBeActive);
+  });
+  inlineActiveIdSet=null;
+  active=nextActive;
+  colorScale.domain(ids);
+  const defaultMetric=METRICS.length?METRICS[0].key:null;
+  let filterMetric=currentFilter.metric;
+  if(!filterMetric||(filterMetric!=="downloads_per_repo"&&!METRICS.some(m=>m.key===filterMetric))){
+    filterMetric=defaultMetric;
+  }
+  currentFilter={ percent:clampFilterPercent(currentFilter.percent), metric:filterMetric };
+  setRegionFilter(currentRegionFilter,{ force:true, skipConfig:true, skipRender:true });
+  setOrgFilter(currentOrgFilter,{ force:true, skipConfig:true, skipRender:true });
+  updateAxisLabel();
+  if(window.ConfigTab&&typeof window.ConfigTab.setMetrics==="function"){ window.ConfigTab.setMetrics(METRICS,currentMetric); }
+  if(window.ConfigTab&&typeof window.ConfigTab.setScale==="function"){ window.ConfigTab.setScale(currentScale); }
+  if(window.ConfigTab&&typeof window.ConfigTab.setModeDisabled==="function"){ window.ConfigTab.setModeDisabled(currentScale==="normalized"); }
+  if(window.ConfigTab&&typeof window.ConfigTab.setNormModeVisible==="function"){ window.ConfigTab.setNormModeVisible(currentScale==="normalized"); }
+  if(window.ConfigTab&&typeof window.ConfigTab.setNormMode==="function"){ window.ConfigTab.setNormMode(currentNormMode); }
+  if(window.ConfigTab&&typeof window.ConfigTab.setSliderVisible==="function"){ window.ConfigTab.setSliderVisible(sliderVisible); }
+  if(window.ConfigTab&&typeof window.ConfigTab.setTitleVisible==="function"){ window.ConfigTab.setTitleVisible(titleVisible); }
+  if(window.ConfigTab&&typeof window.ConfigTab.setTopFilter==="function"){ window.ConfigTab.setTopFilter(currentFilter); }
+  if(window.ConfigTab&&typeof window.ConfigTab.setSliderVisible==="function"){ window.ConfigTab.setSliderVisible(sliderVisible); }
+  if(window.ConfigTab&&typeof window.ConfigTab.setTitleVisible==="function"){ window.ConfigTab.setTitleVisible(titleVisible); }
+  if(window.ConfigTab&&typeof window.ConfigTab.setOrgFilter==="function"){ window.ConfigTab.setOrgFilter(currentOrgFilter); }
+  if(window.ConfigTab&&typeof window.ConfigTab.setRegionFilter==="function"){ window.ConfigTab.setRegionFilter(currentRegionFilter); }
+  if(window.ConfigTab&&typeof window.ConfigTab.setMinSpaces==="function"){ window.ConfigTab.setMinSpaces(currentMinSpaces); }
+  if(window.ConfigTab&&typeof window.ConfigTab.setMinDownloads==="function"){ window.ConfigTab.setMinDownloads(currentMinDownloads); }
+  buildSeriesFromRaw();
+  render();
+}
+
+async function load(){
+  const requestId=++dataLoadToken;
+  try{
+    const [json,orgList]=await Promise.all([
+      fetchDataSource(currentMinSpaces,currentMinDownloads),
+      loadOrgList()
+    ]);
+    if(requestId!==dataLoadToken){
+      return;
+    }
+    applyData(json,orgList);
+  }catch(err){
+    if(requestId!==dataLoadToken){
+      return;
+    }
+    console.error("Failed to load visualization data:",err);
+    orgMeta.clear();
+    rawById=[];
+    series=[];
+    currentTimeline=[];
+    legendFullIds=[];
+    legendCurrentIds=[];
+    syncRangeWithTimeline();
+    render();
   }
 }
 
