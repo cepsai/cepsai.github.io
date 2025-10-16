@@ -471,7 +471,7 @@ function getMonthLabel(month){
 const METRICS=[
   {key:"repos_total",weekKey:"repos_week",label:"Repos"},
   {key:"likes_total",weekKey:"likes_week",label:"Likes"},
-  {key:"downloads_total",weekKey:"downloads_week",label:"Downloads"},
+  //{key:"downloads_total",weekKey:"downloads_week",label:"Downloads"},
   {key:"spaces_total",weekKey:"spaces_week",label:"Spaces"},
   {key:"datasets_total",weekKey:"datasets_week",label:"Datasets"},
   {key:"models_total",weekKey:"models_week",label:"Models"}
@@ -505,8 +505,8 @@ let currentOrgFilter="companies";
 let currentRegionFilter="all";
 let currentTheme="dark";
 let suppressAnimationNextRender=false;
-let currentMinSpaces=MIN_SPACES_OPTIONS[0];
-let currentMinDownloads=MIN_DOWNLOAD_OPTIONS[0];
+let currentMinSpaces=MIN_SPACES_OPTIONS[1];
+let currentMinDownloads=MIN_DOWNLOAD_OPTIONS[2];
 let dataLoadToken=0;
 let orgListPromise=null;
 
@@ -734,7 +734,7 @@ function updateTitle(timelineSlice){
   }
   const rangeSummary=formatRangeText(timelineSlice);
   //if(rangeSummary&&rangeSummary.text){ sentence+=` from ${rangeSummary.text}`; }
-  sentence = "Cumulative number of Hugging Face repositories in 2025";
+  sentence = "Cumulative number of Hugging Face " + `${ metricLabel }` + " in 2025";
   //if(rangeSummary&&rangeSummary.coversAll){ sentence+=" (full timeline)"; }
   subtitleEl.textContent=sentence;
 }
@@ -744,9 +744,10 @@ function getOrgInfo(id){
 }
 
 function getSeriesColor(id){
+  if(currentTheme==="dark" && String(id).toLowerCase()==="z.ai"){ return "#ffffff" }
   const info=getOrgInfo(id);
-  if(info&&info.color){ return info.color; }
-  return colorScale(id);
+  if(info&&info.color){ return info.color }
+  return colorScale(id)
 }
 
 function sanitizeForId(value){
@@ -1578,7 +1579,7 @@ function wireConfigSliderBridge(panel){
 async function loadConfigTab(){
   if(!vizLayout){ return; }
   try{
-    const response=await fetch("./tab.html");
+    const response=await fetch("./tab3.html");
     if(!response.ok){ throw new Error(`HTTP ${response.status}`); }
     const text=await response.text();
     const parser=new DOMParser();
@@ -1602,7 +1603,7 @@ async function loadConfigTab(){
       window.ConfigTab.init({
         panelEl: document.getElementById("configPanel"),
         onThemeChange:setTheme,
-        initialTheme: currentTheme,
+        initialTheme: currentTheme, 
         initialMode: currentMode,
         initialPeriod: currentPeriod,
         initialScale: currentScale,
