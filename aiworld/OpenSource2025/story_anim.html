@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HF Orgs Line Chart — 2025 + Slider</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+html, body { height: 100%; }
+body { margin: 0; overflow: hidden; background: #ffffff; color: #111; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif; height: 100vh; }
+.viz-layout { position: relative; width: 100%; height: 100vh; display: grid; grid-template-rows: 16fr auto 1fr; grid-template-columns: 1fr 1fr; }
+#container1 { grid-row: 1; grid-column: 1 / span 2; display: flex; overflow: hidden; min-height: 0; padding: 0; }
+#container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; padding: clamp(6px, 1.5vh, 16px) 20px 0 20px; z-index: 18; }
+#container3 { grid-row: 3; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 20px; position: absolute; bottom: clamp(8px, 2vh, 16px); left: 20px; z-index: 18; }
+#container4 { grid-row: 3; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; gap: clamp(10px, 2vw, 16px); padding: 0 20px; position: absolute; bottom: clamp(8px, 2vh, 16px); right: 20px; z-index: 18; }
+.source-text { font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.source-text a { color: #2756d3; text-decoration: underline; }
+.logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; object-fit: contain; }
+.y-axis-container { flex: 0 0 clamp(32px, 3vw, 46px); display: flex; align-items: center; justify-content: flex-end; min-width: 0; border-right: 1px solid rgba(0, 0, 0, 0.1); box-sizing: border-box; padding: 0 6px; }
+.y-axis-label { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-weight: 600; font-size: clamp(11px, 1.2vw, 16px); color: #333; line-height: 1.2; letter-spacing: 0.04em; }
+.chart-wrapper { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; margin-left: -6px; }
+.chart-wrapper-inner { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; }
+#viz { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#chart { display: block; width: 100%; height: 100%; }
+#tooltip { position: absolute; background: #fff; border: 1px solid #d9d9df; border-radius: 6px; padding: 6px 8px; font-size: 12px; pointer-events: none; opacity: 0; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); transition: opacity .12s ease; max-width: 220px; }
+.axis path, .axis line { stroke: #cfd2d7; }
+.axis text { fill: #333; font-size: 12px; }
+.x-axis text { font-size: clamp(12px, 1.2vw, 18px); }
+.grid line { stroke: rgba(230, 232, 239, 0.45); }
+.grid .domain { display: none; }
+.final-node { cursor: pointer; }
+
+.range-slider-panel { width: min(1080px, 92vw); box-sizing: border-box; display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 6px 16px; background: rgba(255,255,255,.92); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.18); font-size: clamp(10px, 1.5vw, 14px); color: #1f2a44; }
+.range-slider-panel.is-disabled { opacity: .6; }
+.range-slider-row { display: flex; align-items: center; justify-content: space-between; gap: clamp(10px, 2vw, 24px); width: 100%; overflow: hidden; }
+.range-slider-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; max-width: clamp(120px, 22vw, 260px); }
+.range-slider-info-start { align-items: flex-start; }
+.range-slider-info-end { align-items: flex-end; text-align: right; }
+.range-slider-title { font-weight: 700; color: #26344f; white-space: nowrap; }
+.range-slider-value { font-weight: 600; color: #6f778f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.range-slider-track-wrapper { position: relative; flex: 1 1 auto; min-width: 0; height: 32px; display: flex; align-items: center; }
+.range-slider-track { position: absolute; left: 0; right: 0; top: 50%; height: clamp(4px, 1.2vw, 8px); background: #e2e5f1; border-radius: 999px; transform: translateY(-50%); pointer-events: auto; }
+.range-slider-selection { position: absolute; top: 0; bottom: 0; left: 0; right: 100%; background: #2756d3; border-radius: 999px; cursor: grab; touch-action: none; }
+.range-slider-selection.is-grabbing { cursor: grabbing; }
+.range-slider-track-wrapper input[type="range"] { position: absolute; left: 0; right: 0; top: 0; bottom: 0; width: 100%; height: 100%; margin: 0; background: none; pointer-events: none; appearance: none; -webkit-appearance: none; }
+.range-slider-track-wrapper input[data-role="start"] { z-index: 2; }
+.range-slider-track-wrapper input[data-role="end"] { z-index: 3; }
+.range-slider-track-wrapper input[type="range"]::-webkit-slider-runnable-track { height: 6px; background: transparent; }
+.range-slider-track-wrapper input[type="range"]::-webkit-slider-thumb{
+  pointer-events: all;
+  width: 16px;
+  height: 16px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #2756d3;
+  box-shadow: 0 1px 4px rgba(0,0,0,.15);
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+}
+.range-slider-track-wrapper input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
+.range-slider-track-wrapper input[type="range"]::-moz-range-thumb{
+  pointer-events: all;
+  width: 16px;
+  height: 16px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #2756d3;
+  box-shadow: 0 1px 4px rgba(0,0,0,.15);
+  box-sizing: border-box;
+}
+.range-slider-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
+.range-slider-controls-left { display: flex; gap: 8px; align-items: center; }
+.range-slider-controls-right { display: flex; gap: 10px; align-items: center; }
+.rs-btn { border: 1px solid #cfd2d7; background: #fff; padding: 6px 12px; border-radius: 8px; font-weight: 600; color: #1f2a44; cursor: pointer; }
+.rs-btn.hidden { display: none; }
+.rs-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: #333; }
+.rs-select { border: 1px solid #cfd2d7; border-radius: 8px; padding: 6px 10px; font-weight: 600; background: #fff; color: #1f2a44; }
+
+@media (max-height: 640px) { #container2 { display: none; } }
+@media (max-height: 560px) { #container3, #container4 { display: none; } }
+
+@media (max-width: 1180px) { #container2 { display: none; } }
+@media (max-width: 980px) {
+  #container3 { display: none; }
+  .viz-layout { grid-template-rows: 1fr; grid-template-columns: 1fr; }
+  #container1 { grid-row: 1; grid-column: 1; }
+}
+</style>
+</head>
+<body>
+<div class="viz-layout" id="vizLayout">
+  <div id="container1" class="container chart-container">
+    <div class="y-axis-container"><div class="y-axis-label" id="yLabel">Repos</div></div>
+    <div class="chart-wrapper">
+      <div class="chart-wrapper-inner">
+        <div id="viz">
+          <svg id="chart" role="img"></svg>
+          <div id="tooltip"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="container2">
+    <div id="sliderPanel" class="range-slider-panel">
+      <div class="range-slider-row">
+        <div class="range-slider-info range-slider-info-start">
+          <span data-role="title-start" class="range-slider-title">Starting Week</span>
+          <span data-label="start" class="range-slider-value">Week 0</span>
+        </div>
+        <div class="range-slider-track-wrapper">
+          <div class="range-slider-track">
+            <div class="range-slider-selection" data-role="selection"></div>
+          </div>
+          <input type="range" min="0" max="0" step="1" value="0" data-role="start" aria-label="Starting period">
+          <input type="range" min="0" max="0" step="1" value="0" data-role="end" aria-label="Ending period">
+        </div>
+        <div class="range-slider-info range-slider-info-end">
+          <span data-role="title-end" class="range-slider-title">Ending Week</span>
+          <span data-label="end" class="range-slider-value">Week 0</span>
+        </div>
+      </div>
+      <div class="range-slider-controls">
+        <div class="range-slider-controls-left">
+          <button type="button" class="rs-btn" data-action="play">Play</button>
+          <button type="button" class="rs-btn hidden" data-action="pause">Pause</button>
+          <button type="button" class="rs-btn" data-action="reset">Reset</button>
+        </div>
+        <div class="range-slider-controls-right">
+          <label class="rs-label">Speed
+            <select class="rs-select" data-role="speed">
+              <option value="900">Slow</option>
+              <option value="500" selected>Normal</option>
+              <option value="250">Fast</option>
+              <option value="120">Very fast</option>
+            </select>
+          </label>
+          <label class="rs-label">Mode
+            <select class="rs-select" data-role="mode">
+              <option value="grow">Grow end</option>
+              <option value="slide" selected>Slide window</option>
+            </select>
+          </label>
+          <label class="rs-label">Step
+            <select class="rs-select" data-role="step">
+              <option value="1" selected>1</option>
+              <option value="2">2</option>
+              <option value="4">4</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="container3" class="container source-container">
+    <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank" rel="noopener">HuggingFace</a></div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="logo.svg" class="logo" alt="AI World logo" crossorigin="anonymous">
+    </a>
+  </div>
+</div>
+
+<script>
+const svg = d3.select("#chart");
+const tooltip = d3.select("#tooltip");
+const yLabelEl = document.getElementById("yLabel");
+const vizEl = document.getElementById("viz");
+
+const TARGET_YEAR = 2025;
+const INCLUDED_PERCENT = 50;
+const METRIC = { key: "repos_total", label: "Repos" };
+const DEFAULT_START_DATE = new Date(Date.UTC(2024, 9, 1));
+const DEFAULT_END_DATE = new Date(Date.UTC(2025, 9, 1));
+
+const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
+const formatComma = d3.format(",.0f");
+const formatShort = d3.format(".2s");
+const dateFormatter = d3.utcFormat("%b %-d, %Y");
+
+let orgMeta = new Map();
+let chartSeries = [];
+let timelineDates = [];
+let xScale = null;
+let yScale = null;
+let lineGenerator = null;
+let currentStart = 0;
+let currentEnd = 0;
+
+init();
+
+async function init(){
+  try{
+    const [rawData, orgs] = await Promise.all([
+      fetchJSON("./org_weeks.json"),
+      fetchJSON("./orgs.json")
+    ]);
+    orgMeta = buildOrgMeta(orgs);
+    const processed = buildSeriesAll(rawData);
+    chartSeries = processed.series;
+    timelineDates = processed.timeline;
+    yLabelEl.textContent = METRIC.label;
+    render();
+    initSlider();
+  }catch(err){
+    console.error("Failed to load visualization data:", err);
+  }
+}
+
+function buildOrgMeta(list){
+  const map = new Map();
+  if(Array.isArray(list)){
+    list.forEach(item=>{
+      if(!item || !item.id){ return; }
+      map.set(item.id, { ...item, company: item.company === true, regionKey: normalizeRegion(item.region) });
+    });
+  }
+  return map;
+}
+
+function normalizeRegion(value){
+  return String(value ?? "").trim().toLowerCase();
+}
+
+async function fetchJSON(url){
+  const response = await fetch(url);
+  if(!response.ok){ throw new Error(`HTTP ${response.status} while fetching ${url}`); }
+  return response.json();
+}
+
+function buildSeriesAll(rawData){
+  if(!Array.isArray(rawData)){ return { series: [], timeline: [], totalCompanies: 0, includedCount: 0 }; }
+
+  const companyIds = new Set();
+  orgMeta.forEach(meta=>{ if(meta && meta.company){ companyIds.add(meta.id); } });
+
+  const groups = d3.group(rawData, d => d.id);
+  const perOrgAll = [];
+  groups.forEach((entries, id)=>{
+    if(!companyIds.has(id)){ return; }
+    const all = entries.map(entry=>{
+      const date = parseDate(entry.week_date || entry.month_date || null);
+      const total = Number(entry[METRIC.key]);
+      return { id, date, total: Number.isFinite(total) ? total : 0 };
+    }).filter(p => p.date instanceof Date && !Number.isNaN(p.date.valueOf()));
+    all.sort((a, b) => a.date - b.date);
+    if(!all.length){ return; }
+    perOrgAll.push({ id, all });
+  });
+  if(!perOrgAll.length){ return { series: [], timeline: [], totalCompanies: 0, includedCount: 0 }; }
+
+  let globalMin = null;
+  let globalMax = null;
+  perOrgAll.forEach(({ all })=>{
+    const a0 = all[0].date;
+    const a1 = all[all.length - 1].date;
+    if(!globalMin || a0 < globalMin){ globalMin = a0; }
+    if(!globalMax || a1 > globalMax){ globalMax = a1; }
+  });
+
+  const addDaysUTC = (date, days)=>{ const d = new Date(date.getTime()); d.setUTCDate(d.getUTCDate() + days); return d; };
+  const weekStepDates = [];
+  for(let d = new Date(Date.UTC(globalMin.getUTCFullYear(), globalMin.getUTCMonth(), globalMin.getUTCDate())); d <= globalMax; d = addDaysUTC(d, 7)){
+    weekStepDates.push(new Date(d.getTime()));
+  }
+
+  const dummy0 = weekStepDates[0] ? new Date(weekStepDates[0].getTime()) : new Date(globalMin.getTime());
+  const timeline = [dummy0, ...weekStepDates];
+
+  const series = [];
+  perOrgAll.forEach(({ id, all })=>{
+    let baseTotal = 0;
+    for(let i = 0; i < all.length; i++){
+      if(all[i].date < weekStepDates[0]){ baseTotal = all[i].total; } else { break; }
+    }
+    const within = all.filter(p => p.date >= weekStepDates[0] && p.date <= weekStepDates[weekStepDates.length - 1]);
+    if(!within.length){ return; }
+
+    let j = 0;
+    let carry = Math.max(0, within[0].total - baseTotal);
+    const pts = [];
+    for(let i = 0; i < weekStepDates.length; i++){
+      const d = weekStepDates[i];
+      while(j < within.length && within[j].date <= d){
+        carry = Math.max(0, within[j].total - baseTotal);
+        j += 1;
+      }
+      const end = carry;
+      const idx = i + 1;
+      pts.push({ id, date: d, end, delta: 0, index: idx });
+    }
+    const ptsWithZero = [{ id, date: dummy0, end: 0, delta: 0, index: 0 }, ...pts];
+    for(let k = 1; k < ptsWithZero.length; k++){
+      ptsWithZero[k].delta = ptsWithZero[k].end - ptsWithZero[k - 1].end;
+    }
+    const finalValue = ptsWithZero.length ? ptsWithZero[ptsWithZero.length - 1].end : 0;
+    series.push({ id, values: ptsWithZero, finalValue });
+  });
+
+  series.sort((a, b) => (b.finalValue || 0) - (a.finalValue || 0));
+  const totalCompanies = series.length;
+  const keepCount = totalCompanies ? Math.max(1, Math.round(totalCompanies * INCLUDED_PERCENT / 100)) : 0;
+  const kept = keepCount ? series.slice(0, keepCount) : [];
+  return { series: kept, timeline, totalCompanies, includedCount: kept.length };
+}
+
+function parseDate(input){
+  if(!input){ return null; }
+  const text = String(input).trim();
+  if(!text){ return null; }
+  const iso = text.includes("T") ? text : `${text}T00:00:00Z`;
+  const date = new Date(iso);
+  return Number.isNaN(date.valueOf()) ? null : date;
+}
+
+function getOrgColor(id){
+  const meta = orgMeta.get(id);
+  if(meta && meta.color){ return meta.color; }
+  return colorScale(id);
+}
+
+function formatValue(value){
+  if(!Number.isFinite(value)){ return "0"; }
+  const abs = Math.abs(value);
+  if(abs >= 1e9){ return formatShort(value).replace("G", "B"); }
+  if(abs >= 1e6){ return formatShort(value); }
+  if(abs >= 1e3){ return formatShort(value); }
+  return formatComma(value);
+}
+
+function getOrgLogo(id){
+  const meta = orgMeta.get(id) || {};
+  return meta.logo || meta.logo_url || meta.avatar || meta.icon || null;
+}
+
+function render(){
+  if(!chartSeries.length){
+    svg.selectAll("*").remove();
+    return;
+  }
+  const margin = { top: 32, right: 40, bottom: 56, left: 74 };
+  const rect = vizEl.getBoundingClientRect();
+  const width = Math.max(margin.left + margin.right + 360, rect.width || 960);
+  const height = Math.max(margin.top + margin.bottom + 280, rect.height || 560);
+
+  svg.attr("viewBox", `0 0 ${width} ${height}`);
+  svg.attr("aria-label", `${METRIC.label} line chart for ${TARGET_YEAR}`);
+
+  const defs = svg.selectAll("defs").data([null]).join("defs");
+  const logoClip = defs.selectAll("clipPath#logoCircleClip").data([null]).join("clipPath").attr("id", "logoCircleClip").attr("clipPathUnits", "objectBoundingBox");
+  logoClip.selectAll("circle").data([null]).join("circle").attr("cx", 0.5).attr("cy", 0.5).attr("r", 0.5);
+
+  const root = svg.selectAll("g.chart-root").data([null]).join("g").attr("class", "chart-root").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const allDates = timelineDates.length ? timelineDates : chartSeries.flatMap(s => s.values.map(p => p.date));
+  if(!allDates.length){
+    svg.selectAll("*").remove();
+    return;
+  }
+  let xDomain = d3.extent(allDates);
+  if(!xDomain[0] || !xDomain[1] || xDomain[0].getTime() === xDomain[1].getTime()){
+    const base = xDomain[0] || new Date(Date.UTC(TARGET_YEAR, 0, 1));
+    xDomain = [d3.utcDay.offset(base, -3), d3.utcDay.offset(base, 3)];
+  }
+  const valuesFlat = chartSeries.flatMap(s => s.values.map(p => p.end));
+  const yMax = d3.max(valuesFlat);
+
+    xScale = d3.scaleUtc().domain(xDomain).range([0, Math.max(120, width - margin.left - margin.right)]);
+    yScale = d3.scaleLinear().domain([0, yMax]).nice().range([Math.max(120, height - margin.top - margin.bottom), 0]);
+    const innerW = xScale.range()[1];
+    let monthStep = 1;
+    if(innerW < 680){ monthStep = 3; } else if(innerW < 900){ monthStep = 2; }
+    const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(monthStep)).tickFormat(d3.utcFormat("%b %Y"));
+    const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
+
+  const grid = root.selectAll("g.grid-y").data([null]).join("g").attr("class", "grid grid-y").call(d3.axisLeft(yScale).ticks(6).tickSize(-xScale.range()[1]).tickFormat(""));
+  grid.select(".domain").remove();
+  grid.selectAll("line").attr("stroke", "rgba(230,232,239,0.45)");
+
+  const xAxisGroup = root.selectAll("g.x-axis").data([null]).join("g").attr("class", "axis x-axis").attr("transform", `translate(0,${yScale.range()[0]})`).call(xAxis);
+  const yAxisGroup = root.selectAll("g.y-axis").data([null]).join("g").attr("class", "axis y-axis").call(yAxis);
+  yAxisGroup.select(".domain").remove();
+  xAxisGroup.select(".domain").attr("stroke", "#cfd2d7");
+
+  lineGenerator = d3.line().defined(point => Number.isFinite(point.end)).x(point => xScale(point.date)).y(point => yScale(point.end));
+
+  const seriesGroups = root.selectAll("g.series-group").data(chartSeries, d => d.id);
+  const seriesEnter = seriesGroups.enter().append("g").attr("class", "series-group");
+  seriesEnter.append("path").attr("class", "series-line").attr("fill", "none").attr("stroke-width", 2);
+  seriesEnter.append("g").attr("class", "series-dots");
+  const finalNode = seriesEnter.append("g").attr("class", "final-node");
+  finalNode.append("circle").attr("class", "final-outline");
+  finalNode.append("image").attr("class", "final-logo");
+
+    const seriesMerged = seriesEnter.merge(seriesGroups);
+    const innerW2 = xScale.range()[1];
+    const compact = innerW2 < 720;
+    const dotR = compact ? Math.round(Math.max(2, Math.min(4, innerW2 / 300))) : Math.round(Math.max(3, Math.min(6, innerW2 / 250)));
+    seriesMerged.each(function(series){
+    d3.select(this).select("path.series-line").attr("stroke", getOrgColor(series.id));
+    d3.select(this).select("g.series-dots").attr("data-dot-r", dotR);
+    });
+  seriesGroups.exit().remove();
+
+  updateFrameRange(currentStart, currentEnd);
+}
+
+function updateFrameRange(startIndex, endIndex){
+  if(!chartSeries.length || !timelineDates.length || !xScale || !yScale || !lineGenerator){ return; }
+  currentStart = Math.max(0, Math.min(startIndex, timelineDates.length - 1));
+  currentEnd = Math.max(currentStart, Math.min(endIndex, timelineDates.length - 1));
+
+  const root = svg.select("g.chart-root");
+    const innerWidth = xScale.range()[1];
+    const compact = innerWidth < 720;
+    const logoSize = compact ? Math.round(Math.max(16, Math.min(28, innerWidth / 36))) : Math.round(Math.max(22, Math.min(42, innerWidth / 26)));
+    const r = Math.round(logoSize / 2 + 2);
+
+  const baseIndex = currentStart - 1;
+  const domainStartDate = baseIndex >= 0 ? timelineDates[baseIndex] : d3.utcDay.offset(timelineDates[0], -7);
+  const domainEndDate = timelineDates[currentEnd];
+
+  xScale.domain([domainStartDate, domainEndDate]);
+
+  const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(1)).tickFormat(d3.utcFormat("%b %Y"));
+  root.select("g.x-axis").attr("transform", `translate(0,${yScale.range()[0]})`).call(xAxis);
+  root.select("g.x-axis .domain").attr("stroke", "#cfd2d7");
+
+  const adjustedById = new Map();
+  chartSeries.forEach(s=>{
+    const vis = s.values.filter(v => v.index >= currentStart && v.index <= currentEnd);
+    const basePt = s.values.find(v => v.index === baseIndex) || null;
+    const baseline = basePt ? basePt.end : 0;
+    const adj = vis.map(v => ({ ...v, end: Math.max(0, v.end - baseline) }));
+    adjustedById.set(s.id, { adj, last: adj[adj.length - 1] || null });
+  });
+
+  const yMaxWindow = d3.max(Array.from(adjustedById.values(), d => d3.max(d.adj, p => p.end))) || 0;
+  const newDomainMax = yMaxWindow > 0 ? yMaxWindow : 1;
+  yScale.domain([0, newDomainMax]).nice();
+
+  const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
+  root.select("g.y-axis").call(yAxis);
+  const gridCall = d3.axisLeft(yScale).ticks(6).tickSize(-xScale.range()[1]).tickFormat("");
+  const grid = root.select("g.grid-y").call(gridCall);
+  grid.select(".domain").remove();
+  grid.selectAll("line").attr("stroke", "rgba(230,232,239,0.45)");
+
+  const seriesMerged = root.selectAll("g.series-group");
+  seriesMerged.each(function(series){
+    const rec = adjustedById.get(series.id) || { adj: [], last: null };
+    const adjValues = rec.adj;
+    const anchor = { id: series.id, date: domainStartDate, end: 0, delta: 0, index: baseIndex };
+    const drawValues = [anchor, ...adjValues];
+
+    d3.select(this).select("path.series-line").attr("d", lineGenerator(drawValues));
+
+    const dotsSel = d3.select(this).select("g.series-dots").selectAll("circle.dot").data(drawValues, d => d.date.getTime());
+    const dotR = Number(d3.select(this).select("g.series-dots").attr("data-dot-r"));
+    dotsSel.enter()
+      .append("circle")
+      .attr("class", "dot")
+      .attr("r", dotR)
+      .attr("fill", getOrgColor(series.id))
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 1)
+      .on("mouseenter", function(event, point){
+        const seriesGroup = d3.select(this.parentNode.parentNode);
+        seriesGroup.raise();
+        d3.select(this).transition().duration(120).attr("r", dotR + 3).attr("stroke-width", 2);
+        showTooltip(event, { ...point, seriesId: series.id });
+      })
+      .on("mousemove", function(event, point){ moveTooltip(event, { ...point, seriesId: series.id }); })
+      .on("mouseleave", function(){ d3.select(this).transition().duration(120).attr("r", dotR).attr("stroke-width", 1); hideTooltip(); })
+      .merge(dotsSel)
+      .attr("cx", point => xScale(point.date))
+      .attr("cy", point => yScale(point.end));
+    dotsSel.exit().remove();
+
+    const lastPoint = rec.last;
+    const node = d3.select(this).select("g.final-node");
+    if(lastPoint){
+      const cx = xScale(lastPoint.date);
+      const cy = yScale(lastPoint.end);
+      const logoUrl = getOrgLogo(series.id) || "";
+      node.raise();
+      node.style("display", null);
+      node.select("circle.final-outline").attr("cx", cx).attr("cy", cy).attr("r", r).attr("fill", "#ffffff").attr("stroke", getOrgColor(series.id)).attr("stroke-width", 2);
+      node.select("image.final-logo").attr("href", logoUrl).attr("x", cx - logoSize / 2).attr("y", cy - logoSize / 2).attr("width", logoSize).attr("height", logoSize).attr("preserveAspectRatio", "xMidYMid slice").attr("clip-path", "url(#logoCircleClip)");
+      node.style("pointer-events", "all").on("mouseenter", (event)=>{ showTooltip(event, { ...lastPoint, seriesId: series.id }); }).on("mousemove", (event)=>{ moveTooltip(event, { ...lastPoint, seriesId: series.id }); }).on("mouseleave", ()=>{ hideTooltip(); });
+    }else{
+      node.style("display", "none");
+    }
+  });
+}
+
+function showTooltip(event, point){
+  tooltip.style("opacity", 1);
+  moveTooltip(event, point);
+}
+
+function moveTooltip(event, point){
+  const [x, y] = d3.pointer(event, vizEl);
+  const dateText = point.date ? dateFormatter(point.date) : "Week";
+  const deltaText = Number.isFinite(point.delta) ? formatValue(point.delta) : "0";
+  tooltip.html(`<strong>${point.id}</strong><br>${dateText}<br>${METRIC.label} so far: ${formatValue(point.end)}<br>This week: ${deltaText}`);
+  const ttNode = tooltip.node();
+  const ttWidth = ttNode ? ttNode.offsetWidth : 0;
+  const left = Math.max(6, x - ttWidth - 14);
+  const top = Math.max(6, y - 28);
+  tooltip.style("left", `${left}px`).style("top", `${top}px`);
+}
+
+function hideTooltip(){ tooltip.style("opacity", 0); }
+
+if(typeof ResizeObserver !== "undefined" && vizEl){
+  const chartObserver = new ResizeObserver(()=>{ render(); updateFrameRange(currentStart, currentEnd); });
+  chartObserver.observe(vizEl);
+}
+window.addEventListener("resize", ()=>{ render(); updateFrameRange(currentStart, currentEnd); });
+svg.on("mouseleave", hideTooltip);
+
+(function(){
+  const clamp=(v,min,max)=>Math.min(Math.max(v,min),max);
+  const RangeSlider={
+    selectionDragHandlersBound:false,
+    boundSelectionEl:null,
+    mouseMoveHandlerRef:null,
+    mouseUpHandlerRef:null,
+    touchMoveHandlerRef:null,
+    touchEndHandlerRef:null,
+    init(config){
+      if(!config||!config.containerEl){ return; }
+      this.root=config.containerEl.querySelector(".range-slider-panel")||config.containerEl;
+      this.startInput=this.root.querySelector('[data-role="start"]');
+      this.endInput=this.root.querySelector('[data-role="end"]');
+      this.selectionEl=this.root.querySelector('[data-role="selection"]');
+      this.trackWrapper=this.root.querySelector(".range-slider-track-wrapper");
+      this.startTitle=this.root.querySelector('[data-role="title-start"]');
+      this.endTitle=this.root.querySelector('[data-role="title-end"]');
+      this.startValue=this.root.querySelector('[data-label="start"]');
+      this.endValue=this.root.querySelector('[data-label="end"]');
+      this.playBtn=this.root.querySelector('[data-action="play"]');
+      this.pauseBtn=this.root.querySelector('[data-action="pause"]');
+      this.resetBtn=this.root.querySelector('[data-action="reset"]');
+      this.speedSelect=this.root.querySelector('[data-role="speed"]');
+      this.modeSelect=this.root.querySelector('[data-role="mode"]');
+      this.stepSelect=this.root.querySelector('[data-role="step"]');
+      this.onChange=typeof config.onChange==="function"?config.onChange:function(){};
+      this.getLabel=function(index){ return String(index); };
+      this.unitLabel="Week";
+      this.state={min:0,max:0,start:0,end:0};
+      this.playTimer=null;
+      this.dragSession=null;
+      this.bindSelectionDrag();
+      const handleInput=role=>{
+        if(!this.startInput||!this.endInput){ return; }
+        const input=role==="start"?this.startInput:this.endInput;
+        let value=Math.round(Number(input.value));
+        if(!Number.isFinite(value)){ value=role==="start"?this.state.start:this.state.end; }
+        value=clamp(value,this.state.min,this.state.max);
+        if(role==="start"){
+          this.state.start=value;
+          if(value>this.state.end){ this.state.end=value; this.endInput.value=String(value); }
+        }else{
+          this.state.end=value;
+          if(value<this.state.start){ this.state.start=value; this.startInput.value=String(value); }
+        }
+        this.updateDerived(true);
+      };
+      if(this.startInput){ this.startInput.addEventListener("input",()=>handleInput("start")); this.startInput.addEventListener("change",()=>handleInput("start")); }
+      if(this.endInput){ this.endInput.addEventListener("input",()=>handleInput("end")); this.endInput.addEventListener("change",()=>handleInput("end")); }
+      if(this.playBtn){ this.playBtn.addEventListener("click",()=>this.play()); }
+      if(this.pauseBtn){ this.pauseBtn.addEventListener("click",()=>this.pause()); }
+      if(this.resetBtn){ this.resetBtn.addEventListener("click",()=>this.reset()); }
+      if(this.speedSelect){ this.speedSelect.addEventListener("change",()=>{ if(this.playTimer){ this.restartTimer(); } }); }
+      if(this.modeSelect){ this.modeSelect.addEventListener("change",()=>{}); }
+      if(this.stepSelect){ this.stepSelect.addEventListener("change",()=>{}); }
+      this.updateDerived(false);
+    },
+    getSpeed(){ const v=parseInt(this.speedSelect&&this.speedSelect.value?this.speedSelect.value:500,10); return Number.isFinite(v)&&v>0?v:500; },
+    getMode(){ const v=this.modeSelect&&this.modeSelect.value?this.modeSelect.value:"slide"; return v==="slide"?"slide":"grow"; },
+    getStep(){ const v=parseInt(this.stepSelect&&this.stepSelect.value?this.stepSelect.value:1,10); return Number.isFinite(v)&&v>0?v:1; },
+    getInputStep(){ const a=this.startInput?Number(this.startInput.step):NaN; if(Number.isFinite(a)&&a>0){ return a; } const b=this.endInput?Number(this.endInput.step):NaN; if(Number.isFinite(b)&&b>0){ return b; } return 1; },
+    bindSelectionDrag(){
+      if(this.boundSelectionEl&&this.boundSelectionEl!==this.selectionEl){ this.selectionDragHandlersBound=false; }
+      if(!this.selectionEl||this.selectionDragHandlersBound){ return; }
+      this.boundSelectionEl=this.selectionEl;
+      this.selectionDragHandlersBound=true;
+      const supportsPointer=typeof window!=="undefined"&&"PointerEvent" in window;
+      const getClientX=e=>e&&typeof e.clientX==="number"?e.clientX:(e&&e.touches&&e.touches.length?e.touches[0].clientX:NaN);
+      const beginDrag=(event,meta={})=>{
+        const pointerType=meta.pointerType||"mouse";
+        if(pointerType==="mouse"){
+          const button=event&&typeof event.button==="number"?event.button:0;
+          const buttons=event&&typeof event.buttons==="number"?event.buttons:1;
+          if(button!==0&&buttons!==1){ return false; }
+        }
+        if(this.startInput&&this.startInput.disabled){ return false; }
+        const span=this.state.max-this.state.min;
+        if(!Number.isFinite(span)||span<=0){ return false; }
+        const rect=this.trackWrapper.getBoundingClientRect();
+        const clientX=typeof meta.clientX==="number"?meta.clientX:getClientX(event);
+        if(!Number.isFinite(clientX)){ return false; }
+        if(this.isPlaying()){ this.pause(); }
+        const stepValue=Math.max(1,this.getInputStep());
+        const spanSteps=Math.max(0,Math.round(span/stepValue));
+        const startIndex=Math.round((this.state.start-this.state.min)/stepValue);
+        const endIndex=Math.round((this.state.end-this.state.min)/stepValue);
+        const pointerId=event&&typeof event.pointerId==="number"?event.pointerId:null;
+        this.dragSession={ pointerId, originX:clientX, trackWidth:rect.width, min:this.state.min, max:this.state.max, step:stepValue, spanSteps, startIndex:Math.min(startIndex,endIndex), windowSteps:Math.max(0,endIndex-startIndex), kind:pointerType };
+        this.selectionEl.classList.add("is-grabbing");
+        return true;
+      };
+      const dragSelection=(clientX)=>{
+        const drag=this.dragSession;
+        if(!drag||!Number.isFinite(drag.trackWidth)||drag.trackWidth<=0){ return; }
+        const totalSteps=drag.spanSteps;
+        const deltaX=clientX-drag.originX;
+        const deltaSteps=Math.round((deltaX/drag.trackWidth)*totalSteps);
+        const maxStartIndex=Math.max(0,totalSteps-drag.windowSteps);
+        let nextStartIndex=drag.startIndex+deltaSteps;
+        nextStartIndex=clamp(nextStartIndex,0,maxStartIndex);
+        const nextEndIndex=nextStartIndex+drag.windowSteps;
+        const toValue=i=>Number((drag.min+i*drag.step).toFixed(6));
+        this.state.start=toValue(nextStartIndex);
+        this.state.end=toValue(nextEndIndex);
+        this.startInput.value=String(this.state.start);
+        this.endInput.value=String(this.state.end);
+        this.updateDerived(true);
+      };
+      const endDrag=()=>{
+        if(!this.dragSession){ return; }
+        this.selectionEl.classList.remove("is-grabbing");
+        this.dragSession=null;
+      };
+      if(supportsPointer){
+        this.selectionEl.addEventListener("pointerdown",e=>{ if(beginDrag(e,{ pointerType:e.pointerType })){ this.selectionEl.setPointerCapture(e.pointerId); } });
+        this.selectionEl.addEventListener("pointermove",e=>{ if(this.dragSession){ dragSelection(e.clientX); } });
+        this.selectionEl.addEventListener("pointerup",()=>endDrag());
+        this.selectionEl.addEventListener("pointercancel",()=>endDrag());
+      }else{
+        this.selectionEl.addEventListener("mousedown",e=>{ if(beginDrag(e,{ pointerType:"mouse", clientX:e.clientX })){ this.mouseMoveHandlerRef=ev=>{ if(this.dragSession){ dragSelection(ev.clientX); } }; this.mouseUpHandlerRef=()=>endDrag(); window.addEventListener("mousemove",this.mouseMoveHandlerRef); window.addEventListener("mouseup",this.mouseUpHandlerRef); } });
+        this.selectionEl.addEventListener("touchstart",e=>{ if(!e.touches.length){ return; } const t=e.touches[0]; if(beginDrag(e,{ pointerType:"touch", clientX:t.clientX })){ this.touchMoveHandlerRef=ev=>{ if(!ev.touches.length){ return; } dragSelection(ev.touches[0].clientX); }; this.touchEndHandlerRef=()=>endDrag(); window.addEventListener("touchmove",this.touchMoveHandlerRef,{ passive:false }); window.addEventListener("touchend",this.touchEndHandlerRef); window.addEventListener("touchcancel",this.touchEndHandlerRef); } },{ passive:false });
+      }
+    },
+    update(config){
+      if(!this.root){ return; }
+      const cfg=config||{};
+      const hasBounds=Number.isFinite(cfg.min)&&Number.isFinite(cfg.max)&&cfg.max>=cfg.min;
+      const min=hasBounds?Math.round(cfg.min):0;
+      const max=hasBounds?Math.round(cfg.max):0;
+      const startCandidate=Number.isFinite(cfg.start)?Math.round(cfg.start):min;
+      const endCandidate=Number.isFinite(cfg.end)?Math.round(cfg.end):min;
+      this.state.min=min;
+      this.state.max=max;
+      this.state.start=Math.min(Math.max(startCandidate,min),max);
+      this.state.end=Math.min(Math.max(endCandidate,this.state.start),max);
+      this.startInput.min=String(min);
+      this.startInput.max=String(max);
+      this.endInput.min=String(min);
+      this.endInput.max=String(max);
+      this.startInput.value=String(this.state.start);
+      this.endInput.value=String(this.state.end);
+      this.root.classList.toggle("is-disabled",max<=min);
+      if(typeof cfg.getLabel==="function"){ this.getLabel=cfg.getLabel; }
+      if(typeof cfg.unitLabel==="string"){ this.unitLabel=cfg.unitLabel; }
+      this.updateDerived(false);
+    },
+    updateDerived(emit){
+      if(this.startTitle){ this.startTitle.textContent=`Starting ${this.unitLabel}`; }
+      if(this.endTitle){ this.endTitle.textContent=`Ending ${this.unitLabel}`; }
+      if(this.startValue){ this.startValue.textContent=this.getLabel(this.state.start); }
+      if(this.endValue){ this.endValue.textContent=this.getLabel(this.state.end); }
+      const span=this.state.max-this.state.min;
+      if(span>0){
+        const startRatio=(this.state.start-this.state.min)/span;
+        const endRatio=(this.state.end-this.state.min)/span;
+        this.selectionEl.style.left=`${startRatio*100}%`;
+        this.selectionEl.style.right=`${(1-endRatio)*100}%`;
+      }else{
+        this.selectionEl.style.left="0%";
+        this.selectionEl.style.right="100%";
+      }
+      if(emit&&this.onChange){ this.onChange({ start:this.state.start, end:this.state.end }); }
+    },
+    isPlaying(){ return !!this.playTimer; },
+    stepOnce(){
+      if(this.state.end>=this.state.max){ this.pause(); return; }
+      const step=this.getStep();
+      const mode=this.getMode();
+      const nextEnd=Math.min(this.state.max,this.state.end+step);
+      if(mode==="slide"){
+        const windowSize=Math.max(1,this.state.end-this.state.start);
+        const nextStart=Math.max(this.state.min,nextEnd-windowSize);
+        this.state.start=nextStart;
+      }
+      this.state.end=nextEnd;
+      this.startInput.value=String(this.state.start);
+      this.endInput.value=String(this.state.end);
+      this.updateDerived(true);
+      if(this.state.end>=this.state.max){ this.pause(); }
+    },
+    play(){
+      if(this.isPlaying()){ return; }
+      if(this.state.end>=this.state.max){ this.state.end=this.state.start; this.updateDerived(true); }
+      this.root.querySelector('[data-action="play"]').classList.add("hidden");
+      this.root.querySelector('[data-action="pause"]').classList.remove("hidden");
+      this.playTimer=window.setInterval(()=>this.stepOnce(),this.getSpeed());
+    },
+    pause(){
+      if(!this.isPlaying()){ return; }
+      window.clearInterval(this.playTimer);
+      this.playTimer=null;
+      this.root.querySelector('[data-action="pause"]').classList.add("hidden");
+      this.root.querySelector('[data-action="play"]').classList.remove("hidden");
+    },
+    reset(){
+      const wasPlaying=this.isPlaying();
+      if(wasPlaying){ this.pause(); }
+      this.state.end=this.state.start;
+      this.endInput.value=String(this.state.end);
+      this.updateDerived(true);
+    },
+    restartTimer(){
+      if(!this.isPlaying()){ return; }
+      window.clearInterval(this.playTimer);
+      this.playTimer=window.setInterval(()=>this.stepOnce(),this.getSpeed());
+    }
+  };
+  window.RangeSlider=RangeSlider;
+})();
+
+function initSlider(){
+  const panelHost = document.getElementById("container2");
+  const fmt = d3.utcFormat("%b %-d, %Y");
+  const clampIndex = v => Math.max(0, Math.min(v, timelineDates.length - 1));
+  const findStartIdx = (date)=>{
+    let idx = timelineDates.findIndex(d => d.getTime() >= date.getTime());
+    if(idx === -1){ idx = timelineDates.length - 1; }
+    return clampIndex(idx);
+  };
+  const findEndIdx = (date)=>{
+    let idx = timelineDates.length - 1;
+    for(let i = timelineDates.length - 1; i >= 0; i--){
+      if(timelineDates[i].getTime() <= date.getTime()){ idx = i; break; }
+    }
+    return clampIndex(idx);
+  };
+
+  const defaultStart = findStartIdx(DEFAULT_START_DATE);
+  const defaultEnd = findEndIdx(DEFAULT_END_DATE);
+
+  window.RangeSlider.init({
+    containerEl: panelHost,
+    onChange: ({start,end})=>{ updateFrameRange(start,end); }
+  });
+  window.RangeSlider.update({
+    min: 0,
+    max: Math.max(0, timelineDates.length - 1),
+    start: defaultStart,
+    end: Math.max(defaultStart, defaultEnd),
+    unitLabel: "Week",
+    getLabel: i=>{
+      const idx = Math.max(0, Math.min(i, timelineDates.length - 1));
+      const d = timelineDates[idx];
+      return `Week ${idx} • ${fmt(d)}`;
+    }
+  });
+  updateFrameRange(defaultStart, Math.max(defaultStart, defaultEnd));
+}
+</script>
+</body>
+</html>
