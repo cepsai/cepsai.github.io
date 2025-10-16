@@ -33,8 +33,8 @@
       </label>
       <label class="rs-label">Mode
         <select class="rs-select" data-role="mode">
-          <option value="grow" selected>Grow end</option>
-          <option value="slide">Slide window</option>
+          <option value="slide" selected>Slide window</option>
+          <option value="grow">Grow end</option>
         </select>
       </label>
       <label class="rs-label">Step
@@ -216,12 +216,6 @@
 (function(){
   const clamp=(value,min,max)=>Math.min(Math.max(value,min),max);
   const RangeSlider={
-    selectionDragHandlersBound:false,
-    boundSelectionEl:null,
-    mouseMoveHandlerRef:null,
-    mouseUpHandlerRef:null,
-    touchMoveHandlerRef:null,
-    touchEndHandlerRef:null,
     init(config){
       if(!config||!config.containerEl){ return; }
       this.root=config.containerEl.querySelector(".range-slider-panel")||config.containerEl;
@@ -291,7 +285,7 @@
       return Number.isFinite(v)&&v>0?v:500;
     },
     readMode(){
-      const v=this.modeSelect&&this.modeSelect.value?this.modeSelect.value:"grow";
+      const v=this.modeSelect&&this.modeSelect.value?this.modeSelect.value:"slide";
       return v==="slide"?"slide":"grow";
     },
     readStep(){
@@ -306,40 +300,16 @@
       return 1;
     },
     bindSelectionDrag(){
-      if(this.boundSelectionEl&&this.boundSelectionEl!==this.selectionEl){
-        this.selectionDragHandlersBound=false;
-      }
       if(!this.selectionEl||this.selectionDragHandlersBound){ return; }
-      this.boundSelectionEl=this.selectionEl;
       this.selectionDragHandlersBound=true;
-      const supportsPointer=typeof window!=="undefined"&&"PointerEvent" in window;
-      const getClientX=event=>{
-        if(event&&typeof event.clientX==="number"){ return event.clientX; }
-        if(event&&event.touches&&event.touches.length){ return event.touches[0].clientX; }
-        if(event&&event.changedTouches&&event.changedTouches.length){ return event.changedTouches[0].clientX; }
-        return NaN;
-      };
-      const beginDrag=(event,meta={})=>{
-        const pointerType=typeof meta.pointerType==="string"?meta.pointerType:(event&&event.pointerType?event.pointerType:"mouse");
-        if(pointerType==="mouse"){
-          const button=event&&typeof event.button==="number"?event.button:0;
-          const buttons=event&&typeof event.buttons==="number"?event.buttons:1;
-          if(button!==0&&buttons!==1){ return false; }
-        }
-        if(this.startInput&&this.startInput.disabled){ return false; }
+      const handlePointerDown=event=>{
+        if(event.pointerType==="mouse"&&event.button!==0){ return; }
+        if(this.startInput&&this.startInput.disabled){ return; }
         const span=this.state.max-this.state.min;
-        if(!Number.isFinite(span)||span<=0){ return false; }
-        let rect=null;
-        if(this.trackWrapper&&typeof this.trackWrapper.getBoundingClientRect==="function"){
-          rect=this.trackWrapper.getBoundingClientRect();
-        }
-        if((!rect||!Number.isFinite(rect.width)||rect.width<=0)&&this.selectionEl&&typeof this.selectionEl.getBoundingClientRect==="function"){
-          rect=this.selectionEl.getBoundingClientRect();
-        }
-        if(!rect||!Number.isFinite(rect.width)||rect.width<=0){ return false; }
-        const clientX=typeof meta.clientX==="number"?meta.clientX:getClientX(event);
-        if(!Number.isFinite(clientX)){ return false; }
-        if(event&&typeof event.preventDefault==="function"){ event.preventDefault(); }
+        if(!Number.isFinite(span)||span<=0){ return; }
+        const targetRect=this.trackWrapper?this.trackWrapper.getBoundingClientRect():this.selectionEl.getBoundingClientRect();
+        if(!targetRect||!Number.isFinite(targetRect.width)||targetRect.width<=0){ return; }
+        event.preventDefault();
         if(this.isPlaying()){ this.pause(); }
         const stepCandidate=this.getInputStep();
         const minValue=this.state.min;
@@ -358,92 +328,34 @@
         startIndex=clamp(startIndex,0,spanSteps);
         endIndex=clamp(endIndex,startIndex,spanSteps);
         const windowSteps=Math.max(0,endIndex-startIndex);
-        const pointerId=typeof meta.pointerId==="number"?meta.pointerId:(event&&typeof event.pointerId==="number"?event.pointerId:null);
-        let captureTarget=null;
-        if(meta.captureTarget&&typeof meta.captureTarget.setPointerCapture==="function"){ captureTarget=meta.captureTarget; }
-        else if(event&&event.currentTarget&&typeof event.currentTarget.setPointerCapture==="function"){ captureTarget=event.currentTarget; }
         this.dragSession={
-          pointerId:pointerId,
-          originX:clientX,
-          trackWidth:rect.width,
+          pointerId:event.pointerId,
+          originX:event.clientX,
+          trackWidth:targetRect.width,
           span,
           min:minValue,
           max:maxValue,
           step:stepValue,
           spanSteps,
           startIndex,
-          windowSteps,
-          kind:pointerType==="touch"?"touch":(pointerType==="mouse"?"mouse":"pointer"),
-          captureTarget
+          windowSteps
         };
-        if(this.selectionEl){ this.selectionEl.classList.add("is-grabbing"); }
-        if(captureTarget&&typeof pointerId==="number"){
-          try{ captureTarget.setPointerCapture(pointerId); }catch(_){}
-        }
-        return true;
-      };
-      const handlePointerDown=event=>{
-        if(!beginDrag(event,{ pointerType:event&&event.pointerType?event.pointerType:"mouse", pointerId:event&&typeof event.pointerId==="number"?event.pointerId:null, captureTarget:this.selectionEl })){ return; }
-        this.dragSession.kind="pointer";
+        this.selectionEl.classList.add("is-grabbing");
+        try{ this.selectionEl.setPointerCapture(event.pointerId); }catch(_){}
       };
       const handlePointerMove=event=>{
-        if(!this.dragSession||this.dragSession.kind!=="pointer"||event.pointerId!==this.dragSession.pointerId){ return; }
-        if(event&&typeof event.preventDefault==="function"){ event.preventDefault(); }
+        if(!this.dragSession||event.pointerId!==this.dragSession.pointerId){ return; }
+        event.preventDefault();
         this.dragSelection(event);
       };
       const handlePointerEnd=event=>{
-        if(!this.dragSession||this.dragSession.kind!=="pointer"||event.pointerId!==this.dragSession.pointerId){ return; }
+        if(!this.dragSession||event.pointerId!==this.dragSession.pointerId){ return; }
         this.endSelectionDrag();
       };
-      const handleMouseMove=event=>{
-        if(!this.dragSession||this.dragSession.kind!=="mouse"){ return; }
-        if(event&&typeof event.preventDefault==="function"){ event.preventDefault(); }
-        this.dragSelection(event);
-      };
-      const handleMouseUp=event=>{
-        if(!this.dragSession||this.dragSession.kind!=="mouse"){ return; }
-        this.endSelectionDrag();
-      };
-      const handleMouseDown=event=>{
-        if(event.button!==0&&event.buttons!==1){ return; }
-        if(!beginDrag(event,{ pointerType:"mouse", clientX:event.clientX })){ return; }
-        this.dragSession.kind="mouse";
-        this.mouseMoveHandlerRef=handleMouseMove;
-        this.mouseUpHandlerRef=handleMouseUp;
-        window.addEventListener("mousemove",handleMouseMove);
-        window.addEventListener("mouseup",handleMouseUp);
-      };
-      const handleTouchMove=event=>{
-        if(!this.dragSession||this.dragSession.kind!=="touch"){ return; }
-        if(event&&typeof event.preventDefault==="function"){ event.preventDefault(); }
-        if(!event.touches||!event.touches.length){ return; }
-        const touch=event.touches[0];
-        this.dragSelection({ clientX:touch.clientX });
-      };
-      const handleTouchEnd=()=>{
-        if(!this.dragSession||this.dragSession.kind!=="touch"){ return; }
-        this.endSelectionDrag();
-      };
-      const handleTouchStart=event=>{
-        if(!event.touches||!event.touches.length){ return; }
-        const touch=event.touches[0];
-        if(!beginDrag(event,{ pointerType:"touch", clientX:touch.clientX })){ return; }
-        this.dragSession.kind="touch";
-        this.touchMoveHandlerRef=handleTouchMove;
-        this.touchEndHandlerRef=handleTouchEnd;
-        window.addEventListener("touchmove",handleTouchMove,{ passive:false });
-        window.addEventListener("touchend",handleTouchEnd);
-        window.addEventListener("touchcancel",handleTouchEnd);
-      };
-      if(supportsPointer){
-        this.selectionEl.addEventListener("pointerdown",handlePointerDown);
-        this.selectionEl.addEventListener("pointermove",handlePointerMove);
-        this.selectionEl.addEventListener("pointerup",handlePointerEnd);
-        this.selectionEl.addEventListener("pointercancel",handlePointerEnd);
-      }else{
-        this.selectionEl.addEventListener("mousedown",handleMouseDown);
-        this.selectionEl.addEventListener("touchstart",handleTouchStart,{ passive:false });
-      }
+      this.selectionEl.addEventListener("pointerdown",handlePointerDown);
+      this.selectionEl.addEventListener("pointermove",handlePointerMove);
+      this.selectionEl.addEventListener("pointerup",handlePointerEnd);
+      this.selectionEl.addEventListener("pointercancel",handlePointerEnd);
     },
     dragSelection(event){
       if(!this.dragSession){ return; }
@@ -451,9 +363,7 @@
       if(!Number.isFinite(drag.trackWidth)||drag.trackWidth<=0){ return; }
       const totalSteps=Number.isFinite(drag.spanSteps)?drag.spanSteps:0;
       if(totalSteps<=0){ return; }
-      const clientX=event&&typeof event.clientX==="number"?event.clientX:NaN;
-      if(!Number.isFinite(clientX)){ return; }
-      const deltaX=clientX-drag.originX;
+      const deltaX=event.clientX-drag.originX;
       if(!Number.isFinite(deltaX)){ return; }
       let deltaSteps=0;
       if(totalSteps>0){
@@ -478,29 +388,8 @@
     },
     endSelectionDrag(){
       if(!this.dragSession){ return; }
-      const pointerId=typeof this.dragSession.pointerId==="number"?this.dragSession.pointerId:null;
-      const captureTarget=this.dragSession.captureTarget||this.selectionEl;
-      if(pointerId!==null&&captureTarget&&typeof captureTarget.releasePointerCapture==="function"){
-        try{ captureTarget.releasePointerCapture(pointerId); }catch(_){}
-      }
-      if(this.selectionEl){ this.selectionEl.classList.remove("is-grabbing"); }
-      if(this.mouseMoveHandlerRef){
-        window.removeEventListener("mousemove",this.mouseMoveHandlerRef);
-        this.mouseMoveHandlerRef=null;
-      }
-      if(this.mouseUpHandlerRef){
-        window.removeEventListener("mouseup",this.mouseUpHandlerRef);
-        this.mouseUpHandlerRef=null;
-      }
-      if(this.touchMoveHandlerRef){
-        window.removeEventListener("touchmove",this.touchMoveHandlerRef);
-        this.touchMoveHandlerRef=null;
-      }
-      if(this.touchEndHandlerRef){
-        window.removeEventListener("touchend",this.touchEndHandlerRef);
-        window.removeEventListener("touchcancel",this.touchEndHandlerRef);
-        this.touchEndHandlerRef=null;
-      }
+      try{ this.selectionEl.releasePointerCapture(this.dragSession.pointerId); }catch(_){}
+      this.selectionEl.classList.remove("is-grabbing");
       this.dragSession=null;
     },
     update(config){
