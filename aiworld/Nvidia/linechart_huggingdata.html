@@ -478,9 +478,10 @@ const METRICS=[
 ];
 const MIN_SPACES_OPTIONS=[10];
 const MIN_DOWNLOAD_OPTIONS=[250,500,1000];
-const DATA_BASE_PATH="./data";
-const DATA_FILE_PREFIX="org_weeks_";
+const DATA_BASE_PATH="";
+const DATA_FILE_PREFIX="";
 const DATA_FILE_SUFFIX=".json";
+const DATA_SINGLE_FILE="./new_data_hgface.json";
 const dataCache=new Map();
 let currentMetric="repos_total";
 let currentMode="cumulative";
@@ -593,8 +594,13 @@ function buildDataKey(minSpaces,minDownloads){
 }
 
 function buildDataUrl(minSpaces,minDownloads){
+  if(DATA_SINGLE_FILE){
+    return DATA_SINGLE_FILE;
+  }
   const thresholdKey=buildDataKey(minSpaces,minDownloads);
-  return `${DATA_BASE_PATH}/${DATA_FILE_PREFIX}${thresholdKey}${DATA_FILE_SUFFIX}`;
+  const base=DATA_BASE_PATH?`${DATA_BASE_PATH.replace(/\/+$/,"")}/`:"./";
+  const prefix=DATA_FILE_PREFIX||"";
+  return `${base}${prefix}${thresholdKey}${DATA_FILE_SUFFIX}`.replace(/\/{2,}/g,"/");
 }
 
 if(INLINE_STATE){
@@ -1578,7 +1584,7 @@ function wireConfigSliderBridge(panel){
 async function loadConfigTab(){
   if(!vizLayout){ return; }
   try{
-    const response=await fetch("./tab.html");
+    const response=await fetch("./tab3.html");
     if(!response.ok){ throw new Error(`HTTP ${response.status}`); }
     const text=await response.text();
     const parser=new DOMParser();
@@ -1640,7 +1646,8 @@ async function loadConfigTab(){
 }
 
 function load(){
-  const dataPromise=INLINE_DATA?Promise.resolve(INLINE_DATA):fetch("./repos_new.json").then(r=>r.json());
+  const dataUrl=buildDataUrl(currentMinSpaces,currentMinDownloads);
+  const dataPromise=INLINE_DATA?Promise.resolve(INLINE_DATA):fetch(dataUrl).then(r=>r.json());
   const orgPromise=INLINE_ORGS?Promise.resolve(INLINE_ORGS):fetch("./orgs.json").then(r=>r.ok?r.json():[]).catch(()=>[]);
   Promise.all([dataPromise, orgPromise]).then(([json, orgList])=>{
     const sourceData=Array.isArray(json)?json.slice():[];
@@ -2638,7 +2645,7 @@ async function fetchDataSource(minSpaces,minDownloads){
   if(INLINE_DATA){
     return Array.isArray(INLINE_DATA)?INLINE_DATA:[];
   }
-  const key=buildDataKey(minSpaces,minDownloads);
+  const key=DATA_SINGLE_FILE||buildDataKey(minSpaces,minDownloads);
   if(dataCache.has(key)){
     return dataCache.get(key);
   }
