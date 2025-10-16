@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>HF Orgs Line Chart — 2025 + Slider</title>
+<title>HF Orgs Line Chart — 2025</title>
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
 html, body { height: 100%; }
 body { margin: 0; overflow: hidden; background: #ffffff; color: #111; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif; height: 100vh; }
 .viz-layout { position: relative; width: 100%; height: 100vh; display: grid; grid-template-rows: 16fr auto 1fr; grid-template-columns: 1fr 1fr; }
 #container1 { grid-row: 1; grid-column: 1 / span 2; display: flex; overflow: hidden; min-height: 0; padding: 0; }
-#container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; padding: clamp(6px, 1.5vh, 16px) 20px 0 20px; z-index: 18; }
+#container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; padding: 8px 20px; z-index: 18; }
 #container3 { grid-row: 3; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 20px; position: absolute; bottom: clamp(8px, 2vh, 16px); left: 20px; z-index: 18; }
 #container4 { grid-row: 3; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; gap: clamp(10px, 2vw, 16px); padding: 0 20px; position: absolute; bottom: clamp(8px, 2vh, 16px); right: 20px; z-index: 18; }
 .source-text { font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
@@ -29,59 +29,14 @@ body { margin: 0; overflow: hidden; background: #ffffff; color: #111; font-famil
 .grid .domain { display: none; }
 .final-node { cursor: pointer; }
 
-.range-slider-panel { width: min(1080px, 92vw); box-sizing: border-box; display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 6px 16px; background: rgba(255,255,255,.92); border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.18); font-size: clamp(10px, 1.5vw, 14px); color: #1f2a44; }
-.range-slider-panel.is-disabled { opacity: .6; }
-.range-slider-row { display: flex; align-items: center; justify-content: space-between; gap: clamp(10px, 2vw, 24px); width: 100%; overflow: hidden; }
-.range-slider-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; max-width: clamp(120px, 22vw, 260px); }
-.range-slider-info-start { align-items: flex-start; }
-.range-slider-info-end { align-items: flex-end; text-align: right; }
-.range-slider-title { font-weight: 700; color: #26344f; white-space: nowrap; }
-.range-slider-value { font-weight: 600; color: #6f778f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.range-slider-track-wrapper { position: relative; flex: 1 1 auto; min-width: 0; height: 32px; display: flex; align-items: center; }
-.range-slider-track { position: absolute; left: 0; right: 0; top: 50%; height: clamp(4px, 1.2vw, 8px); background: #e2e5f1; border-radius: 999px; transform: translateY(-50%); pointer-events: auto; }
-.range-slider-selection { position: absolute; top: 0; bottom: 0; left: 0; right: 100%; background: #2756d3; border-radius: 999px; cursor: grab; touch-action: none; }
-.range-slider-selection.is-grabbing { cursor: grabbing; }
-.range-slider-track-wrapper input[type="range"] { position: absolute; left: 0; right: 0; top: 0; bottom: 0; width: 100%; height: 100%; margin: 0; background: none; pointer-events: none; appearance: none; -webkit-appearance: none; }
-.range-slider-track-wrapper input[data-role="start"] { z-index: 2; }
-.range-slider-track-wrapper input[data-role="end"] { z-index: 3; }
-.range-slider-track-wrapper input[type="range"]::-webkit-slider-runnable-track { height: 6px; background: transparent; }
-.range-slider-track-wrapper input[type="range"]::-webkit-slider-thumb{
-  pointer-events: all;
-  width: 16px;
-  height: 16px;
-  margin-top: -4px;
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid #2756d3;
-  box-shadow: 0 1px 4px rgba(0,0,0,.15);
-  -webkit-appearance: none;
-  appearance: none;
-  box-sizing: border-box;
-}
-.range-slider-track-wrapper input[type="range"]::-moz-range-track { height: 6px; background: transparent; }
-.range-slider-track-wrapper input[type="range"]::-moz-range-thumb{
-  pointer-events: all;
-  width: 16px;
-  height: 16px;
-  margin-top: -4px;
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid #2756d3;
-  box-shadow: 0 1px 4px rgba(0,0,0,.15);
-  box-sizing: border-box;
-}
-.range-slider-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; }
-.range-slider-controls-left { display: flex; gap: 8px; align-items: center; }
-.range-slider-controls-right { display: flex; gap: 10px; align-items: center; }
-.rs-btn { border: 1px solid #cfd2d7; background: #fff; padding: 6px 12px; border-radius: 8px; font-weight: 600; color: #1f2a44; cursor: pointer; }
-.rs-btn.hidden { display: none; }
-.rs-label { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: #333; }
-.rs-select { border: 1px solid #cfd2d7; border-radius: 8px; padding: 6px 10px; font-weight: 600; background: #fff; color: #1f2a44; }
+.date-display { display: inline-flex; align-items: center; padding: 6px 12px; border: 1px solid #cfd2d7; border-radius: 10px; background: rgba(255,255,255,.92); font-weight: 700; color: #26344f; font-size: clamp(12px, 1.4vw, 16px); line-height: 1; }
 
-@media (max-height: 640px) { #container2 { display: none; } }
-@media (max-height: 560px) { #container3, #container4 { display: none; } }
+/* Minimum window size */
+@media (max-width: 420px), (max-height: 560px) {
+  #container2 { padding: 4px 10px; }
+  .date-display { padding: 2px 8px; border-radius: 8px; font-size: clamp(9px, 3.2vw, 12px); }
+}
 
-@media (max-width: 1180px) { #container2 { display: none; } }
 @media (max-width: 980px) {
   #container3 { display: none; }
   .viz-layout { grid-template-rows: 1fr; grid-template-columns: 1fr; }
@@ -104,55 +59,7 @@ body { margin: 0; overflow: hidden; background: #ffffff; color: #111; font-famil
   </div>
 
   <div id="container2">
-    <div id="sliderPanel" class="range-slider-panel">
-      <div class="range-slider-row">
-        <div class="range-slider-info range-slider-info-start">
-          <span data-role="title-start" class="range-slider-title">Starting Week</span>
-          <span data-label="start" class="range-slider-value">Week 0</span>
-        </div>
-        <div class="range-slider-track-wrapper">
-          <div class="range-slider-track">
-            <div class="range-slider-selection" data-role="selection"></div>
-          </div>
-          <input type="range" min="0" max="0" step="1" value="0" data-role="start" aria-label="Starting period">
-          <input type="range" min="0" max="0" step="1" value="0" data-role="end" aria-label="Ending period">
-        </div>
-        <div class="range-slider-info range-slider-info-end">
-          <span data-role="title-end" class="range-slider-title">Ending Week</span>
-          <span data-label="end" class="range-slider-value">Week 0</span>
-        </div>
-      </div>
-      <div class="range-slider-controls">
-        <div class="range-slider-controls-left">
-          <button type="button" class="rs-btn" data-action="play">Play</button>
-          <button type="button" class="rs-btn hidden" data-action="pause">Pause</button>
-          <button type="button" class="rs-btn" data-action="reset">Reset</button>
-        </div>
-        <div class="range-slider-controls-right">
-          <label class="rs-label">Speed
-            <select class="rs-select" data-role="speed">
-              <option value="900">Slow</option>
-              <option value="500" selected>Normal</option>
-              <option value="250">Fast</option>
-              <option value="120">Very fast</option>
-            </select>
-          </label>
-          <label class="rs-label">Mode
-            <select class="rs-select" data-role="mode">
-              <option value="grow">Grow end</option>
-              <option value="slide" selected>Slide window</option>
-            </select>
-          </label>
-          <label class="rs-label">Step
-            <select class="rs-select" data-role="step">
-              <option value="1" selected>1</option>
-              <option value="2">2</option>
-              <option value="4">4</option>
-            </select>
-          </label>
-        </div>
-      </div>
-    </div>
+    <div id="dateDisplay" class="date-display"></div>
   </div>
 
   <div id="container3" class="container source-container">
@@ -170,12 +77,20 @@ const svg = d3.select("#chart");
 const tooltip = d3.select("#tooltip");
 const yLabelEl = document.getElementById("yLabel");
 const vizEl = document.getElementById("viz");
+const dateDisplayEl = document.getElementById("dateDisplay");
 
 const TARGET_YEAR = 2025;
 const INCLUDED_PERCENT = 50;
 const METRIC = { key: "repos_total", label: "Repos" };
 const DEFAULT_START_DATE = new Date(Date.UTC(2024, 9, 1));
 const DEFAULT_END_DATE = new Date(Date.UTC(2025, 9, 1));
+
+const STEP_MIN = 1;
+const STEP_MAX = 16;
+const DELAY_MIN = 60;
+const DELAY_MAX = 4000;
+let autoStep = 1;
+let autoDelay = 200;
 
 const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
 const formatComma = d3.format(",.0f");
@@ -190,6 +105,10 @@ let yScale = null;
 let lineGenerator = null;
 let currentStart = 0;
 let currentEnd = 0;
+let autoTimer = null;
+let animDefaultStart = 0;
+let animDefaultEnd = 0;
+let animWindowSize = 1;
 
 init();
 
@@ -205,7 +124,8 @@ async function init(){
     timelineDates = processed.timeline;
     yLabelEl.textContent = METRIC.label;
     render();
-    initSlider();
+    setupAnimation();
+    bindSpeedKeys();
   }catch(err){
     console.error("Failed to load visualization data:", err);
   }
@@ -369,13 +289,16 @@ function render(){
   const valuesFlat = chartSeries.flatMap(s => s.values.map(p => p.end));
   const yMax = d3.max(valuesFlat);
 
-    xScale = d3.scaleUtc().domain(xDomain).range([0, Math.max(120, width - margin.left - margin.right)]);
-    yScale = d3.scaleLinear().domain([0, yMax]).nice().range([Math.max(120, height - margin.top - margin.bottom), 0]);
-    const innerW = xScale.range()[1];
-    let monthStep = 1;
-    if(innerW < 680){ monthStep = 3; } else if(innerW < 900){ monthStep = 2; }
-    const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(monthStep)).tickFormat(d3.utcFormat("%b %Y"));
-    const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
+  xScale = d3.scaleUtc().domain(xDomain).range([0, Math.max(120, width - margin.left - margin.right)]);
+  yScale = d3.scaleLinear().domain([0, yMax]).nice().range([Math.max(120, height - margin.top - margin.bottom), 0]);
+  const innerW = xScale.range()[1];
+  const isTiny = innerW < 420;
+  const compact = innerW < 720 && !isTiny;
+  const dotR = isTiny ? Math.max(1, Math.min(3, Math.round(innerW / 360))) : compact ? Math.round(Math.max(2, Math.min(4, innerW / 300))) : Math.round(Math.max(3, Math.min(6, innerW / 250)));
+
+  const xTickStep = innerW < 680 ? 3 : innerW < 900 ? 2 : 1;
+  const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(xTickStep)).tickFormat(d3.utcFormat("%b %Y"));
+  const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
 
   const grid = root.selectAll("g.grid-y").data([null]).join("g").attr("class", "grid grid-y").call(d3.axisLeft(yScale).ticks(6).tickSize(-xScale.range()[1]).tickFormat(""));
   grid.select(".domain").remove();
@@ -396,14 +319,11 @@ function render(){
   finalNode.append("circle").attr("class", "final-outline");
   finalNode.append("image").attr("class", "final-logo");
 
-    const seriesMerged = seriesEnter.merge(seriesGroups);
-    const innerW2 = xScale.range()[1];
-    const compact = innerW2 < 720;
-    const dotR = compact ? Math.round(Math.max(2, Math.min(4, innerW2 / 300))) : Math.round(Math.max(3, Math.min(6, innerW2 / 250)));
-    seriesMerged.each(function(series){
+  const seriesMerged = seriesEnter.merge(seriesGroups);
+  seriesMerged.each(function(series){
     d3.select(this).select("path.series-line").attr("stroke", getOrgColor(series.id));
     d3.select(this).select("g.series-dots").attr("data-dot-r", dotR);
-    });
+  });
   seriesGroups.exit().remove();
 
   updateFrameRange(currentStart, currentEnd);
@@ -415,10 +335,13 @@ function updateFrameRange(startIndex, endIndex){
   currentEnd = Math.max(currentStart, Math.min(endIndex, timelineDates.length - 1));
 
   const root = svg.select("g.chart-root");
-    const innerWidth = xScale.range()[1];
-    const compact = innerWidth < 720;
-    const logoSize = compact ? Math.round(Math.max(16, Math.min(28, innerWidth / 36))) : Math.round(Math.max(22, Math.min(42, innerWidth / 26)));
-    const r = Math.round(logoSize / 2 + 2);
+  const innerWidth = xScale.range()[1];
+  const isTinyW = innerWidth < 420;
+  const compact = innerWidth < 720 && !isTinyW;
+  const logoSize = isTinyW ? Math.round(Math.max(14, Math.min(22, innerWidth / 40))) : compact ? Math.round(Math.max(16, Math.min(28, innerWidth / 36))) : Math.round(Math.max(22, Math.min(42, innerWidth / 26)));
+  const r = Math.round(logoSize / 2 + 2);
+
+  const recomputedDotR = (()=>{ if(isTinyW){ return Math.max(1, Math.min(3, Math.round(innerWidth / 360))); } if(compact){ return Math.round(Math.max(2, Math.min(4, innerWidth / 300))); } return Math.round(Math.max(3, Math.min(6, innerWidth / 250))); })();
 
   const baseIndex = currentStart - 1;
   const domainStartDate = baseIndex >= 0 ? timelineDates[baseIndex] : d3.utcDay.offset(timelineDates[0], -7);
@@ -460,25 +383,24 @@ function updateFrameRange(startIndex, endIndex){
     d3.select(this).select("path.series-line").attr("d", lineGenerator(drawValues));
 
     const dotsSel = d3.select(this).select("g.series-dots").selectAll("circle.dot").data(drawValues, d => d.date.getTime());
-    const dotR = Number(d3.select(this).select("g.series-dots").attr("data-dot-r"));
     dotsSel.enter()
       .append("circle")
       .attr("class", "dot")
-      .attr("r", dotR)
       .attr("fill", getOrgColor(series.id))
       .attr("stroke", "#fff")
       .attr("stroke-width", 1)
+      .merge(dotsSel)
+      .attr("r", recomputedDotR)
+      .attr("cx", point => xScale(point.date))
+      .attr("cy", point => yScale(point.end))
       .on("mouseenter", function(event, point){
         const seriesGroup = d3.select(this.parentNode.parentNode);
         seriesGroup.raise();
-        d3.select(this).transition().duration(120).attr("r", dotR + 3).attr("stroke-width", 2);
+        d3.select(this).transition().duration(120).attr("r", recomputedDotR + 3).attr("stroke-width", 2);
         showTooltip(event, { ...point, seriesId: series.id });
       })
       .on("mousemove", function(event, point){ moveTooltip(event, { ...point, seriesId: series.id }); })
-      .on("mouseleave", function(){ d3.select(this).transition().duration(120).attr("r", dotR).attr("stroke-width", 1); hideTooltip(); })
-      .merge(dotsSel)
-      .attr("cx", point => xScale(point.date))
-      .attr("cy", point => yScale(point.end));
+      .on("mouseleave", function(){ d3.select(this).transition().duration(120).attr("r", recomputedDotR).attr("stroke-width", 1); hideTooltip(); });
     dotsSel.exit().remove();
 
     const lastPoint = rec.last;
@@ -496,6 +418,8 @@ function updateFrameRange(startIndex, endIndex){
       node.style("display", "none");
     }
   });
+
+  updateDateUI();
 }
 
 function showTooltip(event, point){
@@ -517,227 +441,15 @@ function moveTooltip(event, point){
 
 function hideTooltip(){ tooltip.style("opacity", 0); }
 
-if(typeof ResizeObserver !== "undefined" && vizEl){
-  const chartObserver = new ResizeObserver(()=>{ render(); updateFrameRange(currentStart, currentEnd); });
-  chartObserver.observe(vizEl);
+function updateDateUI(){
+  if(!timelineDates.length || !dateDisplayEl){ return; }
+  const idx = Math.max(0, Math.min(currentEnd, timelineDates.length - 1));
+  const d = timelineDates[idx];
+  dateDisplayEl.textContent = `${dateFormatter(d)}`;
 }
-window.addEventListener("resize", ()=>{ render(); updateFrameRange(currentStart, currentEnd); });
-svg.on("mouseleave", hideTooltip);
 
-(function(){
-  const clamp=(v,min,max)=>Math.min(Math.max(v,min),max);
-  const RangeSlider={
-    selectionDragHandlersBound:false,
-    boundSelectionEl:null,
-    mouseMoveHandlerRef:null,
-    mouseUpHandlerRef:null,
-    touchMoveHandlerRef:null,
-    touchEndHandlerRef:null,
-    init(config){
-      if(!config||!config.containerEl){ return; }
-      this.root=config.containerEl.querySelector(".range-slider-panel")||config.containerEl;
-      this.startInput=this.root.querySelector('[data-role="start"]');
-      this.endInput=this.root.querySelector('[data-role="end"]');
-      this.selectionEl=this.root.querySelector('[data-role="selection"]');
-      this.trackWrapper=this.root.querySelector(".range-slider-track-wrapper");
-      this.startTitle=this.root.querySelector('[data-role="title-start"]');
-      this.endTitle=this.root.querySelector('[data-role="title-end"]');
-      this.startValue=this.root.querySelector('[data-label="start"]');
-      this.endValue=this.root.querySelector('[data-label="end"]');
-      this.playBtn=this.root.querySelector('[data-action="play"]');
-      this.pauseBtn=this.root.querySelector('[data-action="pause"]');
-      this.resetBtn=this.root.querySelector('[data-action="reset"]');
-      this.speedSelect=this.root.querySelector('[data-role="speed"]');
-      this.modeSelect=this.root.querySelector('[data-role="mode"]');
-      this.stepSelect=this.root.querySelector('[data-role="step"]');
-      this.onChange=typeof config.onChange==="function"?config.onChange:function(){};
-      this.getLabel=function(index){ return String(index); };
-      this.unitLabel="Week";
-      this.state={min:0,max:0,start:0,end:0};
-      this.playTimer=null;
-      this.dragSession=null;
-      this.bindSelectionDrag();
-      const handleInput=role=>{
-        if(!this.startInput||!this.endInput){ return; }
-        const input=role==="start"?this.startInput:this.endInput;
-        let value=Math.round(Number(input.value));
-        if(!Number.isFinite(value)){ value=role==="start"?this.state.start:this.state.end; }
-        value=clamp(value,this.state.min,this.state.max);
-        if(role==="start"){
-          this.state.start=value;
-          if(value>this.state.end){ this.state.end=value; this.endInput.value=String(value); }
-        }else{
-          this.state.end=value;
-          if(value<this.state.start){ this.state.start=value; this.startInput.value=String(value); }
-        }
-        this.updateDerived(true);
-      };
-      if(this.startInput){ this.startInput.addEventListener("input",()=>handleInput("start")); this.startInput.addEventListener("change",()=>handleInput("start")); }
-      if(this.endInput){ this.endInput.addEventListener("input",()=>handleInput("end")); this.endInput.addEventListener("change",()=>handleInput("end")); }
-      if(this.playBtn){ this.playBtn.addEventListener("click",()=>this.play()); }
-      if(this.pauseBtn){ this.pauseBtn.addEventListener("click",()=>this.pause()); }
-      if(this.resetBtn){ this.resetBtn.addEventListener("click",()=>this.reset()); }
-      if(this.speedSelect){ this.speedSelect.addEventListener("change",()=>{ if(this.playTimer){ this.restartTimer(); } }); }
-      if(this.modeSelect){ this.modeSelect.addEventListener("change",()=>{}); }
-      if(this.stepSelect){ this.stepSelect.addEventListener("change",()=>{}); }
-      this.updateDerived(false);
-    },
-    getSpeed(){ const v=parseInt(this.speedSelect&&this.speedSelect.value?this.speedSelect.value:500,10); return Number.isFinite(v)&&v>0?v:500; },
-    getMode(){ const v=this.modeSelect&&this.modeSelect.value?this.modeSelect.value:"slide"; return v==="slide"?"slide":"grow"; },
-    getStep(){ const v=parseInt(this.stepSelect&&this.stepSelect.value?this.stepSelect.value:1,10); return Number.isFinite(v)&&v>0?v:1; },
-    getInputStep(){ const a=this.startInput?Number(this.startInput.step):NaN; if(Number.isFinite(a)&&a>0){ return a; } const b=this.endInput?Number(this.endInput.step):NaN; if(Number.isFinite(b)&&b>0){ return b; } return 1; },
-    bindSelectionDrag(){
-      if(this.boundSelectionEl&&this.boundSelectionEl!==this.selectionEl){ this.selectionDragHandlersBound=false; }
-      if(!this.selectionEl||this.selectionDragHandlersBound){ return; }
-      this.boundSelectionEl=this.selectionEl;
-      this.selectionDragHandlersBound=true;
-      const supportsPointer=typeof window!=="undefined"&&"PointerEvent" in window;
-      const getClientX=e=>e&&typeof e.clientX==="number"?e.clientX:(e&&e.touches&&e.touches.length?e.touches[0].clientX:NaN);
-      const beginDrag=(event,meta={})=>{
-        const pointerType=meta.pointerType||"mouse";
-        if(pointerType==="mouse"){
-          const button=event&&typeof event.button==="number"?event.button:0;
-          const buttons=event&&typeof event.buttons==="number"?event.buttons:1;
-          if(button!==0&&buttons!==1){ return false; }
-        }
-        if(this.startInput&&this.startInput.disabled){ return false; }
-        const span=this.state.max-this.state.min;
-        if(!Number.isFinite(span)||span<=0){ return false; }
-        const rect=this.trackWrapper.getBoundingClientRect();
-        const clientX=typeof meta.clientX==="number"?meta.clientX:getClientX(event);
-        if(!Number.isFinite(clientX)){ return false; }
-        if(this.isPlaying()){ this.pause(); }
-        const stepValue=Math.max(1,this.getInputStep());
-        const spanSteps=Math.max(0,Math.round(span/stepValue));
-        const startIndex=Math.round((this.state.start-this.state.min)/stepValue);
-        const endIndex=Math.round((this.state.end-this.state.min)/stepValue);
-        const pointerId=event&&typeof event.pointerId==="number"?event.pointerId:null;
-        this.dragSession={ pointerId, originX:clientX, trackWidth:rect.width, min:this.state.min, max:this.state.max, step:stepValue, spanSteps, startIndex:Math.min(startIndex,endIndex), windowSteps:Math.max(0,endIndex-startIndex), kind:pointerType };
-        this.selectionEl.classList.add("is-grabbing");
-        return true;
-      };
-      const dragSelection=(clientX)=>{
-        const drag=this.dragSession;
-        if(!drag||!Number.isFinite(drag.trackWidth)||drag.trackWidth<=0){ return; }
-        const totalSteps=drag.spanSteps;
-        const deltaX=clientX-drag.originX;
-        const deltaSteps=Math.round((deltaX/drag.trackWidth)*totalSteps);
-        const maxStartIndex=Math.max(0,totalSteps-drag.windowSteps);
-        let nextStartIndex=drag.startIndex+deltaSteps;
-        nextStartIndex=clamp(nextStartIndex,0,maxStartIndex);
-        const nextEndIndex=nextStartIndex+drag.windowSteps;
-        const toValue=i=>Number((drag.min+i*drag.step).toFixed(6));
-        this.state.start=toValue(nextStartIndex);
-        this.state.end=toValue(nextEndIndex);
-        this.startInput.value=String(this.state.start);
-        this.endInput.value=String(this.state.end);
-        this.updateDerived(true);
-      };
-      const endDrag=()=>{
-        if(!this.dragSession){ return; }
-        this.selectionEl.classList.remove("is-grabbing");
-        this.dragSession=null;
-      };
-      if(supportsPointer){
-        this.selectionEl.addEventListener("pointerdown",e=>{ if(beginDrag(e,{ pointerType:e.pointerType })){ this.selectionEl.setPointerCapture(e.pointerId); } });
-        this.selectionEl.addEventListener("pointermove",e=>{ if(this.dragSession){ dragSelection(e.clientX); } });
-        this.selectionEl.addEventListener("pointerup",()=>endDrag());
-        this.selectionEl.addEventListener("pointercancel",()=>endDrag());
-      }else{
-        this.selectionEl.addEventListener("mousedown",e=>{ if(beginDrag(e,{ pointerType:"mouse", clientX:e.clientX })){ this.mouseMoveHandlerRef=ev=>{ if(this.dragSession){ dragSelection(ev.clientX); } }; this.mouseUpHandlerRef=()=>endDrag(); window.addEventListener("mousemove",this.mouseMoveHandlerRef); window.addEventListener("mouseup",this.mouseUpHandlerRef); } });
-        this.selectionEl.addEventListener("touchstart",e=>{ if(!e.touches.length){ return; } const t=e.touches[0]; if(beginDrag(e,{ pointerType:"touch", clientX:t.clientX })){ this.touchMoveHandlerRef=ev=>{ if(!ev.touches.length){ return; } dragSelection(ev.touches[0].clientX); }; this.touchEndHandlerRef=()=>endDrag(); window.addEventListener("touchmove",this.touchMoveHandlerRef,{ passive:false }); window.addEventListener("touchend",this.touchEndHandlerRef); window.addEventListener("touchcancel",this.touchEndHandlerRef); } },{ passive:false });
-      }
-    },
-    update(config){
-      if(!this.root){ return; }
-      const cfg=config||{};
-      const hasBounds=Number.isFinite(cfg.min)&&Number.isFinite(cfg.max)&&cfg.max>=cfg.min;
-      const min=hasBounds?Math.round(cfg.min):0;
-      const max=hasBounds?Math.round(cfg.max):0;
-      const startCandidate=Number.isFinite(cfg.start)?Math.round(cfg.start):min;
-      const endCandidate=Number.isFinite(cfg.end)?Math.round(cfg.end):min;
-      this.state.min=min;
-      this.state.max=max;
-      this.state.start=Math.min(Math.max(startCandidate,min),max);
-      this.state.end=Math.min(Math.max(endCandidate,this.state.start),max);
-      this.startInput.min=String(min);
-      this.startInput.max=String(max);
-      this.endInput.min=String(min);
-      this.endInput.max=String(max);
-      this.startInput.value=String(this.state.start);
-      this.endInput.value=String(this.state.end);
-      this.root.classList.toggle("is-disabled",max<=min);
-      if(typeof cfg.getLabel==="function"){ this.getLabel=cfg.getLabel; }
-      if(typeof cfg.unitLabel==="string"){ this.unitLabel=cfg.unitLabel; }
-      this.updateDerived(false);
-    },
-    updateDerived(emit){
-      if(this.startTitle){ this.startTitle.textContent=`Starting ${this.unitLabel}`; }
-      if(this.endTitle){ this.endTitle.textContent=`Ending ${this.unitLabel}`; }
-      if(this.startValue){ this.startValue.textContent=this.getLabel(this.state.start); }
-      if(this.endValue){ this.endValue.textContent=this.getLabel(this.state.end); }
-      const span=this.state.max-this.state.min;
-      if(span>0){
-        const startRatio=(this.state.start-this.state.min)/span;
-        const endRatio=(this.state.end-this.state.min)/span;
-        this.selectionEl.style.left=`${startRatio*100}%`;
-        this.selectionEl.style.right=`${(1-endRatio)*100}%`;
-      }else{
-        this.selectionEl.style.left="0%";
-        this.selectionEl.style.right="100%";
-      }
-      if(emit&&this.onChange){ this.onChange({ start:this.state.start, end:this.state.end }); }
-    },
-    isPlaying(){ return !!this.playTimer; },
-    stepOnce(){
-      if(this.state.end>=this.state.max){ this.pause(); return; }
-      const step=this.getStep();
-      const mode=this.getMode();
-      const nextEnd=Math.min(this.state.max,this.state.end+step);
-      if(mode==="slide"){
-        const windowSize=Math.max(1,this.state.end-this.state.start);
-        const nextStart=Math.max(this.state.min,nextEnd-windowSize);
-        this.state.start=nextStart;
-      }
-      this.state.end=nextEnd;
-      this.startInput.value=String(this.state.start);
-      this.endInput.value=String(this.state.end);
-      this.updateDerived(true);
-      if(this.state.end>=this.state.max){ this.pause(); }
-    },
-    play(){
-      if(this.isPlaying()){ return; }
-      if(this.state.end>=this.state.max){ this.state.end=this.state.start; this.updateDerived(true); }
-      this.root.querySelector('[data-action="play"]').classList.add("hidden");
-      this.root.querySelector('[data-action="pause"]').classList.remove("hidden");
-      this.playTimer=window.setInterval(()=>this.stepOnce(),this.getSpeed());
-    },
-    pause(){
-      if(!this.isPlaying()){ return; }
-      window.clearInterval(this.playTimer);
-      this.playTimer=null;
-      this.root.querySelector('[data-action="pause"]').classList.add("hidden");
-      this.root.querySelector('[data-action="play"]').classList.remove("hidden");
-    },
-    reset(){
-      const wasPlaying=this.isPlaying();
-      if(wasPlaying){ this.pause(); }
-      this.state.end=this.state.start;
-      this.endInput.value=String(this.state.end);
-      this.updateDerived(true);
-    },
-    restartTimer(){
-      if(!this.isPlaying()){ return; }
-      window.clearInterval(this.playTimer);
-      this.playTimer=window.setInterval(()=>this.stepOnce(),this.getSpeed());
-    }
-  };
-  window.RangeSlider=RangeSlider;
-})();
-
-function initSlider(){
-  const panelHost = document.getElementById("container2");
-  const fmt = d3.utcFormat("%b %-d, %Y");
+function setupAnimation(){
+  if(!timelineDates.length){ return; }
   const clampIndex = v => Math.max(0, Math.min(v, timelineDates.length - 1));
   const findStartIdx = (date)=>{
     let idx = timelineDates.findIndex(d => d.getTime() >= date.getTime());
@@ -752,27 +464,68 @@ function initSlider(){
     return clampIndex(idx);
   };
 
-  const defaultStart = findStartIdx(DEFAULT_START_DATE);
-  const defaultEnd = findEndIdx(DEFAULT_END_DATE);
+  animDefaultStart = findStartIdx(DEFAULT_START_DATE);
+  animDefaultEnd = findEndIdx(DEFAULT_END_DATE);
+  animWindowSize = Math.max(1, animDefaultEnd - animDefaultStart);
 
-  window.RangeSlider.init({
-    containerEl: panelHost,
-    onChange: ({start,end})=>{ updateFrameRange(start,end); }
-  });
-  window.RangeSlider.update({
-    min: 0,
-    max: Math.max(0, timelineDates.length - 1),
-    start: defaultStart,
-    end: Math.max(defaultStart, defaultEnd),
-    unitLabel: "Week",
-    getLabel: i=>{
-      const idx = Math.max(0, Math.min(i, timelineDates.length - 1));
-      const d = timelineDates[idx];
-      return `Week ${idx} • ${fmt(d)}`;
-    }
-  });
-  updateFrameRange(defaultStart, Math.max(defaultStart, defaultEnd));
+  currentStart = animDefaultStart;
+  currentEnd = animDefaultStart;
+  updateFrameRange(currentStart, currentEnd);
+
+  startTimer();
 }
+
+function tick(){
+  if(currentEnd >= animDefaultEnd){
+    stopTimer();
+    return;
+  }
+  const nextEnd = Math.min(animDefaultEnd, currentEnd + autoStep);
+  const nextStart = Math.max(0, nextEnd - animWindowSize);
+  updateFrameRange(nextStart, nextEnd);
+}
+
+function startTimer(){
+  stopTimer();
+  autoTimer = window.setInterval(tick, autoDelay);
+}
+
+function stopTimer(){
+  if(autoTimer){ window.clearInterval(autoTimer); autoTimer = null; }
+}
+
+function restartTimerIfPlaying(){
+  if(autoTimer){ startTimer(); }
+}
+
+function setAutoStep(n){
+  const v = Math.max(STEP_MIN, Math.min(STEP_MAX, Math.round(n)));
+  autoStep = v;
+  restartTimerIfPlaying();
+}
+
+function setAutoDelay(ms){
+  const v = Math.max(DELAY_MIN, Math.min(DELAY_MAX, Math.round(ms)));
+  autoDelay = v;
+  restartTimerIfPlaying();
+}
+
+function bindSpeedKeys(){
+  window.addEventListener("keydown", e=>{
+    if(e.key === "-" || e.key === "_"){ setAutoDelay(autoDelay + 150); }
+    else if(e.key === "=" || e.key === "+"){ setAutoDelay(autoDelay - 120); }
+    else if(e.key === "["){ setAutoStep(autoStep - 1); }
+    else if(e.key === "]"){ setAutoStep(autoStep + 1); }
+  });
+  window.AnimationSpeed = { setAutoStep, setAutoDelay };
+}
+
+if(typeof ResizeObserver !== "undefined" && vizEl){
+  const chartObserver = new ResizeObserver(()=>{ render(); updateFrameRange(currentStart, currentEnd); });
+  chartObserver.observe(vizEl);
+}
+window.addEventListener("resize", ()=>{ render(); updateFrameRange(currentStart, currentEnd); });
+svg.on("mouseleave", hideTooltip);
 </script>
 </body>
 </html>
