@@ -15,6 +15,7 @@ body { margin: 0; overflow: hidden; background: #ffffff; color: #111; font-famil
 .source-text { font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .source-text a { color: #2756d3; text-decoration: underline; }
 .logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; object-fit: contain; }
+.logo-note { font-size: clamp(10px, 1.2vw, 12px); color: #777; font-style: italic; white-space: nowrap; }
 .y-axis-container { flex: 0 0 clamp(32px, 3vw, 46px); display: flex; align-items: center; justify-content: flex-end; min-width: 0; border-right: 1px solid rgba(0, 0, 0, 0.1); box-sizing: border-box; padding: 0 6px; }
 .y-axis-label { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-weight: 600; font-size: clamp(11px, 1.2vw, 16px); color: #333; line-height: 1.2; letter-spacing: 0.04em; }
 .chart-wrapper { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; margin-left: -6px; }
@@ -31,10 +32,9 @@ body { margin: 0; overflow: hidden; background: #ffffff; color: #111; font-famil
 
 .date-display { display: inline-flex; align-items: center; padding: 6px 12px; border: 1px solid #cfd2d7; border-radius: 10px; background: rgba(255,255,255,.92); font-weight: 700; color: #26344f; font-size: clamp(12px, 1.4vw, 16px); line-height: 1; }
 
-/* Minimum window size */
 @media (max-width: 420px), (max-height: 560px) {
-  #container2 { padding: 4px 10px; }
-  .date-display { padding: 2px 8px; border-radius: 8px; font-size: clamp(9px, 3.2vw, 12px); }
+  #container2 { display: none; }
+  .logo-note { display: none; }
 }
 
 @media (max-width: 980px) {
@@ -66,6 +66,7 @@ body { margin: 0; overflow: hidden; background: #ffffff; color: #111; font-famil
     <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank" rel="noopener">HuggingFace</a></div>
   </div>
   <div id="container4" class="container logo-container">
+    <span class="logo-note">*Considering repos with at least 500 downloads for datasets and models, and 10 likes for spaces</span>
     <a href="https://aiworld.eu/" target="_blank" rel="noopener">
       <img src="logo.svg" class="logo" alt="AI World logo" crossorigin="anonymous">
     </a>
@@ -90,7 +91,7 @@ const STEP_MAX = 16;
 const DELAY_MIN = 60;
 const DELAY_MAX = 4000;
 let autoStep = 1;
-let autoDelay = 200;
+let autoDelay = 500;
 
 const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
 const formatComma = d3.format(",.0f");
@@ -257,6 +258,13 @@ function getOrgLogo(id){
   return meta.logo || meta.logo_url || meta.avatar || meta.icon || null;
 }
 
+function getMonthTickStep(innerW){
+  if(innerW < 360){ return 6; }
+  if(innerW < 680){ return 3; }
+  if(innerW < 900){ return 2; }
+  return 1;
+}
+
 function render(){
   if(!chartSeries.length){
     svg.selectAll("*").remove();
@@ -291,12 +299,13 @@ function render(){
 
   xScale = d3.scaleUtc().domain(xDomain).range([0, Math.max(120, width - margin.left - margin.right)]);
   yScale = d3.scaleLinear().domain([0, yMax]).nice().range([Math.max(120, height - margin.top - margin.bottom), 0]);
+
   const innerW = xScale.range()[1];
   const isTiny = innerW < 420;
   const compact = innerW < 720 && !isTiny;
   const dotR = isTiny ? Math.max(1, Math.min(3, Math.round(innerW / 360))) : compact ? Math.round(Math.max(2, Math.min(4, innerW / 300))) : Math.round(Math.max(3, Math.min(6, innerW / 250)));
+  const xTickStep = getMonthTickStep(innerW);
 
-  const xTickStep = innerW < 680 ? 3 : innerW < 900 ? 2 : 1;
   const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(xTickStep)).tickFormat(d3.utcFormat("%b %Y"));
   const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
 
@@ -342,6 +351,7 @@ function updateFrameRange(startIndex, endIndex){
   const r = Math.round(logoSize / 2 + 2);
 
   const recomputedDotR = (()=>{ if(isTinyW){ return Math.max(1, Math.min(3, Math.round(innerWidth / 360))); } if(compact){ return Math.round(Math.max(2, Math.min(4, innerWidth / 300))); } return Math.round(Math.max(3, Math.min(6, innerWidth / 250))); })();
+  const xTickStep = getMonthTickStep(innerWidth);
 
   const baseIndex = currentStart - 1;
   const domainStartDate = baseIndex >= 0 ? timelineDates[baseIndex] : d3.utcDay.offset(timelineDates[0], -7);
@@ -349,7 +359,7 @@ function updateFrameRange(startIndex, endIndex){
 
   xScale.domain([domainStartDate, domainEndDate]);
 
-  const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(1)).tickFormat(d3.utcFormat("%b %Y"));
+  const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(xTickStep)).tickFormat(d3.utcFormat("%b %Y"));
   root.select("g.x-axis").attr("transform", `translate(0,${yScale.range()[0]})`).call(xAxis);
   root.select("g.x-axis .domain").attr("stroke", "#cfd2d7");
 
