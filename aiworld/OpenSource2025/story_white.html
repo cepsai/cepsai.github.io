@@ -72,7 +72,6 @@ body {
 #viz { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
 #chart { display: block; width: 100%; height: 100%; }
 
-/* ---- TOOLTIP ---- */
 #tooltip {
   position: absolute;
   background: #fff;
@@ -87,7 +86,6 @@ body {
   max-width: 220px;
 }
 
-/* ---- FOOTER (now occupies its own grid row; no absolute positioning) ---- */
 #container3 {
   grid-row: 2;
   grid-column: 1;
@@ -120,7 +118,6 @@ body {
 .logo-note { font-size: clamp(10px, 1.2vw, 12px); color: #777; font-style: italic; white-space: nowrap; }
 .logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
 
-/* ---- Misc chart styles ---- */
 .axis path, .axis line { stroke: #cfd2d7; }
 .axis text { fill: #333; font-size: 12px; }
 .x-axis text { font-size: clamp(11px, 1.2vw, 18px); }
@@ -130,7 +127,6 @@ body {
 .series-dots .dot { cursor: pointer; }
 .final-node { cursor: pointer; }
 
-/* ---- RESPONSIVE BREAKPOINTS (hide later than before) ---- */
 @media (max-width: 640px) {
   #container3 { display: none; }
 }
@@ -420,8 +416,57 @@ function render(){
   const seriesMerged = seriesEnter.merge(seriesGroups);
   seriesMerged.each(function(series){
     d3.select(this).select("path.series-line").attr("stroke", getOrgColor(series.id)).attr("d", lineGenerator(series.values));
-    const dots = d3.select(this).select("g.series-dots").selectAll("circle.dot").data(series.values.map(point => ({ ...point, seriesId: series.id })), point => point.date.getTime());
-    dots.enter().append("circle").attr("class", "dot").attr("r", dotR).attr("fill", getOrgColor(series.id)).attr("stroke", "#fff").attr("stroke-width", 1).merge(dots).attr("r", dotR).attr("cx", point => xScale(point.date)).attr("cy", point => yScale(point.value));
+    const dots = d3.select(this)
+      .select("g.series-dots")
+      .selectAll("circle.dot")
+      .data(
+        series.values.map(point => ({ ...point, seriesId: series.id })),
+        point => point.date.getTime()
+      );
+    dots.enter()
+      .append("circle")
+      .attr("class", "dot")
+      .attr("r", dotR)
+      .attr("fill", getOrgColor(series.id))
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 1)
+      .on("mouseenter", function(event, point){
+        const seriesGroup = d3.select(this.parentNode.parentNode);
+        const g = seriesGroup.select("g.final-node");
+        seriesGroup.raise();
+        g.raise();
+        d3.select(this).transition().duration(120).attr("r", dotR + 3).attr("stroke-width", 2);
+        const outline = g.select("circle.final-outline");
+        const logo = g.select("image.final-logo");
+        outline.transition().duration(120).attr("r", r + 3).attr("stroke-width", 3);
+        logo.transition().duration(120)
+          .attr("x", cx - (logoSize + 6) / 2)
+          .attr("y", cy - (logoSize + 6) / 2)
+          .attr("width", logoSize + 6)
+          .attr("height", logoSize + 6);
+        showTooltip(event, point);
+      })
+      .on("mousemove", function(event, point){
+        moveTooltip(event, point);
+      })
+      .on("mouseleave", function(){
+        const seriesGroup = d3.select(this.parentNode.parentNode);
+        const g = seriesGroup.select("g.final-node");
+        d3.select(this).transition().duration(120).attr("r", dotR).attr("stroke-width", 1);
+        const outline = g.select("circle.final-outline");
+        const logo = g.select("image.final-logo");
+        outline.transition().duration(120).attr("r", r).attr("stroke-width", 2);
+        logo.transition().duration(120)
+          .attr("x", cx - logoSize / 2)
+          .attr("y", cy - logoSize / 2)
+          .attr("width", logoSize)
+          .attr("height", logoSize);
+        hideTooltip();
+      })
+      .merge(dots)
+      .attr("r", dotR)
+      .attr("cx", point => xScale(point.date))
+      .attr("cy", point => yScale(point.value));
     dots.exit().remove();
 
     const lastPoint = series.values[series.values.length - 1];
@@ -432,8 +477,52 @@ function render(){
     const logoUrl = getOrgLogo(series.id) || "";
     const node = d3.select(this).select("g.final-node");
     node.raise();
-    node.select("circle.final-outline").attr("cx", cx).attr("cy", cy).attr("r", r).attr("fill", "#ffffff").attr("stroke", getOrgColor(series.id)).attr("stroke-width", 2);
-    node.select("image.final-logo").attr("href", logoUrl).attr("x", cx - logoSize / 2).attr("y", cy - logoSize / 2).attr("width", logoSize).attr("height", logoSize).attr("preserveAspectRatio", "xMidYMid slice").attr("clip-path", "url(#logoCircleClip)");
+    node.select("circle.final-outline")
+      .attr("cx", cx)
+      .attr("cy", cy)
+      .attr("r", r)
+      .attr("fill", "#ffffff")
+      .attr("stroke", getOrgColor(series.id))
+      .attr("stroke-width", 2);
+    node.select("image.final-logo")
+      .attr("href", logoUrl)
+      .attr("x", cx - logoSize / 2)
+      .attr("y", cy - logoSize / 2)
+      .attr("width", logoSize)
+      .attr("height", logoSize)
+      .attr("preserveAspectRatio", "xMidYMid slice")
+      .attr("clip-path", "url(#logoCircleClip)");
+    node.style("pointer-events", "all")
+      .on("mouseenter", (event)=>{
+        const g = d3.select(event.currentTarget);
+        const seriesGroup = d3.select(event.currentTarget.parentNode);
+        seriesGroup.raise();
+        g.raise();
+        const outline = g.select("circle.final-outline");
+        const logo = g.select("image.final-logo");
+        outline.transition().duration(120).attr("r", r + 3).attr("stroke-width", 3);
+        logo.transition().duration(120)
+          .attr("x", cx - (logoSize + 6) / 2)
+          .attr("y", cy - (logoSize + 6) / 2)
+          .attr("width", logoSize + 6)
+          .attr("height", logoSize + 6);
+        showTooltip(event, { ...lastPoint, seriesId: series.id });
+      })
+      .on("mousemove", (event)=>{
+        moveTooltip(event, { ...lastPoint, seriesId: series.id });
+      })
+      .on("mouseleave", (event)=>{
+        const g = d3.select(event.currentTarget);
+        const outline = g.select("circle.final-outline");
+        const logo = g.select("image.final-logo");
+        outline.transition().duration(120).attr("r", r).attr("stroke-width", 2);
+        logo.transition().duration(120)
+          .attr("x", cx - logoSize / 2)
+          .attr("y", cy - logoSize / 2)
+          .attr("width", logoSize)
+          .attr("height", logoSize);
+        hideTooltip();
+      });
   });
   seriesGroups.exit().remove();
 }
