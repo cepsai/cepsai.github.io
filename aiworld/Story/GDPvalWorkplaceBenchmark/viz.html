@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AI Models vs Occupations</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+html,body{height:100%;}
+body{
+    margin:0;
+    overflow:hidden;
+    background:#fff;
+    color:#111;
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;
+    height:100vh;
+}
+.viz-grid{
+    display:grid;
+    grid-template-rows:1.5fr 16fr 0.5fr 1fr;
+    grid-template-columns:1fr 1fr;
+    height:100vh;
+    width:100vw;
+    box-sizing:border-box;
+    padding-bottom:0;
+} 
+#container1{
+    grid-row:2;
+    grid-column:1 / span 2;
+    display:flex;
+    overflow:hidden;
+    /*min-height:0;*/
+    align-items:center;
+    justify-content:center;
+}
+#container1 .chart-wrapper{
+    flex:1 1 auto;
+    display:flex;
+    min-width:0;
+    height:100%;
+}
+#container1 .chart-wrapper-inner{flex:1 1 auto;display:flex;min-width:0;height:100%;}
+#chart{
+    display:block;
+    width:100%;
+    height:100%;
+}
+
+#container2{grid-row:1;grid-column:1 / span 2;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:6px 10px;}
+#container3{grid-row:4;grid-column:1;display:flex;align-items:center;justify-content:flex-start;padding:4px 20px;overflow:hidden;min-width:0;}
+
+#container4{
+    grid-row:4;
+    grid-column:2;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    /*padding:4px 20px;*/
+    overflow:hidden;
+    /*min-width:0;*/
+    gap: clamp(10px, 2vw, 16px);
+}
+#container4 a{
+    height:100%;
+    display:flex;
+    align-items:center;
+}
+
+#sectorButtons{display:flex;gap:clamp(6px,1.6vw,12px);flex-wrap:wrap;justify-content:center;margin:0;}
+#sectorButtons .btn{appearance:none;border:1px solid #d0d0d7;background:linear-gradient(#ffffff,#f6f7fb);border-radius:10px;padding:clamp(4px,.9vw,8px) clamp(10px,2vw,16px);cursor:pointer;font-weight:600;min-height:clamp(26px,3.6vw,34px);line-height:1;transition:transform .06s ease,box-shadow .2s ease,background .2s ease,color .2s ease,border-color .2s ease;box-shadow:0 1px 2px rgba(0,0,0,.04),inset 0 -1px 0 rgba(0,0,0,.03);white-space:nowrap;font-size:clamp(11px,1.6vw,15px);}
+#sectorButtons .btn:hover{transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.08),inset 0 -1px 0 rgba(0,0,0,.02);} 
+#sectorButtons .btn:active{transform:translateY(0);} 
+#sectorButtons .btn:focus-visible{outline:2px solid #1a73e8;outline-offset:2px;} 
+#sectorButtons .btn.active{background:#1a73e8;color:#fff;border-color:#1a73e8;box-shadow:0 4px 10px rgba(26,115,232,.35);} 
+.source-text{font-size:clamp(10px,1.6vw,16px);font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-style:normal;}
+.source-text a{color:#2756d3;text-decoration:underline;cursor:pointer;font-style:normal;}
+.source-text a:visited{color:#2756d3;}
+.logo-container .logo{height:100%;width:auto;max-height:100%;max-width:100%;pointer-events:auto;object-fit:contain;}
+#legendContainer{grid-row:3;grid-column:1 / span 2;display:flex;align-items:center;justify-content:center;padding:0 20px;overflow:hidden;position:relative;}
+.legend{display:flex;align-items:center;gap:clamp(12px,2vw,28px);flex-wrap:wrap;font-size:clamp(11px,1.6vw,15px);font-weight:600;color:#333;}
+.legend-item{display:flex;align-items:center;gap:8px;}
+.legend-swatch{width:18px;height:18px;border-radius:4px;background:#aeb4c2;box-shadow:0 0 0 1px rgba(0,0,0,.12) inset;}
+.legend-swatch.win{background:#9aa0af;}
+.legend-swatch.tie{background-color:#c4c9d6;background-image:linear-gradient(45deg,transparent 45%,rgba(79,109,181,.75) 45%,rgba(79,109,181,.75) 55%,transparent 55%),linear-gradient(-45deg,transparent 45%,rgba(79,109,181,.75) 45%,rgba(79,109,181,.75) 55%,transparent 55%);background-size:6px 6px;}
+.note{font-size:clamp(8px,1vw,12px);color:#777;font-style:italic;white-space:nowrap;position:absolute;right:20px;}
+@media 
+(max-height:500px), 
+(max-width:640px)
+{.viz-grid{
+    grid-template-rows:1fr;
+    grid-template-columns:1fr;
+    padding-bottom:0px;}
+    #container2,
+    #container3,
+    #container4,
+    #legendContainer{display:none !important;}
+    #container1{grid-row:1;grid-column:1;}
+    }
+</style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container2" class="container control-container">
+    <div id="sectorButtons"></div>
+  </div>
+  <div id="container1" class="container chart-container">
+    <div class="chart-wrapper">
+      <div class="chart-wrapper-inner">
+        <svg id="chart"></svg>
+      </div>
+    </div>
+  </div>
+  <div id="legendContainer" class="container legend-container">
+    <div class="legend">
+      <div class="legend-item">
+        <span class="legend-swatch win"></span>
+        <span>Wins</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch tie"></span>
+        <span>Ties</span>
+      </div>
+    </div>
+    <div class="note">*Illustrative: four occupations; percentages are leaderboard wins and wins + ties.</div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text">Source: <a href="https://evals.openai.com/gdpval/leaderboard" target="_blank" rel="noopener">OpenAI GDPval Leaderboard</a> and <a href="https://evals.openai.com/gdpval/leaderboard" target="_blank" rel="noopener">HuggingFace</a></div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+    </a>
+  </div>
+</div>
+<div id="tooltip"></div>
+<script>
+const tooltip=d3.select("#tooltip");
+let rawData=[];
+let sectors=[];
+let metricKeys={wins:null,ties:null,losses:null};
+let active={sector:null};
+const providerLogos={
+    "openai":"https://upload.wikimedia.org/wikipedia/commons/6/66/OpenAI_logo_2025_%28symbol%29.svg",
+    "anthropic":"https://cdn.brandfetch.io/idmJWF3N06/theme/dark/symbol.svg",
+    "google":"https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg",
+    "google (google deepmind)":"https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg",
+    "xai":"https://upload.wikimedia.org/wikipedia/commons/5/57/XAI-Logo.svg",
+    "deepseek":"https://logoeps.com/wp-content/uploads/2025/02/DeepSeek_logo_icon.png",
+    "alibaba":"https://registry.npmmirror.com/@lobehub/icons-static-png/1.60.0/files/dark/qwen-color.png",
+    "qwen":"https://registry.npmmirror.com/@lobehub/icons-static-png/1.60.0/files/dark/qwen-color.png",
+    "moonshot":"https://registry.npmmirror.com/@lobehub/icons-static-png/1.60.0/files/light/moonshot.png"};
+const providerColors={
+    "openai":"#274653",
+    "anthropic":"#f58905",
+    "google":"#34A853",
+    "google (google deepmind)":"#34A853",
+    "xai":"#2932e1",
+    "deepseek":"#4c6bfe",
+    "alibaba":"#8475f6",
+    "qwen":"#8475f6",
+    "moonshot":"#44AC5D"};
+function normMetricKeys(cols){const lc=cols.map(c=>c.toLowerCase().trim());
+    metricKeys.wins=lc.find(c=>c.includes('win'))||null;metricKeys.ties=lc.find(c=>c.includes('tie')||c.includes('draw')||c.includes('whittle'))||null;
+    metricKeys.losses=lc.find(c=>c.includes('loss'))||null;}
+function parseNum(v){if(v==null){return 0;}const s=String(v).replace(/,/g,'.');const n=parseFloat(s);return isNaN(n)?0:n;}
+function providerKey(p){if(!p){return '';}return String(p).toLowerCase().trim();}
+function normalizeColor(c){if(!c){return null;}const s=String(c).trim();if(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s)){return s;}if(/^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s)){return '#'+s;}return null;}
+function addLogoByProvider(p){const k=providerKey(p);return providerLogos[k]||'';}
+function hexToRgb(hex){const s=hex.replace('#','');const v=s.length===3?s.split('').map(ch=>ch+ch).join(''):s;const n=parseInt(v,16);return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};}
+function rgbToHex(r,g,b){const toHex=x=>x.toString(16).padStart(2,'0');return '#'+toHex(r)+toHex(g)+toHex(b);} 
+function lighten(hex,amt){if(!hex){return null;}const {r,g,b}=hexToRgb(hex);const lr=Math.min(255,Math.round(r+(255-r)*amt));const lg=Math.min(255,Math.round(g+(255-g)*amt));const lb=Math.min(255,Math.round(b+(255-b)*amt));return rgbToHex(lr,lg,lb);} 
+function load(){d3.dsv(";","data.csv").then(data=>{rawData=data;normMetricKeys(data.columns||Object.keys(data[0]||{}));sectors=Array.from(new Set(rawData.map(d=>String(d.sector||d.Sector||'').trim()).filter(s=>s.length>0))).sort((a,b)=>a.localeCompare(b));active.sector=active.sector||sectors[0]||null;buildSectorButtons();createChart();});}
+function buildSectorButtons(){const container=document.getElementById('sectorButtons');if(!container){return;}container.innerHTML='';sectors.forEach(s=>{const btn=document.createElement('button');btn.className='btn'+(s===active.sector?' active':'');btn.textContent=s;btn.addEventListener('click',()=>{active.sector=s;setActiveSectorButton(s);updateChart();});container.appendChild(btn);});}
+function setActiveSectorButton(s){const container=document.getElementById('sectorButtons');if(!container){return;}container.querySelectorAll('.btn').forEach(b=>{if(b.textContent===s){b.classList.add('active');}else{b.classList.remove('active');}});} 
+function getAggregated(){
+  const rows=rawData.filter(d=>!active.sector||String(d.sector||d.Sector||'').trim()===active.sector);
+  const map=new Map();
+  rows.forEach(d=>{
+    const model=String(d.model||d.Model||'').trim();
+    const prov=String(d.provider||d.Provider||'').trim();
+    const label=model.length&&prov.length?model+' — '+prov:(model||prov||'Unknown');
+    const key=label.toLowerCase();
+    const provK=providerKey(prov);
+    const color=normalizeColor(providerColors[provK]||null);
+    const logo=addLogoByProvider(prov);
+    const w=parseNum(d[metricKeys.wins]);
+    const cum=parseNum(d[metricKeys.ties]);
+    if(!map.has(key)){
+      map.set(key,{id:label,wins:0,ties:0,total:0,logo:logo,color:color,_cumTotal:0});
+    }
+    const obj=map.get(key);
+    obj.wins+=w;
+    obj._cumTotal+=cum;
+    obj.ties=Math.max(0,obj._cumTotal-obj.wins);
+    obj.total=obj._cumTotal;
+  });
+  return Array.from(map.values()).map(d=>{if(d._cumTotal!=null){delete d._cumTotal;}return d;});
+}
+function getTop20(){return getAggregated().slice().sort((a,b)=>b.total-a.total).slice(0,20);} 
+let chartState={svg:null,g:null,x:null,y:null,yAxisGroup:null,bgLayer:null,rowBG:null,width:0,height:0,margin:null,barsWin:null,barsTie:null,barsTieOverlay:null,logos:null,sizeFactor:1,axisFS:12,valueFS:12,sourceFS:12,logoWH:24,logoWidth:24,padding:16};
+function barPath(x0,x1,yCenter,h,opts){const o=opts||{};const roundStart=o.roundStart!==false;const roundEnd=o.roundEnd!==false;const baseRadius=o.baseRadius||8;const yTop=yCenter-h/2;const yBot=yCenter+h/2;const width=Math.max(0,x1-x0);if(width<=0){return `M ${x0} ${yTop} L ${x0} ${yBot} L ${x0} ${yBot} Z`;}const radius=Math.min(baseRadius,h/2,width/2);const rStart=roundStart?radius:0;const rEnd=roundEnd?radius:0;let path=`M ${x0} ${yTop+rStart}`;if(rStart){path+=` A ${rStart} ${rStart} 0 0 1 ${x0+rStart} ${yTop}`;}else{path+=` L ${x0} ${yTop}`;}path+=` L ${x1-rEnd} ${yTop}`;if(rEnd){path+=` A ${rEnd} ${rEnd} 0 0 1 ${x1} ${yTop+rEnd}`;}else{path+=` L ${x1} ${yTop}`;}path+=` L ${x1} ${yBot-rEnd}`;if(rEnd){path+=` A ${rEnd} ${rEnd} 0 0 1 ${x1-rEnd} ${yBot}`;}else{path+=` L ${x1} ${yBot}`;}path+=` L ${x0+rStart} ${yBot}`;if(rStart){path+=` A ${rStart} ${rStart} 0 0 1 ${x0} ${yBot-rStart}`;}else{path+=` L ${x0} ${yBot}`;}path+=' Z';return path;} 
+function truncateAxisLabels(maxWidth){if(!chartState.yAxisGroup){return;}chartState.yAxisGroup.selectAll('text').each(function(d){const text=d3.select(this);
+    const full=d;
+    let shown=full;
+    text.text(shown);
+    if(this.getComputedTextLength()<=maxWidth) {text.attr('data-full',full);return;}
+    let low=0;
+    let high=full.length;
+    while(low<high) {const mid=Math.floor((low+high)/2);
+        text.text(full.slice(0,mid)+'…');
+        if(this.getComputedTextLength()<=maxWidth) {low=mid+1;}
+        else{high=mid;}}
+        const cut=Math.max(1,low-1);text.text(full.slice(0,cut)+'…');let title=text.select('title');if(title.empty()){text.append('title').text(full);}else{title.text(full);}});} 
+function getBarHeight(scaleBand,sizeFactor){const bw=scaleBand.bandwidth();const k=.95+.03*(sizeFactor||1);return Math.max(10,bw*k);}
+function createColorPattern(defs,color){const lightColor=lighten(color,.35);const patternId='crossPattern-'+color.replace('#','');if(defs.select('#'+patternId).empty()){const pattern=defs.append('pattern').attr('id',patternId).attr('patternUnits','userSpaceOnUse').attr('width',8).attr('height',8);pattern.append('rect').attr('width',8).attr('height',8).attr('fill',lightColor);pattern.append('line').attr('x1',0).attr('y1',0).attr('x2',8).attr('y2',8).attr('stroke',color).attr('stroke-width',1.5).attr('opacity',0.6);pattern.append('line').attr('x1',8).attr('y1',0).attr('x2',0).attr('y2',8).attr('stroke',color).attr('stroke-width',1.5).attr('opacity',0.6);}return 'url(#'+patternId+')';} 
+function createChart(){const data=getTop20();d3.select('#chart').selectAll('*').remove();
+const c1=document.getElementById('container1');
+const rect=c1?c1.getBoundingClientRect():{width:window.innerWidth,height:window.innerHeight};
+const containerWidth=Math.max(320,rect.width);
+const containerHeight=Math.max(240,rect.height);
+const sizeFactor=Math.max(.6,Math.min(1.15,Math.min(containerWidth/900,containerHeight/650)));
+let axisFS=Math.max(9,Math.round(12*sizeFactor));
+const valueFS=Math.max(9,Math.round(12*sizeFactor));
+const sourceFS=Math.max(9,Math.round(12*sizeFactor));
+const logoWH=Math.max(10,Math.round(24*sizeFactor));
+chartState.sizeFactor=sizeFactor;
+chartState.axisFS=axisFS;
+chartState.valueFS=valueFS;
+chartState.sourceFS=sourceFS;
+chartState.logoWH=logoWH;
+const responsiveRadius=Math.max(4,Math.min(12,Math.round(8*sizeFactor)));
+chartState.barRadius=responsiveRadius;
+const tempSvg=d3.select('body').append('svg').style('visibility','hidden');
+const tempText=tempSvg.append('text').style('font-size','12px').style('font-family','sans-serif');
+const allTop20=getAggregated().slice(0,1000).map(d=>d.id);
+const uniqLabels=Array.from(new Set(allTop20));
+let maxLabelWidth=0;uniqLabels.forEach(id=>{tempText.text(id);
+    const w=tempText.node().getBoundingClientRect().width;
+    maxLabelWidth=Math.max(maxLabelWidth,w);});
+    tempSvg.remove();
+const logoWidth=24;
+const padding=16;
+const dynamicLeftMargin=Math.min(maxLabelWidth+logoWidth+padding,Math.max(100,containerWidth*.25));
+const availForText=Math.max(40,dynamicLeftMargin-logoWidth-padding-8);
+const fitFS=Math.floor(12*(availForText/Math.max(1,maxLabelWidth)));
+axisFS=Math.max(8,Math.min(axisFS,fitFS));
+chartState.axisFS=axisFS;
+const footerH=70;
+const margin={top:12,right:Math.max(30,containerWidth*.05),bottom:footerH,left:dynamicLeftMargin};
+const width=containerWidth-margin.left-margin.right;
+const maxRowsH=containerHeight-margin.top-margin.bottom;
+const height=Math.max(180,maxRowsH);
+const svg=d3.select('#chart').attr('width',containerWidth).attr('height',height+margin.top+margin.bottom).attr('viewBox',`0 0 ${containerWidth} ${height+margin.top+margin.bottom}`).style('width','100%').style('height','100%');
+chartState.svg=svg;
+chartState.width=width;
+chartState.height=height;
+const defs=svg.append('defs');
+const grad=defs.append('linearGradient').attr('id','gradBlue').attr('x1','0%').attr('x2','100%').attr('y1','0%').attr('y2','0%');
+grad.append('stop').attr('offset','0%').attr('stop-color','#cfe8ff');
+grad.append('stop').attr('offset','100%').attr('stop-color','#1f78ff');
+const grad2=defs.append('linearGradient').attr('id','gradBlueTie').attr('x1','0%').attr('x2','100%').attr('y1','0%').attr('y2','0%');
+grad2.append('stop').attr('offset','0%').attr('stop-color','#e8f3ff');
+grad2.append('stop').attr('offset','100%').attr('stop-color','#7fb2ff');
+const patternTie=defs.append('pattern').attr('id','crossPattern').attr('patternUnits','userSpaceOnUse').attr('width',8).attr('height',8);
+patternTie.append('rect').attr('width',8).attr('height',8).attr('fill','#c4c9d6');
+patternTie.append('line').attr('x1',0).attr('y1',0).attr('x2',8).attr('y2',8).attr('stroke','rgba(79,109,181,.75)').attr('stroke-width',1.5);
+patternTie.append('line').attr('x1',8).attr('y1',0).attr('x2',0).attr('y2',8).attr('stroke','rgba(79,109,181,.75)').attr('stroke-width',1.5);const g=svg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);chartState.g=g;const bgLayer=g.append('g').attr('class','bg-layer');chartState.bgLayer=bgLayer;const maxX=Math.max(100,d3.max(getAggregated(),d=>d.total)||100);const x=d3.scaleLinear().domain([0,maxX]).range([0,width]);const yDomain=data.map(d=>d.id);const y=d3.scaleBand().domain(yDomain).range([0,height]).padding(Math.max(.2,Math.min(.45,.55-.25*sizeFactor)));chartState.x=x;chartState.y=y;chartState.margin=margin;chartState.logoWidth=logoWidth;chartState.padding=padding;const step=y.step();const padGap=(step-y.bandwidth())/2;const rowIdx=d3.range(yDomain.length);chartState.rowBG=bgLayer.selectAll('rect.row-bg').data(rowIdx,d=>d).enter().append('rect').attr('class','row-bg').attr('x',-margin.left).attr('y',i=>y(yDomain[i])-padGap).attr('width',width+margin.left+margin.right).attr('height',step).attr('fill',(d,i)=>i%2?"#f5f5f5":"#ffffff").attr('pointer-events','none').lower();chartState.yAxisGroup=g.append('g').attr('class','axis').call(d3.axisLeft(y));chartState.yAxisGroup.selectAll('text').style('font-size',axisFS+'px');truncateAxisLabels(margin.left-logoWidth-padding-8);const xAxis=d3.axisBottom(x).tickFormat(d=>d+'%');g.append('g').attr('class','axis').attr('transform',`translate(0,${height})`).call(xAxis);g.selectAll('g.axis:last-of-type text').style('font-size',axisFS+'px');const barH=getBarHeight(y,sizeFactor);const winsSel=g.selectAll('path.bar-win').data(data,d=>d.id).enter().append('path').attr('class','bar-win').attr('d',d=>barPath(x(0),x(d.wins),y(d.id)+y.bandwidth()/2,barH,d.ties>0?{roundStart:false,roundEnd:false,baseRadius:responsiveRadius}:{roundStart:false,baseRadius:responsiveRadius})).attr('fill',d=>d.color||'url(#gradBlue)');const tieSel=g.selectAll('path.bar-tie').data(data,d=>d.id).enter().append('path').attr('class','bar-tie').attr('d',d=>barPath(x(d.wins),x(d.total),y(d.id)+y.bandwidth()/2,barH,d.wins>0?{roundStart:false,baseRadius:responsiveRadius}:{baseRadius:responsiveRadius})).attr('fill',d=>{if(d.ties>0){return d.color?createColorPattern(defs,d.color):('url(#crossPattern)');}return d.color?lighten(d.color,.35):'url(#gradBlueTie)';});chartState.barsWin=g.selectAll('path.bar-win');chartState.barsTie=g.selectAll('path.bar-tie');chartState.barsWin.each(function(d){this._x0=x(0);this._x1=x(d.wins);this._yc=y(d.id)+y.bandwidth()/2;this._h=barH;});chartState.barsTie.each(function(d){this._x0=x(d.wins);this._x1=x(d.total);this._yc=y(d.id)+y.bandwidth()/2;this._h=barH;});const fmt=d3.format('.1f');g.selectAll('text.value').data(data,d=>d.id).enter().append('text').attr('class','value').attr('x',d=>x(d.total)-8).attr('y',d=>y(d.id)+y.bandwidth()/2+Math.round(4*sizeFactor)).attr('text-anchor','end').attr('font-size',chartState.valueFS+'px').attr('font-weight','600').attr('fill','#ffffff').text(d=>fmt(d.total));g.selectAll('image.logo').data(data,d=>d.id).enter().append('image').attr('class','logo').attr('x',d=>x(d.total)+6).attr('y',d=>y(d.id)+(y.bandwidth()-chartState.logoWH)/2).attr('width',chartState.logoWH).attr('height',chartState.logoWH).attr('href',d=>d.logo).attr('xlink:href',d=>d.logo);chartState.logos=g.selectAll('image.logo');const hoverSel=g.selectAll('.bar-win,.bar-tie');hoverSel.on('mousemove',(event,d)=>{const html=`<b>${d.id}</b><br>Wins: ${fmt(d.wins)}<br>Ties: ${fmt(d.ties)}<br>Total: ${fmt(d.total)}`;tooltip.html(html).style('left',(event.pageX+12)+'px').style('top',(event.pageY-28)+'px').style('opacity',1);}).on('mouseleave',()=>{tooltip.style('opacity',0);});}
+function updateChart(){const data=getTop20();
+    const x=chartState.x;
+    const y=chartState.y;
+    const g=chartState.g||chartState.svg.select('g');
+    const responsiveRadius=chartState.barRadius||8;
+    const newDomain=data.map(d=>d.id);
+    y.domain(newDomain);
+    y.padding(Math.max(.2,Math.min(.45,.55-.25*(chartState.sizeFactor||1))));
+    chartState.yAxisGroup.transition().duration(700).call(d3.axisLeft(y)).on('end',function(){truncateAxisLabels(chartState.margin.left-(chartState.logoWidth||24)-(chartState.padding||16)-8);}).selection().selectAll('text').style('font-size',chartState.axisFS+'px');
+    const idx=d3.range(newDomain.length);
+    const bg=chartState.bgLayer.selectAll('rect.row-bg').data(idx,d=>d);
+    bg.join(enter=>enter.append('rect').attr('class','row-bg').attr('x',-chartState.margin.left).attr('y',i=>y(newDomain[i])-((y.step()-y.bandwidth())/2)).attr('width',chartState.width+chartState.margin.left+chartState.margin.right).attr('height',y.step()).attr('fill',(d,i)=>i%2?"#f5f5f5":"#ffffff").attr('opacity',0).transition().duration(700).attr('opacity',1),update=>update.attr('fill',(d,i)=>i%2?"#f5f5f5":"#ffffff").transition().duration(700).attr('y',i=>y(newDomain[i])-((y.step()-y.bandwidth())/2)).attr('height',y.step()),exit=>exit.transition().duration(500).attr('opacity',0).remove());chartState.bgLayer.lower();const barHNow=getBarHeight(y,chartState.sizeFactor||1);const wins=chartState.svg.select('g').selectAll('path.bar-win').data(data,d=>d.id);wins.join(enter=>enter.append('path').attr('class','bar-win').each(function(d){this._x0=x(0);this._x1=x(0);this._yc=y(d.id)+y.bandwidth()/2;this._h=barHNow;}).attr('d',d=>barPath(x(0),x(0),y(d.id)+y.bandwidth()/2,barHNow,d.ties>0?{roundStart:false,roundEnd:false,baseRadius:responsiveRadius}:{roundStart:false,baseRadius:responsiveRadius})).attr('fill',d=>d.color||'url(#gradBlue)'),update=>update.attr('fill',d=>d.color||'url(#gradBlue)'),exit=>exit.transition().duration(350).attrTween('d',function(d){const xStart=this._x1??x(0);const yStart=this._yc??(y(d.id)+y.bandwidth()/2);const hStart=this._h??barHNow;const xEnd=x(0);const yEnd=y(d.id)+y.bandwidth()/2;const hEnd=barHNow;return function(t){const xi=xStart+(xEnd-xStart)*t;const yi=yStart+(yEnd-yStart)*t;const hi=hStart+(hEnd-hStart)*t;return barPath(x(0),xi,yi,hi,d.ties>0?{roundStart:false,roundEnd:false,baseRadius:responsiveRadius}:{roundStart:false,baseRadius:responsiveRadius});};}).on('end',function(){this.remove();})).transition().duration(700).attrTween('d',function(d){const xStart=this._x1??x(0);const yStart=this._yc??(y(d.id)+y.bandwidth()/2);const hStart=this._h??barHNow;const xEnd=x(d.wins);const yEnd=y(d.id)+y.bandwidth()/2;const hEnd=getBarHeight(y,chartState.sizeFactor||1);return function(t){const xi=xStart+(xEnd-xStart)*t;const yi=yStart+(yEnd-yStart)*t;const hi=hStart+(hEnd-hStart)*t;return barPath(x(0),xi,yi,hi,d.ties>0?{roundStart:false,roundEnd:false,baseRadius:responsiveRadius}:{roundStart:false,baseRadius:responsiveRadius});};}).on('end',function(d){this._x0=x(0);this._x1=x(d.wins);this._yc=y(d.id)+y.bandwidth()/2;this._h=getBarHeight(y,chartState.sizeFactor||1);});chartState.barsWin=chartState.svg.select('g').selectAll('path.bar-win');const ties=chartState.svg.select('g').selectAll('path.bar-tie').data(data,d=>d.id);const defs=chartState.svg.select('defs');ties.join(enter=>enter.append('path').attr('class','bar-tie').each(function(d){this._x0=x(0);this._x1=x(0);this._yc=y(d.id)+y.bandwidth()/2;this._h=barHNow;}).attr('d',d=>barPath(x(0),x(0),y(d.id)+y.bandwidth()/2,barHNow,d.wins>0?{roundStart:false,baseRadius:responsiveRadius}:{baseRadius:responsiveRadius})).attr('fill',d=>{if(d.ties>0){return d.color?createColorPattern(defs,d.color):('url(#crossPattern)');}return d.color?lighten(d.color,.35):'url(#gradBlueTie)';}),update=>update.attr('fill',d=>{if(d.ties>0){return d.color?createColorPattern(defs,d.color):('url(#crossPattern)');}return d.color?lighten(d.color,.35):'url(#gradBlueTie)';}),exit=>exit.transition().duration(350).attrTween('d',function(d){const xStart=this._x1??x(0);const yStart=this._yc??(y(d.id)+y.bandwidth()/2);const hStart=this._h??barHNow;const xEnd=x(0);const yEnd=y(d.id)+y.bandwidth()/2;const hEnd=barHNow;return function(t){const xi=xStart+(xEnd-xStart)*t;const yi=yStart+(yEnd-yStart)*t;const hi=hStart+(hEnd-hStart)*t;return barPath(x(0),xi,yi,hi,d.wins>0?{roundStart:false,baseRadius:responsiveRadius}:{baseRadius:responsiveRadius});};}).on('end',function(){this.remove();})).transition().duration(700).attrTween('d',function(d){const xStart=this._x1??x(0);const yStart=this._yc??(y(d.id)+y.bandwidth()/2);const hStart=this._h??barHNow;const xEnd=x(d.total);const yEnd=y(d.id)+y.bandwidth()/2;const hEnd=getBarHeight(y,chartState.sizeFactor||1);return function(t){const xi=xStart+(xEnd-xStart)*t;const yi=yStart+(yEnd-yStart)*t;const hi=hStart+(hEnd-hStart)*t;const mid=x(d.wins);const xi0=xi<mid?mid:xi;return barPath(mid,xi0,yi,hi,d.wins>0?{roundStart:false,baseRadius:responsiveRadius}:{baseRadius:responsiveRadius});};}).on('end',function(d){this._x0=x(d.wins);this._x1=x(d.total);this._yc=y(d.id)+y.bandwidth()/2;this._h=getBarHeight(y,chartState.sizeFactor||1);});chartState.barsTie=chartState.svg.select('g').selectAll('path.bar-tie');const values=chartState.svg.select('g').selectAll('text.value').data(data,d=>d.id);values.join(enter=>enter.append('text').attr('class','value').attr('x',d=>x(d.total)-8).attr('y',d=>y(d.id)+y.bandwidth()/2+Math.round(4*(chartState.sizeFactor||1))).attr('text-anchor','end').attr('font-size',(chartState.valueFS||12)+'px').attr('font-weight','600').attr('fill','#ffffff').attr('opacity',0).text(d=>d3.format('.1f')(d.total)).transition().duration(700).attr('opacity',1),update=>update.transition().duration(700).attr('x',d=>x(d.total)-8).attr('y',d=>y(d.id)+y.bandwidth()/2+Math.round(4*(chartState.sizeFactor||1))).tween('text',function(d){const that=d3.select(this);const parseNum=v=>+String(v).replace(/[^0-9eE+.-]/g,'');const start=parseNum(that.text());const i=d3.interpolateNumber(isNaN(start)?d.total:start,d.total);const fmt=d3.format('.1f');return function(t){that.text(fmt(i(t)));};}),exit=>exit.transition().duration(500).attr('opacity',0).remove());const logos=chartState.svg.select('g').selectAll('image.logo').data(data,d=>d.id);logos.join(enter=>enter.append('image').attr('class','logo').attr('x',d=>x(d.total)+6).attr('y',d=>y(d.id)+(y.bandwidth()-(chartState.logoWH||24))/2).attr('width',Math.max(10,chartState.logoWH||24)).attr('height',Math.max(10,chartState.logoWH||24)).attr('href',d=>d.logo).attr('xlink:href',d=>d.logo).attr('opacity',0).transition().duration(700).attr('opacity',1),update=>update.transition().duration(700).attr('x',d=>x(d.total)+6).attr('y',d=>y(d.id)+(y.bandwidth()-(chartState.logoWH||24))/2).attr('href',d=>d.logo).attr('xlink:href',d=>d.logo).attr('width',Math.max(10,chartState.logoWH||24)).attr('height',Math.max(10,chartState.logoWH||24)),exit=>exit.transition().duration(500).attr('opacity',0).remove());chartState.logos=chartState.svg.select('g').selectAll('image.logo');const hoverSel=chartState.svg.select('g').selectAll('.bar-win,.bar-tie');const fmt=d3.format('.1f');hoverSel.on('mousemove',(event,d)=>{const html=`<b>${d.id}</b><br>Wins: ${fmt(d.wins)}<br>Ties: ${fmt(d.ties)}<br>Total: ${fmt(d.total)}`;tooltip.html(html).style('left',(event.pageX+12)+'px').style('top',(event.pageY-28)+'px').style('opacity',1);}).on('mouseleave',()=>{tooltip.style('opacity',0);});}
+let resizeTimeout;
+window.addEventListener('resize',()=>{clearTimeout(resizeTimeout);
+    resizeTimeout=setTimeout(() => {createChart();}, 250);});
+load();
+</script>
+</body>
+</html>
