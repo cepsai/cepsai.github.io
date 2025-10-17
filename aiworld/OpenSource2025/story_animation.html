@@ -388,7 +388,13 @@ function showTooltip(event, point){
 
 function moveTooltip(event, point){
   const [x, y] = d3.pointer(event, vizEl);
-  const dateText = point.date ? dateFormatter(point.date) : "Week";
+  let dateText = "Week";
+  if(point.date){
+    const startDate = new Date(point.date.getTime());
+    const endDate = new Date(point.date.getTime());
+    endDate.setUTCDate(endDate.getUTCDate() + 7);
+    dateText = `${dateFormatter(endDate)}`;
+  }
   const deltaText = Number.isFinite(point.delta) ? formatValue(point.delta) : "0";
   tooltip.html(`<strong>${point.id}</strong><br>${dateText}<br>${METRIC.label} so far: ${formatValue(point.end)}<br>This week: ${deltaText}`);
   const ttNode = tooltip.node();
@@ -405,7 +411,9 @@ function updateDateUI(){
   if(!timelineDates.length || !dateDisplayEl){ return; }
   const idx = Math.max(0, Math.min(currentEnd, timelineDates.length - 1));
   const d = timelineDates[idx];
-  dateDisplayEl.textContent = `${dateFormatter(d)}`;
+  const endDate = new Date(d.getTime());
+  endDate.setUTCDate(endDate.getUTCDate() + 7);
+  dateDisplayEl.textContent = `${dateFormatter(endDate)}`;
 }
 
 function setupAnimation(){
