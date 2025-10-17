@@ -15,7 +15,6 @@ body {
   height: 100vh;
 }
 
-/* ---- LAYOUT (prevent footer overlap) ---- */
 .viz-layout {
   position: relative;
   width: 100%;
@@ -28,16 +27,17 @@ body {
 }
 .viz-grid {
   display: grid;
-  grid-template-rows: 1fr auto;
+  /*grid-template-rows: 1fr auto 0.1fr;*/
+  grid-template-rows: 17.5fr 0.5fr 1fr;
   grid-template-columns: 1fr 1fr;
   height: 100vh;
   width: 100vw;
   box-sizing: border-box;
   row-gap: clamp(6px, 1.5vh, 12px);
   padding: 0 clamp(12px, 2vw, 20px) env(safe-area-inset-bottom) clamp(12px, 2vw, 20px);
+  /*padding-bottom:clamp(8px,2vh,18px)*/
 }
 
-/* ---- CHART AREA ---- */
 #container1 {
   grid-row: 1;
   grid-column: 1 / span 2;
@@ -86,8 +86,17 @@ body {
   max-width: 220px;
 }
 
-#container3 {
+#container2 {
   grid-row: 2;
+  grid-column: 1 / span 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  padding: clamp(4px, 0.5vh, 8px) 0;
+}
+#container3 {
+  grid-row: 3;
   grid-column: 1;
   display: flex;
   align-items: center;
@@ -95,7 +104,7 @@ body {
   min-width: 0;
 }
 #container4 {
-  grid-row: 2;
+  grid-row: 3;
   grid-column: 2;
   display: flex;
   align-items: center;
@@ -103,6 +112,7 @@ body {
   gap: clamp(10px, 2vw, 16px);
   min-width: 0;
 }
+#container4 a{height:100%;display:flex;align-items:center;}
 .source-text {
   font-size: clamp(10px, 1.6vw, 16px);
   font-weight: 600;
@@ -115,7 +125,7 @@ body {
 }
 .source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; }
 .source-text a:visited { color: #2756d3; }
-.logo-note { font-size: clamp(10px, 1.2vw, 12px); color: #777; font-style: italic; white-space: nowrap; }
+.logo-note { font-size: clamp(10px, 1.2vw, 12px); color: #777; font-style: italic; white-space: nowrap;}
 .logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
 
 .axis path, .axis line { stroke: #cfd2d7; }
@@ -131,11 +141,11 @@ body {
   #container3 { display: none; }
 }
 @media (max-width: 460px), (max-height: 520px) {
-  #container4 .logo-note { display: none; }
+  #container2 { display: none; }
 }
 @media (max-height: 480px) {
   .viz-grid { grid-template-rows: 1fr; }
-  #container3, #container4 { display: none; }
+  #container2, #container3, #container4 { display: none; }
 }
 </style>
 </head>
@@ -155,11 +165,13 @@ body {
         </div>
       </div>
     </div>
+    <div id="container2" class="container note-container">
+      <span class="logo-note">* Considering repos above 10 space likes and 500 downloads</span>
+    </div>
     <div id="container3" class="container source-container">
       <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank" rel="noopener">HuggingFace</a></div>
     </div>
     <div id="container4" class="container logo-container">
-      <span class="logo-note">* Considering repos above 10 space likes and 500 downloads</span>
       <a href="https://aiworld.eu/" target="_blank" rel="noopener">
         <img src="logo.svg" class="logo" alt="AI World logo" crossorigin="anonymous">
       </a>
@@ -191,8 +203,8 @@ init();
 async function init(){
   try{
     const [rawData, orgs] = await Promise.all([
-      fetchJSON("./org_weeks.json"),
-      fetchJSON("./orgs.json")
+      fetchJSON("./org_weeks_1710.json"),
+      fetchJSON("./orgs_test.json")
     ]);
     orgMeta = buildOrgMeta(orgs);
     const processed = buildSeries(rawData);
