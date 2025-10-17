@@ -1,0 +1,4417 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style type="text/css">
+.knitr .inline { background-color: #F7F7F7; border: solid 1px #B0B0B0; }
+.error { font-weight: bold; color: #FF0000; }
+.warning { font-weight: bold; }
+.message { font-style: italic; }
+.source, .output, .warning, .error, .message { padding: 0 1em; border: solid 1px #F7F7F7; }
+.source { background-color: #F5F5F5; }
+.rimage .left { text-align: left; }
+.rimage .right { text-align: right; }
+.rimage .center { text-align: center; }
+.hl.num { color: #AF0F91; }
+.hl.str { color: #317ECC; }
+.hl.com { color: #AD95AF; font-style: italic; }
+.hl.opt { color: #000000; }
+.hl.std { color: #585858; }
+.hl.kwa { color: #295F94; font-weight: bold; }
+.hl.kwb { color: #B05A65; }
+.hl.kwc { color: #55AA55; }
+.hl.kwd { color: #BC5A65; font-weight: bold; }
+body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-serif; }
+
+.viz-grid { display: grid; grid-template-rows: 1fr auto; grid-template-columns: 1fr; height: 100vh; width: 100vw; box-sizing: border-box; padding-bottom: clamp(8px, 2vh, 18px); }
+#container1 { grid-row: 1; grid-column: 1; overflow: hidden; min-height: 0; }
+#container2 { grid-row: 2; grid-column: 1; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: clamp(12px, 3vw, 32px); overflow: visible; padding: clamp(10px, 1.8vh, 18px) clamp(16px, 2vw, 24px); box-sizing: border-box; }
+
+#treemap { width: 100%; height: 100%; min-height: 0; min-width: 0; }
+
+.logo-link { justify-self: end; align-self: end; display: flex; align-items: flex-end; }
+.logo { height: auto; width: auto; max-height: clamp(32px, 8vh, 72px); max-width: 100%; pointer-events: auto; object-fit: contain; }
+#container2 .source-text { justify-self: start; align-self: center; }
+.source-text { font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal; }
+.source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; font-style: normal; }
+.source-text a:visited { color: #2756d3; }
+.d3plus-tooltip {white-space: normal; word-wrap: break-word; max-width: 250px;  }
+
+  @media (max-height: 500px) {
+    .viz-grid { grid-template-rows: 1fr; grid-template-columns: 1fr; }
+    #container1 { grid-row: 1; grid-column: 1; }
+    #container2 { display: none !important; }
+    .source-text, .logo { display: none !important; }
+  }
+</style>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1" class="container treemap-container">
+    <div id="treemap"></div>
+  </div>
+  <div id="container2" class="container footer-container">
+    <div class="source-text">Source: <a href="github.com" target="_blank">GitHub</a></div>
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener" class="logo-link">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+    </a>
+  </div>
+</div>
+<script>
+var originalData =[
+  {
+    "id": "nvidia-settings",
+    "parent": "NVIDIA",
+    "value": 316,
+    "storie": "NVIDIA driver control panel",
+    "color": "#87D400"
+  },
+  {
+    "id": "cdt-nsight",
+    "parent": "NVIDIA",
+    "value": 8,
+    "storie": "C/C++ Development Tooling (CDT) project repository (cdt)",
+    "color": "#365400"
+  },
+  {
+    "id": "swiftstack-collectd",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "Mirror of the official repository.",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "thrust",
+    "parent": "NVIDIA",
+    "value": 4984,
+    "storie": "[ARCHIVED] The C++ parallel algorithms library. See https://github.com/NVIDIA/cccl",
+    "color": "#B6FF37"
+  },
+  {
+    "id": "gef-nsight",
+    "parent": "NVIDIA",
+    "value": 9,
+    "storie": "Graphical Editing Framework (GEF) project repository (gef)",
+    "color": "#385800"
+  },
+  {
+    "id": "nvidia-installer",
+    "parent": "NVIDIA",
+    "value": 142,
+    "storie": "NVIDIA driver installer",
+    "color": "#75B800"
+  },
+  {
+    "id": "nvidia-xconfig",
+    "parent": "NVIDIA",
+    "value": 40,
+    "storie": "NVIDIA xorg.conf configurator",
+    "color": "#588A00"
+  },
+  {
+    "id": "cub",
+    "parent": "NVIDIA",
+    "value": 1792,
+    "storie": "[ARCHIVED] Cooperative primitives for CUDA C++. See https://github.com/NVIDIA/cccl",
+    "color": "#A8FA18"
+  },
+  {
+    "id": "vagrant-swift-all-in-one",
+    "parent": "NVIDIA",
+    "value": 78,
+    "storie": "Vagrant Swift All In One",
+    "color": "#67A200"
+  },
+  {
+    "id": "nvidia-modprobe",
+    "parent": "NVIDIA",
+    "value": 77,
+    "storie": "Load the NVIDIA kernel module and create NVIDIA character device files",
+    "color": "#67A200"
+  },
+  {
+    "id": "cuda-gdb",
+    "parent": "NVIDIA",
+    "value": 216,
+    "storie": "CUDA GDB",
+    "color": "#7EC600"
+  },
+  {
+    "id": "nebula-nsight",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "Supplemental Widgets for SWT (Nebula) project repository (nebula)",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "nvidia-persistenced",
+    "parent": "NVIDIA",
+    "value": 61,
+    "storie": "NVIDIA driver persistence daemon",
+    "color": "#629A00"
+  },
+  {
+    "id": "tegra-uboot-flasher-manifests",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "Tegra U-Boot Flasher project: manifests (see https://github.com/NVIDIA/tegra-uboot-flasher-scripts)",
+    "color": "#233800"
+  },
+  {
+    "id": "tegra-uboot-flasher-scripts",
+    "parent": "NVIDIA",
+    "value": 34,
+    "storie": "Tegra U-Boot Flasher project: scripts",
+    "color": "#558600"
+  },
+  {
+    "id": "ptp-nsight",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "Parallel Tools Platform (PTP) project repository (ptp)",
+    "color": "#284000"
+  },
+  {
+    "id": "WebGL",
+    "parent": "NVIDIA",
+    "value": 13,
+    "storie": "The Official Khronos WebGL Repository",
+    "color": "#3F6400"
+  },
+  {
+    "id": "tegra-uboot-scripts",
+    "parent": "NVIDIA",
+    "value": 11,
+    "storie": "Generate boot.scr for U-Boot on Tegra",
+    "color": "#3C5F00"
+  },
+  {
+    "id": "libglvnd",
+    "parent": "NVIDIA",
+    "value": 524,
+    "storie": "The GL Vendor-Neutral Dispatch library",
+    "color": "#93E600"
+  },
+  {
+    "id": "cbootimage",
+    "parent": "NVIDIA",
+    "value": 31,
+    "storie": "Tegra BCT and bootable flash image generator/compiler",
+    "color": "#528200"
+  },
+  {
+    "id": "cbootimage-configs",
+    "parent": "NVIDIA",
+    "value": 9,
+    "storie": "Configuration files for use with cbootimage",
+    "color": "#385800"
+  },
+  {
+    "id": "tegrarcm",
+    "parent": "NVIDIA",
+    "value": 68,
+    "storie": "Tegra ReCovery Mode tool; communicates with Tegra's boot ROM to download code over USB",
+    "color": "#649E00"
+  },
+  {
+    "id": "docker-swift",
+    "parent": "NVIDIA",
+    "value": 85,
+    "storie": "Docker image for Swift all-in-one demo deployment",
+    "color": "#69A500"
+  },
+  {
+    "id": "CoMD-CUDA",
+    "parent": "NVIDIA",
+    "value": 31,
+    "storie": "GPU implementation of classical molecular dynamics proxy application.",
+    "color": "#528200"
+  },
+  {
+    "id": "tdl",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "A low-level WebGL library",
+    "color": "#233800"
+  },
+  {
+    "id": "tegra-pinmux-scripts",
+    "parent": "NVIDIA",
+    "value": 30,
+    "storie": "Scripts to auto-generate pin mux drivers and board configuration tables for Tegra SoCs and boards",
+    "color": "#518100"
+  },
+  {
+    "id": "scenejs",
+    "parent": "NVIDIA",
+    "value": 7,
+    "storie": "An extensible WebGL-based engine for high-detail 3D visualisation",
+    "color": "#335100"
+  },
+  {
+    "id": "three.js",
+    "parent": "NVIDIA",
+    "value": 12,
+    "storie": "JavaScript 3D library.",
+    "color": "#3E6200"
+  },
+  {
+    "id": "tegra-rootfs-scripts",
+    "parent": "NVIDIA",
+    "value": 12,
+    "storie": "Tegra scripts",
+    "color": "#3E6200"
+  },
+  {
+    "id": "tegra-nouveau-rootfs",
+    "parent": "NVIDIA",
+    "value": 60,
+    "storie": "Manifests to create an Arch Linux ARM rootfs augmented with Nouveau and the OSS graphics stack for NVIDIA's Jetson TK1/TX1 boards",
+    "color": "#619900"
+  },
+  {
+    "id": "webgl-path-tracing",
+    "parent": "NVIDIA",
+    "value": 12,
+    "storie": "Path tracing in GLSL using WebGL",
+    "color": "#3E6200"
+  },
+  {
+    "id": "nvgpu",
+    "parent": "NVIDIA",
+    "value": 14,
+    "storie": NaN,
+    "color": "#416600"
+  },
+  {
+    "id": "gdrcopy",
+    "parent": "NVIDIA",
+    "value": 1234,
+    "storie": "A fast GPU memory copy library based on NVIDIA GPUDirect RDMA technology",
+    "color": "#A2F50F"
+  },
+  {
+    "id": "cpu-microcode",
+    "parent": "NVIDIA",
+    "value": 13,
+    "storie": "NVIDIA CPU microcode",
+    "color": "#3F6400"
+  },
+  {
+    "id": "caffe",
+    "parent": "NVIDIA",
+    "value": 670,
+    "storie": "Caffe: a fast open framework for deep learning.",
+    "color": "#98ED02"
+  },
+  {
+    "id": "DIGITS",
+    "parent": "NVIDIA",
+    "value": 4187,
+    "storie": "Deep Learning GPU Training System",
+    "color": "#B4FF31"
+  },
+  {
+    "id": "pynvrtc",
+    "parent": "NVIDIA",
+    "value": 79,
+    "storie": "Python Binding to NVRTC",
+    "color": "#67A200"
+  },
+  {
+    "id": "vdpau-hevc-example",
+    "parent": "NVIDIA",
+    "value": 31,
+    "storie": "A sample VDPAU H.265/HEVC video player",
+    "color": "#528200"
+  },
+  {
+    "id": "vdpau-win-x11",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "VDPAU X11 window system helper library",
+    "color": "#304C00"
+  },
+  {
+    "id": "cnmem",
+    "parent": "NVIDIA",
+    "value": 298,
+    "storie": "A simple memory manager for CUDA designed to help Deep Learning frameworks manage memory",
+    "color": "#85D100"
+  },
+  {
+    "id": "winex_lgpl",
+    "parent": "NVIDIA",
+    "value": 26,
+    "storie": "Open Source licensed components of Cider/WineX, and associated build tools and support libraries",
+    "color": "#4E7C00"
+  },
+  {
+    "id": "remorac",
+    "parent": "NVIDIA",
+    "value": 40,
+    "storie": NaN,
+    "color": "#588A00"
+  },
+  {
+    "id": "nvidia-query-resource-opengl",
+    "parent": "NVIDIA",
+    "value": 14,
+    "storie": "A tool for querying OpenGL resource usage of applications using the NVIDIA OpenGL driver",
+    "color": "#416600"
+  },
+  {
+    "id": "nvidia-docker",
+    "parent": "NVIDIA",
+    "value": 17430,
+    "storie": "Build and run Docker containers leveraging NVIDIA GPUs",
+    "color": "#C1FF53"
+  },
+  {
+    "id": "nccl",
+    "parent": "NVIDIA",
+    "value": 4141,
+    "storie": "Optimized primitives for collective multi-GPU communication",
+    "color": "#B4FF31"
+  },
+  {
+    "id": "gpu-rest-engine",
+    "parent": "NVIDIA",
+    "value": 418,
+    "storie": "A REST API for Caffe using Docker and Go",
+    "color": "#8EDE00"
+  },
+  {
+    "id": "cstruct",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": NaN,
+    "color": "#142000"
+  },
+  {
+    "id": "sortedmap",
+    "parent": "NVIDIA",
+    "value": 14,
+    "storie": NaN,
+    "color": "#416600"
+  },
+  {
+    "id": "Forma",
+    "parent": "NVIDIA",
+    "value": 14,
+    "storie": "DSL for stencils and image processing",
+    "color": "#416600"
+  },
+  {
+    "id": "Falcor",
+    "parent": "NVIDIA",
+    "value": 219,
+    "storie": "Real-time rendering research framework",
+    "color": "#7EC600"
+  },
+  {
+    "id": "SKA-gpu-grid",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "Gridding for the square kilometer array using GPUs",
+    "color": "#304C00"
+  },
+  {
+    "id": "SKA-gpu-degrid",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "Degridding for the square kilometer array using GPUs",
+    "color": "#2C4600"
+  },
+  {
+    "id": "SKA-gpu-stefcal",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "Antenna gain calibration for the square kilometer array using GPUs",
+    "color": "#284000"
+  },
+  {
+    "id": "SKA-gpu-reproject",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Image reprojection for the square kilometer array using GPUs",
+    "color": "#142000"
+  },
+  {
+    "id": "SKA-gpu-direct-convolve",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Comparison of convolution methods for small kernels for the square kilometer array using GPUs",
+    "color": "#142000"
+  },
+  {
+    "id": "SKA-gpu-multiscale-clean",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "Multiscale CLEAN for the square kilometer array using GPUs",
+    "color": "#284000"
+  },
+  {
+    "id": "torch-distro",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Torch installation in a self-contained folder",
+    "color": "#142000"
+  },
+  {
+    "id": "torch-cutorch",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "A CUDA backend for Torch7",
+    "color": "#233800"
+  },
+  {
+    "id": "torch-cunn",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": NaN,
+    "color": "#233800"
+  },
+  {
+    "id": "torch-cudnn",
+    "parent": "NVIDIA",
+    "value": 8,
+    "storie": "Torch-7 FFI bindings for NVIDIA CuDNN",
+    "color": "#365400"
+  },
+  {
+    "id": "torch-android",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "Torch-7 for Android",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "torch-nccl",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "torch bindings for nccl",
+    "color": "#142000"
+  },
+  {
+    "id": "PRBench",
+    "parent": "NVIDIA",
+    "value": 33,
+    "storie": "A CUDA implementation of the PageRank Pipeline Benchmark",
+    "color": "#548400"
+  },
+  {
+    "id": "eglexternalplatform",
+    "parent": "NVIDIA",
+    "value": 69,
+    "storie": "The EGL External Platform interface",
+    "color": "#649E00"
+  },
+  {
+    "id": "egl-wayland",
+    "parent": "NVIDIA",
+    "value": 317,
+    "storie": "The EGLStream-based Wayland external platform",
+    "color": "#87D400"
+  },
+  {
+    "id": "NvPipe",
+    "parent": "NVIDIA",
+    "value": 390,
+    "storie": "NVIDIA-accelerated zero latency video compression library for interactive remoting applications",
+    "color": "#8CDB00"
+  },
+  {
+    "id": "docker-volume-netshare",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "Docker NFS, AWS EFS, Ceph & Samba/CIFS Volume Plugin",
+    "color": "#2C4600"
+  },
+  {
+    "id": "libnvidia-container",
+    "parent": "NVIDIA",
+    "value": 1021,
+    "storie": "NVIDIA container runtime library",
+    "color": "#9FF20B"
+  },
+  {
+    "id": "kokkos",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "Core repository for Kokkos software",
+    "color": "#233800"
+  },
+  {
+    "id": "gvdb-voxels",
+    "parent": "NVIDIA",
+    "value": 701,
+    "storie": "Sparse volume compute and rendering on NVIDIA GPUs",
+    "color": "#99ED03"
+  },
+  {
+    "id": "jitify",
+    "parent": "NVIDIA",
+    "value": 556,
+    "storie": "A single-header C++ library for simplifying the use of CUDA Runtime Compilation (NVRTC).",
+    "color": "#94E800"
+  },
+  {
+    "id": "docker-distribution",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "The Docker toolset to pack, ship, store, and deliver content",
+    "color": "#233800"
+  },
+  {
+    "id": "kmeans",
+    "parent": "NVIDIA",
+    "value": 119,
+    "storie": "kmeans clustering with multi-GPU capabilities",
+    "color": "#70B100"
+  },
+  {
+    "id": "Eigensolver_gpu",
+    "parent": "NVIDIA",
+    "value": 66,
+    "storie": "GPU Eigensolver for symmetric/hermitian matrices.",
+    "color": "#639C00"
+  },
+  {
+    "id": "packer-builder-xenserver",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "A builder plugin for Packer.IO to support building XenServer images.",
+    "color": "#2C4600"
+  },
+  {
+    "id": "proxyfs",
+    "parent": "NVIDIA",
+    "value": 66,
+    "storie": NaN,
+    "color": "#639C00"
+  },
+  {
+    "id": "cuda-profiler",
+    "parent": "NVIDIA",
+    "value": 64,
+    "storie": "Tools and extensions for CUDA profiling",
+    "color": "#629B00"
+  },
+  {
+    "id": "nccl-tests",
+    "parent": "NVIDIA",
+    "value": 1290,
+    "storie": "NCCL Tests",
+    "color": "#A2F510"
+  },
+  {
+    "id": "nvidia-container-runtime",
+    "parent": "NVIDIA",
+    "value": 1121,
+    "storie": "NVIDIA container runtime",
+    "color": "#A0F40D"
+  },
+  {
+    "id": "DeepRecommender",
+    "parent": "NVIDIA",
+    "value": 1694,
+    "storie": "Deep learning for recommender systems",
+    "color": "#A7F916"
+  },
+  {
+    "id": "OpenSeq2Seq",
+    "parent": "NVIDIA",
+    "value": 1557,
+    "storie": "Toolkit for efficient experimentation with Speech Recognition, Text2Speech and NLP",
+    "color": "#A6F815"
+  },
+  {
+    "id": "AMGX",
+    "parent": "NVIDIA",
+    "value": 605,
+    "storie": "Distributed multigrid linear solver library on GPU",
+    "color": "#97EC00"
+  },
+  {
+    "id": "proxyfs-jrpc-client",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": NaN,
+    "color": "#1D2E00"
+  },
+  {
+    "id": "proxyfs-vfs",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": NaN,
+    "color": "#1D2E00"
+  },
+  {
+    "id": "k8s-device-plugin",
+    "parent": "NVIDIA",
+    "value": 3459,
+    "storie": "NVIDIA device plugin for Kubernetes",
+    "color": "#B1FF2A"
+  },
+  {
+    "id": "ngc-examples",
+    "parent": "NVIDIA",
+    "value": 26,
+    "storie": "NGC VMI Example Scripts",
+    "color": "#4E7C00"
+  },
+  {
+    "id": "flownet2-pytorch",
+    "parent": "NVIDIA",
+    "value": 3255,
+    "storie": "Pytorch implementation of FlowNet 2.0: Evolution of Optical Flow Estimation with Deep Networks",
+    "color": "#B1FF29"
+  },
+  {
+    "id": "cutlass",
+    "parent": "NVIDIA",
+    "value": 8585,
+    "storie": "CUDA Templates and Python DSLs for High-Performance Linear Algebra",
+    "color": "#BDFF4A"
+  },
+  {
+    "id": "sentiment-discovery",
+    "parent": "NVIDIA",
+    "value": 1066,
+    "storie": "Unsupervised Language Modeling at scale for robust sentiment classification",
+    "color": "#9FF30C"
+  },
+  {
+    "id": "pix2pixHD",
+    "parent": "NVIDIA",
+    "value": 6836,
+    "storie": "Synthesizing and manipulating 2048x1024 images with conditional GANs",
+    "color": "#BBFF43"
+  },
+  {
+    "id": "aistore",
+    "parent": "NVIDIA",
+    "value": 1600,
+    "storie": "AIStore: scalable storage for AI applications",
+    "color": "#A6F815"
+  },
+  {
+    "id": "presto-mapd-connector",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "A Presto to MapD connector, enabling MapD queries via Presto",
+    "color": "#2C4600"
+  },
+  {
+    "id": "mxnet_to_onnx",
+    "parent": "NVIDIA",
+    "value": 56,
+    "storie": "MxNet to ONNX Exporter",
+    "color": "#5F9600"
+  },
+  {
+    "id": "FastPhotoStyle",
+    "parent": "NVIDIA",
+    "value": 11186,
+    "storie": "Style transfer, deep learning, feature transform",
+    "color": "#C1FF53"
+  },
+  {
+    "id": "url-polyfill",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "URL parser in JavaScript",
+    "color": "#142000"
+  },
+  {
+    "id": "nv-wavenet",
+    "parent": "NVIDIA",
+    "value": 742,
+    "storie": "Reference implementation of real-time autoregressive wavenet inference",
+    "color": "#9AEE04"
+  },
+  {
+    "id": "hpc-container-maker",
+    "parent": "NVIDIA",
+    "value": 495,
+    "storie": "HPC Container Maker",
+    "color": "#92E400"
+  },
+  {
+    "id": "cuda-samples",
+    "parent": "NVIDIA",
+    "value": 8245,
+    "storie": "Samples for CUDA Developers which demonstrates features in CUDA Toolkit",
+    "color": "#BDFF49"
+  },
+  {
+    "id": "nvvl",
+    "parent": "NVIDIA",
+    "value": 692,
+    "storie": "A library that uses hardware acceleration to load sequences of video frames to facilitate machine learning training",
+    "color": "#99ED03"
+  },
+  {
+    "id": "apex",
+    "parent": "NVIDIA",
+    "value": 8818,
+    "storie": "A PyTorch Extension:  Tools for easy mixed precision and distributed training in Pytorch",
+    "color": "#BEFF4B"
+  },
+  {
+    "id": "df-nvshmem-prototype",
+    "parent": "NVIDIA",
+    "value": 25,
+    "storie": "Prototype of OpenSHMEM for NVIDIA GPUs, developed as part of DoE Design Forward",
+    "color": "#4E7B00"
+  },
+  {
+    "id": "ADLR",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "Applied Deep Learning Research",
+    "color": "#233800"
+  },
+  {
+    "id": "DeepLearningExamples",
+    "parent": "NVIDIA",
+    "value": 14520,
+    "storie": "State-of-the-Art Deep Learning scripts organized by models - easy to train and deploy with reproducible accuracy and performance on enterprise-grade infrastructure.",
+    "color": "#C1FF53"
+  },
+  {
+    "id": "tacotron2",
+    "parent": "NVIDIA",
+    "value": 5272,
+    "storie": "Tacotron 2 - PyTorch implementation with faster-than-realtime inference",
+    "color": "#B7FF39"
+  },
+  {
+    "id": "multi-gpu-programming-models",
+    "parent": "NVIDIA",
+    "value": 818,
+    "storie": "Examples demonstrating available options to program multiple GPUs in a single node or a cluster",
+    "color": "#9BEF06"
+  },
+  {
+    "id": "gpu-monitoring-tools",
+    "parent": "NVIDIA",
+    "value": 1055,
+    "storie": "Tools for monitoring NVIDIA GPUs on Linux",
+    "color": "#9FF30C"
+  },
+  {
+    "id": "deepops",
+    "parent": "NVIDIA",
+    "value": 1396,
+    "storie": "Tools for building GPU clusters",
+    "color": "#A3F612"
+  },
+  {
+    "id": "DALI",
+    "parent": "NVIDIA",
+    "value": 5531,
+    "storie": "A GPU-accelerated library containing highly optimized building blocks and an execution engine for data processing to accelerate deep learning training and inference applications.",
+    "color": "#B8FF3B"
+  },
+  {
+    "id": "onnx-tensorrt",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": NaN,
+    "color": "#142000"
+  },
+  {
+    "id": "ngc-container-replicator",
+    "parent": "NVIDIA",
+    "value": 28,
+    "storie": "NGC Container Replicator",
+    "color": "#507E00"
+  },
+  {
+    "id": "tensorrt-laboratory",
+    "parent": "NVIDIA",
+    "value": 264,
+    "storie": "Explore the Capabilities of the TensorRT Platform",
+    "color": "#83CE00"
+  },
+  {
+    "id": "Dataset_Synthesizer",
+    "parent": "NVIDIA",
+    "value": 587,
+    "storie": "NVIDIA Deep learning Dataset Synthesizer (NDDS)",
+    "color": "#96EA00"
+  },
+  {
+    "id": "Dataset_Utilities",
+    "parent": "NVIDIA",
+    "value": 131,
+    "storie": "NVIDIA Dataset Utilities (NVDU)",
+    "color": "#73B400"
+  },
+  {
+    "id": "online-softmax",
+    "parent": "NVIDIA",
+    "value": 101,
+    "storie": "Benchmark code for the \"Online normalizer calculation for softmax\" paper",
+    "color": "#6DAB00"
+  },
+  {
+    "id": "MDL-SDK",
+    "parent": "NVIDIA",
+    "value": 512,
+    "storie": "NVIDIA Material Definition Language SDK",
+    "color": "#93E600"
+  },
+  {
+    "id": "vid2vid",
+    "parent": "NVIDIA",
+    "value": 8702,
+    "storie": "Pytorch implementation of our method for high-resolution (e.g. 2048x1024) photorealistic video-to-video translation.",
+    "color": "#BEFF4B"
+  },
+  {
+    "id": "Milano",
+    "parent": "NVIDIA",
+    "value": 155,
+    "storie": "Milano is a tool for automating hyper-parameters search for your models on a backend of your choice.",
+    "color": "#77BA00"
+  },
+  {
+    "id": "enroot",
+    "parent": "NVIDIA",
+    "value": 834,
+    "storie": "A simple yet powerful tool to turn traditional container/OS images into unprivileged sandboxes.",
+    "color": "#9BF006"
+  },
+  {
+    "id": "DALI_extra",
+    "parent": "NVIDIA",
+    "value": 43,
+    "storie": "Test data for DALI project",
+    "color": "#598D00"
+  },
+  {
+    "id": "partialconv",
+    "parent": "NVIDIA",
+    "value": 1271,
+    "storie": "A New Padding Scheme: Partial Convolution based Padding",
+    "color": "#A2F510"
+  },
+  {
+    "id": "cocoapi",
+    "parent": "NVIDIA",
+    "value": 54,
+    "storie": "COCO API - Dataset @ http://cocodataset.org/",
+    "color": "#5F9500"
+  },
+  {
+    "id": "waveglow",
+    "parent": "NVIDIA",
+    "value": 2331,
+    "storie": "A Flow-based Generative Network for Speech Synthesis",
+    "color": "#ACFD1E"
+  },
+  {
+    "id": "video-sdk-samples",
+    "parent": "NVIDIA",
+    "value": 393,
+    "storie": "Samples demonstrating how to use various APIs of NVIDIA Video Codec SDK",
+    "color": "#8CDC00"
+  },
+  {
+    "id": "nvstrings",
+    "parent": "NVIDIA",
+    "value": 12,
+    "storie": "Legacy repository for nvstrings",
+    "color": "#3E6200"
+  },
+  {
+    "id": "python-jetson",
+    "parent": "NVIDIA",
+    "value": 29,
+    "storie": "Python utilities for NVIDIA Jetson",
+    "color": "#518000"
+  },
+  {
+    "id": "ai-assisted-annotation-client",
+    "parent": "NVIDIA",
+    "value": 320,
+    "storie": "Client side integration example source code and libraries for AI-Assisted Annotation SDK",
+    "color": "#88D500"
+  },
+  {
+    "id": "nvscic2c",
+    "parent": "NVIDIA",
+    "value": 19,
+    "storie": "A low-level transport Linux kernel module for bulk low-latency data transfers between two SoCs over PCIe NTB",
+    "color": "#487100"
+  },
+  {
+    "id": "gpu-operator",
+    "parent": "NVIDIA",
+    "value": 2337,
+    "storie": "NVIDIA GPU Operator creates, configures, and manages GPUs in Kubernetes",
+    "color": "#ACFD1E"
+  },
+  {
+    "id": "dgx-selinux",
+    "parent": "NVIDIA",
+    "value": 15,
+    "storie": "DGX RHEL SELinux Policies",
+    "color": "#426900"
+  },
+  {
+    "id": "compute-sanitizer-samples",
+    "parent": "NVIDIA",
+    "value": 88,
+    "storie": "Samples demonstrating how to use the Compute Sanitizer Tools and Public API",
+    "color": "#69A600"
+  },
+  {
+    "id": "retinanet-examples",
+    "parent": "NVIDIA",
+    "value": 899,
+    "storie": "Fast and accurate object detection with end-to-end GPU optimization",
+    "color": "#9CF008"
+  },
+  {
+    "id": "framework-reproducibility",
+    "parent": "NVIDIA",
+    "value": 428,
+    "storie": "Providing reproducibility in deep learning frameworks",
+    "color": "#8EDE00"
+  },
+  {
+    "id": "ContrastiveLosses4VRD",
+    "parent": "NVIDIA",
+    "value": 201,
+    "storie": "Implementation for the CVPR2019 paper \"Graphical Contrastive Losses for Scene Graph Generation\"",
+    "color": "#7DC400"
+  },
+  {
+    "id": "VisRTX",
+    "parent": "NVIDIA",
+    "value": 264,
+    "storie": "NVIDIA OptiX based implementation of ANARI",
+    "color": "#83CE00"
+  },
+  {
+    "id": "Megatron-LM",
+    "parent": "NVIDIA",
+    "value": 13829,
+    "storie": "Ongoing research training transformer models at scale",
+    "color": "#C1FF53"
+  },
+  {
+    "id": "jetson-gpio",
+    "parent": "NVIDIA",
+    "value": 1016,
+    "storie": "A Python library that enables the use of Jetson's GPIOs",
+    "color": "#9FF20B"
+  },
+  {
+    "id": "jetson-rdma-picoevb",
+    "parent": "NVIDIA",
+    "value": 199,
+    "storie": "Minimal HW-based demo of GPUDirect RDMA on NVIDIA Jetson AGX Xavier running L4T",
+    "color": "#7DC400"
+  },
+  {
+    "id": "open-gpu-doc",
+    "parent": "NVIDIA",
+    "value": 1311,
+    "storie": "Documentation of NVIDIA chip/hardware interfaces",
+    "color": "#A3F611"
+  },
+  {
+    "id": "MinkowskiEngine",
+    "parent": "NVIDIA",
+    "value": 2788,
+    "storie": "Minkowski Engine is an auto-diff neural network library for high-dimensional sparse tensors",
+    "color": "#AFFF23"
+  },
+  {
+    "id": "DL4AGX",
+    "parent": "NVIDIA",
+    "value": 244,
+    "storie": "Deep Learning tools and applications for NVIDIA AGX platforms.",
+    "color": "#82CB00"
+  },
+  {
+    "id": "gpu-feature-discovery",
+    "parent": "NVIDIA",
+    "value": 305,
+    "storie": "GPU plugin to the node feature discovery for Kubernetes",
+    "color": "#86D200"
+  },
+  {
+    "id": "ansible-role-nvidia-driver",
+    "parent": "NVIDIA",
+    "value": 125,
+    "storie": NaN,
+    "color": "#72B300"
+  },
+  {
+    "id": "ansible-role-nvidia-docker",
+    "parent": "NVIDIA",
+    "value": 37,
+    "storie": NaN,
+    "color": "#568800"
+  },
+  {
+    "id": "TensorRT",
+    "parent": "NVIDIA",
+    "value": 12240,
+    "storie": "NVIDIA® TensorRT™ is an SDK for high-performance deep learning inference on NVIDIA GPUs. This repository contains the open source components of TensorRT.",
+    "color": "#C1FF53"
+  },
+  {
+    "id": "CUDALibrarySamples",
+    "parent": "NVIDIA",
+    "value": 2122,
+    "storie": "CUDA Library Samples",
+    "color": "#ABFC1B"
+  },
+  {
+    "id": "NVIDIAOpticalFlowSDK",
+    "parent": "NVIDIA",
+    "value": 66,
+    "storie": "Optical Flow SDK exposes the latest hardware capability of Turing GPUs dedicated to computing the relative motion of pixels between images. The hardware uses sophisticated algorithms to yield highly accurate flow vectors, with robust frame-to-frame intensity variations and tracks the true object motion faster and more accurately.",
+    "color": "#639C00"
+  },
+  {
+    "id": "nvtx-plugins",
+    "parent": "NVIDIA",
+    "value": 66,
+    "storie": "Python bindings for NVTX",
+    "color": "#639C00"
+  },
+  {
+    "id": "NVSM",
+    "parent": "NVIDIA",
+    "value": 9,
+    "storie": "NVIDIA System Management Framework. This repository provides plug-ins and utilities to enhance the experience of NVSM deployment on DGX, Drive Constellation, and RTX Servers.",
+    "color": "#385800"
+  },
+  {
+    "id": "Q2RTX",
+    "parent": "NVIDIA",
+    "value": 1278,
+    "storie": "NVIDIA’s implementation of RTX ray-tracing in Quake II",
+    "color": "#A2F510"
+  },
+  {
+    "id": "Korgi",
+    "parent": "NVIDIA",
+    "value": 18,
+    "storie": "A tool to convert MIDI controller inputs into UDP packets",
+    "color": "#466F00"
+  },
+  {
+    "id": "dlinput-tf",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "Optimized data input pipeline for deep learning frameworks",
+    "color": "#233800"
+  },
+  {
+    "id": "go-gpuallocator",
+    "parent": "NVIDIA",
+    "value": 115,
+    "storie": "Go Abstraction for Allocating NVIDIA GPUs with Custom Policies",
+    "color": "#70B000"
+  },
+  {
+    "id": "ising-gpu",
+    "parent": "NVIDIA",
+    "value": 68,
+    "storie": "GPU-accelerated Monte Carlo simulations of 2D Ising Model",
+    "color": "#649E00"
+  },
+  {
+    "id": "fsi-samples",
+    "parent": "NVIDIA",
+    "value": 310,
+    "storie": "A collection of open-source GPU accelerated Python tools and examples for quantitative analyst tasks and leverages RAPIDS AI project, Numba, cuDF, and Dask.",
+    "color": "#87D400"
+  },
+  {
+    "id": "semantic-segmentation",
+    "parent": "NVIDIA",
+    "value": 1815,
+    "storie": "Nvidia Semantic Segmentation monorepo",
+    "color": "#A8FA18"
+  },
+  {
+    "id": "object-detection-tensorrt-example",
+    "parent": "NVIDIA",
+    "value": 227,
+    "storie": "Running object detection on a webcam feed using TensorRT on NVIDIA GPUs in Python.",
+    "color": "#7FC800"
+  },
+  {
+    "id": "gbm-bench",
+    "parent": "NVIDIA",
+    "value": 38,
+    "storie": "A benchmark to measure performance of popular Gradient boosting algorithms against popular ML datasets.",
+    "color": "#578900"
+  },
+  {
+    "id": "nsight-aftermath-samples",
+    "parent": "NVIDIA",
+    "value": 61,
+    "storie": "Samples for the Nsight Aftermath SDK.",
+    "color": "#629A00"
+  },
+  {
+    "id": "kubevirt-gpu-device-plugin",
+    "parent": "NVIDIA",
+    "value": 265,
+    "storie": "NVIDIA k8s device plugin for Kubevirt",
+    "color": "#83CE00"
+  },
+  {
+    "id": "ansible-role-enroot",
+    "parent": "NVIDIA",
+    "value": 7,
+    "storie": NaN,
+    "color": "#335100"
+  },
+  {
+    "id": "grcuda",
+    "parent": "NVIDIA",
+    "value": 229,
+    "storie": "Polyglot CUDA integration for the GraalVM",
+    "color": "#80C900"
+  },
+  {
+    "id": "pyxis",
+    "parent": "NVIDIA",
+    "value": 386,
+    "storie": "Container plugin for Slurm Workload Manager",
+    "color": "#8CDB00"
+  },
+  {
+    "id": "ipyparaview",
+    "parent": "NVIDIA",
+    "value": 100,
+    "storie": "iPython widget for server-side ParaView rendering in Jupyter.",
+    "color": "#6DAB00"
+  },
+  {
+    "id": "fission",
+    "parent": "NVIDIA",
+    "value": 10,
+    "storie": "Go package enabling the implementation of a multi-threaded low-level FUSE file system.",
+    "color": "#3A5C00"
+  },
+  {
+    "id": "dllogger",
+    "parent": "NVIDIA",
+    "value": 60,
+    "storie": "A logging tool for deep learning.",
+    "color": "#619900"
+  },
+  {
+    "id": "vdisc",
+    "parent": "NVIDIA",
+    "value": 30,
+    "storie": "VDisc is a tool for creating and mounting virtual CD-ROM images backed by object storage",
+    "color": "#518100"
+  },
+  {
+    "id": "nvidia-container-toolkit",
+    "parent": "NVIDIA",
+    "value": 3732,
+    "storie": "Build and run containers leveraging NVIDIA GPUs",
+    "color": "#B3FF2D"
+  },
+  {
+    "id": "container-config",
+    "parent": "NVIDIA",
+    "value": 9,
+    "storie": "Set up your container runtime with NVIDIA GPUs support",
+    "color": "#385800"
+  },
+  {
+    "id": "VariantWorks",
+    "parent": "NVIDIA",
+    "value": 47,
+    "storie": "Deep Learning based variant calling toolkit - https://clara-parabricks.github.io/VariantWorks/",
+    "color": "#5B9000"
+  },
+  {
+    "id": "mellotron",
+    "parent": "NVIDIA",
+    "value": 861,
+    "storie": "Mellotron: a multispeaker voice synthesis model based on Tacotron 2 GST that can make a voice emote and sing without emotive or singing training data",
+    "color": "#9CF007"
+  },
+  {
+    "id": "cuCollections",
+    "parent": "NVIDIA",
+    "value": 589,
+    "storie": NaN,
+    "color": "#96EA00"
+  },
+  {
+    "id": "VideoProcessingFramework",
+    "parent": "NVIDIA",
+    "value": 1358,
+    "storie": "Set of Python bindings to C++ libraries which provides full HW acceleration for video decoding, encoding and GPU-accelerated color space and pixel format conversions",
+    "color": "#A3F612"
+  },
+  {
+    "id": "nvindex-cloud",
+    "parent": "NVIDIA",
+    "value": 11,
+    "storie": "NVIDIA IndeX cloud utilities",
+    "color": "#3C5F00"
+  },
+  {
+    "id": "UnsupervisedLandmarkLearning",
+    "parent": "NVIDIA",
+    "value": 45,
+    "storie": "Implementation for the unsupervised latent landmark learning work from NVIDIA Applied Deep Learning Research",
+    "color": "#5B8F00"
+  },
+  {
+    "id": "unsupervised-video-interpolation",
+    "parent": "NVIDIA",
+    "value": 107,
+    "storie": "Unsupervised Video Interpolation using Cycle Consistency",
+    "color": "#6EAD00"
+  },
+  {
+    "id": "data-science-stack",
+    "parent": "NVIDIA",
+    "value": 393,
+    "storie": "NVIDIA Data Science stack tools",
+    "color": "#8CDC00"
+  },
+  {
+    "id": "OptiX_Apps",
+    "parent": "NVIDIA",
+    "value": 330,
+    "storie": "Advanced Samples for the NVIDIA OptiX 7 Ray Tracing SDK",
+    "color": "#89D600"
+  },
+  {
+    "id": "rtx_compute_samples",
+    "parent": "NVIDIA",
+    "value": 70,
+    "storie": "RTX compute samples",
+    "color": "#659F00"
+  },
+  {
+    "id": "PyProf",
+    "parent": "NVIDIA",
+    "value": 507,
+    "storie": "A GPU performance profiling tool for PyTorch models",
+    "color": "#92E400"
+  },
+  {
+    "id": "nsight-training",
+    "parent": "NVIDIA",
+    "value": 169,
+    "storie": "Training material for Nsight developer tools",
+    "color": "#79BE00"
+  },
+  {
+    "id": "cloud-native-stack",
+    "parent": "NVIDIA",
+    "value": 199,
+    "storie": "Run cloud native workloads on NVIDIA GPUs",
+    "color": "#7DC400"
+  },
+  {
+    "id": "NVTX",
+    "parent": "NVIDIA",
+    "value": 456,
+    "storie": "The NVIDIA® Tools Extension SDK (NVTX) is a C-based Application Programming Interface (API) for annotating events, code ranges, and resources in your applications.",
+    "color": "#90E100"
+  },
+  {
+    "id": "yum-packaging-precompiled-kmod",
+    "parent": "NVIDIA",
+    "value": 38,
+    "storie": "NVIDIA precompiled kernel module packaging for RHEL",
+    "color": "#578900"
+  },
+  {
+    "id": "runx",
+    "parent": "NVIDIA",
+    "value": 642,
+    "storie": "Deep Learning Experiment Management",
+    "color": "#97EC00"
+  },
+  {
+    "id": "cloudxr-arcore",
+    "parent": "NVIDIA",
+    "value": 84,
+    "storie": "CloudXR sample applications for streaming AR/VR/MR content from the cloud",
+    "color": "#69A500"
+  },
+  {
+    "id": "flowtron",
+    "parent": "NVIDIA",
+    "value": 898,
+    "storie": "Flowtron is an auto-regressive flow-based generative network for text to speech synthesis with control over speech variation and style transfer",
+    "color": "#9CF008"
+  },
+  {
+    "id": "go-tfdata",
+    "parent": "NVIDIA",
+    "value": 16,
+    "storie": "Go library that provides easy-to-use interfaces and tools for TensorFlow users, in particular allowing to train existing TF models on .tar and .tgz datasets",
+    "color": "#446B00"
+  },
+  {
+    "id": "ais-etl",
+    "parent": "NVIDIA",
+    "value": 17,
+    "storie": "Provides for deploying custom ETL containers on AIStore, with subsequent user-defined extraction-transformation-loading in parallel, on the fly and/or offline, locally to user data.",
+    "color": "#456E00"
+  },
+  {
+    "id": "ais-k8s",
+    "parent": "NVIDIA",
+    "value": 110,
+    "storie": "Kubernetes Operator, ansible playbooks, and production scripts for large-scale AIStore deployments on Kubernetes.",
+    "color": "#6FAE00"
+  },
+  {
+    "id": "tensorflow",
+    "parent": "NVIDIA",
+    "value": 1153,
+    "storie": "An Open Source Machine Learning Framework for Everyone",
+    "color": "#A1F40E"
+  },
+  {
+    "id": "ngc-container-environment-modules",
+    "parent": "NVIDIA",
+    "value": 29,
+    "storie": "Environment modules for NGC containers",
+    "color": "#518000"
+  },
+  {
+    "id": "spark-rapids",
+    "parent": "NVIDIA",
+    "value": 935,
+    "storie": "Spark RAPIDS plugin - accelerate Apache Spark with GPUs",
+    "color": "#9DF109"
+  },
+  {
+    "id": "spark-xgboost",
+    "parent": "NVIDIA",
+    "value": 24,
+    "storie": "Scalable, Portable and Distributed Gradient Boosting (GBDT, GBRT or GBM) Library,  for Python, R, Java, Scala, C++ and more. Runs on single machine, Hadoop, Spark, Flink and DataFlow",
+    "color": "#4D7A00"
+  },
+  {
+    "id": "spark-xgboost-examples",
+    "parent": "NVIDIA",
+    "value": 53,
+    "storie": "XGBoost GPU accelerated on Spark example applications",
+    "color": "#5F9500"
+  },
+  {
+    "id": "gitlab-answer-app",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "Simple GitHub App that notifies users of the correct way to contribute",
+    "color": "#284000"
+  },
+  {
+    "id": "PixelView",
+    "parent": "NVIDIA",
+    "value": 10,
+    "storie": "A compact and extensible image viewer",
+    "color": "#3A5C00"
+  },
+  {
+    "id": "sampleQAT",
+    "parent": "NVIDIA",
+    "value": 83,
+    "storie": "Inference of quantization aware trained networks using TensorRT",
+    "color": "#69A500"
+  },
+  {
+    "id": "nvcomp",
+    "parent": "NVIDIA",
+    "value": 595,
+    "storie": "Repository for nvCOMP docs and examples. nvCOMP is a library for fast lossless compression/decompression on the GPU that can be downloaded from https://developer.nvidia.com/nvcomp.",
+    "color": "#96EA00"
+  },
+  {
+    "id": "clara-platform-python-client",
+    "parent": "NVIDIA",
+    "value": 14,
+    "storie": "An intuitive Python 3 package to develop applications with NVIDIA Clara Deploy",
+    "color": "#416600"
+  },
+  {
+    "id": "healthcare-on-tap-TRT-TRITON-demo",
+    "parent": "NVIDIA",
+    "value": 16,
+    "storie": "Demonstration of the use of TensorRT and TRITON",
+    "color": "#446B00"
+  },
+  {
+    "id": "yum-packaging-nvidia-plugin",
+    "parent": "NVIDIA",
+    "value": 11,
+    "storie": "NVIDIA yum and dnf plugins for RHEL driver packages",
+    "color": "#3C5F00"
+  },
+  {
+    "id": "libcudacxx",
+    "parent": "NVIDIA",
+    "value": 2310,
+    "storie": "[ARCHIVED] The C++ Standard Library for your entire system. See https://github.com/NVIDIA/cccl",
+    "color": "#ACFD1D"
+  },
+  {
+    "id": "cccl",
+    "parent": "NVIDIA",
+    "value": 1967,
+    "storie": "CUDA Core Compute Libraries",
+    "color": "#A9FB1A"
+  },
+  {
+    "id": "energy-sdk",
+    "parent": "NVIDIA",
+    "value": 35,
+    "storie": "GPU Accelerated Building Blocks integrating HPC+AI for Energy Customers",
+    "color": "#558700"
+  },
+  {
+    "id": "clara-dicom-adapter",
+    "parent": "NVIDIA",
+    "value": 40,
+    "storie": "DICOM Adapter is a component of the Clara Deploy SDK which facilitates integration with DICOM compliant systems, enables ingestion of imaging data, helps triggering of jobs with configurable rules and offers pushing the output of jobs to PACS  systems.",
+    "color": "#588A00"
+  },
+  {
+    "id": "cheminformatics",
+    "parent": "NVIDIA",
+    "value": 168,
+    "storie": "Facilitates searching, screening, and organizing large chemical databases",
+    "color": "#79BE00"
+  },
+  {
+    "id": "speechsquad",
+    "parent": "NVIDIA",
+    "value": 68,
+    "storie": "Conversational AI Benchmark.",
+    "color": "#649E00"
+  },
+  {
+    "id": "GraphQSat",
+    "parent": "NVIDIA",
+    "value": 52,
+    "storie": "Using GNN and DQN to find a baetter branching heuristic for a CDCL Solver",
+    "color": "#5E9400"
+  },
+  {
+    "id": "nvidia-gcp-samples",
+    "parent": "NVIDIA",
+    "value": 20,
+    "storie": "NVIDIA GPU Accelerated Application Samples in Google Cloud Platform",
+    "color": "#487200"
+  },
+  {
+    "id": "nvaitc-toolkit",
+    "parent": "NVIDIA",
+    "value": 15,
+    "storie": "Open source code base to showcase interoperability of CUDA-X AI software stack in multi-GPU environments and thus provide researchers a reference framework to build new projects on.",
+    "color": "#426900"
+  },
+  {
+    "id": "Imageinary",
+    "parent": "NVIDIA",
+    "value": 26,
+    "storie": "Imageinary is a reproducible mechanism which is used to generate large image datasets at various resolutions. The tool supports multiple image types, including JPEGs, PNGs, BMPs, RecordIO, and TFRecord files",
+    "color": "#4E7C00"
+  },
+  {
+    "id": "rapidAligner",
+    "parent": "NVIDIA",
+    "value": 29,
+    "storie": "Windowed alignment of time series at the speed of light",
+    "color": "#518000"
+  },
+  {
+    "id": "clara-train-examples",
+    "parent": "NVIDIA",
+    "value": 128,
+    "storie": "Example notebooks demonstrating how to use Clara Train to build Medical Imaging Deep Learning models",
+    "color": "#72B300"
+  },
+  {
+    "id": "GPUStressTest",
+    "parent": "NVIDIA",
+    "value": 110,
+    "storie": "GPU Stress Test is a tool to stress the compute engine of NVIDIA Tesla GPU’s by running a BLAS matrix multiply using different data types. It can be compiled and run on both Linux and Windows.",
+    "color": "#6FAE00"
+  },
+  {
+    "id": "go-nvml",
+    "parent": "NVIDIA",
+    "value": 401,
+    "storie": "Go Bindings for the NVIDIA Management Library (NVML)",
+    "color": "#8CDC00"
+  },
+  {
+    "id": "gds-nvidia-fs",
+    "parent": "NVIDIA",
+    "value": 290,
+    "storie": "NVIDIA GPUDirect Storage Driver",
+    "color": "#85D100"
+  },
+  {
+    "id": "MagnumIO",
+    "parent": "NVIDIA",
+    "value": 100,
+    "storie": "Magnum IO community repo",
+    "color": "#6DAB00"
+  },
+  {
+    "id": "nephele",
+    "parent": "NVIDIA",
+    "value": 33,
+    "storie": "Tools to deploy GPU clusters in the Cloud",
+    "color": "#548400"
+  },
+  {
+    "id": "nephele-packages",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "OS packages for the Nephele project",
+    "color": "#233800"
+  },
+  {
+    "id": "doroce-linux",
+    "parent": "NVIDIA",
+    "value": 32,
+    "storie": "A command line utility to manage the configuration of a system's high performance network interfaces for RoCE deployments",
+    "color": "#538300"
+  },
+  {
+    "id": "DCGM",
+    "parent": "NVIDIA",
+    "value": 598,
+    "storie": "NVIDIA Data Center GPU Manager (DCGM) is a project for gathering telemetry and measuring the health of NVIDIA GPUs",
+    "color": "#96EA00"
+  },
+  {
+    "id": "mcmc-bnn-example",
+    "parent": "NVIDIA",
+    "value": 17,
+    "storie": "Reference CUDA implementation of training a small Bayesian neural network (BNN) using MCMC",
+    "color": "#456E00"
+  },
+  {
+    "id": "dw-ros",
+    "parent": "NVIDIA",
+    "value": 30,
+    "storie": "ROS cross-compilation with DriveWorks",
+    "color": "#518100"
+  },
+  {
+    "id": "swiftstack-collectd-plugin",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Python plugin for collectd",
+    "color": "#142000"
+  },
+  {
+    "id": "cudnn-frontend",
+    "parent": "NVIDIA",
+    "value": 625,
+    "storie": "cudnn_frontend provides a c++ wrapper for the cudnn backend API and samples on how to use it",
+    "color": "#97EC00"
+  },
+  {
+    "id": "l2fwd-nv",
+    "parent": "NVIDIA",
+    "value": 81,
+    "storie": "l2fwd-nv provides an example of how to leverage your DPDK network application with the NVIDIA GPUDirect RDMA techonology.",
+    "color": "#68A400"
+  },
+  {
+    "id": "swift",
+    "parent": "NVIDIA",
+    "value": 8,
+    "storie": "OpenStack Storage (Swift). Mirror of code maintained at opendev.org.",
+    "color": "#365400"
+  },
+  {
+    "id": "Bobber",
+    "parent": "NVIDIA",
+    "value": 14,
+    "storie": "Containerized testing of system components that impact AI workload performance",
+    "color": "#416600"
+  },
+  {
+    "id": "mig-parted",
+    "parent": "NVIDIA",
+    "value": 217,
+    "storie": "MIG Partition Editor for NVIDIA GPUs",
+    "color": "#7EC600"
+  },
+  {
+    "id": "ubuntu-packaging-nvidia-driver",
+    "parent": "NVIDIA",
+    "value": 18,
+    "storie": "NVIDIA driver packaging for Ubuntu",
+    "color": "#466F00"
+  },
+  {
+    "id": "ubuntu-packaging-nvidia-modprobe",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "NVIDIA modprobe packaging for Ubuntu",
+    "color": "#284000"
+  },
+  {
+    "id": "ubuntu-packaging-nvidia-settings",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "NVIDIA settings packaging for Ubuntu",
+    "color": "#2C4600"
+  },
+  {
+    "id": "nvbench",
+    "parent": "NVIDIA",
+    "value": 739,
+    "storie": "CUDA Kernel Benchmarking Library",
+    "color": "#99EE03"
+  },
+  {
+    "id": "nvbench_demo",
+    "parent": "NVIDIA",
+    "value": 13,
+    "storie": "Simple starter CMake project that uses NVBench.",
+    "color": "#3F6400"
+  },
+  {
+    "id": "yum-packaging-dkms-nvidia",
+    "parent": "NVIDIA",
+    "value": 11,
+    "storie": "DKMS packaging source for NVIDIA kernel modules on RHEL",
+    "color": "#3C5F00"
+  },
+  {
+    "id": "yum-packaging-nvidia-driver",
+    "parent": "NVIDIA",
+    "value": 8,
+    "storie": "NVIDIA driver packaging for RHEL",
+    "color": "#365400"
+  },
+  {
+    "id": "yum-packaging-nvidia-kmod-common",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "NVIDIA kernel module common files packaging for RHEL",
+    "color": "#233800"
+  },
+  {
+    "id": "yum-packaging-nvidia-modprobe",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "NVIDIA modprobe packaging for RHEL",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "yum-packaging-nvidia-persistenced",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "NVIDIA persistenced packaging for RHEL",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "yum-packaging-nvidia-settings",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "NVIDIA settings packaging for RHEL",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "yum-packaging-nvidia-xconfig",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "NVIDIA xconfig packaging for RHEL",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "apt-packaging-fabric-manager",
+    "parent": "NVIDIA",
+    "value": 16,
+    "storie": "Fabric Manager packaging for Debian",
+    "color": "#446B00"
+  },
+  {
+    "id": "yum-packaging-fabric-manager",
+    "parent": "NVIDIA",
+    "value": 10,
+    "storie": "Fabric Manager packaging for RHEL",
+    "color": "#3A5C00"
+  },
+  {
+    "id": "apt-packaging-libnvidia-nscq",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "NSCQ packaging for Debian",
+    "color": "#304C00"
+  },
+  {
+    "id": "yum-packaging-libnvidia-nscq",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "NSCQ packaging for RHEL",
+    "color": "#142000"
+  },
+  {
+    "id": "DALI_deps",
+    "parent": "NVIDIA",
+    "value": 10,
+    "storie": "3rd party dependencies for DALI project",
+    "color": "#3A5C00"
+  },
+  {
+    "id": "zypper-packaging-nvidia-driver",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "NVIDIA driver packaging for SUSE",
+    "color": "#233800"
+  },
+  {
+    "id": "trt-samples-for-hackathon-cn",
+    "parent": "NVIDIA",
+    "value": 1644,
+    "storie": "Simple samples for TensorRT programming",
+    "color": "#A6F815"
+  },
+  {
+    "id": "cuda-cpp-grammar",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "Grammar files for CUDA C++",
+    "color": "#304C00"
+  },
+  {
+    "id": "FasterTransformer",
+    "parent": "NVIDIA",
+    "value": 6326,
+    "storie": "Transformer related optimization, including BERT, GPT",
+    "color": "#B9FF3F"
+  },
+  {
+    "id": "5t5g",
+    "parent": "NVIDIA",
+    "value": 22,
+    "storie": "This project shows how to leverage your DPDK network application with Mellanox 5T5G features like Accurate Send Scheduling and eCPRI flow steering rules",
+    "color": "#4B7600"
+  },
+  {
+    "id": "blossom-action",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "Github action used for internal ci-cd pipeline",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "stdexec",
+    "parent": "NVIDIA",
+    "value": 2050,
+    "storie": "`std::execution`, the proposed C++ framework for asynchronous and parallel programming.",
+    "color": "#AAFC1B"
+  },
+  {
+    "id": "nsight-vscode-edition",
+    "parent": "NVIDIA",
+    "value": 90,
+    "storie": "A Visual Studio Code extension for building and debugging CUDA applications.",
+    "color": "#6AA700"
+  },
+  {
+    "id": "fleet-command",
+    "parent": "NVIDIA",
+    "value": 13,
+    "storie": "NVIDIA Fleet Command is a hybrid-cloud platform for securely and remotely deploying, managing, and scaling AI across dozens or up to thousands of servers or edge devices. For more info please refer to https://www.nvidia.com/en-us/data-center/products/fleet-command/",
+    "color": "#3F6400"
+  },
+  {
+    "id": "terraform-provider-shoreline",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Shoreline terraform provider repo",
+    "color": "#142000"
+  },
+  {
+    "id": "cuda-python",
+    "parent": "NVIDIA",
+    "value": 3002,
+    "storie": "CUDA Python: Performance meets Productivity",
+    "color": "#B0FF25"
+  },
+  {
+    "id": "clara-platform-ansible-playbooks",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "Ansible playbooks to install Clara Deploy Platform",
+    "color": "#233800"
+  },
+  {
+    "id": "go-dcgm",
+    "parent": "NVIDIA",
+    "value": 134,
+    "storie": "Golang bindings for Nvidia Datacenter GPU Manager (DCGM)",
+    "color": "#74B500"
+  },
+  {
+    "id": "transformer-ls",
+    "parent": "NVIDIA",
+    "value": 228,
+    "storie": "Official PyTorch Implementation of Long-Short Transformer (NeurIPS 2021).",
+    "color": "#80C900"
+  },
+  {
+    "id": "NVFlare",
+    "parent": "NVIDIA",
+    "value": 809,
+    "storie": "NVIDIA Federated Learning Application Runtime Environment",
+    "color": "#9BEF06"
+  },
+  {
+    "id": "DLSS",
+    "parent": "NVIDIA",
+    "value": 1012,
+    "storie": "NVIDIA DLSS is a new and improved deep learning neural network that boosts frame rates and generates beautiful, sharp images for your games",
+    "color": "#9FF20B"
+  },
+  {
+    "id": "clara-pipeline-operator-sizing-tool",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "CPOST is a CLI tool to assist with the proper sizing of Clara Deploy pipelines",
+    "color": "#284000"
+  },
+  {
+    "id": "spark-rapids-examples",
+    "parent": "NVIDIA",
+    "value": 163,
+    "storie": "A repo for all spark examples using Rapids Accelerator including ETL, ML/DL, etc.",
+    "color": "#78BD00"
+  },
+  {
+    "id": "data-science-blueprints",
+    "parent": "NVIDIA",
+    "value": 9,
+    "storie": "Systems that show how to accelerate modern machine learning and data processing",
+    "color": "#385800"
+  },
+  {
+    "id": "dcgm-exporter",
+    "parent": "NVIDIA",
+    "value": 1423,
+    "storie": "NVIDIA GPU metrics exporter for Prometheus leveraging DCGM",
+    "color": "#A4F712"
+  },
+  {
+    "id": "sparkucx",
+    "parent": "NVIDIA",
+    "value": 30,
+    "storie": "A high-performance, scalable and efficient ShuffleManager plugin for Apache Spark, utilizing UCX communication layer",
+    "color": "#518100"
+  },
+  {
+    "id": "build-system-archive-import-examples",
+    "parent": "NVIDIA",
+    "value": 20,
+    "storie": "Examples for importing precompiled binary tarball and zip archives into various build and packaging systems",
+    "color": "#487200"
+  },
+  {
+    "id": "MatX",
+    "parent": "NVIDIA",
+    "value": 1357,
+    "storie": "An efficient C++17 GPU numerical computing library with Python-like syntax",
+    "color": "#A3F612"
+  },
+  {
+    "id": "ProViz-AI-Samples",
+    "parent": "NVIDIA",
+    "value": 30,
+    "storie": "AI-related samples made available by the DevTech ProViz team",
+    "color": "#518100"
+  },
+  {
+    "id": "spark-rapids-ml",
+    "parent": "NVIDIA",
+    "value": 84,
+    "storie": "Spark RAPIDS MLlib – accelerate Apache Spark MLlib with GPUs",
+    "color": "#69A500"
+  },
+  {
+    "id": "O-RAN-Archive",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "Technical contributions submitted to O-RAN Alliance by NVIDIA",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "cuda-repo-management",
+    "parent": "NVIDIA",
+    "value": 13,
+    "storie": "Scripts for managing Debian and RPM package repositories",
+    "color": "#3F6400"
+  },
+  {
+    "id": "GTC-2021-A31202-Code",
+    "parent": "NVIDIA",
+    "value": 7,
+    "storie": NaN,
+    "color": "#335100"
+  },
+  {
+    "id": "clara-viz",
+    "parent": "NVIDIA",
+    "value": 72,
+    "storie": "NVIDIA Clara Viz is a platform for visualization of 2D/3D medical imaging data",
+    "color": "#66A000"
+  },
+  {
+    "id": "cuQuantum",
+    "parent": "NVIDIA",
+    "value": 429,
+    "storie": "Home for cuQuantum Python & NVIDIA cuQuantum SDK C++ samples",
+    "color": "#8EDE00"
+  },
+  {
+    "id": "egl-gbm",
+    "parent": "NVIDIA",
+    "value": 24,
+    "storie": "The GBM EGL external platform library",
+    "color": "#4D7A00"
+  },
+  {
+    "id": "spark-rapids-jni",
+    "parent": "NVIDIA",
+    "value": 51,
+    "storie": "RAPIDS Accelerator JNI For Apache Spark",
+    "color": "#5D9300"
+  },
+  {
+    "id": "optix-toolkit",
+    "parent": "NVIDIA",
+    "value": 121,
+    "storie": "Set of utilities supporting workflows common in GPU raytracing applications",
+    "color": "#71B200"
+  },
+  {
+    "id": "edk2",
+    "parent": "NVIDIA",
+    "value": 24,
+    "storie": "NVIDIA fork of tianocore/edk2",
+    "color": "#4D7A00"
+  },
+  {
+    "id": "edk2-platforms",
+    "parent": "NVIDIA",
+    "value": 8,
+    "storie": "NVIDIA fork of tianocore/edk2-platforms",
+    "color": "#365400"
+  },
+  {
+    "id": "edk2-nvidia",
+    "parent": "NVIDIA",
+    "value": 111,
+    "storie": "NVIDIA EDK2 platform support",
+    "color": "#6FAE00"
+  },
+  {
+    "id": "edk2-nvidia-non-osi",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "NVIDIA EDK2 non-OSI licensed content",
+    "color": "#233800"
+  },
+  {
+    "id": "edk2-edkrepo-manifest",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "NVIDIA fork of tianocore/edk2-edkrepo-manifest",
+    "color": "#2C4600"
+  },
+  {
+    "id": "GMAT",
+    "parent": "NVIDIA",
+    "value": 191,
+    "storie": "A toolkit showing GPU's all-round capability in video processing",
+    "color": "#7BC200"
+  },
+  {
+    "id": "container-canary",
+    "parent": "NVIDIA",
+    "value": 279,
+    "storie": "A tool for testing and validating container requirements against versioned manifests",
+    "color": "#85D000"
+  },
+  {
+    "id": "warp",
+    "parent": "NVIDIA",
+    "value": 5658,
+    "storie": "A Python framework for accelerated simulation, data generation and spatial computing.",
+    "color": "#B8FF3C"
+  },
+  {
+    "id": "nvbandwidth",
+    "parent": "NVIDIA",
+    "value": 546,
+    "storie": "A tool for bandwidth measurements on NVIDIA GPUs.",
+    "color": "#93E700"
+  },
+  {
+    "id": "ansible-collection-dpu-ops",
+    "parent": "NVIDIA",
+    "value": 13,
+    "storie": "NVIDIA DPU OPs collection",
+    "color": "#3F6400"
+  },
+  {
+    "id": "clara-ia",
+    "parent": "NVIDIA",
+    "value": 15,
+    "storie": "CUDA accelerated medical imaging algorithms",
+    "color": "#426900"
+  },
+  {
+    "id": "open-gpu-kernel-modules",
+    "parent": "NVIDIA",
+    "value": 16251,
+    "storie": "NVIDIA Linux open GPU kernel module source",
+    "color": "#C1FF53"
+  },
+  {
+    "id": "energy-sdk-l2rpn",
+    "parent": "NVIDIA",
+    "value": 12,
+    "storie": NaN,
+    "color": "#3E6200"
+  },
+  {
+    "id": "spark-rapids-benchmarks",
+    "parent": "NVIDIA",
+    "value": 42,
+    "storie": "Spark RAPIDS Benchmarks – benchmark sets and utilities for the RAPIDS Accelerator for Apache Spark",
+    "color": "#598D00"
+  },
+  {
+    "id": "radtts",
+    "parent": "NVIDIA",
+    "value": 290,
+    "storie": "Provides training, inference and voice conversion recipes for RADTTS and RADTTS++: Flow-based TTS models with Robust Alignment Learning, Diverse Synthesis, and Generative Modeling and Fine-Grained Control over of Low Dimensional (F0 and Energy) Speech Attributes.",
+    "color": "#85D100"
+  },
+  {
+    "id": "GPUPowerTest",
+    "parent": "NVIDIA",
+    "value": 25,
+    "storie": "A utility for stressing GPUs by driving utilization (and thus power consumption) up and down in user-defined cycle intervals. It will also randomly drop power consumption down to idle and spike it back up",
+    "color": "#4E7B00"
+  },
+  {
+    "id": "BigVGAN",
+    "parent": "NVIDIA",
+    "value": 1118,
+    "storie": "Official PyTorch implementation of BigVGAN (ICLR 2023)",
+    "color": "#A0F40D"
+  },
+  {
+    "id": "mpi-acx",
+    "parent": "NVIDIA",
+    "value": 37,
+    "storie": "MPI accelerator-integrated communication extensions",
+    "color": "#568800"
+  },
+  {
+    "id": "vgpu-device-manager",
+    "parent": "NVIDIA",
+    "value": 143,
+    "storie": "NVIDIA vGPU Device Manager manages NVIDIA vGPU devices on top of Kubernetes",
+    "color": "#75B800"
+  },
+  {
+    "id": "cuDecomp",
+    "parent": "NVIDIA",
+    "value": 69,
+    "storie": "An Adaptive Pencil Decomposition Library for NVIDIA GPUs",
+    "color": "#649E00"
+  },
+  {
+    "id": "debian-packaging-nvidia-driver",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "NVIDIA driver packaging for Debian (distro)",
+    "color": "#2C4600"
+  },
+  {
+    "id": "apt-packaging-cuda-keyring",
+    "parent": "NVIDIA",
+    "value": 13,
+    "storie": "CUDA keyring packaging for Debian",
+    "color": "#3F6400"
+  },
+  {
+    "id": "CleanUNet",
+    "parent": "NVIDIA",
+    "value": 333,
+    "storie": "Official PyTorch Implementation of CleanUNet (ICASSP 2022)",
+    "color": "#89D600"
+  },
+  {
+    "id": "air_sdk",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "A Python SDK library for interacting with NVIDIA Air",
+    "color": "#2C4600"
+  },
+  {
+    "id": "LDDL",
+    "parent": "NVIDIA",
+    "value": 39,
+    "storie": "Distributed preprocessing and data loading for language datasets",
+    "color": "#588A00"
+  },
+  {
+    "id": "atex",
+    "parent": "NVIDIA",
+    "value": 26,
+    "storie": "A TensorFlow Extension: GPU performance tools for TensorFlow.",
+    "color": "#4E7C00"
+  },
+  {
+    "id": "air_agent",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "A Python agent for receiving instructions from the NVIDIA Air platform",
+    "color": "#233800"
+  },
+  {
+    "id": "edk2-non-osi",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "NVIDIA fork of tianocore/edk2-non-osi",
+    "color": "#2C4600"
+  },
+  {
+    "id": "MegaMolBART",
+    "parent": "NVIDIA",
+    "value": 170,
+    "storie": "A deep learning model for small molecule drug discovery and cheminformatics based on SMILES",
+    "color": "#79BE00"
+  },
+  {
+    "id": "nim-anywhere",
+    "parent": "NVIDIA",
+    "value": 180,
+    "storie": "Accelerate your Gen AI with NVIDIA NIM and NVIDIA AI Workbench",
+    "color": "#7BC000"
+  },
+  {
+    "id": "mlperf-common",
+    "parent": "NVIDIA",
+    "value": 32,
+    "storie": "NVIDIA's launch, startup, and logging scripts used by our MLPerf Training and HPC submissions",
+    "color": "#538300"
+  },
+  {
+    "id": "cuopt-examples",
+    "parent": "NVIDIA",
+    "value": 368,
+    "storie": "NVIDIA cuOpt examples for decision optimization",
+    "color": "#8BDA00"
+  },
+  {
+    "id": "TransformerEngine",
+    "parent": "NVIDIA",
+    "value": 2787,
+    "storie": "A library for accelerating Transformer models on NVIDIA GPUs, including using 8-bit floating point (FP8) precision on Hopper, Ada and Blackwell GPUs, to provide better performance with lower memory utilization in both training and inference.",
+    "color": "#AFFF23"
+  },
+  {
+    "id": "spark-rapids-container",
+    "parent": "NVIDIA",
+    "value": 21,
+    "storie": "Spark RAPIDS Container – Docker containers for Spark RAPIDS",
+    "color": "#4A7500"
+  },
+  {
+    "id": "libdeflate",
+    "parent": "NVIDIA",
+    "value": 17,
+    "storie": "Heavily optimized library for DEFLATE/zlib/gzip and NVIDIA GDEFLATE compression and decompression",
+    "color": "#456E00"
+  },
+  {
+    "id": "spark-rapids-tools",
+    "parent": "NVIDIA",
+    "value": 64,
+    "storie": "User tools for Spark RAPIDS",
+    "color": "#629B00"
+  },
+  {
+    "id": "NeMo-speech-data-processor",
+    "parent": "NVIDIA",
+    "value": 177,
+    "storie": "A toolkit for processing speech data and creating speech datasets",
+    "color": "#7ABF00"
+  },
+  {
+    "id": "NeMo-text-processing",
+    "parent": "NVIDIA",
+    "value": 378,
+    "storie": "NeMo text processing for ASR and TTS",
+    "color": "#8CDB00"
+  },
+  {
+    "id": "Rivermax",
+    "parent": "NVIDIA",
+    "value": 61,
+    "storie": "Extended and advanced applications to the Rivermax SDK (Networking SDK for Media and Data Streaming).",
+    "color": "#629A00"
+  },
+  {
+    "id": "Deep-Learning-Accelerator-SW",
+    "parent": "NVIDIA",
+    "value": 218,
+    "storie": "NVIDIA DLA-SW, the recipes and tools for running deep learning workloads on NVIDIA DLA cores for inference applications.",
+    "color": "#7EC600"
+  },
+  {
+    "id": "k8s-operator-libs",
+    "parent": "NVIDIA",
+    "value": 25,
+    "storie": "A collection of useful Go libraries to ease the development of NVIDIA Operators for GPU/NIC management.",
+    "color": "#4E7B00"
+  },
+  {
+    "id": "NeMo-Framework-Launcher",
+    "parent": "NVIDIA",
+    "value": 507,
+    "storie": "Provides end-to-end model development pipelines for LLMs and Multimodal models that can be launched on-prem or cloud-native.",
+    "color": "#92E400"
+  },
+  {
+    "id": "optee_os-nvidia",
+    "parent": "NVIDIA",
+    "value": 11,
+    "storie": "Description: source code of the OPTEE_OS for NVIDIA Jetson Linux",
+    "color": "#3C5F00"
+  },
+  {
+    "id": "torch-harmonics",
+    "parent": "NVIDIA",
+    "value": 543,
+    "storie": "Differentiable signal processing on the sphere for PyTorch",
+    "color": "#93E700"
+  },
+  {
+    "id": "k8s-driver-manager",
+    "parent": "NVIDIA",
+    "value": 39,
+    "storie": "The NVIDIA Driver Manager is a Kubernetes component which assist in seamless upgrades of NVIDIA Driver on each node of the cluster.",
+    "color": "#588A00"
+  },
+  {
+    "id": "aws-kube-ci",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "This CI tool aims to create a virtual machine on AWS with a GPU enabled Kubernetes master/node.",
+    "color": "#2C4600"
+  },
+  {
+    "id": "gpu-driver-container",
+    "parent": "NVIDIA",
+    "value": 135,
+    "storie": "The NVIDIA GPU driver container allows the provisioning of the NVIDIA driver through the use of containers.",
+    "color": "#74B500"
+  },
+  {
+    "id": "k8s-samples",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "Sample Dockerfiles for Docker Hub images",
+    "color": "#2C4600"
+  },
+  {
+    "id": "go-nvlib",
+    "parent": "NVIDIA",
+    "value": 44,
+    "storie": "A collection of useful Go libraries for use with NVIDIA GPU management tools",
+    "color": "#5A8E00"
+  },
+  {
+    "id": "otk-pyoptix",
+    "parent": "NVIDIA",
+    "value": 58,
+    "storie": "Complete Python bindings for the OptiX host API",
+    "color": "#609800"
+  },
+  {
+    "id": "otk-demand-loading",
+    "parent": "NVIDIA",
+    "value": 14,
+    "storie": "A C++/CUDA library for loading CUDA sparse textures on demand in OptiX renderers",
+    "color": "#416600"
+  },
+  {
+    "id": "otk-omm-baking",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "A C++/CUDA library for baking Opacity Micromap Arrays for textured geometry",
+    "color": "#304C00"
+  },
+  {
+    "id": "otk-shader-util",
+    "parent": "NVIDIA",
+    "value": 10,
+    "storie": "Vector math and other CUDA helper functions for OptiX kernels",
+    "color": "#3A5C00"
+  },
+  {
+    "id": "otk-examples",
+    "parent": "NVIDIA",
+    "value": 10,
+    "storie": "Examples that demonstrate uses of the OptiX Tookit",
+    "color": "#3A5C00"
+  },
+  {
+    "id": "otk-cmake",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "CMake modules for the OptiX Toolkit",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "physicsnemo",
+    "parent": "NVIDIA",
+    "value": 1929,
+    "storie": "Open-source deep-learning framework for building, training, and fine-tuning deep learning models using state-of-the-art Physics-ML methods",
+    "color": "#A9FB19"
+  },
+  {
+    "id": "physicsnemo-sym",
+    "parent": "NVIDIA",
+    "value": 277,
+    "storie": "Framework providing pythonic APIs, algorithms and utilities to be used with PhysicsNeMo core to physics inform model training as well as higher level abstraction for domain experts",
+    "color": "#84CF00"
+  },
+  {
+    "id": "nvsci",
+    "parent": "NVIDIA",
+    "value": 36,
+    "storie": "Linux kernel modules for secure sharing of memory buffers",
+    "color": "#558700"
+  },
+  {
+    "id": "JAX-Toolbox",
+    "parent": "NVIDIA",
+    "value": 349,
+    "storie": "JAX-Toolbox",
+    "color": "#89D700"
+  },
+  {
+    "id": "Cloud-Trust-Scripts",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "Nvidia Cloud Trust Enablement Scripts for customers",
+    "color": "#284000"
+  },
+  {
+    "id": "grace-kernel",
+    "parent": "NVIDIA",
+    "value": 15,
+    "storie": "Upstream Kernel with Grace upstream pending patches for partners. Patches include any bug fixes during Grace production while they await upstreaming.",
+    "color": "#426900"
+  },
+  {
+    "id": "cloud-native-docs",
+    "parent": "NVIDIA",
+    "value": 29,
+    "storie": "Documentation repository for NVIDIA Cloud Native Technologies",
+    "color": "#518000"
+  },
+  {
+    "id": "cccl_devcontainers",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": NaN,
+    "color": "#284000"
+  },
+  {
+    "id": "Fuser",
+    "parent": "NVIDIA",
+    "value": 357,
+    "storie": "A Fusion Code Generator for NVIDIA GPUs (commonly known as \"nvFuser\")",
+    "color": "#8AD800"
+  },
+  {
+    "id": "cuda-quantum",
+    "parent": "NVIDIA",
+    "value": 818,
+    "storie": "C++ and Python support for the CUDA Quantum programming model for heterogeneous quantum-classical workflows",
+    "color": "#9BEF06"
+  },
+  {
+    "id": "cdt-gdb-adapter",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "CDT GDB Debug Adapter",
+    "color": "#233800"
+  },
+  {
+    "id": "linux-firmware",
+    "parent": "NVIDIA",
+    "value": 21,
+    "storie": NaN,
+    "color": "#4A7500"
+  },
+  {
+    "id": "scm_test",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "test repository owned by hwinf scm team",
+    "color": "#142000"
+  },
+  {
+    "id": "k8s-dra-driver-gpu",
+    "parent": "NVIDIA",
+    "value": 457,
+    "storie": "NVIDIA DRA Driver for GPUs",
+    "color": "#90E100"
+  },
+  {
+    "id": "digital-biology-examples",
+    "parent": "NVIDIA",
+    "value": 181,
+    "storie": "NVIDIA Digital Biology examples for optimized inference and training at scale",
+    "color": "#7BC000"
+  },
+  {
+    "id": "otk-memory",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "Memory allocators for the OptiX Toolkit",
+    "color": "#304C00"
+  },
+  {
+    "id": "garak",
+    "parent": "NVIDIA",
+    "value": 6173,
+    "storie": "the LLM vulnerability scanner",
+    "color": "#B9FF3F"
+  },
+  {
+    "id": "NVIDIA_AI_Enterprise_AzureML",
+    "parent": "NVIDIA",
+    "value": 21,
+    "storie": "Source Code and Usage Samples for the Resources hosted in the NVIDIA AI Enterprise AzureML Registry",
+    "color": "#4A7500"
+  },
+  {
+    "id": "bluebazel",
+    "parent": "NVIDIA",
+    "value": 39,
+    "storie": "Blue Bazel: A vscode extension for bazel building, running, and testing with UI",
+    "color": "#588A00"
+  },
+  {
+    "id": "mods-kernel-driver",
+    "parent": "NVIDIA",
+    "value": 32,
+    "storie": "Linux driver for diagnostic software",
+    "color": "#538300"
+  },
+  {
+    "id": "cumulus-test-drive",
+    "parent": "NVIDIA",
+    "value": 8,
+    "storie": "Testing and validation scripts and playbooks for Cumulus Linux Workshops",
+    "color": "#365400"
+  },
+  {
+    "id": "k8s-kata-manager",
+    "parent": "NVIDIA",
+    "value": 20,
+    "storie": NaN,
+    "color": "#487200"
+  },
+  {
+    "id": "tao_tensorflow1_backend",
+    "parent": "NVIDIA",
+    "value": 13,
+    "storie": "TAO Toolkit deep learning networks with TensorFlow 1.x backend",
+    "color": "#3F6400"
+  },
+  {
+    "id": "tao_tensorflow2_backend",
+    "parent": "NVIDIA",
+    "value": 8,
+    "storie": "TAO Toolkit deep learning networks with TensorFlow 2.x backend",
+    "color": "#365400"
+  },
+  {
+    "id": "tao_pytorch_backend",
+    "parent": "NVIDIA",
+    "value": 104,
+    "storie": "TAO Toolkit deep learning networks with PyTorch backend",
+    "color": "#6DAC00"
+  },
+  {
+    "id": "tao_dataset_suite",
+    "parent": "NVIDIA",
+    "value": 8,
+    "storie": "Set of advanced data augmentation and analytics tools",
+    "color": "#365400"
+  },
+  {
+    "id": "tao_deploy",
+    "parent": "NVIDIA",
+    "value": 20,
+    "storie": "Package for deploying deep learning models from TAO Toolkit",
+    "color": "#487200"
+  },
+  {
+    "id": "tao_launcher",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "Lightweight Python based CLI application to run TAO Toolkit",
+    "color": "#304C00"
+  },
+  {
+    "id": "tao_tutorials",
+    "parent": "NVIDIA",
+    "value": 110,
+    "storie": "Quick start scripts and tutorial notebooks to get started with TAO Toolkit",
+    "color": "#6FAE00"
+  },
+  {
+    "id": "tao-core",
+    "parent": "NVIDIA",
+    "value": 9,
+    "storie": "TAO Toolkit as a stand-alone service and TAO Client CLI package",
+    "color": "#385800"
+  },
+  {
+    "id": "nvidia-terraform-modules",
+    "parent": "NVIDIA",
+    "value": 55,
+    "storie": "Infrastructure as code for GPU accelerated managed Kubernetes clusters.",
+    "color": "#5F9600"
+  },
+  {
+    "id": "nvtrust",
+    "parent": "NVIDIA",
+    "value": 275,
+    "storie": "Ancillary open source software to support confidential computing on NVIDIA GPUs",
+    "color": "#84CF00"
+  },
+  {
+    "id": "TorchFort",
+    "parent": "NVIDIA",
+    "value": 173,
+    "storie": "An Online Deep Learning Interface for HPC programs on NVIDIA GPUs",
+    "color": "#79BE00"
+  },
+  {
+    "id": "HMM_sample_code",
+    "parent": "NVIDIA",
+    "value": 20,
+    "storie": "CUDA 12.2 HMM demos",
+    "color": "#487200"
+  },
+  {
+    "id": "TensorRT-LLM",
+    "parent": "NVIDIA",
+    "value": 11848,
+    "storie": "TensorRT LLM provides users with an easy-to-use Python API to define Large Language Models (LLMs) and support state-of-the-art optimizations to perform inference efficiently on NVIDIA GPUs. TensorRT LLM also contains components to create Python and C++ runtimes that orchestrate the inference execution in performant way.",
+    "color": "#C1FF53"
+  },
+  {
+    "id": "k8s-cc-manager",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "The NVIDIA CC Manager is a Kubernetes component that will enable required CC mode on supported NVIDIA GPUs",
+    "color": "#284000"
+  },
+  {
+    "id": "nvapi",
+    "parent": "NVIDIA",
+    "value": 159,
+    "storie": "NVAPI is NVIDIA's core software development kit that allows direct access to NVIDIA GPUs and drivers on supported platforms.",
+    "color": "#77BB00"
+  },
+  {
+    "id": "earth2mip",
+    "parent": "NVIDIA",
+    "value": 244,
+    "storie": "Earth-2 Model Intercomparison Project (MIP) is a python framework that enables climate researchers and scientists to inter-compare AI models for weather and climate.",
+    "color": "#82CB00"
+  },
+  {
+    "id": "PLDM-unpack",
+    "parent": "NVIDIA",
+    "value": 12,
+    "storie": "Tool to unpack or parse PLDM (Platform Level Data Model v1.0.1) firmware update files.",
+    "color": "#3E6200"
+  },
+  {
+    "id": "gontainer",
+    "parent": "NVIDIA",
+    "value": 57,
+    "storie": "Simple but powerful dependency injection container for Go projects!",
+    "color": "#609800"
+  },
+  {
+    "id": "self-intersection-avoidance",
+    "parent": "NVIDIA",
+    "value": 21,
+    "storie": "Repository with HLSL and GLSL sample code for self-intersection avoidance in DXR and Vulkan",
+    "color": "#4A7500"
+  },
+  {
+    "id": "arm-kernels",
+    "parent": "NVIDIA",
+    "value": 12,
+    "storie": "Simple Arm assembly kernels for testing the performance and functionality of Arm CPUs.",
+    "color": "#3E6200"
+  },
+  {
+    "id": "NeMo-Aligner",
+    "parent": "NVIDIA",
+    "value": 842,
+    "storie": "Scalable toolkit for efficient model alignment",
+    "color": "#9BF006"
+  },
+  {
+    "id": "grace-cpu-benchmarking-guide",
+    "parent": "NVIDIA",
+    "value": 15,
+    "storie": "Guides and examples to help achieve optimal performance on a NVIDIA Grace CPU",
+    "color": "#426900"
+  },
+  {
+    "id": "makani",
+    "parent": "NVIDIA",
+    "value": 326,
+    "storie": "Massively parallel training of machine-learning based weather and climate models",
+    "color": "#88D500"
+  },
+  {
+    "id": "RAD-MMM-phonemizer",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "text processing helpers for RAD-MMM",
+    "color": "#2C4600"
+  },
+  {
+    "id": "RAD-MMM",
+    "parent": "NVIDIA",
+    "value": 76,
+    "storie": "A TTS model that makes a speaker speak new languages",
+    "color": "#66A100"
+  },
+  {
+    "id": "nvImageCodec",
+    "parent": "NVIDIA",
+    "value": 118,
+    "storie": "A nvImageCodec library of GPU- and CPU- accelerated codecs featuring a unified interface",
+    "color": "#70B100"
+  },
+  {
+    "id": "workbench-example-nemo-ptuning",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "An NVIDIA AI Workbench example project for p-tuning LLMs with NeMo Framework",
+    "color": "#2C4600"
+  },
+  {
+    "id": "workbench-example-nemo-punctuation",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "An NVIDIA AI Workbench example project for annotating text with NeMo Framework",
+    "color": "#233800"
+  },
+  {
+    "id": "workbench-example-rapids-cudf",
+    "parent": "NVIDIA",
+    "value": 17,
+    "storie": "An NVIDIA AI Workbench example project for exploring the RAPIDS cuDF library",
+    "color": "#456E00"
+  },
+  {
+    "id": "workbench-example-rapids-cuml",
+    "parent": "NVIDIA",
+    "value": 10,
+    "storie": "An NVIDIA AI Workbench example project for exploring the RAPIDS cuML library",
+    "color": "#3A5C00"
+  },
+  {
+    "id": "Stable-Diffusion-WebUI-TensorRT",
+    "parent": "NVIDIA",
+    "value": 1986,
+    "storie": "TensorRT Extension for Stable Diffusion Web UI",
+    "color": "#A9FB1A"
+  },
+  {
+    "id": "bionemo-framework",
+    "parent": "NVIDIA",
+    "value": 535,
+    "storie": "BioNeMo Framework: For building and adapting AI models in drug discovery at scale",
+    "color": "#93E700"
+  },
+  {
+    "id": "ChatRTX",
+    "parent": "NVIDIA",
+    "value": 3065,
+    "storie": "A developer reference project for creating Retrieval Augmented Generation (RAG) chatbots on Windows using TensorRT-LLM",
+    "color": "#B0FF26"
+  },
+  {
+    "id": "GenerativeAIExamples",
+    "parent": "NVIDIA",
+    "value": 3486,
+    "storie": "Generative AI reference workflows optimized for accelerated infrastructure and microservice architecture.",
+    "color": "#B2FF2B"
+  },
+  {
+    "id": "tinylinux-scripts",
+    "parent": "NVIDIA",
+    "value": 30,
+    "storie": "Scripts for building minimal Linux distribution for diagnostics",
+    "color": "#518100"
+  },
+  {
+    "id": "monai-cloud-api",
+    "parent": "NVIDIA",
+    "value": 29,
+    "storie": "MONAI Cloud API developments for intelligent imaging and learning tools, fostering innovation in medical imaging and AI-driven services.",
+    "color": "#518000"
+  },
+  {
+    "id": "viskores-graph",
+    "parent": "NVIDIA",
+    "value": 7,
+    "storie": "Filter execution graph library built on top of VTK-m",
+    "color": "#335100"
+  },
+  {
+    "id": "workbench-example-llama2-finetune",
+    "parent": "NVIDIA",
+    "value": 32,
+    "storie": "An NVIDIA AI Workbench Example Project for Finetuning Llama 2",
+    "color": "#538300"
+  },
+  {
+    "id": "workbench-example-sdxl-customization",
+    "parent": "NVIDIA",
+    "value": 57,
+    "storie": "An NVIDIA AI Workbench example project for customizing an SDXL model",
+    "color": "#609800"
+  },
+  {
+    "id": "sybil",
+    "parent": "NVIDIA",
+    "value": 18,
+    "storie": "Kerberos ticket delegation and impersonation for Batch/CI/CD environments",
+    "color": "#466F00"
+  },
+  {
+    "id": "gpu_affinity",
+    "parent": "NVIDIA",
+    "value": 27,
+    "storie": "GPU Affinity is a package to automatically set the CPU process affinity to match the hardware architecture on a given platform",
+    "color": "#4F7D00"
+  },
+  {
+    "id": "NVPLSamples",
+    "parent": "NVIDIA",
+    "value": 21,
+    "storie": "NVIDIA Performance Libraries: Sample code",
+    "color": "#4A7500"
+  },
+  {
+    "id": "trt-llm-as-openai-windows",
+    "parent": "NVIDIA",
+    "value": 126,
+    "storie": "This reference can be used with any existing OpenAI integrated apps to run with TRT-LLM inference locally on GeForce GPU on Windows instead of cloud.",
+    "color": "#72B300"
+  },
+  {
+    "id": "edk2-redfish-client",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "NVIDIA fork of tianocore/edk2-redfish-client",
+    "color": "#142000"
+  },
+  {
+    "id": "holodeck",
+    "parent": "NVIDIA",
+    "value": 19,
+    "storie": "Holodeck is a project to create test environments optimised for GPU projects.",
+    "color": "#487100"
+  },
+  {
+    "id": "gpu-admin-tools",
+    "parent": "NVIDIA",
+    "value": 35,
+    "storie": "GPU Admin Tools. Includes Confidential Computing controls for H100, and other functionality",
+    "color": "#558700"
+  },
+  {
+    "id": "k8s-test-infra",
+    "parent": "NVIDIA",
+    "value": 10,
+    "storie": "K8s-test-infra",
+    "color": "#3A5C00"
+  },
+  {
+    "id": "Diversity-Sampling",
+    "parent": "NVIDIA",
+    "value": 24,
+    "storie": "GPU-accelerated algorithm for subsampling datasets while preserving diversity",
+    "color": "#4D7A00"
+  },
+  {
+    "id": "workbench-example-mistral-finetune",
+    "parent": "NVIDIA",
+    "value": 63,
+    "storie": "An NVIDIA AI Workbench example project for fine-tuning a Mistral 7B model",
+    "color": "#629B00"
+  },
+  {
+    "id": "workbench-example-nemotron-finetune",
+    "parent": "NVIDIA",
+    "value": 54,
+    "storie": "An NVIDIA AI Workbench example project for fine-tuning a Nemotron-3 8B model",
+    "color": "#5F9500"
+  },
+  {
+    "id": "nv-cloud-function-helpers",
+    "parent": "NVIDIA",
+    "value": 17,
+    "storie": "Functions that simplify common tasks with NVIDIA Cloud Functions",
+    "color": "#456E00"
+  },
+  {
+    "id": "cpu-code-locality-tool",
+    "parent": "NVIDIA",
+    "value": 11,
+    "storie": "Scripts to identify an application that will benefit from code locality optimization on ARM architecture and to generate an optimized linker script for re-building the application.",
+    "color": "#3C5F00"
+  },
+  {
+    "id": "accelerated-quant-finance",
+    "parent": "NVIDIA",
+    "value": 78,
+    "storie": "Quantitative finance example applications on GPUs using portable programming models.",
+    "color": "#67A200"
+  },
+  {
+    "id": "kubectl-nv",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "Kubectl NV plugin, a tool for managing NVIDIA objects on a kubernetes cluster.",
+    "color": "#304C00"
+  },
+  {
+    "id": "mitten",
+    "parent": "NVIDIA",
+    "value": 9,
+    "storie": "Mitten is NVIDIA's framework for our MLPerf Inference code submissions.",
+    "color": "#385800"
+  },
+  {
+    "id": "workbench-example-hybrid-rag",
+    "parent": "NVIDIA",
+    "value": 341,
+    "storie": "An NVIDIA AI Workbench example project for Retrieval Augmented Generation (RAG)",
+    "color": "#89D600"
+  },
+  {
+    "id": "vr-capture-replay",
+    "parent": "NVIDIA",
+    "value": 19,
+    "storie": "NVIDIA VCR - VR Capture and Replay, a set of tools to capture, modify, and replay OpenVR sessions",
+    "color": "#487100"
+  },
+  {
+    "id": "Megatron-Energon",
+    "parent": "NVIDIA",
+    "value": 251,
+    "storie": "Megatron's multi-modal data loader",
+    "color": "#82CB00"
+  },
+  {
+    "id": "NV-Kernels",
+    "parent": "NVIDIA",
+    "value": 63,
+    "storie": "Ubuntu kernels which are optimized for NVIDIA server systems",
+    "color": "#629B00"
+  },
+  {
+    "id": "numbast",
+    "parent": "NVIDIA",
+    "value": 51,
+    "storie": "Numbast is a tool to build an automated pipeline that converts CUDA APIs into Numba bindings.",
+    "color": "#5D9300"
+  },
+  {
+    "id": "nvkind",
+    "parent": "NVIDIA",
+    "value": 175,
+    "storie": NaN,
+    "color": "#7ABF00"
+  },
+  {
+    "id": "cloudai",
+    "parent": "NVIDIA",
+    "value": 71,
+    "storie": "CloudAI Benchmark Framework",
+    "color": "#659F00"
+  },
+  {
+    "id": "earth2studio",
+    "parent": "NVIDIA",
+    "value": 271,
+    "storie": "Open-source deep-learning framework for exploring, building and deploying AI weather/climate workflows.",
+    "color": "#84CF00"
+  },
+  {
+    "id": "RULER",
+    "parent": "NVIDIA",
+    "value": 1321,
+    "storie": "This repo contains the source code for RULER: What’s the Real Context Size of Your Long-Context Language Models?",
+    "color": "#A3F611"
+  },
+  {
+    "id": "QEMU",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "NVIDIA fork of QEMU",
+    "color": "#304C00"
+  },
+  {
+    "id": "knavigator",
+    "parent": "NVIDIA",
+    "value": 70,
+    "storie": "knavigator is a development, testing, and optimization toolkit for AI/ML scheduling systems at scale on Kubernetes.",
+    "color": "#659F00"
+  },
+  {
+    "id": "kata-containers",
+    "parent": "NVIDIA",
+    "value": 8,
+    "storie": "Kata containers is an implementation of lightweight Virtual Machines (VMs) that feel and perform like containers, but provide the workload isolation and security advantages of VMs.",
+    "color": "#365400"
+  },
+  {
+    "id": "cuda-checkpoint",
+    "parent": "NVIDIA",
+    "value": 375,
+    "storie": "CUDA checkpoint and restore utility",
+    "color": "#8BDA00"
+  },
+  {
+    "id": "nvmath-python",
+    "parent": "NVIDIA",
+    "value": 515,
+    "storie": "NVIDIA Math Libraries for the Python Ecosystem",
+    "color": "#93E600"
+  },
+  {
+    "id": "cper-decoder",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "Converts CPERs to JSON",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "nvbmc-docs",
+    "parent": "NVIDIA",
+    "value": 21,
+    "storie": "Documentation for Nvidia OpenBMC stack",
+    "color": "#4A7500"
+  },
+  {
+    "id": "jam-player",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Firmware update of the Altera FPGA over JTAG",
+    "color": "#142000"
+  },
+  {
+    "id": "libnvme",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "Implementation of the NVMe protocol",
+    "color": "#304C00"
+  },
+  {
+    "id": "nvidia-code-mgmt",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "Non-PLDM firmware update infrastructure",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "nvidia-ipmi-oem",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "Implementation of Nvidia OEM IPMI commands",
+    "color": "#233800"
+  },
+  {
+    "id": "nvidia-pcm",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "Platform configuration manager",
+    "color": "#284000"
+  },
+  {
+    "id": "nvidia-power-manager",
+    "parent": "NVIDIA",
+    "value": 7,
+    "storie": "Platform power capping and control",
+    "color": "#335100"
+  },
+  {
+    "id": "nvidia-retimer",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "Retimer inventory and firmware update",
+    "color": "#233800"
+  },
+  {
+    "id": "nvidia-tal",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Telemetry abstraction layer",
+    "color": "#142000"
+  },
+  {
+    "id": "nv-bmc-shmem",
+    "parent": "NVIDIA",
+    "value": 12,
+    "storie": "Shared memory IPC on BMC",
+    "color": "#3E6200"
+  },
+  {
+    "id": "remote-media",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Remotely mount images for the host through the BMC",
+    "color": "#142000"
+  },
+  {
+    "id": "spdm",
+    "parent": "NVIDIA",
+    "value": 10,
+    "storie": "Implementation of the SPDM protocol",
+    "color": "#3A5C00"
+  },
+  {
+    "id": "TensorRT-Model-Optimizer",
+    "parent": "NVIDIA",
+    "value": 1440,
+    "storie": "A unified library of state-of-the-art model optimization techniques like quantization, pruning, distillation, speculative decoding, etc. It compresses deep learning models for downstream deployment frameworks like TensorRT-LLM or TensorRT to optimize inference speed.",
+    "color": "#A4F712"
+  },
+  {
+    "id": "bios-settings-mgr",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": NaN,
+    "color": "#1D2E00"
+  },
+  {
+    "id": "bmcweb",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "A do everything Redfish, KVM, GUI, and DBus webserver for OpenBMC",
+    "color": "#284000"
+  },
+  {
+    "id": "dbus-sensors",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "D-Bus configurable sensor scanning applications",
+    "color": "#142000"
+  },
+  {
+    "id": "entity-manager",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Run-time JSON driven system configuration manager",
+    "color": "#142000"
+  },
+  {
+    "id": "libmctp",
+    "parent": "NVIDIA",
+    "value": 8,
+    "storie": NaN,
+    "color": "#365400"
+  },
+  {
+    "id": "libpldm",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": NaN,
+    "color": "#142000"
+  },
+  {
+    "id": "linux",
+    "parent": "NVIDIA",
+    "value": 7,
+    "storie": "OpenBMC Linux kernel source tree",
+    "color": "#335100"
+  },
+  {
+    "id": "obmc-console",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "OpenBMC host console infrastructure",
+    "color": "#142000"
+  },
+  {
+    "id": "openbmc",
+    "parent": "NVIDIA",
+    "value": 10,
+    "storie": "OpenBMC Distribution",
+    "color": "#3A5C00"
+  },
+  {
+    "id": "phosphor-bmc-code-mgmt",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Manage the BMC's code versions.",
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-buttons",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": NaN,
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-certificate-manager",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": NaN,
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-dbus-interfaces",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "YAML descriptors of standard dbus interfaces",
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-debug-collector",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Collects debug data from the BMC for extraction.",
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-health-monitor",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": NaN,
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-host-ipmid",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "dbus-based ipmid for host-endpoint IPMI commands",
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-host-postd",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": NaN,
+    "color": "#1D2E00"
+  },
+  {
+    "id": "phosphor-led-manager",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": NaN,
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-logging",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Libraries for common event and logging creation.",
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-net-ipmid",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Network IPMI server",
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-networkd",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": NaN,
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-pid-control",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "OpenBMC PID-based Thermal Control Daemon",
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-post-code-manager",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": NaN,
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-sel-logger",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": NaN,
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-state-manager",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": NaN,
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-time-manager",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Local time policy and emulated host RTC manager",
+    "color": "#142000"
+  },
+  {
+    "id": "phosphor-user-manager",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": NaN,
+    "color": "#142000"
+  },
+  {
+    "id": "pldm",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": NaN,
+    "color": "#284000"
+  },
+  {
+    "id": "smbios-mdr",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": NaN,
+    "color": "#1D2E00"
+  },
+  {
+    "id": "ssifbridge",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": NaN,
+    "color": "#1D2E00"
+  },
+  {
+    "id": "u-boot",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "OpenBMC \"Das U-Boot\" Source Tree",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "webui-vue",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "Web-based user interface built on Vue.js for managing OpenBMC systems",
+    "color": "#233800"
+  },
+  {
+    "id": "audio-flamingo",
+    "parent": "NVIDIA",
+    "value": 754,
+    "storie": "PyTorch implementation of Audio Flamingo: Series of Advanced Audio Understanding Language Models",
+    "color": "#9AEE04"
+  },
+  {
+    "id": "numba-cuda",
+    "parent": "NVIDIA",
+    "value": 197,
+    "storie": "The CUDA target for Numba",
+    "color": "#7CC300"
+  },
+  {
+    "id": "nvidia-hpcg",
+    "parent": "NVIDIA",
+    "value": 61,
+    "storie": "NVIDIA HPCG is based on the HPCG benchmark and optimized for performance on NVIDIA accelerated HPC systems.",
+    "color": "#629A00"
+  },
+  {
+    "id": "nim-deploy",
+    "parent": "NVIDIA",
+    "value": 194,
+    "storie": "A collection of YAML files, Helm Charts, Operator code, and guides to act as an example reference implementation for NVIDIA NIM deployment.",
+    "color": "#7CC300"
+  },
+  {
+    "id": "ACE",
+    "parent": "NVIDIA",
+    "value": 284,
+    "storie": "NVIDIA ACE samples, workflows, and resources",
+    "color": "#85D000"
+  },
+  {
+    "id": "RTX-AI-Toolkit",
+    "parent": "NVIDIA",
+    "value": 176,
+    "storie": "The NVIDIA RTX™ AI Toolkit is a suite of tools and SDKs for Windows developers to customize, optimize, and deploy AI models across RTX PCs and cloud.",
+    "color": "#7ABF00"
+  },
+  {
+    "id": "workbench-llamafactory",
+    "parent": "NVIDIA",
+    "value": 67,
+    "storie": "This is an NVIDIA AI Workbench example project that demonstrates an end-to-end model development workflow using Llamafactory.",
+    "color": "#639C00"
+  },
+  {
+    "id": "accelerated-computing-hub",
+    "parent": "NVIDIA",
+    "value": 744,
+    "storie": "NVIDIA curated collection of educational resources related to general purpose GPU programming.",
+    "color": "#9AEE04"
+  },
+  {
+    "id": "product-security",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "Starting October 1, 2025, NVIDIA PSIRT will publish an initial set of security bulletins on GitHub in Markdown, CSAF, and CVE formats. Coverage will expand over time, while all bulletins remain available on the Product Security website.",
+    "color": "#2C4600"
+  },
+  {
+    "id": "metropolis-nim-workflows",
+    "parent": "NVIDIA",
+    "value": 175,
+    "storie": "Collection of reference workflows for building intelligent agents with NIMs",
+    "color": "#7ABF00"
+  },
+  {
+    "id": "ovn-isolation-deployment",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "Deployment and user guide of a service that leverages the Open Virtual Network (OVN) platform to create and manage isolated virtual network domains.",
+    "color": "#233800"
+  },
+  {
+    "id": "doca-sosreport",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "A unified tool for collecting system logs and other debug information",
+    "color": "#284000"
+  },
+  {
+    "id": "cuda-q-academic",
+    "parent": "NVIDIA",
+    "value": 196,
+    "storie": "This repo contains CUDA-Q Academic materials, including self-paced Jupyter notebook modules for building and optimizing hybrid quantum-classical algorithms using CUDA-Q.",
+    "color": "#7CC300"
+  },
+  {
+    "id": "nvnmos",
+    "parent": "NVIDIA",
+    "value": 16,
+    "storie": "NVIDIA NMOS (Networked Media Open Specifications) Library",
+    "color": "#446B00"
+  },
+  {
+    "id": "nvrc",
+    "parent": "NVIDIA",
+    "value": 17,
+    "storie": "The NVRC project provides a Rust binary that implements a simple init system for microVMs.",
+    "color": "#456E00"
+  },
+  {
+    "id": "cccl-gha",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "Github Action infrastructure for CCCL",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "nsmd",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "MCTP VDM-based Nvidia System Management API",
+    "color": "#284000"
+  },
+  {
+    "id": "nvidia-nvme-manager",
+    "parent": "NVIDIA",
+    "value": 7,
+    "storie": "Manage NVME drives via MCTP",
+    "color": "#335100"
+  },
+  {
+    "id": "nvidia-monitor-eventing",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "Monitor and react to platform events",
+    "color": "#2C4600"
+  },
+  {
+    "id": "nvidia-gpio-status-handler",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Monitor and react to GPIO changes",
+    "color": "#142000"
+  },
+  {
+    "id": "k8s-nim-operator",
+    "parent": "NVIDIA",
+    "value": 131,
+    "storie": "An Operator for deployment and maintenance of NVIDIA NIMs and NeMo microservices in a Kubernetes environment.",
+    "color": "#73B400"
+  },
+  {
+    "id": "TensorRT-Incubator",
+    "parent": "NVIDIA",
+    "value": 113,
+    "storie": "Experimental projects related to TensorRT",
+    "color": "#70B000"
+  },
+  {
+    "id": "clink-kernel-driver",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "t241-clink-ioctl is a loadable kernel module needed for T241 MODs clink testing.",
+    "color": "#2C4600"
+  },
+  {
+    "id": "free-threaded-python",
+    "parent": "NVIDIA",
+    "value": 64,
+    "storie": "No-GIL Python environment featuring NVIDIA Deep Learning libraries.",
+    "color": "#629B00"
+  },
+  {
+    "id": "edk2-infineon",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "NVIDIA fork of Infineon edk2 drivers",
+    "color": "#284000"
+  },
+  {
+    "id": "workbench-example-llama3-finetune",
+    "parent": "NVIDIA",
+    "value": 17,
+    "storie": "An NVIDIA AI Workbench example project for finetuning a Llama 3 8B Model",
+    "color": "#456E00"
+  },
+  {
+    "id": "workbench-example-mixtral-finetune",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "An NVIDIA AI Workbench example project for finetuning a Mixtral 8x7B Model",
+    "color": "#304C00"
+  },
+  {
+    "id": "workbench-example-phi3-finetune",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "An NVIDIA AI Workbench example project for finetuning a Phi-3 Mini Model",
+    "color": "#304C00"
+  },
+  {
+    "id": "workbench-example-agentic-rag",
+    "parent": "NVIDIA",
+    "value": 105,
+    "storie": "An NVIDIA AI Workbench example project for an Agentic Retrieval Augmented Generation (RAG)",
+    "color": "#6EAD00"
+  },
+  {
+    "id": "spark-rapids-common",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "Reusable GitHub Actions workflows and common scripts for Spark RAPIDS",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "nv-ingest",
+    "parent": "NVIDIA",
+    "value": 2750,
+    "storie": "NeMo Retriever extraction is a scalable, performance-oriented document content and metadata extraction microservice. NeMo Retriever extraction uses specialized NVIDIA NIM microservices to find, contextualize, and extract text, tables, charts and images that you can use in downstream generative applications.",
+    "color": "#AFFF23"
+  },
+  {
+    "id": "ispvme",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "Lattice CPLD Firmware Update Service",
+    "color": "#284000"
+  },
+  {
+    "id": "cper-logger",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Daemon for managing CPER logs produced from processor complexes",
+    "color": "#142000"
+  },
+  {
+    "id": "Maya-ACE",
+    "parent": "NVIDIA",
+    "value": 63,
+    "storie": "Maya-ACE: A Reference Client Implementation for NVIDIA ACE Audio2Face Service",
+    "color": "#629B00"
+  },
+  {
+    "id": "egl-x11",
+    "parent": "NVIDIA",
+    "value": 20,
+    "storie": "The X11/XCB external platform library",
+    "color": "#487200"
+  },
+  {
+    "id": "nvidia-driver-assistant",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "A tool to help users deciding on which NVIDIA graphics driver to install, based on the detected system's hardware.",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "nautobot-app-fsus",
+    "parent": "NVIDIA",
+    "value": 10,
+    "storie": "Field Serviceable Units for Nautobot",
+    "color": "#3A5C00"
+  },
+  {
+    "id": "topograph",
+    "parent": "NVIDIA",
+    "value": 72,
+    "storie": "A toolkit for discovering cluster network topology.",
+    "color": "#66A000"
+  },
+  {
+    "id": "grove",
+    "parent": "NVIDIA",
+    "value": 69,
+    "storie": "Kubernetes enhancements for Network Topology Aware Gang Scheduling & Autoscaling",
+    "color": "#649E00"
+  },
+  {
+    "id": "nvidia-resiliency-ext",
+    "parent": "NVIDIA",
+    "value": 226,
+    "storie": "NVIDIA Resiliency Extension is a python package for framework developers and users to implement fault-tolerant features. It improves the effective training time by minimizing the downtime due to failures and interruptions.",
+    "color": "#7FC800"
+  },
+  {
+    "id": "doca-platform",
+    "parent": "NVIDIA",
+    "value": 53,
+    "storie": "DOCA Platform manages provisioning and service orchestration for Bluefield DPUs",
+    "color": "#5F9500"
+  },
+  {
+    "id": "Trustworthy-AI",
+    "parent": "NVIDIA",
+    "value": 12,
+    "storie": "NVIDIA’s repository for enabling trustworthy AI.",
+    "color": "#3E6200"
+  },
+  {
+    "id": "CUDA-Fortran-2ed",
+    "parent": "NVIDIA",
+    "value": 12,
+    "storie": "Source code from \"CUDA Fortran for Scientists and Engineers, Second Edition\"",
+    "color": "#3E6200"
+  },
+  {
+    "id": "workbench-example-multimodal-virtual-assistant",
+    "parent": "NVIDIA",
+    "value": 15,
+    "storie": "An NVIDIA AI Workbench example project to build a multimodal virtual assistant",
+    "color": "#426900"
+  },
+  {
+    "id": "workbench-example-competition-kernel",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "An NVIDIA AI Workbench example project to bring your own compute to any Kaggle competition.",
+    "color": "#233800"
+  },
+  {
+    "id": "cuEquivariance",
+    "parent": "NVIDIA",
+    "value": 310,
+    "storie": "cuEquivariance is a math library that is a collective of low-level primitives and tensor ops to accelerate widely-used models, like DiffDock, MACE, Allegro and NEQUIP, based on equivariant neural networks. Also includes kernels for accelerated structure prediction.",
+    "color": "#87D400"
+  },
+  {
+    "id": "onnxruntime",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "ONNX Runtime: cross-platform, high performance ML inferencing and training accelerator",
+    "color": "#233800"
+  },
+  {
+    "id": "cudaqx",
+    "parent": "NVIDIA",
+    "value": 60,
+    "storie": "Accelerated libraries for quantum-classical computing built on CUDA-Q.",
+    "color": "#619900"
+  },
+  {
+    "id": "nvsdm",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "NVSwitch Device Monitoring API.",
+    "color": "#233800"
+  },
+  {
+    "id": "Cosmos-Tokenizer",
+    "parent": "NVIDIA",
+    "value": 1673,
+    "storie": "A suite of image and video neural tokenizers",
+    "color": "#A7F916"
+  },
+  {
+    "id": "ngpt",
+    "parent": "NVIDIA",
+    "value": 191,
+    "storie": "Normalized Transformer (nGPT)",
+    "color": "#7BC200"
+  },
+  {
+    "id": "pika",
+    "parent": "NVIDIA",
+    "value": 26,
+    "storie": "API for coordinating Maintenance in Kubernetes.",
+    "color": "#4E7C00"
+  },
+  {
+    "id": "kvpress",
+    "parent": "NVIDIA",
+    "value": 651,
+    "storie": "LLM KV cache compression made easy",
+    "color": "#98EC01"
+  },
+  {
+    "id": "terraform-provider-ngc",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "The NGC Provider enables Terraform to manage NGC (NVIDIA GPU Cloud) resources.",
+    "color": "#2C4600"
+  },
+  {
+    "id": "multi-storage-client",
+    "parent": "NVIDIA",
+    "value": 36,
+    "storie": "Unified high-performance Python client for object and file stores.",
+    "color": "#558700"
+  },
+  {
+    "id": "nvidia-fdr",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Nvidia Flight Data Recorder for the BMC",
+    "color": "#142000"
+  },
+  {
+    "id": "Multi-Model-Workflows",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "Multi-Model Workflows for Automated Visual Understanding",
+    "color": "#304C00"
+  },
+  {
+    "id": "logits-processor-zoo",
+    "parent": "NVIDIA",
+    "value": 362,
+    "storie": "A collection of LogitsProcessors to customize and enhance LLM behavior for specific tasks.",
+    "color": "#8AD800"
+  },
+  {
+    "id": "nautobot-app-consumables",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "Consumables Tracking for Nautobot.",
+    "color": "#233800"
+  },
+  {
+    "id": "Star-Attention",
+    "parent": "NVIDIA",
+    "value": 390,
+    "storie": "Efficient LLM Inference over Long Sequences",
+    "color": "#8CDB00"
+  },
+  {
+    "id": "skyhook",
+    "parent": "NVIDIA",
+    "value": 27,
+    "storie": "A Kubernetes Operator to manage Node OS customizations.",
+    "color": "#4F7D00"
+  },
+  {
+    "id": "skyhook-packages",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "Packages for the Skyhook Kubernetes Operator.",
+    "color": "#284000"
+  },
+  {
+    "id": "NeMo-Inspector",
+    "parent": "NVIDIA",
+    "value": 40,
+    "storie": "A tool for an analysis of LLM generations.",
+    "color": "#588A00"
+  },
+  {
+    "id": "Audio2Face-3D-Samples",
+    "parent": "NVIDIA",
+    "value": 160,
+    "storie": "A service to convert audio to facial blendshapes for lipsyncing and facial performances.",
+    "color": "#77BB00"
+  },
+  {
+    "id": "cloudxr-framework",
+    "parent": "NVIDIA",
+    "value": 10,
+    "storie": "Swift frameworks for building client applications that connect to CloudXR servers. These frameworks offer the base connection, streaming and communication systems needed to create a connection.",
+    "color": "#3A5C00"
+  },
+  {
+    "id": "cuEmbed",
+    "parent": "NVIDIA",
+    "value": 31,
+    "storie": "CUDA Embedding Lookup Kernel Library",
+    "color": "#528200"
+  },
+  {
+    "id": "Cosmos",
+    "parent": "NVIDIA",
+    "value": 8059,
+    "storie": "New repo collection for NVIDIA Cosmos: https://github.com/nvidia-cosmos",
+    "color": "#BDFF49"
+  },
+  {
+    "id": "usage-metrics-collector",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "High fidelity and scalable capacity and usage metrics for Kubernetes clusters",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "nvidia-dlfw-inspect",
+    "parent": "NVIDIA",
+    "value": 15,
+    "storie": "The tool facilitates debugging convergence issues and testing new algorithms and recipes for training LLMs using Nvidia libraries such as Transformer Engine, Megatron-LM, and NeMo.",
+    "color": "#426900"
+  },
+  {
+    "id": "G-Assist",
+    "parent": "NVIDIA",
+    "value": 177,
+    "storie": "Help shape the future of Project G-Assist",
+    "color": "#7ABF00"
+  },
+  {
+    "id": "terraform-provider-mcahr",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "MCAHR terraform provider repo",
+    "color": "#142000"
+  },
+  {
+    "id": "libredfish",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "A Rust Crate for interacting with DTMF Redfish endpoints",
+    "color": "#284000"
+  },
+  {
+    "id": "KAI-Scheduler",
+    "parent": "NVIDIA",
+    "value": 854,
+    "storie": "KAI Scheduler is an open source Kubernetes Native scheduler for AI workloads at large scale",
+    "color": "#9CF007"
+  },
+  {
+    "id": "optix-dev",
+    "parent": "NVIDIA",
+    "value": 34,
+    "storie": "OptiX SDK headers, everything needed to build & run OptiX applications. SDK samples not included.",
+    "color": "#558600"
+  },
+  {
+    "id": "Fabric-Manager-Client",
+    "parent": "NVIDIA",
+    "value": 11,
+    "storie": "This is a tool for managing GPU partitions for NVIDIA Fabric Manager’s Shared NVSwitch.",
+    "color": "#3C5F00"
+  },
+  {
+    "id": "NeMo-Agent-Toolkit",
+    "parent": "NVIDIA",
+    "value": 1430,
+    "storie": "The NVIDIA NeMo Agent toolkit is an open-source library for efficiently connecting and optimizing teams of AI agents.",
+    "color": "#A4F712"
+  },
+  {
+    "id": "NeMo-Agent-Toolkit-UI",
+    "parent": "NVIDIA",
+    "value": 50,
+    "storie": "The NVIDIA AIQToolkit UI streamlines interacting with AIQToolkit workflows in an easy-to-use web application.",
+    "color": "#5D9300"
+  },
+  {
+    "id": "workbench-example-downloadable-nim",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "An NVIDIA AI Workbench example project for building with a downloadable NVIDIA NIM",
+    "color": "#2C4600"
+  },
+  {
+    "id": "workbench-example-onboarding-project",
+    "parent": "NVIDIA",
+    "value": 10,
+    "storie": "An interactive tutorial project that demonstrates the capabilities of NVIDIA AI Workbench",
+    "color": "#3A5C00"
+  },
+  {
+    "id": "Isaac-GR00T",
+    "parent": "NVIDIA",
+    "value": 5040,
+    "storie": "NVIDIA Isaac GR00T N1.5 -  A Foundation Model for Generalist Robots.",
+    "color": "#B7FF38"
+  },
+  {
+    "id": "nvloom",
+    "parent": "NVIDIA",
+    "value": 29,
+    "storie": "nvloom is a set of tools designed to scalably test MNNVL fabrics.",
+    "color": "#518000"
+  },
+  {
+    "id": "rivermax-dev-kit",
+    "parent": "NVIDIA",
+    "value": 7,
+    "storie": "The code distributed provides a set of utilities to facilitate the development of applications using the Rivermax API",
+    "color": "#335100"
+  },
+  {
+    "id": "open-nvfwupd",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "Tool to update NVIDIA server components out-of-band using PLDM packaged firmware.",
+    "color": "#2C4600"
+  },
+  {
+    "id": "jaxpp",
+    "parent": "NVIDIA",
+    "value": 54,
+    "storie": "JaxPP is a library for JAX that enables flexible MPMD pipeline parallelism for large-scale LLM training",
+    "color": "#5F9500"
+  },
+  {
+    "id": "libvirt-hooks",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "Custom libvirt hook scripts for specific system management",
+    "color": "#233800"
+  },
+  {
+    "id": "MMLU-Pro-Max",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "A robust MMLU-Pro evaluation.",
+    "color": "#2C4600"
+  },
+  {
+    "id": "optix-subd",
+    "parent": "NVIDIA",
+    "value": 17,
+    "storie": "An OptiX/CUDA code sample showing how to quickly build ray-tracing acceleration structures for dynamic subdivision surfaces",
+    "color": "#456E00"
+  },
+  {
+    "id": "maxtext-jaxpp",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "Showcase JaxPP with MaxText",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "compute-eval",
+    "parent": "NVIDIA",
+    "value": 67,
+    "storie": "Evaluating Large Language Models for CUDA Code Generation ComputeEval is a framework designed to generate and evaluate CUDA code from Large Language Models.",
+    "color": "#639C00"
+  },
+  {
+    "id": "phosphor-fan-presence",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "Thermal related applications that control and monitor the cooling of a system",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "context-aware-rag",
+    "parent": "NVIDIA",
+    "value": 36,
+    "storie": "Context-Aware RAG library for Knowledge Graph ingestion and retrieval functions.",
+    "color": "#558700"
+  },
+  {
+    "id": "cuopt",
+    "parent": "NVIDIA",
+    "value": 466,
+    "storie": "GPU accelerated decision optimization",
+    "color": "#90E200"
+  },
+  {
+    "id": "ace-controller",
+    "parent": "NVIDIA",
+    "value": 21,
+    "storie": "Pipecat framework based orchestrator for building real-time, voice-enabled, and multimodal conversational AI agents",
+    "color": "#4A7500"
+  },
+  {
+    "id": "dgxc-benchmarking",
+    "parent": "NVIDIA",
+    "value": 41,
+    "storie": "DGXC Benchmarking provides recipes in ready-to-use templates for evaluating performance of specific AI use cases across hardware and software combinations.",
+    "color": "#588B00"
+  },
+  {
+    "id": "recsys-examples",
+    "parent": "NVIDIA",
+    "value": 153,
+    "storie": "Examples for Recommenders - easy to train and deploy on accelerated infrastructure.",
+    "color": "#77BA00"
+  },
+  {
+    "id": "egl-wayland2",
+    "parent": "NVIDIA",
+    "value": 16,
+    "storie": "Dma-buf-based Wayland external platform library",
+    "color": "#446B00"
+  },
+  {
+    "id": "When2Call",
+    "parent": "NVIDIA",
+    "value": 38,
+    "storie": "A dataset for training and evaluating LLMs on decision making about \"when (not) to call\" functions",
+    "color": "#578900"
+  },
+  {
+    "id": "enterprise-ras",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "All assets and scripts associated to NVIDIA’s Enterprise Reference Architecture program for OEMs",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "whetstone",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "Whetstone: Adaptive Security Testing Framework for GenAI Applications",
+    "color": "#2C4600"
+  },
+  {
+    "id": "spark-process",
+    "parent": "NVIDIA",
+    "value": 21,
+    "storie": "A process for Ada/SPARK software to meet ISO 26262",
+    "color": "#4A7500"
+  },
+  {
+    "id": "pulp",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "PuLP is a linear and mixed integer programming modeler written in Python.",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "ib-traffic-monitor",
+    "parent": "NVIDIA",
+    "value": 30,
+    "storie": "A TUI-based utility for real-time monitoring of InfiniBand traffic and performance metrics on the local node",
+    "color": "#518100"
+  },
+  {
+    "id": "cuopt-jupyter",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "This repository contains a Jupyter Notebook that will install the cuOpt service and example notebooks.",
+    "color": "#142000"
+  },
+  {
+    "id": "audio-intelligence",
+    "parent": "NVIDIA",
+    "value": 62,
+    "storie": "Elucidated Text-To-Audio (ETTA) is a SOTA text-to-audio model with a holistic understanding of the design space and trained with synthetic captions.",
+    "color": "#629A00"
+  },
+  {
+    "id": "synthda",
+    "parent": "NVIDIA",
+    "value": 27,
+    "storie": "SynthDa is a framework designed to make synthetic data generation for human actions more usable and accessible. This is a pose-level augmentation framework that generates synthetic training videos by interpolating real and AI-generated poses. It increases minority-class coverage, helping to mitigate data scarcity for rare actions.",
+    "color": "#4F7D00"
+  },
+  {
+    "id": "physicsnemo-curator",
+    "parent": "NVIDIA",
+    "value": 18,
+    "storie": "PhysicsNeMo-Curator is a Python-based library designed to streamline and accelerate the process of data curation for engineering datasets.",
+    "color": "#466F00"
+  },
+  {
+    "id": "physicsnemo-cfd",
+    "parent": "NVIDIA",
+    "value": 26,
+    "storie": "L​ibrary for using the models trained in PhysicsNeMo in Engineering and CFD workflows",
+    "color": "#4E7C00"
+  },
+  {
+    "id": "TensorRT-RTX",
+    "parent": "NVIDIA",
+    "value": 55,
+    "storie": "NVIDIA TensorRT-RTX is an SDK for high-performance AI inference on NVIDIA RTX GPUs. This repository contains Open-Source Software components of TensorRT-RTX.",
+    "color": "#5F9600"
+  },
+  {
+    "id": "GR00T-Dreams",
+    "parent": "NVIDIA",
+    "value": 331,
+    "storie": "Nvidia GEAR Lab's initiative to solve the robotics data problem using world models",
+    "color": "#89D600"
+  },
+  {
+    "id": "nv-one-logger",
+    "parent": "NVIDIA",
+    "value": 19,
+    "storie": "nv-one-logger enables tracking of GPU application progress over time and can help to identify overhead from workload and cluster inefficiencies to provide efficiency metrics.",
+    "color": "#487100"
+  },
+  {
+    "id": "knetscan",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "KNetScan – A Scalable Kubernetes Port Discovery and Reachability Analyzer",
+    "color": "#2C4600"
+  },
+  {
+    "id": "nvtool-kernel-driver",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "The nvtool-kernel-driver is a loadable Linux kernel module required by NVTool-based utilities for firmware flashing and diagnostics.",
+    "color": "#284000"
+  },
+  {
+    "id": "wayland-ivi-extension",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "Extensions to the Wayland protocol for InVehicle Infotainment",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "diffusion-audio-restoration",
+    "parent": "NVIDIA",
+    "value": 107,
+    "storie": "Audio-to-Audio Schrodinger Bridges is a diffusion-based audio restoration model for bandwidth extension and inpainting.",
+    "color": "#6EAD00"
+  },
+  {
+    "id": "3DObjectReconstruction",
+    "parent": "NVIDIA",
+    "value": 129,
+    "storie": "3D Object Reconstruction project is a workflow that takes a set of stereo images and camera info and outputs a textured mesh (i.e., .OBJ file). The purpose is to translate physical items into the digital world in a photorealistic way",
+    "color": "#73B400"
+  },
+  {
+    "id": "cper-dump",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Cper-dump kernel module uses a specific DSM call to dump the CPERs stored in the R/W Flash of Grace CPU.",
+    "color": "#142000"
+  },
+  {
+    "id": "dgx-cloud-examples",
+    "parent": "NVIDIA",
+    "value": 8,
+    "storie": "A collection of various NVIDIA DGX Cloud code examples",
+    "color": "#365400"
+  },
+  {
+    "id": "Nemotron-CORTEXA",
+    "parent": "NVIDIA",
+    "value": 7,
+    "storie": "Nemotron-CORTEXA is an open-source software engineering agent that fixes GitHub issues.",
+    "color": "#335100"
+  },
+  {
+    "id": "NeMo-Agent-Toolkit-Examples",
+    "parent": "NVIDIA",
+    "value": 8,
+    "storie": "Community examples utilizing NVIDIA NeMo Agent Toolkit.",
+    "color": "#365400"
+  },
+  {
+    "id": "tilus",
+    "parent": "NVIDIA",
+    "value": 377,
+    "storie": "Tilus is a tile-level kernel programming language with explicit control over shared memory and registers.",
+    "color": "#8BDA00"
+  },
+  {
+    "id": "Audio2Face-3D-Training-Framework",
+    "parent": "NVIDIA",
+    "value": 42,
+    "storie": "Audio2Face-3D Training Framework for creating custom neural networks that generate realistic facial animations from audio input",
+    "color": "#598D00"
+  },
+  {
+    "id": "Audio2Face-3D-SDK",
+    "parent": "NVIDIA",
+    "value": 68,
+    "storie": "High-performance C++/CUDA SDK for running Audio2Emotion and Audio2Face inference with integrated post-processing.",
+    "color": "#649E00"
+  },
+  {
+    "id": "nvaitc-aps-project-demos",
+    "parent": "NVIDIA",
+    "value": 8,
+    "storie": "Clear, runnable demos of projects that apply NVIDIA technology to real research and industry needs. It showcases collaborative projects with educational institutions and partners, providing one place to browse, clone, and reuse working examples.",
+    "color": "#365400"
+  },
+  {
+    "id": "image-captioner",
+    "parent": "NVIDIA",
+    "value": 9,
+    "storie": "A tool for captioning, visualizing and analyzing image datasets",
+    "color": "#385800"
+  },
+  {
+    "id": "attestation-sdk",
+    "parent": "NVIDIA",
+    "value": 9,
+    "storie": "C++ SDK that provides resources for implementing and validating Trusted Computing Solutions on NVIDIA hardware",
+    "color": "#385800"
+  },
+  {
+    "id": "nvshmem",
+    "parent": "NVIDIA",
+    "value": 339,
+    "storie": "NVIDIA NVSHMEM is a parallel programming interface for NVIDIA GPUs based on OpenSHMEM. NVSHMEM can significantly reduce multi-process communication and coordination overheads by allowing programmers to perform one-sided communication from within CUDA kernels and on CUDA streams.",
+    "color": "#89D600"
+  },
+  {
+    "id": "blhost",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "NXP Host Bootloader Framework",
+    "color": "#142000"
+  },
+  {
+    "id": "sop-monitoring-blueprints",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "Industrial SOP Monitoring Blueprints for Training & Inference",
+    "color": "#304C00"
+  },
+  {
+    "id": "libvirt",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "NVIDIA fork of libvirt",
+    "color": "#142000"
+  },
+  {
+    "id": "GUSLI",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "User space Block device access API",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "OpenSMA",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "Open-source SMA firmware",
+    "color": "#284000"
+  },
+  {
+    "id": "Audio2Face-3D",
+    "parent": "NVIDIA",
+    "value": 73,
+    "storie": "repo collection for NVIDIA Audio2Face-3D models and tools",
+    "color": "#66A000"
+  },
+  {
+    "id": "Nvidia-Comms-Perf-Suite",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "A comprehensive toolkit for GPU Communications Libraries performance testing and data analysis.",
+    "color": "#142000"
+  },
+  {
+    "id": "onnxruntime-genai",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Generative AI extensions for onnxruntime",
+    "color": "#142000"
+  },
+  {
+    "id": "slurm-lua-jobsubmit-framework",
+    "parent": "NVIDIA",
+    "value": 2,
+    "storie": "Small framework, making your SKURM jobsubmit code modular, manageable, observable, easy to test and debug.",
+    "color": "#1D2E00"
+  },
+  {
+    "id": "Dependency-Patterns",
+    "parent": "NVIDIA",
+    "value": 1,
+    "storie": "Example dependency patterns for OSS build tools to support",
+    "color": "#142000"
+  },
+  {
+    "id": "dgx-spark-playbooks",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "Collection of step-by-step playbooks for setting up AI/ML workloads on NVIDIA DGX Spark devices with Blackwell architecture.",
+    "color": "#284000"
+  },
+  {
+    "id": "Judges-Verdict",
+    "parent": "NVIDIA",
+    "value": 4,
+    "storie": "Judge's Verdict: A Comprehensive Analysis of LLM Judge Capability Through Human Agreement",
+    "color": "#284000"
+  },
+  {
+    "id": "deepeeRT",
+    "parent": "NVIDIA",
+    "value": 6,
+    "storie": "A Library for Double Precision Ray Tracing",
+    "color": "#304C00"
+  },
+  {
+    "id": "jax-tvm-ffi",
+    "parent": "NVIDIA",
+    "value": 5,
+    "storie": "JAX support for tvm-ffi abi",
+    "color": "#2C4600"
+  },
+  {
+    "id": "nvidia-virtual-packages",
+    "parent": "NVIDIA",
+    "value": 3,
+    "storie": "A conda plugin which creates NVIDIA-specific virtual packages",
+    "color": "#233800"
+  }
+];
+function normalizeData(arr){
+  return arr.map(function(d){
+    var parent = d.parent || d.group || d.domain || d.category || d.type || d.class;
+    var name = d.name || d.id || d.label || d.title;
+    var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+    var storie = d.storie || d.story || d.description;
+    if(!storie){
+      // default synthetic example until real data arrives
+      storie = (name && parent) ? (name + " — operación de M&A (ejemplo) en el sector " + parent + ".") : "Descripción no disponible.";
+    }
+    return { parent: parent, name: name, value: value, storie: storie };
+  });
+}
+var data = normalizeData(originalData);
+var groups = Array.from(new Set(data.map(function(d){ return d.parent; })));
+var inferredColors = {};
+groups.forEach(function(g){
+  var item = originalData.find(function(x){ var p = x.parent || x.group || x.domain || x.category || x.type || x.class; return p === g; });
+  inferredColors[g] = item && item.color ? item.color : null;
+});
+var fallbackPalette = ["#1F77B4","#FF7F0E","#2CA02C","#9467BD","#D62728","#17BECF","#8C564B","#E377C2","#7F7F7F","#BCBD22"];
+var groupColors = {};
+groups.forEach(function(g, i){ groupColors[g] = inferredColors[g] || fallbackPalette[i % fallbackPalette.length]; });
+function getGroupColor(parent){ return groupColors[parent] || "#666666"; }
+var treemap = new d3plus.Treemap()
+  .select("#treemap")
+  .data(data)
+  .groupBy(["parent","name"])
+  .tooltipConfig({
+    title:function(d){ return d.name; },
+    body:function(d){
+      var base = "<strong>Company:</strong> " + (d.parent || d.id) + "<br><strong>Number of Stars:</strong> " + (d.value || 0);
+      var storie = (d.storie) ? d.storie : "Descripción no disponible.";
+      return base + "<br><strong>Repo description:</strong> " + storie;
+    }
+  })
+  .sum("value")
+  .layoutPadding(2)
+  .legend(false)
+  .color(function(d){ return getGroupColor(d.parent || d.id); })
+  .shapeConfig({
+    rx: 6,
+    ry: 6,
+    stroke:function(d){ if(d.depth===0){ return getGroupColor(d.id); } return "transparent"; },
+    strokeWidth:function(d){ if(d.depth===0){ return 3; } return 0; }
+  });
+treemap.render();
+function renderToContainerSize(){
+  var el = document.getElementById('treemap');
+  if(!el) return;
+  var rect = el.getBoundingClientRect();
+  try {
+    if(typeof treemap.width === 'function') treemap.width(rect.width);
+    if(typeof treemap.height === 'function') treemap.height(rect.height);
+  } catch(e) {}
+  treemap.render();
+}
+var _resizeTimer;
+window.addEventListener('resize', function(){
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(renderToContainerSize, 120);
+});
+if (typeof ResizeObserver !== 'undefined') {
+  var _ro = new ResizeObserver(function(){ renderToContainerSize(); });
+  _ro.observe(document.getElementById('treemap'));
+}
+</script>
+</body>
+</html>
