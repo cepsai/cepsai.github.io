@@ -29,7 +29,6 @@ body{
     grid-column:1 / span 2;
     display:flex;
     overflow:hidden;
-    /*min-height:0;*/
     align-items:center;
     justify-content:center;
 }
@@ -55,9 +54,7 @@ body{
     display:flex;
     align-items:center;
     justify-content:flex-end;
-    /*padding:4px 20px;*/
     overflow:hidden;
-    /*min-width:0;*/
     gap: clamp(10px, 2vw, 16px);
 }
 #container4 a{
@@ -213,6 +210,7 @@ function truncateAxisLabels(maxWidth){if(!chartState.yAxisGroup){return;}chartSt
         const cut=Math.max(1,low-1);text.text(full.slice(0,cut)+'…');let title=text.select('title');if(title.empty()){text.append('title').text(full);}else{title.text(full);}});} 
 function getBarHeight(scaleBand,sizeFactor){const bw=scaleBand.bandwidth();const k=.95+.03*(sizeFactor||1);return Math.max(10,bw*k);}
 function createColorPattern(defs,color){const lightColor=lighten(color,.35);const patternId='crossPattern-'+color.replace('#','');if(defs.select('#'+patternId).empty()){const pattern=defs.append('pattern').attr('id',patternId).attr('patternUnits','userSpaceOnUse').attr('width',8).attr('height',8);pattern.append('rect').attr('width',8).attr('height',8).attr('fill',lightColor);pattern.append('line').attr('x1',0).attr('y1',0).attr('x2',8).attr('y2',8).attr('stroke',color).attr('stroke-width',1.5).attr('opacity',0.6);pattern.append('line').attr('x1',8).attr('y1',0).attr('x2',0).attr('y2',8).attr('stroke',color).attr('stroke-width',1.5).attr('opacity',0.6);}return 'url(#'+patternId+')';} 
+function computeFooterMargin(containerWidth,containerHeight,sizeFactor){const compact=window.matchMedia('(max-height:500px), (max-width:640px)').matches;const minW=320;const minH=240;const thrW=640;const thrH=500;if(compact){const tW=Math.max(0,Math.min(1,(containerWidth-minW)/(thrW-minW)));const tH=Math.max(0,Math.min(1,(containerHeight-minH)/(thrH-minH)));const t=Math.min(tW,tH);return Math.round(5+(24-5)*t);}return Math.round(70*sizeFactor);} 
 function createChart(){const data=getTop20();d3.select('#chart').selectAll('*').remove();
 const c1=document.getElementById('container1');
 const rect=c1?c1.getBoundingClientRect():{width:window.innerWidth,height:window.innerHeight};
@@ -245,7 +243,7 @@ const availForText=Math.max(40,dynamicLeftMargin-logoWidth-padding-8);
 const fitFS=Math.floor(12*(availForText/Math.max(1,maxLabelWidth)));
 axisFS=Math.max(8,Math.min(axisFS,fitFS));
 chartState.axisFS=axisFS;
-const footerH=70;
+const footerH=computeFooterMargin(containerWidth,containerHeight,sizeFactor);
 const margin={top:12,right:Math.max(30,containerWidth*.05),bottom:footerH,left:dynamicLeftMargin};
 const width=containerWidth-margin.left-margin.right;
 const maxRowsH=containerHeight-margin.top-margin.bottom;
