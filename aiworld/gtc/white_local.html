@@ -9,8 +9,8 @@ html, body { height: 100%; }
 body {
   margin: 0;
   overflow: hidden;
-  background: #0b0f14;
-  color: #e5e7eb;
+  background: #ffffff;
+  color: #111;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
   height: 100vh;
 }
@@ -27,6 +27,7 @@ body {
 }
 .viz-grid {
   display: grid;
+  /*grid-template-rows: 1fr auto 0.1fr;*/
   grid-template-rows: 17.5fr 0.5fr 1fr;
   grid-template-columns: 1fr 1fr;
   height: 100vh;
@@ -34,6 +35,7 @@ body {
   box-sizing: border-box;
   row-gap: clamp(6px, 1.5vh, 12px);
   padding: 0 clamp(12px, 2vw, 20px) env(safe-area-inset-bottom) clamp(12px, 2vw, 20px);
+  /*padding-bottom:clamp(8px,2vh,18px)*/
 }
 
 #container1 {
@@ -51,7 +53,7 @@ body {
   align-items: center;
   justify-content: flex-end;
   min-width: 0;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
   box-sizing: border-box;
   padding: 0 6px;
 }
@@ -61,7 +63,7 @@ body {
   text-align: center;
   font-weight: 600;
   font-size: clamp(10px, 1.2vw, 16px);
-  color: #cbd5e1;
+  color: #333;
   line-height: 1.2;
   letter-spacing: 0.04em;
 }
@@ -72,17 +74,16 @@ body {
 
 #tooltip {
   position: absolute;
-  background: #0f141b;
-  border: 1px solid #2a3240;
+  background: #fff;
+  border: 1px solid #d9d9df;
   border-radius: 6px;
   padding: 6px 8px;
   font-size: 12px;
   pointer-events: none;
   opacity: 0;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
   transition: opacity .12s ease;
   max-width: 220px;
-  color: #e5e7eb;
 }
 
 #container2 {
@@ -111,32 +112,28 @@ body {
   gap: clamp(10px, 2vw, 16px);
   min-width: 0;
 }
-#container4 a{
-  height:100%;
-  display:flex;
-  align-items:center;
-}
+#container4 a{height:100%;display:flex;align-items:center;}
 .source-text {
   font-size: clamp(10px, 1.6vw, 16px);
   font-weight: 600;
-  color: #cbd5e1;
+  color: #333;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
   font-style: normal;
 }
-.source-text a { color: #8ab4ff; text-decoration: underline; cursor: pointer; }
-.source-text a:visited { color: #8ab4ff; }
-.logo-note { font-size: clamp(10px, 1.2vw, 12px); color: #9aa5b1; font-style: italic; white-space: nowrap;}
+.source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; }
+.source-text a:visited { color: #2756d3; }
+.logo-note { font-size: clamp(10px, 1.2vw, 12px); color: #777; font-style: italic; white-space: nowrap;}
 .logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
 
-.axis path, .axis line { stroke: #2f3542; }
-.axis text { fill: #cbd5e1; font-size: 12px; }
+.axis path, .axis line { stroke: #cfd2d7; }
+.axis text { fill: #333; font-size: 12px; }
 .x-axis text { font-size: clamp(11px, 1.2vw, 18px); }
-.grid line { stroke: rgba(255, 255, 255, 0.08); }
+.grid line { stroke: rgba(230, 232, 239, 0.45); }
 .grid .domain { display: none; }
-.final-label { font-weight: 600; pointer-events: none; font-size: 12px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7); }
+.final-label { font-weight: 600; pointer-events: none; font-size: 12px; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6); }
 .series-dots .dot { cursor: pointer; }
 .final-node { cursor: pointer; }
 
@@ -184,11 +181,10 @@ body {
 
 <script>
 const svg = d3.select("#chart");
-const FORCED_END_DATE = new Date(Date.UTC(2025, 9, 26)); // 2025-10-25 (months are 0-indexed)
 const tooltip = d3.select("#tooltip");
 const yLabelEl = document.getElementById("yLabel");
 const vizEl = document.getElementById("viz");
-
+const FORCED_END_DATE = new Date(Date.UTC(2025, 9, 26)); // 2025-10-25 (months are 0-indexed)
 const TARGET_YEAR = 2025;
 const INCLUDED_PERCENT = 50;
 const METRIC = { key: "repos_total", label: "Repos" };
@@ -285,19 +281,23 @@ function buildSeries(rawData){
       if(!globalFinalDate || last > globalFinalDate){ globalFinalDate = last; }
     }
   });
-  if(!globalFinalDate){ globalFinalDate = yearStart; 
-  if (FORCED_END_DATE && globalFinalDate < FORCED_END_DATE) {
+  if (!globalFinalDate) {
+  globalFinalDate = yearStart;
+}
+// >>> ADD: ensure we extend up to 2025-10-25
+if (FORCED_END_DATE && globalFinalDate < FORCED_END_DATE) {
   globalFinalDate = new Date(FORCED_END_DATE.getTime());
 }
-  }
+  if(!globalFinalDate){ globalFinalDate = yearStart; }
   const addDaysUTC = (date, days)=>{ const d = new Date(date.getTime()); d.setUTCDate(d.getUTCDate() + days); return d; };
   const weekStepDates = [];
-  for(let d = new Date(yearStart.getTime()); d <= globalFinalDate; d = addDaysUTC(d, 7)){
+  for (let d = new Date(yearStart.getTime()); d <= globalFinalDate; d = addDaysUTC(d, 7)) {
     weekStepDates.push(new Date(d.getTime()));
   }
+  // >>> ADD: include the exact cutoff date even if it’s off the 7-day cadence
   if (weekStepDates.length === 0 || weekStepDates[weekStepDates.length - 1].getTime() !== globalFinalDate.getTime()) {
-  weekStepDates.push(new Date(globalFinalDate.getTime()));
-}
+    weekStepDates.push(new Date(globalFinalDate.getTime()));
+  }
   const series = [];
   perOrgAll.forEach(({ id, all })=>{
     let baseTotal = 0;
@@ -330,29 +330,29 @@ function buildSeries(rawData){
   const kept = keepCount ? series.slice(0, keepCount) : [];
   const timeline = weekStepDates.slice();
   // Ensure timeline shows the forced end date
-  if (FORCED_END_DATE) {
-    if (!timeline.length || timeline[timeline.length - 1].getTime() < FORCED_END_DATE.getTime()) {
-      timeline.push(new Date(FORCED_END_DATE.getTime()));
-    }
-
-    // For each kept series, clone the last point to the forced date
-    kept.forEach(s => {
-      const last = s.values[s.values.length - 1];
-      if (!last) return;
-      if (last.date.getTime() < FORCED_END_DATE.getTime()) {
-        s.values.push({
-          id: s.id,
-          date: new Date(FORCED_END_DATE.getTime()),
-          // carry forward the cumulative value
-          value: last.end,     // keep the line flat
-          end: last.end,
-          delta: 0,
-          week: last.week
-        });
-        s.finalValue = last.end; // keep sorting consistent
-      }
-    });
+if (FORCED_END_DATE) {
+  if (!timeline.length || timeline[timeline.length - 1].getTime() < FORCED_END_DATE.getTime()) {
+    timeline.push(new Date(FORCED_END_DATE.getTime()));
   }
+
+  // For each kept series, clone the last point to the forced date
+  kept.forEach(s => {
+    const last = s.values[s.values.length - 1];
+    if (!last) return;
+    if (last.date.getTime() < FORCED_END_DATE.getTime()) {
+      s.values.push({
+        id: s.id,
+        date: new Date(FORCED_END_DATE.getTime()),
+        // carry forward the cumulative value
+        value: last.end,     // keep the line flat
+        end: last.end,
+        delta: 0,
+        week: last.week
+      });
+      s.finalValue = last.end; // keep sorting consistent
+    }
+  });
+}
   return { series: kept, timeline, totalCompanies, includedCount: kept.length };
 }
 
@@ -366,7 +366,6 @@ function parseDate(input){
 }
 
 function getOrgColor(id){
-  if(String(id).trim().toLowerCase() === "z.ai"){ return "#ffffff"; }
   const meta = orgMeta.get(id);
   if(meta && meta.color){
     return meta.color;
@@ -444,12 +443,12 @@ function render(){
 
   const grid = root.selectAll("g.grid-y").data([null]).join("g").attr("class", "grid grid-y").call(d3.axisLeft(yScale).ticks(6).tickSize(-innerWidth).tickFormat(""));
   grid.select(".domain").remove();
-  grid.selectAll("line").attr("stroke", "rgba(255,255,255,0.08)");
+  grid.selectAll("line").attr("stroke", "rgba(230,232,239,0.45)");
 
   const xAxisGroup = root.selectAll("g.x-axis").data([null]).join("g").attr("class", "axis x-axis").attr("transform", `translate(0,${innerHeight})`).call(xAxis);
   const yAxisGroup = root.selectAll("g.y-axis").data([null]).join("g").attr("class", "axis y-axis").call(yAxis);
   yAxisGroup.select(".domain").remove();
-  xAxisGroup.select(".domain").attr("stroke", "#2f3542");
+  xAxisGroup.select(".domain").attr("stroke", "#cfd2d7");
 
   const lineGenerator = d3.line().defined(point => Number.isFinite(point.value)).x(point => xScale(point.date)).y(point => yScale(point.value));
 
@@ -526,12 +525,12 @@ function render(){
     const node = d3.select(this).select("g.final-node");
     node.raise();
     node.select("circle.final-outline")
-    .attr("cx", cx)
-    .attr("cy", cy)
-    .attr("r", r)
-    .attr("fill", String(series.id).trim().toLowerCase() === "z.ai" ? "#ffffff" : "#0b0f14")
-    .attr("stroke", getOrgColor(series.id))
-    .attr("stroke-width", 2);
+      .attr("cx", cx)
+      .attr("cy", cy)
+      .attr("r", r)
+      .attr("fill", "#ffffff")
+      .attr("stroke", getOrgColor(series.id))
+      .attr("stroke-width", 2);
     node.select("image.final-logo")
       .attr("href", logoUrl)
       .attr("x", cx - logoSize / 2)
