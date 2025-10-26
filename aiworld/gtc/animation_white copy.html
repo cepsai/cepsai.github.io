@@ -175,9 +175,23 @@ function buildSeriesAll(rawData){
     if(!globalMin || a0 < globalMin){ globalMin = a0; }
     if(!globalMax || a1 > globalMax){ globalMax = a1; }
   });
+
+  // Calculate current week start
+  const nowUtc = new Date();
+  const sampleDate = perOrgAll[0].all[0];
+  let weekStartDay = 2;
+  if(sampleDate && sampleDate.date){
+    weekStartDay = sampleDate.date.getUTCDay();
+  }
+  const currentWeekStartUtc = new Date(nowUtc.getTime());
+  const daysSinceWeekStart = (currentWeekStartUtc.getUTCDay() - weekStartDay + 7) % 7;
+  currentWeekStartUtc.setUTCDate(currentWeekStartUtc.getUTCDate() - daysSinceWeekStart);
+  currentWeekStartUtc.setUTCHours(0, 0, 0, 0);
+
   const addDaysUTC = (date, days)=>{ const d = new Date(date.getTime()); d.setUTCDate(d.getUTCDate() + days); return d; };
   const weekStepDates = [];
-  for(let d = new Date(Date.UTC(globalMin.getUTCFullYear(), globalMin.getUTCMonth(), globalMin.getUTCDate())); d <= globalMax; d = addDaysUTC(d, 7)){
+  const finalMax = currentWeekStartUtc > globalMax ? currentWeekStartUtc : globalMax;
+  for(let d = new Date(Date.UTC(globalMin.getUTCFullYear(), globalMin.getUTCMonth(), globalMin.getUTCDate())); d <= finalMax; d = addDaysUTC(d, 7)){
     weekStepDates.push(new Date(d.getTime()));
   }
   const dummy0 = weekStepDates[0] ? new Date(weekStepDates[0].getTime()) : new Date(globalMin.getTime());
@@ -189,9 +203,8 @@ function buildSeriesAll(rawData){
       if(all[i].date < weekStepDates[0]){ baseTotal = all[i].total; } else { break; }
     }
     const within = all.filter(p => p.date >= weekStepDates[0] && p.date <= weekStepDates[weekStepDates.length - 1]);
-    if(!within.length){ return; }
     let j = 0;
-    let carry = Math.max(0, within[0].total - baseTotal);
+    let carry = within.length > 0 ? Math.max(0, within[0].total - baseTotal) : 0;
     const pts = [];
     for(let i = 0; i < weekStepDates.length; i++){
       const d = weekStepDates[i];
@@ -391,16 +404,20 @@ function moveTooltip(event, point){
   let dateText;
   if(point.date){
     const weekStart = point.date;
-    const weekEnd = new Date(weekStart.getTime());
-    weekEnd.setUTCDate(weekEnd.getUTCDate() + 6); // inclusive last day
-    dateText = `${dateFormatter(weekStart)} - ${dateFormatter(weekEnd)}`;
-  } else {
+    const plannedEnd = new Date(weekStart.getTime());
+    plannedEnd.setUTCDate(plannedEnd.getUTCDate() + 7);
+    const nowUtc = new Date();
+    if(nowUtc < plannedEnd){
+      dateText = `${dateFormatter(weekStart)} - now`;
+    } else {
+      dateText = `${dateFormatter(weekStart)} - ${dateFormatter(plannedEnd)}`;
+    }
+  }else{
     dateText = point.week ? `Week ${point.week}` : "Week";
   }
   const deltaText = Number.isFinite(point.delta) ? formatValue(point.delta) : "0";
-  tooltip.html(
-    `<strong>${point.id}</strong><br>${dateText}<br>${METRIC.label} so far: ${formatValue(point.end)}<br>This week: ${deltaText}`
-  );
+  const metricValue = Number.isFinite(point.end) ? point.end : 0;
+  tooltip.html(`<strong>${point.id}</strong><br>${dateText}<br>${METRIC.label} so far: ${formatValue(metricValue)}<br>This week: ${deltaText}`);
   const ttNode = tooltip.node();
   const ttWidth = ttNode ? ttNode.offsetWidth : 0;
   const left = Math.max(6, x - ttWidth - 14);
@@ -415,8 +432,13 @@ function updateDateUI(){
   const idx = Math.max(0, Math.min(currentEnd, timelineDates.length - 1));
   const d = timelineDates[idx];
   const endDate = new Date(d.getTime());
-  endDate.setUTCDate(endDate.getUTCDate() + 7 + 7);
-  dateDisplayEl.textContent = `${dateFormatter(endDate)}`;
+  endDate.setUTCDate(endDate.getUTCDate() + 7);
+  // Check if this is the current week (last in timeline)
+  if(idx === timelineDates.length - 1){
+    dateDisplayEl.textContent = "Today";
+  } else {
+    dateDisplayEl.textContent = `${dateFormatter(endDate)}`;
+  }
 }
 
 function setupAnimation(){
@@ -441,7 +463,8 @@ function setupAnimation(){
   animWindowSize = Math.max(1, animDefaultEnd - animDefaultStart);
   currentEnd = animDefaultEnd;
   currentStart = Math.max(0, currentEnd - animWindowSize);
-  animTargetEnd = findEndIdx(TARGET_END_DATE);
+  // Use the last date in timeline (current week) as target end
+  animTargetEnd = timelineDates.length - 1;
   updateFrameRange(currentStart, currentEnd);
   startTimer();
 }
