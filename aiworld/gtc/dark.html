@@ -276,27 +276,33 @@ function buildSeries(rawData){
   if(!perOrgAll.length){
     return { series: [], timeline: [], totalCompanies: 0, includedCount: 0 };
   }
-  let globalFinalDate = null;
-  perOrgAll.forEach(({ all })=>{
-    const within = all.filter(p => p.date >= yearStart && p.date <= yearEnd);
-    if(within.length){
-      const last = within[within.length - 1].date;
-      if(!globalFinalDate || last > globalFinalDate){ globalFinalDate = last; }
-    }
-  });
-  if(!globalFinalDate){ globalFinalDate = yearStart; }
+
+  const nowUtc = new Date();
+  const sampleDate = perOrgAll[0].all.find(p => p.date >= yearStart);
+  let weekStartDay = 2;
+  if(sampleDate && sampleDate.date){
+    weekStartDay = sampleDate.date.getUTCDay();
+  }
+
+  const currentWeekStartUtc = new Date(nowUtc.getTime());
+  const daysSinceWeekStart = (currentWeekStartUtc.getUTCDay() - weekStartDay + 7) % 7;
+  currentWeekStartUtc.setUTCDate(currentWeekStartUtc.getUTCDate() - daysSinceWeekStart);
+  currentWeekStartUtc.setUTCHours(0, 0, 0, 0);
+
   const addDaysUTC = (date, days)=>{ const d = new Date(date.getTime()); d.setUTCDate(d.getUTCDate() + days); return d; };
+
   const weekStepDates = [];
-  for(let d = new Date(yearStart.getTime()); d <= globalFinalDate; d = addDaysUTC(d, 7)){
+  for(let d = new Date(yearStart.getTime()); d <= currentWeekStartUtc; d = addDaysUTC(d, 7)){
     weekStepDates.push(new Date(d.getTime()));
   }
+
   const series = [];
   perOrgAll.forEach(({ id, all })=>{
     let baseTotal = 0;
     for(let i = 0; i < all.length; i++){
       if(all[i].date < yearStart){ baseTotal = all[i].total; } else { break; }
     }
-    const within = all.filter(p => p.date >= yearStart && p.date <= globalFinalDate);
+    const within = all.filter(p => p.date >= yearStart && p.date <= currentWeekStartUtc);
     if(!within.length){ return; }
     const byDate = new Map(within.map(p => [p.date.getTime(), Math.max(0, p.total - baseTotal)]));
     const pts = [];
@@ -313,7 +319,16 @@ function buildSeries(rawData){
     if(pts.length && pts[0].date.getTime() !== yearStart.getTime()){
       pts.unshift({ id, date: yearStart, value: 0, end: 0, delta: 0, week: null });
     }
-    const finalValue = pts.length ? pts[pts.length - 1].value : 0;
+
+    for(let i = 0; i < pts.length; i++){
+      if(i === pts.length - 1){
+        pts[i].yForPlot = pts[i].end;
+      } else {
+        pts[i].yForPlot = pts[i].value;
+      }
+    }
+
+    const finalValue = pts.length ? pts[pts.length - 1].end : 0;
     series.push({ id, values: pts, finalValue });
   });
   series.sort((a, b) => (b.finalValue || 0) - (a.finalValue || 0));
@@ -398,7 +413,7 @@ function render(){
     xDomain = [d3.utcDay.offset(base, -3), d3.utcDay.offset(base, 3)];
   }
 
-  const valuesFlat = chartSeries.flatMap(series => series.values.map(point => point.value));
+  const valuesFlat = chartSeries.flatMap(series => series.values.map(point => point.yForPlot));
   const yMax = d3.max(valuesFlat);
   if(!Number.isFinite(yMax)){
     svg.selectAll("*").remove();
@@ -419,7 +434,7 @@ function render(){
   yAxisGroup.select(".domain").remove();
   xAxisGroup.select(".domain").attr("stroke", "#2f3542");
 
-  const lineGenerator = d3.line().defined(point => Number.isFinite(point.value)).x(point => xScale(point.date)).y(point => yScale(point.value));
+  const lineGenerator = d3.line().defined(point => Number.isFinite(point.yForPlot)).x(point => xScale(point.date)).y(point => yScale(point.yForPlot));
 
   const seriesGroups = root.selectAll("g.series-group").data(chartSeries, d => d.id);
   const seriesEnter = seriesGroups.enter().append("g").attr("class", "series-group");
@@ -482,12 +497,12 @@ function render(){
       .merge(dots)
       .attr("r", dotR)
       .attr("cx", point => xScale(point.date))
-      .attr("cy", point => yScale(point.value));
+      .attr("cy", point => yScale(point.yForPlot));
     dots.exit().remove();
 
     const lastPoint = series.values[series.values.length - 1];
     const cx = xScale(lastPoint.date);
-    const cy = yScale(lastPoint.value);
+    const cy = yScale(lastPoint.yForPlot);
     const logoSize = Math.round(Math.max(24, Math.min(44, innerWidth / 24)));
     const r = Math.round(logoSize / 2 + 2);
     const logoUrl = getOrgLogo(series.id) || "";
@@ -553,14 +568,20 @@ function moveTooltip(event, point){
   let dateText;
   if(point.date){
     const weekStart = point.date;
-    const weekEnd = new Date(weekStart.getTime());
-    weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
-    dateText = `${dateFormatter(weekStart)} - ${dateFormatter(weekEnd)}`;
+    const plannedEnd = new Date(weekStart.getTime());
+    plannedEnd.setUTCDate(plannedEnd.getUTCDate() + 7);
+    const nowUtc = new Date();
+    if(nowUtc < plannedEnd){
+      dateText = `${dateFormatter(weekStart)} - now`;
+    } else {
+      dateText = `${dateFormatter(weekStart)} - ${dateFormatter(plannedEnd)}`;
+    }
   }else{
     dateText = point.week ? `Week ${point.week}` : "Week";
   }
   const deltaText = Number.isFinite(point.delta) ? formatValue(point.delta) : "0";
-  tooltip.html(`<strong>${point.id}</strong><br>${dateText}<br>${METRIC.label} so far: ${formatValue(point.value)}<br>This week: ${deltaText}`);
+  const metricValue = Number.isFinite(point.yForPlot) ? point.yForPlot : point.value;
+  tooltip.html(`<strong>${point.id}</strong><br>${dateText}<br>${METRIC.label} so far: ${formatValue(metricValue)}<br>This week: ${deltaText}`);
   const ttNode = tooltip.node();
   const ttWidth = ttNode ? ttNode.offsetWidth : 0;
   const left = Math.max(6, x - ttWidth - 14);
