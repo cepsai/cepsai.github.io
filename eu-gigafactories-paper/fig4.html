@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fig 4 - Wholesale Power Prices by Data Center Site</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+:root{--bg:#ffffff;--axis:#cfcfcf;--grid:#e9e9e9;--text:#6b6b6b;--text-strong:#333333;--muted:#9aa0a6;}
+html,body{height:100%;}
+body{margin:0;overflow:hidden;background:var(--bg);font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--text);}
+.viz-grid{display:grid;grid-template-rows:1fr auto;grid-template-columns:1fr;height:100vh;width:100vw;gap:0;padding:0;}
+#container1{grid-row:1;grid-column:1;display:flex;min-height:0;min-width:0;}
+#container2{grid-row:2;grid-column:1;display:flex;align-items:center;justify-content:center;padding:10px 14px;border-top:1px solid rgba(0,0,0,0.08);background:#fff;gap:16px;flex-wrap:wrap;}
+#viz{position:relative;flex:1 1 auto;min-width:0;min-height:0;}
+#chart{display:block;width:100%;height:100%;}
+#tooltip{position:absolute;background:#ffffff;border:1px solid #e5e5e5;border-radius:8px;padding:8px 10px;font-size:12px;pointer-events:none;opacity:0;box-shadow:0 10px 24px rgba(0,0,0,.1);max-width:300px;}
+.custom-legend{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:clamp(6px,1.5vw,14px);background:rgba(255,255,255,0.9);padding:clamp(6px,1.2vh,10px) clamp(10px,2vw,16px);border-radius:clamp(6px,1.2vw,12px);box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:100%;}
+.legend-item{display:flex;align-items:center;gap:6px;font-weight:600;color:#333;font-size:clamp(11px,1.4vw,14px);}
+.legend-square{width:clamp(10px,1.2vw,14px);height:clamp(10px,1.2vw,14px);border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,0.15) inset;}
+.legend-block{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 8px;}
+.legend-title{font-weight:700;color:var(--text-strong);font-size:12px;margin-right:4px;}
+.axis path.domain{stroke:var(--axis);}
+.axis .tick line{stroke:var(--grid);}
+.axis .tick text{fill:var(--text);font-size:12px;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;}
+.clickable-label{cursor:pointer;fill:var(--text-strong);font-weight:600;}
+.clickable-label:hover{fill:#1976D2;}
+</style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1">
+    <div id="viz">
+      <svg id="chart"></svg>
+      <div id="tooltip"></div>
+    </div>
+  </div>
+  <div id="container2">
+  </div>
+</div>
+<script>
+let data=[];
+// Use EXACT SAME colors as fig3.html
+// In fig3.csv, countries are sorted alphabetically: Finland, France, Germany, Ireland, Italy, Netherlands, Spain, Sweden, Switzerland, United Kingdom
+// These map to d3.schemeTableau10.concat(d3.schemePaired) in order
+const countryColorPalette = d3.schemeTableau10.concat(d3.schemePaired);
+const fig3Countries = ["Finland", "France", "Germany", "Ireland", "Italy", "Netherlands", "Spain", "Sweden", "Switzerland", "United Kingdom"];
+
+// Map country codes to full names
+const countryCodeToName = {
+  "FI": "Finland",
+  "FR": "France",
+  "DE": "Germany",
+  "IE": "Ireland",
+  "IT": "Italy",
+  "NL": "Netherlands",
+  "ES": "Spain",
+  "SE": "Sweden",
+  "CH": "Switzerland",
+  "UK": "United Kingdom",
+  "EL": "Greece",
+  "AT": "Austria",
+  "PL": "Poland",
+  "LU": "Luxembourg",
+  "BG": "Bulgaria",
+  "US": "United States",
+  "CN": "China"
+};
+
+// Create color scale matching fig3.html exactly
+const fig3ColorScale = d3.scaleOrdinal().domain(fig3Countries).range(countryColorPalette);
+
+// Map country codes to colors
+const countryCodeColors = {};
+Object.keys(countryCodeToName).forEach(code => {
+  const fullName = countryCodeToName[code];
+  if (fig3Countries.includes(fullName)) {
+    countryCodeColors[code] = fig3ColorScale(fullName);
+  } else {
+    // For countries not in fig3, assign next available color
+    const nextIndex = fig3Countries.length + Object.keys(countryCodeColors).filter(k => !fig3Countries.includes(countryCodeToName[k])).length;
+    countryCodeColors[code] = countryColorPalette[nextIndex % countryColorPalette.length];
+  }
+});
+
+let REGION_COLORS = {};
+let colorScale = null;
+const svg=d3.select("#chart");
+const tooltip=d3.select("#tooltip");
+
+function wrapTicks(selection, width, lineHeight=1.2, maxLines=3, xPos=0){
+  selection.each(function(){
+    const text=d3.select(this);
+    const words=text.text().split(/\s+/);
+    const y=text.attr("y");
+    const baseDy=parseFloat(text.attr("dy"))||0;
+    text.text(null);
+    let line=[]; let lineNumber=0;
+    let tspan=text.append("tspan").attr("x",xPos).attr("y",y).attr("dy",baseDy+"em");
+    for(let i=0;i<words.length;i++){
+      line.push(words[i]);
+      tspan.text(line.join(" "));
+      if(tspan.node().getComputedTextLength()>width){
+        line.pop();
+        tspan.text(line.join(" "));
+        line=[words[i]];
+        lineNumber++;
+        if(lineNumber>=maxLines){
+          let prev=tspan;
+          let txt=prev.text();
+          while(prev.node().getComputedTextLength()>width && txt.length>0){ txt=txt.slice(0,-1); prev.text(txt); }
+          prev.text(txt.replace(/\s+$/,'')+"…");
+          return;
+        }
+        tspan=text.append("tspan").attr("x",xPos).attr("y",y).attr("dy",(baseDy+lineNumber*lineHeight)+"em").text(words[i]);
+      }
+    }
+  });
+};
+
+function extractCountry(siteName){
+  // Extract country code from site name (e.g., "Northern Sweden (SE1)" -> "SE")
+  const match = siteName.match(/\(([A-Z]{2})[0-9]*\)/);
+  if (match) return match[1];
+  // For US and CN without numbers
+  const match2 = siteName.match(/\(([A-Z]{2,3})\)/);
+  return match2 ? match2[1] : "Unknown";
+}
+
+function render(){
+  if(!data.length){ return; }
+  const viz=document.getElementById("viz");
+  const rect=viz.getBoundingClientRect();
+  const fullW=rect.width;
+  const fullH=rect.height;
+  const tickFont=Math.max(8, Math.min(13, fullW/110));
+
+  const axisContainerWidth = 0;
+  const measureCtx=render._measureCtx || (render._measureCtx=document.createElement('canvas').getContext('2d'));
+  const fontFamily=window.getComputedStyle(document.body).fontFamily || 'system-ui, -apple-system, "Segoe UI", sans-serif';
+  measureCtx.font=`600 ${tickFont}px ${fontFamily}`;
+  const maxLabelWidth=d3.max(data, d=>measureCtx.measureText(d.site).width) || 0;
+  const labelGap=Math.max(14, Math.min(26, Math.round(fullW*0.03)));
+  const axisOffset = labelGap - 2;
+  const spacing = 4;
+  const minMarginLeft = axisContainerWidth + spacing;
+  const computedMarginLeft = Math.ceil(maxLabelWidth + axisContainerWidth + spacing - axisOffset);
+  const margin={
+    top:12,
+    right:48,
+    bottom:36,
+    left:Math.max(minMarginLeft, computedMarginLeft)
+  };
+
+  svg.attr("width",fullW).attr("height",fullH);
+  const width=fullW-margin.left-margin.right;
+  const height=fullH-margin.top-margin.bottom;
+
+  const defs=svg.selectAll('defs').data([null]).join('defs');
+  defs.select('#rowWhiteFade').remove();
+  defs.select('#rowGrayFade').remove();
+  const gW=defs.append('linearGradient').attr('id','rowWhiteFade').attr('gradientUnits','userSpaceOnUse').attr('x1',0).attr('x2',fullW).attr('y1',0).attr('y2',0);
+  gW.append('stop').attr('offset','0%').attr('stop-color','#ffffff').attr('stop-opacity',0);
+  gW.append('stop').attr('offset','6%').attr('stop-color','#ffffff').attr('stop-opacity',1);
+  gW.append('stop').attr('offset','100%').attr('stop-color','#ffffff').attr('stop-opacity',1);
+  const gG=defs.append('linearGradient').attr('id','rowGrayFade').attr('gradientUnits','userSpaceOnUse').attr('x1',0).attr('x2',fullW).attr('y1',0).attr('y2',0);
+  gG.append('stop').attr('offset','0%').attr('stop-color','#f0efe9').attr('stop-opacity',0);
+  gG.append('stop').attr('offset','6%').attr('stop-color','#f0efe9').attr('stop-opacity',1);
+  gG.append('stop').attr('offset','100%').attr('stop-color','#f0efe9').attr('stop-opacity',1);
+
+  const gRoot=svg.selectAll("g.root").data([null]).join("g").attr("class","root").attr("transform",`translate(${margin.left},${margin.top})`);
+
+  const maxPrice=d3.max(data, d=>d.price) || 0;
+  const x=d3.scaleLinear().domain([0, maxPrice * 1.1]).range([labelGap,width]);
+  const y=d3.scaleBand().domain(data.map(d=>d.site)).range([0,height]).paddingInner(0.28);
+
+  const rowBG=gRoot.selectAll("rect.row").data(data.map(d=>d.site));
+  const step=y.step();
+  const pad=(step-y.bandwidth())/2;
+  rowBG.join(
+    enter=>enter.append("rect").attr("class","row").attr("x",0).attr("y",d=>y(d)-pad).attr("width",fullW).attr("height",step).attr("fill",(d,i)=>i%2?"url(#rowGrayFade)":"url(#rowWhiteFade)"),
+    update=>update.attr("x",0).attr("y",d=>y(d)-pad).attr("width",fullW).attr("height",step)
+  );
+
+  const barH=Math.max(2,y.bandwidth()*0.6);
+  const bars=gRoot.selectAll("rect.bar").data(data, d=>d.site);
+  bars.join("rect")
+    .attr("class","bar")
+    .attr("x",labelGap)
+    .attr("y",d=>y(d.site)+(y.bandwidth()-barH)/2)
+    .attr("width",d=>Math.max(0.5,x(d.price)-labelGap))
+    .attr("height",barH)
+    .attr("fill","#207164")
+    .on("mouseenter",(event,d)=>{
+      d3.select(event.currentTarget).style("filter",`drop-shadow(0 0 8px #207164)`);
+    })
+    .on("mousemove",(event,d)=>{
+      const html=`<strong>${d.site}</strong><br/>Price: €${d.price}/MWh<br/>Market: ${d.market}<br/>Metric: ${d.metric}`;
+      tooltip.style("opacity",1).style("left",event.pageX+10+"px").style("top",event.pageY-12+"px").html(html);
+    })
+    .on("mouseleave",function(){
+      tooltip.style("opacity",0);
+      d3.select(this).style("filter",null);
+    });
+
+  // Add labels inside bars, right-aligned in white
+  const labelsG=gRoot.selectAll("g.bar-labels").data([null]).join("g").attr("class","bar-labels");
+  const labelFont=Math.max(9, Math.min(12, fullW/120));
+  const labelsSel=labelsG.selectAll("text").data(data, d=>d.site);
+  labelsSel.join(
+    enter=>enter.append("text")
+      .attr("text-anchor","end")
+      .attr("dy","0.35em")
+      .style("fill","#ffffff")
+      .style("font-weight","600")
+      .style("pointer-events","none"),
+    update=>update
+  )
+  .style("font-size",labelFont+"px")
+  .attr("x",d=>x(d.price)-6)
+  .attr("y",d=>y(d.site)+y.bandwidth()/2)
+  .text(function(d){
+    const raw=d.price;
+    let str=(Math.round(raw*10)/10).toString();
+    if(str.endsWith('.0')){ str=str.slice(0,-2); }
+    return str;
+  });
+
+  const xAxis=gRoot.selectAll("g.x").data([null]).join("g").attr("class","axis x").attr("transform",`translate(0,${y.range()[1]})`);
+  const tickCount=Math.max(4, Math.round(width/100));
+  xAxis.call(d3.axisBottom(x).ticks(tickCount));
+  xAxis.selectAll("text.axis-title").data([null]).join("text")
+    .attr("class","axis-title")
+    .attr("x", (labelGap + width) / 2)
+    .attr("y", 28)
+    .style("fill", "var(--text-strong)")
+    .style("font-weight", 700)
+    .style("font-size", "14px")
+    .text("Price (€/MWh)");
+
+  const yAxis=gRoot.selectAll("g.y").data([null]).join("g").attr("class","axis y");
+  const padTicks=Math.max(4, Math.min(12, labelGap*0.35));
+  yAxis.attr("transform", `translate(${axisOffset},0)`)
+    .call(d3.axisLeft(y).tickSize(0).tickPadding(padTicks));
+  yAxis.selectAll("path").remove();
+
+  // Make y-axis labels clickable
+  yAxis.selectAll("g.tick text")
+    .attr("class", "clickable-label")
+    .style("font-size", tickFont+"px")
+    .style("font-weight", 600)
+    .style("fill", "#000")
+    .on("click", function(event, site){
+      const d = data.find(row => row.site === site);
+      if(d && d.url){
+        window.open(d.url, '_blank');
+      }
+    })
+    .on("mouseenter", function(){
+      d3.select(this).style("text-decoration", "underline");
+    })
+    .on("mouseleave", function(){
+      d3.select(this).style("text-decoration", "none");
+    });
+
+  const wrapWidth=Math.max(maxLabelWidth + 6, margin.left - axisOffset - 8);
+  const maxLines=Math.max(1, Math.min(3, Math.floor((y.bandwidth()*0.95)/(tickFont*1.25))));
+  const tickX = -2;
+  yAxis.selectAll("text")
+    .call(wrapTicks, wrapWidth, 1.12, maxLines, tickX)
+    .style("text-anchor","end")
+    .attr("x", tickX)
+    .attr("dx", 0);
+  yAxis.selectAll("text tspan").attr("x", tickX);
+  yAxis.selectAll("g.tick").each(function(d){
+    const g=d3.select(this);
+    const t=g.select("text");
+    const bb=t.node().getBBox();
+    const desired=y(d)+y.bandwidth()/2;
+    const current=bb.y+bb.height/2;
+    const dy=desired-current;
+    g.attr("transform",`translate(0,${dy})`);
+  });
+};
+
+function loadData(){
+  d3.csv("fig4.csv").then(raw=>{
+    data = raw.map(d => ({
+      site: d.Site,
+      region: d["Country/Region"],
+      country: extractCountry(d.Site),
+      market: d["Market/Zone"],
+      metric: d.Metric,
+      price: +d.Price,
+      url: d["Source URL"]
+    }));
+
+    // Sort by price descending
+    data.sort((a, b) => b.price - a.price);
+
+    // Use pre-computed color mapping from fig3.html
+    colorScale = (countryCode) => countryCodeColors[countryCode] || "#7f7f7f";
+
+    // Build REGION_COLORS map for compatibility
+    REGION_COLORS = countryCodeColors;
+
+    render();
+  });
+};
+
+loadData();
+window.addEventListener("resize", function(){ render(); });
+var vizEl = document.getElementById('viz');
+if (typeof ResizeObserver !== 'undefined' && vizEl) {
+  var chartObserver = new ResizeObserver(function(){ render(); });
+  chartObserver.observe(vizEl);
+};
+</script>
+</body>
+</html>

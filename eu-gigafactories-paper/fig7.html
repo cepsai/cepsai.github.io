@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fig 7</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+:root{--bg:#ffffff;--axis:#cfcfcf;--grid:#e9e9e9;--text:#6b6b6b;--text-strong:#333333;--muted:#9aa0a6;}
+html,body{height:100%;}
+body{margin:0;overflow:hidden;background:var(--bg);font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--text);}
+.viz-grid{display:grid;grid-template-rows:1fr auto;grid-template-columns:1fr;height:100vh;width:100vw;gap:0;padding:0;}
+#container1{grid-row:1;grid-column:1;display:flex;justify-content:center;min-height:0;min-width:0;padding:0 24px;}
+#container2{grid-row:2;grid-column:1;display:flex;align-items:center;justify-content:center;padding:10px 14px;border-top:1px solid rgba(0,0,0,0.08);background:#fff;gap:16px;flex-wrap:wrap;}
+#viz{position:relative;flex:1 1 auto;max-width:100%;width:100%;min-width:0;min-height:0;margin:0 auto;}
+#chart{display:block;width:100%;height:100%;}
+#tooltip{position:absolute;background:#ffffff;border:1px solid #e5e5e5;border-radius:8px;padding:6px 8px;font-size:12px;pointer-events:none;opacity:0;box-shadow:0 10px 24px rgba(0,0,0,.1);}
+.custom-legend{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:clamp(6px,1.5vw,14px);background:rgba(255,255,255,0.9);padding:clamp(6px,1.2vh,10px) clamp(10px,2vw,16px);border-radius:clamp(6px,1.2vw,12px);box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:100%;}
+.legend-item{display:flex;align-items:center;gap:6px;cursor:pointer;transition:opacity .2s ease;font-weight:600;color:#333;font-size:clamp(11px,1.4vw,14px);}
+.legend-item.dim{opacity:.35;}
+.legend-item:focus-visible{outline:2px solid rgba(0,0,0,0.45);outline-offset:2px;}
+.legend-square{width:clamp(10px,1.2vw,14px);height:clamp(10px,1.2vw,14px);border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,0.15) inset;}
+.legend-block{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 8px;}
+.legend-title{font-weight:700;color:var(--text-strong);font-size:12px;margin-right:4px;}
+.axis path.domain{stroke:var(--axis);}
+.axis .tick line{stroke:var(--grid);}
+.axis .tick text{fill:var(--text);font-size:12px;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;}
+.break-wall{fill:#d9d9d9;stroke:#c3c3c3;stroke-width:1;opacity:0.9;pointer-events:none;}
+.break-label{font-weight:700;font-size:32px;fill:#ffffff;pointer-events:none;text-anchor:middle;}
+.axis-break{stroke:#8a8a8a;stroke-width:1.6;stroke-linecap:round;fill:none;pointer-events:none;}
+</style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1">
+    <div id="viz">
+      <svg id="chart"></svg>
+      <div id="tooltip"></div>
+    </div>
+  </div>
+  <div id="container2">
+    <div class="legend-block" id="legend-block-types">
+      <div class="legend-title">Type of collaborations</div>
+      <div class="custom-legend" id="legend-types"></div>
+    </div>
+  </div>
+</div>
+<script>
+let data=[];
+const colorPalette={
+  National:"#207164",
+  International:"#702528"
+};
+const svg=d3.select("#chart");
+const tooltip=d3.select("#tooltip");
+let activeKey=null;
+const valueFormatter=d3.format(".2~f");
+const breakConfig={
+  start:15,
+  end:45,
+  minGap:28,
+  maxGap:90,
+  gapRatio:0.1
+};
+
+function createBreakPath(x0,x1,y0,height){
+  const width=Math.max(0,x1-x0);
+  if(width<=0||height<=0){return "";}
+  const amplitude=Math.min(width*0.35,10);
+  const segments=Math.max(4,Math.round(height/12));
+  const step=height/segments;
+  let path=`M${x0},${y0}`;
+  let currentY=y0;
+  for(let i=0;i<segments;i++){
+    const nextY=(i===segments-1)?(y0+height):(currentY+step);
+    const midY=(currentY+nextY)/2;
+    const controlX=x0+(i%2===0?-amplitude:amplitude);
+    path+=` Q${controlX},${midY} ${x0},${nextY}`;
+    currentY=nextY;
+  }
+  path+=` L${x1},${y0+height}`;
+  currentY=y0+height;
+  for(let i=0;i<segments;i++){
+    const nextY=(i===segments-1)?y0:(currentY-step);
+    const midY=(currentY+nextY)/2;
+    const controlX=x1+(i%2===0?amplitude:-amplitude);
+    path+=` Q${controlX},${midY} ${x1},${nextY}`;
+    currentY=nextY;
+  }
+  path+=" Z";
+  return path;
+}
+
+function updateHighlight(){
+  const applyOpacity=selection=>{
+    selection.transition().duration(150)
+      .style('opacity', d=> activeKey && d.type!==activeKey ? 0.25 : 1);
+  };
+  applyOpacity(d3.selectAll('.bar-rect'));
+  applyOpacity(d3.selectAll('.bar-arrow'));
+  applyOpacity(d3.selectAll('.bar-value'));
+};
+
+function updateLegendStyles(){
+  d3.select('#legend-types').selectAll('.legend-item')
+    .classed('dim', d=> activeKey && d!==activeKey)
+    .attr('aria-pressed', d=> activeKey===d ? 'true' : 'false');
+};
+
+function buildLegend(){
+  const el=d3.select("#legend-types");
+  el.selectAll("*").remove();
+  const items=el.selectAll("div.legend-item").data(["National", "International"]).enter()
+    .append("div")
+    .attr("class","legend-item")
+    .attr("role","button")
+    .attr("tabindex",0)
+    .attr("aria-pressed","false");
+  items.append("div").attr("class","legend-square").style("background", d=>colorPalette[d]);
+  items.append("span").text(d=>d);
+  function toggleKey(event, d){
+    activeKey = (activeKey === d ? null : d);
+    updateLegendStyles();
+    updateHighlight();
+  };
+  items.on('click', toggleKey)
+    .on('keydown', function(event, d){
+      if(event.key === 'Enter' || event.key === ' '){
+        event.preventDefault();
+        toggleKey(event, d);
+      }
+    });
+  updateLegendStyles();
+}
+
+function render(){
+  if(!data.length){ return; }
+  const viz=document.getElementById("viz");
+  const rect=viz.getBoundingClientRect();
+  const fullW=rect.width;
+  const fullH=rect.height;
+
+  const margin={
+    top:20,
+    right:60,
+    bottom:50,
+    left:60
+  };
+
+  svg.attr("width",fullW).attr("height",fullH);
+  const width=fullW-margin.left-margin.right;
+  const height=fullH-margin.top-margin.bottom;
+
+  const gRoot=svg.selectAll("g.root").data([null]).join("g")
+    .attr("class","root")
+    .attr("transform",`translate(${margin.left},${margin.top})`);
+
+  // Create scales
+  const xMin=-1.5;
+  const xMax=50;
+  const breakStart=breakConfig.start;
+  const breakEnd=breakConfig.end;
+  const rawSpan=(breakStart-xMin)+(xMax-breakEnd);
+  const gapSize=Math.min(
+    Math.max(width*breakConfig.gapRatio, breakConfig.minGap),
+    Math.min(breakConfig.maxGap, width*0.4)
+  );
+  const usableWidth=Math.max(width-gapSize, 0);
+  const leftSpan=breakStart-xMin;
+  const rangeLeft=rawSpan>0 ? (usableWidth*leftSpan)/rawSpan : usableWidth/2;
+  const rangeRight=Math.max(usableWidth-rangeLeft, 0);
+  const x=d3.scaleLinear()
+    .domain([xMin, breakStart, breakEnd, xMax])
+    .range([0, rangeLeft, rangeLeft+gapSize, rangeLeft+gapSize+rangeRight])
+    .clamp(true);
+  const breakXStart=x(breakStart);
+  const breakXEnd=x(breakEnd);
+  const breakSpan=breakEnd-breakStart;
+  const breakSpanLabel=d3.format("~g")(breakSpan);
+
+  const y=d3.scaleBand()
+    .domain(data.map(d=>d.site))
+    .range([0, height])
+    .paddingInner(0.3);
+
+  const barHeight = y.bandwidth();
+  const arrowWidth = Math.min(barHeight*0.8, 16);
+  const labelPadding = 6;
+  const topDatum=data.length ? data[0] : null;
+  const breakActive=!!(topDatum && topDatum.National!=null && topDatum.National>breakStart);
+
+  // Draw alternating row backgrounds
+  const rowBG=gRoot.selectAll("rect.row").data(data);
+  rowBG.join(
+    enter=>enter.append("rect")
+      .attr("class","row")
+      .attr("x", 0)
+      .attr("y", d=>y(d.site))
+      .attr("width", width)
+      .attr("height", barHeight)
+      .attr("fill", (d,i)=>i%2 ? "#f5f5f5" : "#ffffff")
+  );
+
+  const overlayY=breakActive ? y(topDatum.site) : 0;
+  const overlayHeight=breakActive ? Math.max(height-overlayY, 0) : 0;
+  const breakOverlayData=breakActive ? [{
+    x0:breakXStart,
+    x1:breakXEnd,
+    y:overlayY,
+    height:overlayHeight
+  }] : [];
+
+  // Prepare bar data
+  const barData = [];
+  data.forEach(d=>{
+    [["International", d.International], ["National", d.National]].forEach(([type, rawValue])=>{
+      if(rawValue === null || rawValue === undefined || isNaN(rawValue)){ return; }
+      const overflowPositive = rawValue > xMax;
+      const overflowNegative = rawValue < xMin;
+      const clampedValue = Math.max(Math.min(rawValue, xMax), xMin);
+      const isPositive = rawValue >= 0;
+      const rectStart = isPositive ? x(0) : x(clampedValue);
+      const rectEnd = isPositive ? x(clampedValue) : x(0);
+      barData.push({
+        site: d.site,
+        type,
+        value: rawValue,
+        clampedValue,
+        isPositive,
+        overflow: overflowPositive || overflowNegative,
+        overflowDirection: overflowPositive ? "right" : (overflowNegative ? "left" : null),
+        rectStart,
+        rectEnd,
+        rectX: Math.min(rectStart, rectEnd),
+        rectWidth: Math.abs(rectEnd - rectStart),
+        y: y(d.site)
+      });
+    });
+  });
+
+  // Draw bars
+  const bars = gRoot.selectAll("rect.bar-rect").data(barData, d => d.site + d.type);
+  bars.join(
+    enter => enter.append("rect")
+      .attr("class", "bar-rect")
+      .attr("x", d => d.rectX)
+      .attr("y", d => d.y)
+      .attr("width", d => d.rectWidth)
+      .attr("height", barHeight)
+      .attr("fill", d => colorPalette[d.type])
+      .on("mouseenter", (event, d) => {
+        d3.select(event.currentTarget).style("filter", `drop-shadow(0 0 8px ${colorPalette[d.type]})`);
+      })
+      .on("mousemove", (event, d) => {
+        const val = valueFormatter(d.value);
+        tooltip.style("opacity", 1)
+          .style("left", event.pageX + 10 + "px")
+          .style("top", event.pageY - 12 + "px")
+          .html(`${d.type}: ${val}`);
+      })
+      .on("mouseleave", function() {
+        tooltip.style("opacity", 0);
+        d3.select(this).style("filter", null);
+      }),
+    update => update
+      .attr("x", d => d.rectX)
+      .attr("y", d => d.y)
+      .attr("width", d => d.rectWidth)
+      .attr("height", barHeight)
+  );
+
+  // Overflow markers
+  const overflowData = barData.filter(d => d.overflow);
+  const arrows = gRoot.selectAll("path.bar-arrow").data(overflowData, d => d.site + d.type);
+  arrows.join(
+    enter => enter.append("path")
+      .attr("class","bar-arrow")
+      .style("pointer-events","none")
+  )
+    .attr("fill", d => colorPalette[d.type])
+    .attr("d", d => {
+      const topY = d.y;
+      const bottomY = d.y + barHeight;
+      const midY = d.y + barHeight / 2;
+      if(d.overflowDirection === "right"){
+        const endX = d.rectEnd;
+        const startX = Math.max(endX - arrowWidth, d.rectX);
+        return `M${startX},${topY} L${endX},${midY} L${startX},${bottomY} Z`;
+      } else if(d.overflowDirection === "left") {
+        const startX = d.rectStart;
+        const endX = startX + arrowWidth;
+        return `M${endX},${topY} L${startX},${midY} L${endX},${bottomY} Z`;
+      }
+      return "";
+    });
+
+  const labels = gRoot.selectAll("text.bar-value").data(overflowData, d => d.site + d.type);
+  labels.join(
+    enter => enter.append("text")
+      .attr("class","bar-value")
+      .attr("dy","0.35em")
+      .attr("pointer-events","none")
+      .style("font-size","12px")
+      .style("font-weight",600)
+  )
+    .attr("x", d => {
+      if(d.overflowDirection === "right"){
+        return d.rectEnd - (arrowWidth / 2) - labelPadding;
+      }
+      if(d.overflowDirection === "left"){
+        return d.rectStart + (arrowWidth / 2) + labelPadding;
+      }
+      return (d.rectStart + d.rectEnd) / 2;
+    })
+    .attr("y", d => d.y + barHeight / 2)
+    .attr("text-anchor", d => d.overflowDirection === "right" ? "end" : "start")
+    .attr("fill", "#ffffff")
+    .text(d => valueFormatter(d.value));
+
+  const breakOverlay=gRoot.selectAll("path.break-wall").data(breakOverlayData).join(
+    enter=>enter.append("path").attr("class","break-wall")
+  )
+    .attr("d", d=>createBreakPath(d.x0,d.x1,d.y,d.height));
+  if(breakActive){
+    breakOverlay.raise();
+  }
+
+  const labelY=breakActive ? overlayY + overlayHeight / 2 : 0;
+  const breakLabelData=breakActive ? [{
+    x:(breakXStart+breakXEnd)/2,
+    y:labelY,
+    text:`+${breakSpanLabel}`
+  }] : [];
+  const breakLabel=gRoot.selectAll("text.break-label").data(breakLabelData);
+  breakLabel.join(
+    enter=>enter.append("text")
+      .attr("class","break-label")
+      .attr("dy","0.35em")
+      .attr("text-anchor","middle")
+  )
+    .attr("x", d=>d.x)
+    .attr("y", d=>d.y)
+    .text(d=>d.text);
+  if(breakActive){
+    breakLabel.raise();
+  }
+
+  // X axis
+  const xAxis = gRoot.selectAll("g.x-axis").data([null]).join("g")
+    .attr("class", "axis x-axis")
+    .attr("transform", `translate(0, ${height})`);
+
+  const tickValues=[-1,0,5,10,breakStart,breakEnd,xMax];
+  xAxis.call(
+    d3.axisBottom(x)
+      .tickValues(tickValues)
+      .tickFormat(d=>d3.format("~g")(d))
+  );
+  const breakMarkerWidth=Math.max(Math.min(breakXEnd-breakXStart,26),12);
+  const markerOffset=(breakXEnd-breakXStart-breakMarkerWidth)/2;
+  const markerStart=breakXStart+markerOffset;
+  const markerStep=breakMarkerWidth/4;
+  const axisBreakPath=`M${markerStart},0 l${markerStep},-6 l${markerStep},6 l${markerStep},-6 l${markerStep},6`;
+  xAxis.selectAll("path.axis-break").data([null]).join("path")
+    .attr("class","axis-break")
+    .attr("d", axisBreakPath);
+
+  // X axis title
+  xAxis.selectAll("text.axis-title").data([null]).join("text")
+    .attr("class", "axis-title")
+    .attr("x", width / 2)
+    .attr("y", 40)
+    .style("fill", "var(--text-strong)")
+    .style("font-weight", 700)
+    .style("font-size", "14px")
+    .style("text-anchor", "middle")
+    .text("Difference in RCA");
+
+  // Y axis
+  const yAxis = gRoot.selectAll("g.y-axis").data([null]).join("g")
+    .attr("class", "axis y-axis");
+
+  yAxis.call(d3.axisLeft(y).tickSize(0).tickPadding(8));
+  yAxis.selectAll("path").remove();
+  yAxis.selectAll("text")
+    .style("font-size", "12px")
+    .style("font-weight", 600);
+
+  // Y axis title
+  yAxis.selectAll("text.axis-title").data([null]).join("text")
+    .attr("class", "axis-title")
+    .attr("x", -height / 2)
+    .attr("y", -45)
+    .attr("transform", `rotate(-90)`)
+    .attr("text-anchor", "middle")
+    .style("fill", "var(--text-strong)")
+    .style("font-weight", 700)
+    .style("font-size", "14px")
+    .text("AI Factory Site");
+
+  // Zero line
+  gRoot.selectAll("line.zero-line").data([null]).join("line")
+    .attr("class", "zero-line")
+    .attr("x1", x(0))
+    .attr("x2", x(0))
+    .attr("y1", 0)
+    .attr("y2", height)
+    .attr("stroke", "#333")
+    .attr("stroke-width", 1.5);
+
+  updateHighlight();
+};
+
+function loadData(){
+  d3.csv("fig7.csv").then(raw => {
+    data = raw.map(d => ({
+      site: d.AIF_site,
+      National: d.National ? +d.National : null,
+      International: d.International ? +d.International : null
+    })).filter(d => d.site);
+
+    // Sort by total absolute difference (descending)
+    data.sort((a, b) => {
+      const totalA = Math.abs(a.National || 0) + Math.abs(a.International || 0);
+      const totalB = Math.abs(b.National || 0) + Math.abs(b.International || 0);
+      return totalB - totalA;
+    });
+
+    buildLegend();
+    render();
+  });
+};
+
+loadData();
+window.addEventListener("resize", function(){ render(); });
+var vizEl = document.getElementById('viz');
+if (typeof ResizeObserver !== 'undefined' && vizEl) {
+  var chartObserver = new ResizeObserver(function(){ render(); });
+  chartObserver.observe(vizEl);
+};
+</script>
+</body>
+</html>

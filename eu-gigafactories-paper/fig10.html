@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://www.paballand.com/js/d3plus-plot.v0.9.full.min.js"></script>
+<style>
+:root{--bg:#ffffff;--axis:#cfcfcf;--grid:#e9e9e9;--text:#6b6b6b;--text-strong:#333333;--muted:#9aa0a6;}
+html,body{height:100%;}
+body{margin:0;overflow:hidden;background:var(--bg);font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--text);}
+.viz-grid{display:grid;grid-template-rows:1fr auto;grid-template-columns:1fr;height:100vh;width:100vw;gap:0;padding:0;}
+#container1{grid-row:1;grid-column:1;display:flex;flex-direction:column;min-height:0;min-width:0;}
+#container2{grid-row:2;grid-column:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border-top:1px solid rgba(0,0,0,0.08);background:#fff;}
+#chart{flex:1 1 auto;min-width:0;min-height:0;position:relative;}
+.geo-status-container{padding:10px 14px;text-align:center;background:#fff;flex:0 0 auto;display:flex;justify-content:center;}
+#chart svg{background:var(--bg);}
+.geo-status{display:flex;align-items:center;justify-content:center;gap:12px;font-weight:600;color:var(--text-strong);font-size:clamp(12px,1.6vw,16px);max-width:100%;width:100%;}
+.geo-select{padding:8px 12px;border-radius:6px;border:1px solid rgba(0,0,0,0.2);background:rgba(0,0,0,0.05);color:var(--text-strong);font-size:clamp(12px,1.6vw,16px);font-weight:600;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;cursor:pointer;transition:all .2s ease;min-width:200px;max-width:400px;}
+.geo-select:hover{background:rgba(0,0,0,0.08);border-color:rgba(0,0,0,0.3);}
+.geo-select:focus{outline:2px solid rgba(0,0,0,0.4);outline-offset:2px;border-color:rgba(0,0,0,0.3);}
+.custom-legend{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:clamp(6px,1.5vw,14px);background:rgba(255,255,255,0.9);padding:clamp(6px,1.2vh,10px) clamp(10px,2vw,16px);border-radius:clamp(6px,1.2vw,12px);box-shadow:0 2px 8px rgba(0,0,0,0.1);max-width:100%;}
+.legend-item{display:flex;align-items:center;gap:6px;cursor:pointer;transition:opacity .2s ease;font-weight:600;color:#333;font-size:clamp(11px,1.4vw,14px);}
+.legend-item.dim{opacity:.35;}
+.legend-item:focus-visible{outline:2px solid rgba(0,0,0,0.45);outline-offset:2px;}
+.legend-square{width:clamp(10px,1.2vw,14px);height:clamp(10px,1.2vw,14px);border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,0.15) inset;}
+.d3plus-Axis path.domain{stroke:var(--axis)!important;}
+.d3plus-Axis .tick line{stroke:var(--grid)!important;}
+.d3plus-Axis .tick text{fill:var(--text)!important;font-size:12px!important;font-family:"Inter",sans-serif!important;}
+.d3plus-Axis .title{fill:var(--text-strong)!important;font-size:14px!important;font-weight:600!important;font-family:"Roboto",sans-serif!important;}
+.d3plus-tooltip{background:#ffffff!important;border:1px solid #e5e5e5!important;border-radius:8px!important;box-shadow:0 10px 24px rgba(0,0,0,.1)!important;color:var(--text-strong)!important;}
+.d3plus-tooltip-title{font-weight:700!important;font-size:13px!important;color:var(--text-strong)!important;}
+.d3plus-tooltip-body{font-size:12px!important;color:var(--text)!important;}
+.custom-label{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px;opacity:1;font-weight:400;pointer-events:none;transform-origin:center;color:#000;}
+.custom-label.collision{opacity:.35;}
+.custom-label.hover{opacity:1!important;font-size:16px!important;font-weight:700!important;}
+.custom-label, text.custom-label{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif!important;font-size:12px!important;fill:currentColor!important;stroke:none!important;font-weight:400!important;}
+tspan{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;font-size:12px;font-style:normal;}
+</style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1">
+    <div class="geo-status-container">
+      <div id="geo-status" class="geo-status" aria-live="polite"></div>
+    </div>
+    <div id="chart"></div>
+  </div>
+  <div id="container2">
+    <div id="legend" class="custom-legend"></div>
+  </div>
+</div>
+<script>
+const OVERLAP_CLUSTER_REMOVE_COUNT=3;
+const LABEL_BBOX_PAD=2;
+const NO_MATCH_LABEL="No match";
+const NO_MATCH_COLOR="#9aa0a6";
+const GROUP_COLOR_MAP={"AIF designated":"#207164","Not designated":"#F3C64C","No match":NO_MATCH_COLOR};
+const GROUP_ORDER=["AIF designated","Not designated",NO_MATCH_LABEL];
+let customLabels=[];
+let isUpdating=false;
+let hoveringElements=new Set();
+let activeLegendKey=null;
+let colorScale=null;
+let legendValues=[];
+let loadedDataset=null;
+let allGeos=[];
+let currentGeoIndex=0;
+function median(v){
+  if(!v.length)throw new Error("empty");
+  v=[...v].sort((a,b)=>a-b);
+  const h=Math.floor(v.length/2);
+  return v.length%2?v[h]:(v[h-1]+v[h])/2;
+}
+function truncateText(text,maxLength=18){
+  if(text.length<=maxLength){
+    return text;
+  }
+  return text.substring(0,maxLength)+"...";
+}
+function rectanglesOverlap(rect1,rect2){
+  return !(rect1.x+rect1.width<rect2.x||rect2.x+rect2.width<rect1.x||rect1.y+rect1.height<rect2.y||rect2.y+rect2.height<rect1.y);
+}
+function rectIntersectionArea(a,b){
+  const x=Math.max(a.x,b.x);
+  const y=Math.max(a.y,b.y);
+  const w=Math.min(a.x+a.width,b.x+b.width)-x;
+  const h=Math.min(a.y+a.height,b.y+b.height)-y;
+  if(w<=0||h<=0){
+    return 0;
+  }
+  return w*h;
+}
+function expandRect(rect,pad=LABEL_BBOX_PAD){
+  return {x:rect.x-pad,y:rect.y-pad,width:rect.width+pad*2,height:rect.height+pad*2};
+}
+function getPositionOptions(centerX,centerY,radius,padding=5){
+  const d=radius+padding;
+  const yb=centerY+3;
+  return [
+    {name:"right",x:centerX+d,y:yb,anchor:"start"},
+    {name:"left",x:centerX-d,y:yb,anchor:"end"},
+    {name:"below",x:centerX,y:centerY+d+10,anchor:"middle"},
+    {name:"above",x:centerX,y:centerY-d,anchor:"middle"},
+    {name:"right-top",x:centerX+d,y:centerY-d*0.6,anchor:"start"},
+    {name:"right-bottom",x:centerX+d,y:centerY+d*0.6,anchor:"start"},
+    {name:"left-top",x:centerX-d,y:centerY-d*0.6,anchor:"end"},
+    {name:"left-bottom",x:centerX-d,y:centerY+d*0.6,anchor:"end"}
+  ];
+}
+function hasCollisionWithCircles(textElement,allCircles){
+  try{
+    const textBBox=textElement.getBBox();
+    for(const circleData of allCircles){
+      const r=parseFloat(circleData.circle.getAttribute('r'))||7.5;
+      const circleBBox={x:circleData.coords.x-r,y:circleData.coords.y-r,width:r*2,height:r*2};
+      if(rectanglesOverlap(textBBox,circleBBox)){
+        return true;
+      }
+    }
+    return false;
+  }catch(e){
+    return false;
+  }
+}
+function bestPositionSmart(textElement,centerX,centerY,radius,allCircles,fullText,placedBoxes){
+  const positions=getPositionOptions(centerX,centerY,radius);
+  function scoreFor(text){
+    textElement.textContent=text;
+    let best={pos:null,text:text,score:Infinity,circleHit:false,bbox:null};
+    for(const pos of positions){
+      textElement.setAttribute('x',pos.x);
+      textElement.setAttribute('y',pos.y);
+      textElement.setAttribute('text-anchor',pos.anchor);
+      let bbox;
+      try{
+        bbox=expandRect(textElement.getBBox(),LABEL_BBOX_PAD);
+      }catch(e){
+        continue;
+      }
+      let circleHit=false;
+      for(const c of allCircles){
+        const r=parseFloat(c.circle.getAttribute('r'))||7.5;
+        const circleBBox={x:c.coords.x-r,y:c.coords.y-r,width:r*2,height:r*2};
+        if(rectanglesOverlap(bbox,circleBBox)){
+          circleHit=true;
+          break;
+        }
+      }
+      let overlapArea=0;
+      for(const pb of placedBoxes){
+        overlapArea+=rectIntersectionArea(bbox,pb);
+      }
+      const score=(circleHit?1e9:0)+overlapArea;
+      if(score<best.score){
+        best={pos:pos,text:text,score:score,circleHit:circleHit,bbox:bbox};
+      }
+    }
+    return best;
+  }
+  const full=scoreFor(fullText);
+  if(!full.circleHit&&full.score===0){
+    return {...full,hasCollision:false};
+  }
+  const truncated=scoreFor(truncateText(fullText,18));
+  if(!truncated.circleHit&&truncated.score===0){
+    return {...truncated,hasCollision:true};
+  }
+  if(truncated.score<=full.score){
+    return {...truncated,hasCollision:true};
+  }
+  return {...full,hasCollision:full.circleHit||full.score>0};
+}
+function findMatchingDataPoint(circle){
+  const bound=circle.__data__||d3.select(circle).datum();
+  if(bound)return bound;
+  return null;
+}
+function normalizeGroup(v){
+  const t=String(v||"").trim();
+  const l=t.toLowerCase();
+  if(!t||l==="no match"||l==="nomatch"||l==="none")return NO_MATCH_LABEL;
+  if(l==="partner country"||l==="partner-country"||l==="partner")return "Partner country";
+  if(l==="country match"||l==="country-match"||l==="country")return "Country match";
+  if(l==="nuts-2 match"||l==="nuts2 match"||l==="nuts2-match"||l==="nuts2"||l==="nuts-2")return "NUTS-2 match";
+  return t;
+}
+function loadCSV(path){
+  return d3.csv(path).then(raw=>{
+    const cols=raw.columns||Object.keys(raw[0]||{});
+    const geoKey=cols.find(c=>String(c).trim().toLowerCase()==='geo')||cols[0];
+    const domainKey=cols.find(c=>/domain/i.test(String(c)))||cols[1];
+    const rcaKey=cols.find(c=>/rca/i.test(String(c)))||cols[2];
+    const penetrationKey=cols.find(c=>/penetration/i.test(String(c)))||cols[3];
+    const designationKey=cols.find(c=>/designation/i.test(String(c)))||cols[4];
+    const data=raw.map(r=>{
+      const geo=String(r[geoKey]||'').trim();
+      const domain=String(r[domainKey]||'').trim();
+      const rca=+r[rcaKey];
+      const penetration=+r[penetrationKey];
+      const designated=String(r[designationKey]||'').trim().toLowerCase()==='true';
+      const groupVal=designated?"AIF designated":"Not designated";
+      return {id:domain,domain:domain,geo:geo,ai:rca,compute:penetration,x:rca,y:penetration,group:groupVal,designation:designated,value:1};
+    }).filter(d=>d.geo&&d.id&&Number.isFinite(d.x)&&Number.isFinite(d.y));
+    const geos=Array.from(new Set(data.map(d=>d.geo))).sort((a,b)=>a.localeCompare(b,'en',{sensitivity:'base'}));
+    const xVals=data.map(d=>d.x).filter(Number.isFinite);
+    const yVals=data.map(d=>d.y).filter(Number.isFinite);
+    const xMin=xVals.length?Math.min(...xVals):0;
+    const xMax=xVals.length?Math.max(...xVals):1;
+    const yMin=yVals.length?Math.min(...yVals):0;
+    const yMax=yVals.length?Math.max(...yVals):1;
+    const xPad=(xMax-xMin||1)*0.1;
+    const yPad=(yMax-yMin||1)*0.1;
+    const xDomain=[Math.max(0,xMin-xPad),xMax+xPad];
+    const yDomain=[Math.max(0,yMin-yPad),yMax+yPad];
+    const medianX=xVals.length?median(xVals):null;
+    const medianY=yVals.length?median(yVals):null;
+    return {data,xKey:rcaKey,yKey:penetrationKey,geos,xDomain,yDomain,medianX,medianY};
+  });
+}
+function drawPlot(loaded,selectedGeo){
+  if(!loaded||!Array.isArray(loaded.data)){
+    return;
+  }
+  const {data,xKey,yKey,xDomain,yDomain,medianX,medianY}=loaded;
+  const chartEl=document.getElementById('chart');
+  const filtered=data.filter(d=>d.geo===selectedGeo);
+  if(!filtered.length){
+    if(chartEl){
+      chartEl.innerHTML=`<div class="geo-status">No data available for ${selectedGeo||'the selected region'}.</div>`;
+    }
+    legendValues=[];
+    buildLegend();
+    return;
+  }
+  if(chartEl){
+    chartEl.innerHTML='';
+  }
+  const presentGroups=Array.from(new Set(filtered.map(d=>d.group)));
+  legendValues=GROUP_ORDER.filter(v=>presentGroups.includes(v)).concat(presentGroups.filter(v=>!GROUP_ORDER.includes(v)));
+  const domain=legendValues.filter(v=>v!==NO_MATCH_LABEL);
+  const range=domain.map(v=>GROUP_COLOR_MAP[v]||"#207164");
+  colorScale=d3.scaleOrdinal().domain(domain).range(range);
+  filtered.forEach(d=>{d.color=d.group===NO_MATCH_LABEL?NO_MATCH_COLOR:(GROUP_COLOR_MAP[d.group]||colorScale(d.group));});
+  const countryXVals=filtered.map(d=>d.x).filter(Number.isFinite);
+  const countryYVals=filtered.map(d=>d.y).filter(Number.isFinite);
+  const countryMedianX=countryXVals.length?median(countryXVals):null;
+  const countryMedianY=countryYVals.length?median(countryYVals):null;
+  const annotationSegments=[];
+  if(Number.isFinite(countryMedianX)){
+    annotationSegments.push(
+      {id:'Median Vertical',x:countryMedianX,y:yDomain[0]},
+      {id:'Median Vertical',x:countryMedianX,y:yDomain[1]}
+    );
+  }
+  if(Number.isFinite(countryMedianY)){
+    annotationSegments.push(
+      {id:'Median Horizontal',x:xDomain[0],y:countryMedianY},
+      {id:'Median Horizontal',x:xDomain[1],y:countryMedianY}
+    );
+  }
+  const annotations=annotationSegments.length?[
+    {
+      data:annotationSegments,
+      shape:'Line',
+      stroke:'#999999',
+      strokeDasharray:'4 3',
+      strokeWidth:2
+    }
+  ]:[];
+  const numberFormat=d3.format(".2f");
+  new d3plus.Plot()
+    .select('#chart')
+    .data(filtered)
+    .annotations(annotations)
+    .groupBy('id')
+    .tooltipConfig({
+      body:d=>`<table class='tooltip-table'>
+        <tr><td class='title'>Region:</td><td class='data'>${d.geo}</td></tr>
+        <tr><td class='title'>AIF domain:</td><td class='data'>${d.domain}</td></tr>
+        <tr><td class='title'>${xKey}:</td><td class='data'>${numberFormat(d.ai)}</td></tr>
+        <tr><td class='title'>${yKey}:</td><td class='data'>${numberFormat(d.compute)}</td></tr>
+        <tr><td class='title'>AIF designation:</td><td class='data'>${d.designation?'Yes':'No'}</td></tr>
+      </table>`,
+      title:d=>d.domain
+    })
+    .size('value')
+    .sizeMin(12)
+    .sizeMax(12)
+    .color('color')
+    .label('')
+    .shapeConfig({
+      fillOpacity:.65,
+      stroke:'#ffffff',
+      strokeWidth:1.5,
+      Circle:{labelConfig:{fontSize:0}}
+    })
+    .yDomain(yDomain)
+    .yConfig({
+      title:"AI penetration (publications, patents, investments)",
+      titleConfig:{fontSize:()=>14,fontWeight:600,fill:'#333',fontFamily:()=>'Roboto'},
+      gridConfig:{stroke:'#e9e9e9',strokeWidth:1},
+      shapeConfig:{labelConfig:{fontSize:()=>12,fontFamily:()=>'Inter'}}
+    })
+    .xDomain(xDomain)
+    .xConfig({
+      title:"RCA (publications, patents, investments)",
+      titleConfig:{fontSize:()=>14,fontWeight:600,fill:'#333',fontFamily:()=>'Roboto'},
+      gridConfig:{stroke:'#e9e9e9',strokeWidth:1},
+      shapeConfig:{labelConfig:{fontSize:()=>12,fontFamily:()=>'Inter'}}
+    })
+    .legend(false)
+    .downloadButton(false)
+    .render();
+  setTimeout(()=>{initializeCustomLabels();startPositionUpdater();buildLegend();applyLegendFilter();},500);
+}
+function initializeCustomLabels(){
+  const svg=document.querySelector('#chart svg');
+  if(!svg){
+    setTimeout(initializeCustomLabels,100);
+    return;
+  }
+  const circles=svg.querySelectorAll('circle');
+  customLabels=[];
+  hoveringElements=new Set();
+  circles.forEach(circle=>{
+    const matchingData=findMatchingDataPoint(circle);
+    if(matchingData){
+      const fullText=matchingData.id;
+      const text=document.createElementNS('http://www.w3.org/2000/svg','text');
+      text.setAttribute('class','custom-label');
+      text.setAttribute('data-id',matchingData.id);
+      text.setAttribute('text-anchor','start');
+      text.setAttribute('font-family','Helvetica Neue, Arial, sans-serif');
+      text.setAttribute('font-size','12');
+      text.style.color=matchingData.color;
+      text.textContent=fullText;
+      svg.appendChild(text);
+      customLabels.push({circle:circle,text:text,data:matchingData,fullText:fullText,defaultText:fullText,savedPosition:null,hiddenByCluster:false,wasHiddenBeforeHover:false,dimByLegend:false});
+      circle.addEventListener('mouseenter',()=>{
+        hoveringElements.add(text);
+        const labelData=customLabels.find(l=>l.circle===circle);
+        if(labelData){
+          labelData.savedPosition={x:text.getAttribute('x'),y:text.getAttribute('y'),anchor:text.getAttribute('text-anchor'),content:text.textContent};
+          labelData.wasHiddenBeforeHover=labelData.hiddenByCluster||labelData.dimByLegend;
+          labelData.hiddenByCluster=false;
+          labelData.dimByLegend=false;
+        }
+        text.classList.add('hover');
+        text.textContent=fullText;
+        text.setAttribute('opacity','1');
+        text.style.display='';
+        text.style.pointerEvents='auto';
+      });
+      circle.addEventListener('mouseleave',()=>{
+        hoveringElements.delete(text);
+        text.classList.remove('hover');
+        const labelData=customLabels.find(l=>l.circle===circle);
+        if(labelData&&labelData.savedPosition){
+          text.setAttribute('x',labelData.savedPosition.x);
+          text.setAttribute('y',labelData.savedPosition.y);
+          text.setAttribute('text-anchor',labelData.savedPosition.anchor);
+          text.textContent=labelData.savedPosition.content;
+          labelData.dimByLegend=labelData.wasHiddenBeforeHover;
+          labelData.hiddenByCluster=false;
+          labelData.wasHiddenBeforeHover=false;
+        }
+        applyLegendFilter();
+      });
+    }
+  });
+  updateLabelPositions();
+}
+function updateLabelPositions(){
+  if(isUpdating)return;
+  isUpdating=true;
+  const svg=document.querySelector('#chart svg');
+  if(!svg){
+    isUpdating=false;
+    return;
+  }
+  const circlePositions=[];
+  customLabels.forEach(({circle,text})=>{
+    if(circle&&text){
+      const bbox=circle.getBoundingClientRect();
+      const svgRect=svg.getBoundingClientRect();
+      const svgPoint=svg.createSVGPoint();
+      svgPoint.x=bbox.left+bbox.width/2;
+      svgPoint.y=bbox.top+bbox.height/2;
+      const screenCTM=svg.getScreenCTM();
+      if(screenCTM){
+        const svgCoords=svgPoint.matrixTransform(screenCTM.inverse());
+        circlePositions.push({circle:circle,coords:svgCoords});
+      }else{
+        circlePositions.push({circle:circle,coords:{x:svgPoint.x-svgRect.left,y:svgPoint.y-svgRect.top}});
+      }
+    }
+  });
+  const labels=customLabels.slice();
+  labels.sort((a,b)=>{
+    const ha=hoveringElements.has(a.text)?-1:0;
+    const hb=hoveringElements.has(b.text)?-1:0;
+    if(ha!==hb)return ha-hb;
+    const ax=circlePositions.find(cp=>cp.circle===a.circle)?.coords.x||0;
+    const bx=circlePositions.find(cp=>cp.circle===b.circle)?.coords.x||0;
+    return ax-bx;
+  });
+  const placedBoxes=[];
+  labels.forEach(labelData=>{
+    const {circle,text,fullText}=labelData;
+    if(!circle||!text){
+      return;
+    }
+    if(hoveringElements.has(text)){
+      try{
+        placedBoxes.push(expandRect(text.getBBox(),LABEL_BBOX_PAD));
+      }catch(e){}
+      return;
+    }
+    const circleData=circlePositions.find(cp=>cp.circle===circle);
+    if(!circleData){
+      return;
+    }
+    const r=parseFloat(circle.getAttribute('r'))||7.5;
+    const best=bestPositionSmart(text,circleData.coords.x,circleData.coords.y,r,circlePositions,fullText,placedBoxes);
+    text.setAttribute('x',best.pos.x);
+    text.setAttribute('y',best.pos.y);
+    text.setAttribute('text-anchor',best.pos.anchor);
+    text.textContent=best.text;
+    labelData.defaultText=best.text;
+    if(best.hasCollision){
+      text.classList.add('collision');
+      if(!labelData.hiddenByCluster&&!labelData.dimByLegend)text.setAttribute('opacity','0.35');
+    }else{
+      text.classList.remove('collision');
+      if(!labelData.hiddenByCluster&&!labelData.dimByLegend)text.setAttribute('opacity','1');
+    }
+    try{
+      placedBoxes.push(expandRect(text.getBBox(),LABEL_BBOX_PAD));
+    }catch(e){}
+    if(labelData.hiddenByCluster||labelData.dimByLegend){
+      text.style.display='none';
+      text.style.pointerEvents='none';
+    }else{
+      text.style.display='';
+      text.style.pointerEvents='auto';
+    }
+  });
+  hideClustersOfThreeOrMore();
+  isUpdating=false;
+}
+function hideClustersOfThreeOrMore(){
+  const labels=customLabels.filter(ld=>ld.text&&ld.circle&&!ld.dimByLegend);
+  const n=labels.length;
+  const boxes=new Array(n);
+  for(let i=0;i<n;i++){
+    try{
+      boxes[i]=expandRect(labels[i].text.getBBox(),LABEL_BBOX_PAD);
+    }catch(e){
+      boxes[i]=null;
+    }
+  }
+  const adj=Array.from({length:n},()=>[]);
+  for(let i=0;i<n;i++){
+    if(!boxes[i])continue;
+    for(let j=i+1;j<n;j++){
+      if(!boxes[j])continue;
+      if(rectanglesOverlap(boxes[i],boxes[j])){
+        adj[i].push(j);
+        adj[j].push(i);
+      }
+    }
+  }
+  const visited=new Array(n).fill(false);
+  for(let i=0;i<n;i++){
+    if(visited[i])continue;
+    const stack=[i];
+    const comp=[];
+    while(stack.length){
+      const v=stack.pop();
+      if(visited[v])continue;
+      visited[v]=true;
+      comp.push(v);
+      for(const u of adj[v]){
+        if(!visited[u])stack.push(u);
+      }
+    }
+    if(comp.length>=OVERLAP_CLUSTER_REMOVE_COUNT){
+      for(const idx of comp){
+        const ld=labels[idx];
+        if(hoveringElements.has(ld.text))continue;
+        ld.hiddenByCluster=true;
+        ld.text.style.display='none';
+        ld.text.style.pointerEvents='none';
+      }
+    }else{
+      for(const idx of comp){
+        const ld=labels[idx];
+        if(hoveringElements.has(ld.text))continue;
+        ld.hiddenByCluster=false;
+        ld.text.style.display='';
+        if(ld.text.classList.contains('collision')){
+          ld.text.setAttribute('opacity','0.35');
+        }else{
+          ld.text.setAttribute('opacity','1');
+        }
+        ld.text.style.pointerEvents='auto';
+      }
+    }
+  }
+}
+function startPositionUpdater(){
+  function updateLoop(){
+    updateLabelPositions();
+    requestAnimationFrame(updateLoop);
+  }
+  updateLoop();
+  const chartElement=document.getElementById('chart');
+  if(chartElement){
+    chartElement.addEventListener('wheel',updateLabelPositions,{passive:true});
+    chartElement.addEventListener('mousedown',updateLabelPositions);
+    chartElement.addEventListener('mousemove',updateLabelPositions);
+    chartElement.addEventListener('mouseup',updateLabelPositions);
+  }
+}
+function buildLegend(){
+  const legend=document.getElementById('legend');
+  if(!legend)return;
+  legend.innerHTML='';
+  if(!legendValues.length){
+    legend.style.display='none';
+    return;
+  }
+  legend.style.display='flex';
+  legendValues.forEach(val=>{
+    const item=document.createElement('div');
+    item.className='legend-item';
+    item.setAttribute('role','button');
+    item.setAttribute('tabindex','0');
+    item.setAttribute('aria-pressed','false');
+    const square=document.createElement('div');
+    square.className='legend-square';
+    square.style.background=(val===NO_MATCH_LABEL)?NO_MATCH_COLOR:(GROUP_COLOR_MAP[val]||colorScale(val));
+    const label=document.createElement('span');
+    label.textContent=String(val);
+    item.appendChild(square);
+    item.appendChild(label);
+    item.addEventListener('click',()=>toggleLegend(val,item));
+    item.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleLegend(val,item);}});
+    legend.appendChild(item);
+  });
+  updateLegendStyles();
+}
+function toggleLegend(value,el){
+  activeLegendKey=activeLegendKey===value?null:value;
+  updateLegendStyles();
+  applyLegendFilter();
+}
+function updateLegendStyles(){
+  const items=document.querySelectorAll('#legend .legend-item');
+  items.forEach((it,idx)=>{
+    const v=legendValues[idx];
+    const dim=activeLegendKey&&v!==activeLegendKey;
+    it.classList.toggle('dim',dim);
+    it.setAttribute('aria-pressed',activeLegendKey===v?'true':'false');
+  });
+}
+function applyLegendFilter(){
+  const svg=document.querySelector('#chart svg');
+  if(!svg)return;
+  const circles=svg.querySelectorAll('circle');
+  circles.forEach(c=>{
+    const d=findMatchingDataPoint(c);
+    if(!d)return;
+    const dim=activeLegendKey&&d.group!==activeLegendKey;
+    c.style.opacity=dim?0.25:1;
+  });
+  customLabels.forEach(ld=>{
+    const dim=activeLegendKey&&ld.data.group!==activeLegendKey;
+    ld.dimByLegend=dim&&!hoveringElements.has(ld.text);
+  });
+  updateLabelPositions();
+}
+function updateGeoStatus(geo){
+  const statusEl=document.getElementById('geo-status');
+  if(!statusEl)return;
+  if(!geo||!allGeos.length){
+    statusEl.innerHTML='<span>No region selected</span>';
+    return;
+  }
+  const options=allGeos.map((g,idx)=>{
+    const selected=g===geo?'selected':'';
+    return `<option value="${idx}" ${selected}>${g}</option>`;
+  }).join('');
+  statusEl.innerHTML=`
+    <select class="geo-select" onchange="changeGeo(this.value)" aria-label="Select region">
+      ${options}
+    </select>
+  `;
+}
+function renderCurrentGeo(){
+  if(!loadedDataset||!allGeos.length){
+    updateGeoStatus('');
+    return;
+  }
+  const selectedGeo=allGeos[Math.max(0,Math.min(currentGeoIndex,allGeos.length-1))];
+  activeLegendKey=null;
+  updateGeoStatus(selectedGeo);
+  drawPlot(loadedDataset,selectedGeo);
+}
+function changeGeo(index){
+  if(!allGeos.length)return;
+  currentGeoIndex=parseInt(index,10);
+  if(isNaN(currentGeoIndex)||currentGeoIndex<0||currentGeoIndex>=allGeos.length){
+    currentGeoIndex=0;
+  }
+  renderCurrentGeo();
+}
+loadCSV('fig10.csv').then(loaded=>{
+  loadedDataset=loaded;
+  allGeos=Array.isArray(loaded.geos)?loaded.geos:[];
+  currentGeoIndex=0;
+  renderCurrentGeo();
+});
+</script>
+</body>
+</html>
