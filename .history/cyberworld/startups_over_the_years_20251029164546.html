@@ -7,7 +7,7 @@
 <script src="https://d3js.org/d3.v7.min.js"></script>
 <style>
   html, body { height:100%; margin:0; background:#fff; font-family:system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif; overflow:hidden; }
-  #chart { display:block; width:100%; height:calc(100vh - 40px); }
+  #chart { display:block; width:100%; height:auto; }
   .axis path, .axis line { stroke:#bbb; }
   .axis text { font-size:11px; fill:#444; }
   #tooltip { position:absolute; background:#fff; border:1px solid #ccc; padding:4px 8px; font-size:12px; pointer-events:none; opacity:0; transition:opacity .2s; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,.06); }
@@ -37,14 +37,13 @@ const svg = d3.select('#chart');
 const tooltip = d3.select('#tooltip');
 
 function render() {
-  const rect = svg.node().getBoundingClientRect();
-  const W = rect.width;
-  const H = rect.height;
-  const margin = { top: 10, right: 20, bottom: 50, left: 50 };
+  const W = Math.max(600, document.body.clientWidth);
+  const H = 900; // fixed smaller height for no scroll
+  const margin = { top: 10, right: 20, bottom: 45, left: 45 };
   const width = W - margin.left - margin.right;
   const height = H - margin.top - margin.bottom;
 
-  svg.attr('viewBox', `0 0 ${W} ${H}`);
+  svg.attr('width', W).attr('height', H).attr('viewBox', `0 0 ${W} ${H}`);
   svg.selectAll('*').remove();
   const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
