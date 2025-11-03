@@ -1,0 +1,150 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Top 10 | Leaderboard</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #ffffff;
+      color: #0f172a;
+      display: flex;
+      justify-content: center;
+      padding: 32px 12px;
+    }
+    .leaderboard {
+      width: min(720px, 100%);
+      background: #2756d3;
+      border: 1px solid #1f49b2;
+      border-radius: 16px;
+      padding: 24px 20px;
+      box-shadow: 0 18px 36px rgba(39, 86, 211, 0.35);
+    }
+    .leaderboard h1 {
+      margin: 0 0 18px;
+      font-size: 26px;
+      letter-spacing: 0.02em;
+      text-align: center;
+      color: #ffffff;
+    }
+    ol {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+    }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: #000000;
+      transition: transform 0.15s ease, background 0.15s ease;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+      color: #ffffff;
+    }
+    li:last-child { border-bottom: none; }
+    li:hover {
+      transform: translateY(-1px);
+      background: #111111;
+    }
+    .rank {
+      font-size: 18px;
+      font-weight: 600;
+      width: 24px;
+      text-align: right;
+      color: #ffffff;
+    }
+    .logo-wrapper {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .logo-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .info .name {
+      font-size: 17px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+    .info .country {
+      font-size: 14px;
+      color: #ffffff;
+    }
+    .raised {
+      font-size: 17px;
+      font-weight: 600;
+      color: #ffffff;
+      white-space: nowrap;
+    }
+    @media (max-width: 600px) {
+      li { flex-wrap: wrap; }
+      .raised { margin-left: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="leaderboard">
+    <h1>Top 10 Companies by Capital Raised</h1>
+    <ol id="leaderboard-list"></ol>
+  </main>
+
+  <script src="data.js"></script>
+  <script>
+    const leaderboardList = document.getElementById('leaderboard-list');
+    const moneyFormatter = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      notation: 'compact',
+      compactDisplay: 'short',
+      maximumFractionDigits: 1,
+      minimumFractionDigits: 0
+    });
+
+    const topTen = [...data]
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10);
+
+    topTen.forEach((item, index) => {
+      const listItem = document.createElement('li');
+
+      listItem.innerHTML = `
+        <span class="rank">${index + 1}</span>
+        <span class="logo-wrapper">
+          ${item.logo && item.logo !== '0'
+            ? `<img src="${item.logo}" alt="Logo of ${item.id}">`
+            : '<span>-</span>'}
+        </span>
+        <span class="info">
+          <span class="name">${item.id}</span>
+          <span class="country">${item.country} &middot; ${item.category}</span>
+        </span>
+        <span class="raised">${moneyFormatter.format(item.value)}</span>
+      `;
+
+      leaderboardList.appendChild(listItem);
+    });
+  </script>
+</body>
+</html>
+
+
+
