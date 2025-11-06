@@ -1,0 +1,222 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style type="text/css">
+.knitr .inline { background-color: #F7F7F7; border: solid 1px #B0B0B0; }
+.error { font-weight: bold; color: #FF0000; }
+.warning { font-weight: bold; }
+.message { font-style: italic; }
+.source, .output, .warning, .error, .message { padding: 0 1em; border: solid 1px #F7F7F7; }
+.source { background-color: #F5F5F5; }
+.rimage .left { text-align: left; }
+.rimage .right { text-align: right; }
+.rimage .center { text-align: center; }
+.hl.num { color: #AF0F91; }
+.hl.str { color: #317ECC; }
+.hl.com { color: #AD95AF; font-style: italic; }
+.hl.opt { color: #000000; }
+.hl.std { color: #585858; }
+.hl.kwa { color: #295F94; font-weight: bold; }
+.hl.kwb { color: #B05A65; }
+.hl.kwc { color: #55AA55; }
+.hl.kwd { color: #BC5A65; font-weight: bold; }
+body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-serif; }
+
+.viz-grid { display: grid; grid-template-rows: 17fr 2fr 1fr; grid-template-columns: 1fr 1fr; height: 100vh; width: 100vw; box-sizing: border-box; padding-bottom: clamp(8px, 2vh, 18px); }
+#container1 { grid-row: 1; grid-column: 1 / span 2; overflow: hidden; min-height: 0; }
+#container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+#container3 { grid-row: 3; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 20px; overflow: hidden; min-width: 0; }
+#container4 { grid-row: 3; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; padding: 0 20px; overflow: hidden; min-width: 0; }
+#container4 a { height: 100%; display: flex; align-items: center; }
+
+#treemap { width: 100%; height: 100%; min-height: 0; min-width: 0; }
+.logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
+.source-text { font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal; }
+.source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; font-style: normal; }
+.source-text a:visited { color: #2756d3; }
+.custom-legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: clamp(6px, 1.5vw, 14px); background: rgba(255, 255, 255, 0.9); padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 16px); border-radius: clamp(6px, 1.2vw, 12px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: auto; max-width: 100%; max-height: 100%; font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; }
+.legend-item { display: flex; align-items: center; gap: 6px; cursor: pointer; transition: opacity 0.2s ease; font-weight: 600; color: #333; position: relative; }
+.legend-item.inactive { opacity: 0.35; }
+.legend-square { width: clamp(10px, 1.2vw, 14px); height: clamp(10px, 1.2vw, 14px); border-radius: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+.legend-item:focus-visible { outline: 2px solid rgba(0,0,0,0.5); outline-offset: 2px; }
+
+@media (max-height: 500px) {
+  .viz-grid { grid-template-rows: 1fr; grid-template-columns: 1fr; }
+  #container1 { grid-row: 1; grid-column: 1; }
+  #container2, #container3, #container4 { display: none !important; }
+  .custom-legend, .source-text, .logo { display: none !important; }
+}
+</style>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1" class="container treemap-container">
+    <div id="treemap"></div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div class="custom-legend" id="legend"></div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text">Source: <a href="https://openreview.net/group?id=NeurIPS.cc/2025/Conference" target="_blank">NeurIPS 2025 submissions (OpenReview)</a></div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+    </a>
+  </div>
+</div>
+<script>
+var originalData = [];
+var groups = [];
+var groupColors = {};
+var activeGroups = new Set();
+var fallbackPalette = ["#1F77B4","#FF7F0E","#2CA02C","#9467BD","#D62728","#17BECF","#8C564B","#E377C2","#7F7F7F","#BCBD22"];
+function getGroupColor(parent){
+  return groupColors[parent] || "#666666";
+}
+function assignGroupColors(){
+  groupColors = {};
+  groups.forEach(function(g, i){
+    groupColors[g] = fallbackPalette[i % fallbackPalette.length];
+  });
+}
+function prepareData(rows){
+  var venueMap = {};
+  rows.forEach(function(row){
+    var venue = (row.venue && row.venue.trim()) ? row.venue.trim() : "Sin venue especificado";
+    var instField = row.institutions || "";
+    var institutions = instField.split(";").map(function(item){ return item.trim(); }).filter(Boolean);
+    var uniqueInstitutions = Array.from(new Set(institutions));
+    if(!venueMap[venue]){
+      venueMap[venue] = {};
+    }
+    uniqueInstitutions.forEach(function(inst){
+      venueMap[venue][inst] = (venueMap[venue][inst] || 0) + 1;
+    });
+  });
+  var aggregated = [];
+  Object.keys(venueMap).forEach(function(venue){
+    Object.keys(venueMap[venue]).forEach(function(inst){
+      aggregated.push({ parent: venue, name: inst, value: venueMap[venue][inst] });
+    });
+  });
+  return aggregated;
+}
+var treemap = new d3plus.Treemap()
+  .select("#treemap")
+  .groupBy(["parent","name"])
+  .tooltipConfig({
+    title:function(d){ return d.name || d.id; },
+    body:function(d){
+      var venue = d.parent || d.id || "Sin venue";
+      var count = d.value || 0;
+      return "<strong>Venue:</strong> " + venue + "<br><strong>Instituciones:</strong> " + count;
+    }
+  })
+  .sum("value")
+  .layoutPadding(2)
+  .legend(false)
+  .color(function(d){ return getGroupColor(d.parent || d.id); })
+  .shapeConfig({
+    rx: 6,
+    ry: 6,
+    stroke:function(d){ if(d.depth === 0){ return getGroupColor(d.id); } return "transparent"; },
+    strokeWidth:function(d){ if(d.depth === 0){ return 3; } return 0; }
+  });
+function buildLegend(){
+  var legend = document.getElementById('legend');
+  if(!legend) return;
+  legend.innerHTML = '';
+  groups.forEach(function(g){
+    var item = document.createElement('div');
+    item.className = 'legend-item active';
+    item.setAttribute('data-group', g);
+    item.setAttribute('role','button');
+    item.setAttribute('tabindex','0');
+    item.setAttribute('aria-pressed','true');
+    var square = document.createElement('div');
+    square.className = 'legend-square';
+    square.style.backgroundColor = getGroupColor(g);
+    var label = document.createElement('span');
+    label.textContent = g;
+    item.appendChild(square);
+    item.appendChild(label);
+    var toggleGroup = function(){
+      if(activeGroups.has(g)){
+        activeGroups.delete(g);
+      } else {
+        activeGroups.add(g);
+      }
+      updateVisualization();
+    };
+    item.addEventListener('click', toggleGroup);
+    item.addEventListener('keydown', function(e){
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        toggleGroup();
+      }
+    });
+    legend.appendChild(item);
+  });
+}
+function updateVisualization(){
+  if(!originalData.length){
+    treemap.data([]).render();
+    return;
+  }
+  var filteredData = originalData.filter(function(d){ return activeGroups.has(d.parent); });
+  treemap.data(filteredData).render();
+  document.querySelectorAll('.legend-item').forEach(function(item){
+    var grp = item.getAttribute('data-group');
+    var isActive = activeGroups.has(grp);
+    item.classList.toggle('inactive', !isActive);
+    item.classList.toggle('active', isActive);
+    item.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+function initializeVisualization(rows){
+  originalData = prepareData(rows);
+  groups = Array.from(new Set(originalData.map(function(d){ return d.parent; }))).sort();
+  activeGroups = new Set(groups);
+  assignGroupColors();
+  buildLegend();
+  updateVisualization();
+}
+function loadData(){
+  d3.csv("neurips_2025_papers_with_institutions.csv").then(function(rows){
+    initializeVisualization(rows);
+  }).catch(function(error){
+    console.error("No se pudo cargar el archivo CSV:", error);
+    originalData = [];
+    groups = [];
+    activeGroups.clear();
+    buildLegend();
+    updateVisualization();
+  });
+}
+function renderToContainerSize(){
+  var el = document.getElementById('treemap');
+  if(!el) return;
+  var rect = el.getBoundingClientRect();
+  try {
+    if(typeof treemap.width === 'function') treemap.width(rect.width);
+    if(typeof treemap.height === 'function') treemap.height(rect.height);
+  } catch(e) {}
+  treemap.render();
+}
+loadData();
+var _resizeTimer;
+window.addEventListener('resize', function(){
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(renderToContainerSize, 120);
+});
+if (typeof ResizeObserver !== 'undefined') {
+  var _ro = new ResizeObserver(function(){ renderToContainerSize(); });
+  _ro.observe(document.getElementById('treemap'));
+}
+</script>
+</body>
+</html>
