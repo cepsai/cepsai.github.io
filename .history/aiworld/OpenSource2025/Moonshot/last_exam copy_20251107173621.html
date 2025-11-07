@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+  :root{--bg:#ffffff;--axis:#cfcfcf;--grid:#e9e9e9;--text:#6b6b6b;--text-strong:#333333;--muted:#9aa0a6;}
+
+  html, body { height: 100%; margin: 0; }
+  body{ background: var(--bg); font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; color:var(--text); }
+  /* .viz-grid { height: 100%; width: 100%; } */
+  
+  .viz-grid{
+    display: grid;
+    grid-template-rows: 1fr auto;   /* chart row + legend row */
+    height: 100vh;                  /* use 100% if the iframe sets the height */
+    width: 100vw;                   /* use 100% if inside a sized container */
+    gap: 0;
+    padding: 0;
+  }
+
+  #container1{
+    grid-row: 1;
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+    padding: 20px;
+  }
+
+  #container2{
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 14px;
+    border-top: 1px solid rgba(0,0,0,0.08);
+    background: #fff;
+  }
+
+  #chart{
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;   /* critical so getBoundingClientRect() returns real H */
+    width: 100%;
+  }
+
+  .custom-legend{
+    background:#fff; border:1px solid #eee; border-radius:10px;
+    padding:8px 12px; display:flex; gap:14px; align-items:center; justify-content:center;
+  }
+  .legend-item{display:flex; align-items:center; gap:8px; cursor:default; font-weight:600; color:#333;}
+  .legend-square{width:14px; height:14px; border-radius:4px; box-shadow:0 0 0 1px rgba(0,0,0,0.15) inset;}
+
+  .axis{font-size:12px;color:var(--text);}
+  .axis path,.axis line{stroke:var(--axis);}
+  .grid line{stroke:var(--grid);stroke-opacity:0.7;}
+  .axis-title{font-size:14px;font-weight:600;fill:var(--text-strong);}
+
+  .dot{stroke:#fff;stroke-width:1.5;cursor:pointer;transition:opacity 0.2s;}
+  .dot-label{font-size:10px;fill:#333;pointer-events:none;text-anchor:middle;font-weight:700;}
+  .connection-line{pointer-events:none;}
+
+  .tooltip{
+    position:absolute;background:#fff;border:1px solid #e5e5e5;border-radius:8px;
+    padding:12px;box-shadow:0 10px 24px rgba(0,0,0,.1);pointer-events:none;opacity:0;
+    transition:opacity 0.2s;font-size:12px;
+  }
+  .tooltip-title{font-weight:700;font-size:13px;color:var(--text-strong);margin-bottom:6px;}
+  .tooltip-table{width:100%;}
+  .tooltip-table td{padding:2px 8px 2px 0;}
+  .tooltip-table .title{color:var(--text);font-weight:600;}
+  .tooltip-table .data{color:var(--text-strong);}
+
+  /* Logo & source overlay */
+  .logo{
+    position:absolute; bottom:clamp(6px,4vh,20px); right:20px;
+    width:clamp(80px,10vw,200px);
+    pointer-events:auto; z-index:1000; opacity:1; transition:opacity .3s ease;
+  }
+  .source-text{
+    position:absolute; bottom:clamp(10px,4vh,30px); left:20px;
+    font-size:clamp(12px,1.5vw,20px); font-weight:bold; font-style:italic;
+    color:#555; z-index:1000;
+  }
+  </style>
+</head>
+<body>
+  <div class="viz-grid">
+    <div id="container1"><div id="chart"></div></div>
+    <div id="container2"><div id="legend" class="custom-legend"></div></div>
+  </div>
+  <div id="tooltip" class="tooltip"></div>
+
+<script>
+  const TYPE_COLOR_MAP = { open:"#2E7D32" , closed:  "#1565C0"};
+  let activeLegendKey = null;
+
+
+    const raw = [
+    {"id":"DeepSeek-R1","parent":"DeepSeek","value":8.54,"ic":1.18,"date":"2025-01-20T00:00:00.000","type":"open"},
+  {"id":"Gemini-2.0-Flash-Thinking-2025-01","parent":"Google","value":6.55,"ic":1.04,"date":"2025-01-23T00:00:00.000","type":"closed"},
+  {"id":"o3-mini-high","parent":"OpenAI","value":13.37,"ic":1.44,"date":"2025-01-31T00:00:00.000","type":"closed"},
+  {"id":"gemini-2.5-pro-experimental-2025-03","parent":"Google","value":18.38,"ic":1.64,"date":"2025-03-25T00:00:00.000","type":"closed"},
+  {"id":"o3-high-2025-04","parent":"OpenAI","value":20.57,"ic":1.71,"date":"2025-04-16T00:00:00.000","type":"closed"},
+  {"id":"DeepSeek-R1-0528","parent":"DeepSeek","value":14.04,"ic":1.47,"date":"2025-05-28T00:00:00.000","type":"open"},
+  {"id":"gemini-2.5-pro-preview-06-05","parent":"Google","value":22.06,"ic":1.75,"date":"2025-06-05T00:00:00.000","type":"closed"},
+  {"id":"Qwen3-235B-A22B-Thinking-2507","parent":"Alibaba Qwen","value":15.43,"ic":1.52,"date":"2025-07-25T00:00:00.000","type":"open"},
+  {"id":"gpt-5-2025-08-07","parent":"OpenAI","value":26.32,"ic":1.68,"date":"2025-08-07T00:00:00.000","type":"closed"},
+  {"id":"gpt-oss-120b","parent":"OpenAI","value":15.48,"ic":1.53,"date":"2025-08-25T00:00:00.000","type":"open"},
+  {"id":"gpt-5-pro-2025-10-06","parent":"OpenAI","value":33.32,"ic":1.99,"date":"2025-10-06T00:00:00.000","type":"closed"},
+  {"id":"kimi-k2-instruct","parent":"Moonshot AI","value":4.68,"ic":0.89,"date":"2025-07-12","type":"open"},
+  {"id":"kimi-k2-thinking","parent":"Moonshot AI","value":23.9,"ic":0.89,"date":"2025-11-06T00:00:00.000","type":"open"}];
+  
+    // Only draw connections among these IDs
+  const allowedIds = new Set([
+    "DeepSeek-R1",
+    "Gemini-2.0-Flash-Thinking-2025-01",
+    "o3-mini-high",
+    "gemini-2.5-pro-experimental-2025-03",
+    "o3-high-2025-04",
+    "DeepSeek-R1-0528",
+    "gemini-2.5-pro-preview-06-05",
+    "Qwen3-235B-A22B-Thinking-2507",
+    "gpt-5-2025-08-07",
+    "gpt-oss-120b",
+    "gpt-5-pro-2025-10-06",
+    "kimi-k2-thinking"
+  ]);
+  function parseDate(s){
+    if(!s) return null;
+    const str = String(s).trim();
+    if(/^\d{4}-\d{2}$/.test(str)) return new Date(str + "-01");
+    return new Date(str);
+  }
+
+  const data = raw.map(r=>({
+    ...r,
+    date: parseDate(r.date),
+    value: +r.value,
+    type: r.type.toLowerCase()
+  })).filter(d=>d.date && !isNaN(d.date));
+
+// const margin = {top:40, right:40, bottom:60, left:60};
+// const container = document.getElementById('chart');
+// const width = container.clientWidth - margin.left - margin.right;
+// const height = container.clientHeight - margin.top - margin.bottom;
+
+const container = document.getElementById('chart');
+const margin = { top:40, right:40, bottom:60, left:60 };
+// const TYPE_COLOR_MAP = { open:"#1565C0", closed:"#2E7D32" };
+const logoSizeBase = 28;
+
+function render(){
+  // measure
+  const { width:W, height:H } = container.getBoundingClientRect();
+  const width  = Math.max(320, W)  - margin.left - margin.right;
+  const height = Math.max(220, H)  - margin.top  - margin.bottom;
+
+  // clear & recreate svg/g
+  d3.select('#chart').selectAll('svg').remove();
+
+  const svg = d3.select('#chart')
+    .append('svg')
+    .attr('width', width + margin.left + margin.right)
+    .attr('height', height + margin.top + margin.bottom);
+
+  // clip
+  svg.append('clipPath').attr('id','plot-clip')
+    .append('rect')
+    .attr('x', margin.left).attr('y', margin.top)
+    .attr('width', width).attr('height', height);
+
+  const g = svg.append('g')
+  .attr('transform', `translate(${margin.left},${margin.top})`);
+
+  // make a plot layer that *is* clipped
+  svg.append('clipPath').attr('id','plot-clip')
+    .append('rect')
+    .attr('x', margin.left)
+    .attr('y', margin.top)
+    .attr('width', width)
+    .attr('height', height);
+  
+  
+
+  const plot = g.append('g').attr('clip-path', 'url(#plot-clip)');
+
+  // scales
+  const x = d3.scaleTime()
+    .domain(d3.extent(data, d => d.date))
+    .range([0, width]);
+
+  const yMax = d3.max(data, d => d.value);
+  const yMin = d3.min(data, d => d.value);
+  const yPad = (yMax - yMin) * 0.08;
+
+  const y = d3.scaleLinear()
+    .domain([yMin - yPad, yMax + yPad])
+    .range([height, 0]);
+
+  // axes + grid
+  g.append('g').attr('class','grid')
+    .call(d3.axisLeft(y).tickSize(-width).tickFormat(''));
+  g.append('g').attr('class','axis')
+    .attr('transform', `translate(0,${height})`)
+    .call(d3.axisBottom(x).tickFormat(d3.timeFormat('%Y-%m-%d')));
+  g.append('g').attr('class','axis').call(d3.axisLeft(y));
+
+  // axis titles
+  g.append('text').attr('class','axis-title')
+    .attr('x', width/2).attr('y', height+45).attr('text-anchor','middle')
+    .text('Date');
+  g.append('text').attr('class','axis-title')
+    .attr('transform','rotate(-90)')
+    .attr('x', -height/2).attr('y', -45).attr('text-anchor','middle')
+    .text('Last exam score');
+
+  // connections (allowed only)
+  const linesGroup = g.append('g').attr('class','connection-lines');
+  function drawConnections(models, color){
+    for (let i=0;i<models.length-1;i++){
+      linesGroup.append('line')
+        .attr('class','connection-line')
+        .attr('x1', x(models[i].date))
+        .attr('y1', y(models[i].value))
+        .attr('x2', x(models[i+1].date))
+        .attr('y2', y(models[i+1].value))
+        .attr('stroke', color).attr('stroke-width', 2).attr('opacity', 0.6);
+    }
+  }
+  const openModels = data.filter(d=>d.type==='open'   && allowedIds.has(d.id)).sort((a,b)=>a.date-b.date);
+  const closedModels= data.filter(d=>d.type==='closed' && allowedIds.has(d.id)).sort((a,b)=>a.date-b.date);
+  drawConnections(openModels, TYPE_COLOR_MAP.open);
+  drawConnections(closedModels, TYPE_COLOR_MAP.closed);
+
+  // dashed lines (kimi thinking to gpt-5-2025-08-07 and kimi instruct)
+  function dashed(a,b){
+    if(!a||!b) return;
+    linesGroup.append('line')
+      .attr('x1', x(a.date)).attr('y1', y(a.value))
+      .attr('x2', x(b.date)).attr('y2', y(b.value))
+      .attr('stroke','#666').attr('stroke-width',1.5)
+      .attr('stroke-dasharray','5,5').attr('opacity',0.5);
+  }
+  const kimiThinking = data.find(d=>d.id==='kimi-k2-thinking');
+  const gpt5        = data.find(d=>d.id==='gpt-5-2025-08-07');
+  const kimiInstruct= data.find(d=>d.id==='kimi-k2-instruct');
+  dashed(kimiThinking, gpt5);
+  dashed(kimiThinking, kimiInstruct);
+
+  // logos
+  const logoSize = Math.max(18, Math.min(logoSizeBase, Math.min(width,height)/20));
+
+    // grid should be inside plot (so long lines don’t stick out)
+  plot.append('g').attr('class','grid')
+    .call(d3.axisLeft(y).tickSize(-width).tickFormat(''));
+
+  // axes (NOT clipped)
+  g.append('g').attr('class','axis')
+    .attr('transform', `translate(0,${height})`)
+    .call(d3.axisBottom(x).tickFormat(d3.timeFormat('%Y-%m-%d')));
+
+  g.append('g').attr('class','axis')
+    .call(d3.axisLeft(y));
+
+  // connection lines
+  //const linesGroup = plot.append('g').attr('class','connection-lines');
+  // dots (logos) and labels also use `plot`:
+
+  
+  const dots = g.selectAll('.dot')
+    .data(data)
+    .enter()
+    .append('image')
+    .attr('class','dot')
+    .attr('x', d => x(d.date) - logoSize/2)
+    .attr('y', d => y(d.value) - logoSize/2)
+    .attr('width', logoSize)
+    .attr('height', logoSize)
+    .attr('opacity', 0.9)
+    .attr('href', d => {
+    // Map each parent or model to a local PNG/JPG path
+    const logoMap = {
+      "OpenAI": "Openai.webp",
+      "DeepSeek": "Deepseek.png",
+      "Google": "Google.png",
+      "Alibaba Qwen": "Qwen.webp",
+      "Moonshot AI": "Moonshot.jpeg",
+    };
+    return logoMap[d.parent] || "logos/default.png";
+  });
+
+  const tooltip = d3.select('#tooltip');
+
+  // label helpers that use current width/height
+  const xPad = logoSize/2 + 6, topPad = 12, bottomPad = 6;
+  const clampX = px => Math.max(xPad, Math.min(width - xPad, px));
+  const clampY = py => Math.max(topPad, Math.min(height - bottomPad, py));
+  const labelPos = d => {
+    const clampedX = clampX(x(d.date));
+    let yAbove = y(d.value) - logoSize*0.7;
+    let yFinal = (yAbove < topPad) ? (y(d.value) + logoSize*0.85) : yAbove;
+    yFinal = clampY(yFinal);
+    let anchor = 'middle';
+    if (clampedX <= xPad+1) anchor = 'start';
+    else if (clampedX >= width-xPad-1) anchor = 'end';
+    return {x:clampedX, y:yFinal, anchor};
+  };
+
+
+
+  // draw all labels first
+const labels = g.selectAll('.dot-label')
+  .data(data)
+  .enter()
+  .append('text')
+  .attr('class', 'dot-label')
+  .attr('x', d => labelPos(d).x)
+  .attr('y', d => labelPos(d).y)
+  .attr('text-anchor', d => labelPos(d).anchor)
+  .text(d => d.id)
+  .style('font-weight','700')
+  .style('font-size','11px')
+  .style('paint-order','stroke')
+  .style('stroke','white')
+  .style('stroke-width','2px')
+  .style('pointer-events','none');
+
+
+  
+// then tweak specific labels AFTER the .enter() is done
+labels
+  .filter(d => d.id === 'Gemini-2.0-Flash-Thinking-2025-01')
+  .attr('text-anchor', 'start')             // align text to left of anchor
+  .attr('dx', 6)                            // move right 6px
+  .attr('y', d => clampY(labelPos(d).y + 10)); // move slightly down (+) or up (-)
+
+
+
+  // tooltips (keeps your Kimi-left rule)
+  function positionTooltip(e, d){
+    const tt = tooltip.node();
+    const w = tt.offsetWidth;
+    const spaceRight = window.innerWidth - e.pageX;
+    const left = (d.id === 'kimi-k2-thinking' || spaceRight < w + 20)
+      ? (e.pageX - w - 10)
+      : (e.pageX + 10);
+    tooltip.style('left', `${left}px`).style('top', `${e.pageY - 10}px`);
+  }
+  dots.on('mouseenter', function (e, d) {
+  d3.select(this).attr('width', logoSize*1.2).attr('height', logoSize*1.2);
+
+  tooltip.style('opacity', 1).html(`
+    <div class="tooltip-title">${d.id}</div>
+    <table class="tooltip-table">
+      <tr><td class="title">Parent:</td><td class="data">${d.parent}</td></tr>
+      <tr><td class="title">Date:</td><td class="data">${d.date.toISOString().slice(0,10)}</td></tr>
+      <tr><td class="title">Type:</td><td class="data">${d.type.charAt(0).toUpperCase()+d.type.slice(1)}</td></tr>
+      <tr><td class="title">Last exam score:</td><td class="data">${d.value}</td></tr>
+    </table>
+  `);
+
+  positionTooltip(e, d);
+})
+    .on('mousemove', function(e,d){ positionTooltip(e,d); })
+    .on('mouseleave', function(){
+      d3.select(this).attr('width', logoSize).attr('height', logoSize);
+      tooltip.style('opacity',0);
+    });
+}
+
+
+
+// initial draw + resize observer
+render();
+// new ResizeObserver(render).observe(document.getElementById('chart'));
+
+function initLegend(){
+  const legend = d3.select('#legend').html(''); // clear once
+
+  const items = [
+    { label: 'Open',   color: TYPE_COLOR_MAP.open },
+    { label: 'Closed', color: TYPE_COLOR_MAP.closed },
+  ];
+  // 1) Map parents to logo URLs (use your own paths or full https URLs)
+
+
+  const row = legend.selectAll('.legend-item')
+    .data(items)
+    .enter()
+    .append('div')
+    .attr('class','legend-item');
+
+  row.append('span')
+    .attr('class','legend-square')
+    .style('background', d => d.color);
+
+  row.append('span')
+    .text(d => d.label);
+}
+// 2) build the legend ONCE (static, non-interactive)
+initLegend();
+
+// 3) re-render chart on container resize
+new ResizeObserver(render).observe(document.getElementById('chart'));
+
+
+
+
+
+function updateOpacity(){
+  if(activeLegendKey){
+    dots.attr('opacity', d => d.type === activeLegendKey ? 0.75 : 0.15);
+    g.selectAll('.dot-label').attr('opacity', d => d.type === activeLegendKey ? 1 : 0.2);
+  } else {
+    dots.attr('opacity', 0.75);
+    g.selectAll('.dot-label').attr('opacity', 1);
+  }
+}
+
+function updateLegend(){
+  legend.selectAll('.legend-item')
+    .classed('dim', function(){
+      const text = d3.select(this).select('span:last-child').text().toLowerCase();
+      return activeLegendKey && text !== activeLegendKey;
+    });
+}
+</script>
+<a href="https://aiworld.eu/" target="_blank" rel="noopener">
+  <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+</a>
+
+<div class="source-text">
+  Source: <a href="https://scale.com/leaderboard/humanitys_last_exam_text_only" target="_blank" rel="noopener">Scale AI & </a><a href="https://moonshotai.github.io/Kimi-K2/thinking.html
+" target="_blank" rel="noopener">Moonshot AI</a>
+</div>
+</body>
+</html>
