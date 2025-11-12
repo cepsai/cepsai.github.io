@@ -1,0 +1,1148 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root { --fg:#111; --bg:#fff; --muted:#6b7280; --axis:#000; --accent:#0ea5a4; }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial}
+
+  /* Contenedor a pantalla completa en columna */
+  .wrap{
+    min-height:100vh;         /* ocupa el alto de la ventana (mejor en móvil) */
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    padding:0;
+    max-width:none;            /* sin límite de ancho */
+    margin:0;
+  }
+
+  h1{font-size:1.3rem;margin:0}
+  .sub{color:var(--muted);margin:0 0 8px}
+
+  /* El SVG crece para llenar el espacio restante */
+  #chart{
+    width:100%;
+    height:100svh;             
+    display:block;
+  }
+    
+  .cluster-title{
+    font-weight:700;
+    font-size: 12px;
+    fill:#000;
+  }
+  .cluster-total{
+    font-weight:600;
+    font-size: 14px;
+    fill:#000;
+  }
+  .axis text{fill:#000;font-size:.85rem; font-weight: 600;}
+  .axis path,.axis line{stroke:var(--axis)}
+  .grid line{stroke:var(--axis)}
+  .label{fill:#000;font-size:.85rem; font-weight: 600}
+  .dot{cursor:pointer;transition:filter .15s ease}
+  .dot:hover{filter:drop-shadow(0 2px 6px rgba(0,0,0,.2))}
+  .logo-circle{cursor:pointer;transition:filter .15s ease}
+  .logo-circle:hover{filter:drop-shadow(0 2px 6px rgba(0,0,0,.2))}
+  .tooltip{
+    position:fixed; pointer-events:none; opacity:0; transition:opacity .12s ease;
+    background:#111;color:#fff;border-radius:10px;padding:8px 10px;font-size:.85rem
+  }
+
+  /* La leyenda queda abajo; el SVG crece por encima */
+  .legend{display:flex;gap:15px;align-items:center;margin-top:15px;color:#374151}
+  .badge{width:10px;height:7px;border-radius:999px;background:var(--accent)}
+  /* ===== Legend style copied from mistral-ai-investment ===== */
+  .custom-legend{
+    position:absolute;
+    top:calc(100vh - clamp(64px, 10vh, 100px) + 6px);
+    left:50%;
+    transform:translateX(-50%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap: clamp(6px, 1.2vw, px);
+    column-gap: clamp(10px, 2vw, 16px);
+    row-gap: clamp(4px, 1vh, 8px);
+    background:rgba(255,255,255,0.92);
+    padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 16px);
+    border-radius: clamp(3px, .8vw, 6px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    font-family: Arial, sans-serif;
+    font-size: clamp(10px, 1.1vw, 14px);
+    font-weight: 500;
+    z-index: 1000;
+    opacity: 1;
+    transition: opacity .3s ease
+  }
+  .custom-legend.overlapped{opacity:.15}
+  .custom-legend.overlapped:hover{opacity:1}
+  .legend-item{display:flex;align-items:center;gap:6px;cursor:pointer;transition:opacity .3s ease;position:relative}
+  .legend-item.inactive{opacity:.35}
+  .legend-item:hover{opacity:1}
+  .legend-square{width:clamp(8px,1vw,12px);height:clamp(8px,1vw,12px);border-radius:clamp(2px,.5vw,3px);position:relative;box-shadow:0 0 0 1px rgba(0,0,0,.15) inset}
+  .legend-item:focus-visible{outline:2px solid rgba(0,0,0,.6);outline-offset:2px}
+
+  .footer-bar { position: fixed; bottom: 12px; left: 0; right: 0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 6px 12px; background: rgba(255,255,255,0.95); box-shadow: 0 -2px 6px rgba(255, 255, 255, 0.06); z-index: 1000; }
+  .source-text { justify-self: start; font-size: 16px; font-weight: 600; color: #000000; }
+  .brand-link { justify-self: end; }
+  .brand-logo { width: 110px; height: auto; }
+  .custom-legend { position: static; transform: none; top: auto; left: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- El viewBox permite que todo escale perfecto sin JS extra -->
+  <svg id="chart" viewBox="0 0 900 520" role="img" aria-label="Bubble chart con logos"></svg>
+  <div class="footer-bar">
+  <div class="source-text">Source: <a href="https://www.crunchbase.com" target="_blank" rel="noopener">Crunchbase</a></div>
+  <div class="legend-host"><div id="legend" class="custom-legend"></div>
+  </div> <a href="https://aiworld.eu" target="_blank" rel="noopener" class="brand-link"> 
+  <img src="https://aiworld.eu/logo-transparent.svg" class="brand-logo" alt="AI World logo"> </a> </div>
+
+  
+</div>
+<!-- Legend container lives inside footer-bar -->
+<div class="tooltip" id="tip" aria-hidden="true"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script>
+/* ======= 1) Tus datos ======= */
+const data = [
+  {
+    "id": "Metropolis (US)",
+    "country": "United States",
+    "value": 1600000000,
+    "category": "Industry & Mobility",
+    "x_val": 1,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/py3k8t1ffgyhnveafakn"
+  },
+  {
+    "id": "Hippocratic AI (US)",
+    "country": "United States",
+    "value": 126000000,
+    "category": "Health",
+    "x_val": 2,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/jqqoc3szprabzs50n1si"
+  },
+  {
+    "id": "Aily Labs (DE)",
+    "country": "Germany",
+    "value": 80000000,
+    "category": "Software & cloud",
+    "x_val": 3,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/2a7f731bc43c4895bb3b03bf87844a8f"
+  },
+  {
+    "id": "Reevo (US)",
+    "country": "United States",
+    "value": 80000000,
+    "category": "Data",
+    "x_val": 4,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/3bea0872a3b341deb0ba24960a465dfe"
+  },
+  {
+    "id": "Inception (US)",
+    "country": "United States",
+    "value": 50000000,
+    "category": "Software & cloud",
+    "x_val": 5,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/cac68a7d3d3e4524b341a5d798124cc9"
+  },
+  {
+    "id": "DeepJudge (CH)",
+    "country": "Switzerland",
+    "value": 42000000,
+    "category": "Legal & Compliance",
+    "x_val": 6,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/ymksyxez0ttrxxw0gpt0"
+  },
+  {
+    "id": "Elephas (US)",
+    "country": "United States",
+    "value": 40000000,
+    "category": "Health",
+    "x_val": 7,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/g08aoebvx1zxinvyhkyo"
+  },
+  {
+    "id": "Procurement Sciences AI (US)",
+    "country": "United States",
+    "value": 30000000,
+    "category": "Software & cloud",
+    "x_val": 8,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/avszloqjei4gzruy2xhh"
+  },
+  {
+    "id": "Teleskope (US)",
+    "country": "United States",
+    "value": 25000000,
+    "category": "Cybersecurity",
+    "x_val": 9,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/iypbbk6mhl1qggm10cq9"
+  },
+  {
+    "id": "Octonomy (DE)",
+    "country": "Germany",
+    "value": 21337922,
+    "category": "Software & cloud",
+    "x_val": 10,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/2897025a8dbf47dcb875b0b2650c8261"
+  },
+  {
+    "id": "CloudMile (SG)",
+    "country": "Singapore",
+    "value": 20000000,
+    "category": "Software & cloud",
+    "x_val": 11,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/hwlgyc2evbxwpvmyx9qb"
+  },
+  {
+    "id": "Source.ag (NL)",
+    "country": "The Netherlands",
+    "value": 17531698,
+    "category": "Industry & Mobility",
+    "x_val": 12,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/sqnfzw1usmvpbyfuvdxy"
+  },
+  {
+    "id": "mimic (CH)",
+    "country": "Switzerland",
+    "value": 16000000,
+    "category": "Industry & Mobility",
+    "x_val": 13,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/bqhsmb6j9czj1bbpfjgu"
+  },
+  {
+    "id": "Flare (CA)",
+    "country": "Canada",
+    "value": 15000000,
+    "category": "Cybersecurity",
+    "x_val": 14,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/wn61ywhunapgyxukex2k"
+  },
+  {
+    "id": "Flint (US)",
+    "country": "United States",
+    "value": 15000000,
+    "category": "Education",
+    "x_val": 15,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/r46dp6opgx06k0ulr8hc"
+  },
+  {
+    "id": "Mantra Softech (IN)",
+    "country": "India",
+    "value": 14099582,
+    "category": "Cybersecurity",
+    "x_val": 16,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/xvsrrgafsjdijnexjpli"
+  },
+  {
+    "id": "Sengine (CN)",
+    "country": "China",
+    "value": 14053234,
+    "category": "Industry & Mobility",
+    "x_val": 17,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/arum36vwzdoatngpv71m"
+  },
+  {
+    "id": "Ceres AI (US)",
+    "country": "United States",
+    "value": 13000000,
+    "category": "Industry & Mobility",
+    "x_val": 18,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/2552cd8d963644b1bfdefd294eb95b2f"
+  },
+  {
+    "id": "Miko (IN)",
+    "country": "India",
+    "value": 10500000,
+    "category": "Industry & Mobility",
+    "x_val": 19,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/960f23be6563468aa00d61b1343cf703"
+  },
+  {
+    "id": "Malanta.ai (IL)",
+    "country": "Israel",
+    "value": 10000000,
+    "category": "Cybersecurity",
+    "x_val": 20,
+    "logo": 0
+  },
+  {
+    "id": "Appetronix (CA)",
+    "country": "Canada",
+    "value": 10000000,
+    "category": "Industry & Mobility",
+    "x_val": 21,
+    "logo": 0
+  },
+  {
+    "id": "Jingyangkang (CN)",
+    "country": "China",
+    "value": 7016953,
+    "category": "Health",
+    "x_val": 22,
+    "logo": 0
+  },
+  {
+    "id": "Cactus (US)",
+    "country": "United States",
+    "value": 7000000,
+    "category": "Software & cloud",
+    "x_val": 23,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/abb36c600fdf447595e831c89ca4fb9d"
+  },
+  {
+    "id": "Lisse (JP)",
+    "country": "Japan",
+    "value": 6516080,
+    "category": "Legal & Compliance",
+    "x_val": 24,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/a18675dd8437f80cda54"
+  },
+  {
+    "id": "Ruli (US)",
+    "country": "United States",
+    "value": 6000000,
+    "category": "Software & cloud",
+    "x_val": 25,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/8897d5b1da094850963257566f997c1e"
+  },
+  {
+    "id": "Guizhou Zhongxu Technology (CN)",
+    "country": "China",
+    "value": 5331986,
+    "category": "Software & cloud",
+    "x_val": 26,
+    "logo": 0
+  },
+  {
+    "id": "Quantum AI (KR)",
+    "country": "South Korea",
+    "value": 5041743,
+    "category": "Data",
+    "x_val": 27,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/v1apyztti8rloe1navmf"
+  },
+  {
+    "id": "Digs (US)",
+    "country": "United States",
+    "value": 5000000,
+    "category": "Industry & Mobility",
+    "x_val": 28,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/hin0anzjv1j0r6x88rnu"
+  },
+  {
+    "id": "Avallon Labs (US)",
+    "country": "United States",
+    "value": 4600000,
+    "category": "Legal & Compliance",
+    "x_val": 29,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/f5e249d474d14b2a8b2b99ae5af2de57"
+  },
+  {
+    "id": "Kabilio (ES)",
+    "country": "Spain",
+    "value": 4596444,
+    "category": "Finance",
+    "x_val": 30,
+    "logo": 0
+  },
+  {
+    "id": "Yuanhe Vision (CN)",
+    "country": "China",
+    "value": 4210172,
+    "category": "Software & cloud",
+    "x_val": 31,
+    "logo": 0
+  },
+  {
+    "id": "TrialView Ltd (IE)",
+    "country": "Ireland",
+    "value": 4100000,
+    "category": "Legal & Compliance",
+    "x_val": 32,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/d7182b56048243e09048d7e0b5148514"
+  },
+  {
+    "id": "Anivance AI Corporation",
+    "country": "Taiwan",
+    "value": 4048386,
+    "category": "Health",
+    "x_val": 33,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/d6a438f8e68448a6ab2bbf2d3899a6b4"
+  },
+  {
+    "id": "Frame Data & AI (US)",
+    "country": "United States",
+    "value": 4000000,
+    "category": "Data",
+    "x_val": 34,
+    "logo": 0
+  },
+  {
+    "id": "Freya Voice (US)",
+    "country": "United States",
+    "value": 3500000,
+    "category": "Finance",
+    "x_val": 35,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/47f26c2daf8147ce8dfa5b93f1b19bd7"
+  },
+  {
+    "id": "Return Zero (KR)",
+    "country": "South Korea",
+    "value": 3453249,
+    "category": "Software & cloud",
+    "x_val": 36,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/nna8dbvtijxltn1hiedq"
+  },
+  {
+    "id": "Relevant Search (US)",
+    "country": "United States",
+    "value": 3200001,
+    "category": "Software & cloud",
+    "x_val": 37,
+    "logo": 0
+  },
+  {
+    "id": "IP Author (US)",
+    "country": "United States",
+    "value": 3119994,
+    "category": "Software & cloud",
+    "x_val": 38,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/9fec32621ef14d5c87d805be035ed448"
+  },
+  {
+    "id": "Novoflow (US)",
+    "country": "United States",
+    "value": 3100000,
+    "category": "Health",
+    "x_val": 39,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/3ee947b550c04f7ca5a09d80180a8833"
+  },
+  {
+    "id": "GitLaw (US)",
+    "country": "United States",
+    "value": 3000000,
+    "category": "Legal & Compliance",
+    "x_val": 40,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/2f1ae562e029426ea5203c165668b918"
+  },
+  {
+    "id": "DeepKeep (IL)",
+    "country": "Israel",
+    "value": 2872777,
+    "category": "Cybersecurity",
+    "x_val": 41,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/k7fggvhsj7cn543km8h0"
+  },
+  {
+    "id": "Madison AI (US)",
+    "country": "United States",
+    "value": 2549999,
+    "category": "Data",
+    "x_val": 42,
+    "logo": 0
+  },
+  {
+    "id": "Struck (NL)",
+    "country": "The Netherlands",
+    "value": 2301909,
+    "category": "Legal & Compliance",
+    "x_val": 43,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/lrowxxur7zxqbao5beev"
+  },
+  {
+    "id": "MeshDefend (IN)",
+    "country": "India",
+    "value": 2300000,
+    "category": "Cybersecurity",
+    "x_val": 44,
+    "logo": 0
+  },
+  {
+    "id": "Welltory (US)",
+    "country": "United States",
+    "value": 2000000,
+    "category": "Health",
+    "x_val": 45,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/ym7ycmhwegynuxnkkegx"
+  },
+  {
+    "id": "Protein Dynamic Solutions (US)",
+    "country": "United States",
+    "value": 1772369,
+    "category": "Health",
+    "x_val": 46,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/wamwbwgman12dibtfa2w"
+  },
+  {
+    "id": "Cuckoo (US)",
+    "country": "United States",
+    "value": 1738503,
+    "category": "Software & cloud",
+    "x_val": 47,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/355f7cf7c80f4e8fa6e734c9cb8682b1"
+  },
+  {
+    "id": "Quickads (SG)",
+    "country": "Singapore",
+    "value": 1700000,
+    "category": "Software & cloud",
+    "x_val": 48,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/ortszo9ulcds7qd5yeaw"
+  },
+  {
+    "id": "Motley (CH)",
+    "country": "Switzerland",
+    "value": 1500000,
+    "category": "Software & cloud",
+    "x_val": 49,
+    "logo": 0
+  },
+  {
+    "id": "Sandy Health (US)",
+    "country": "United States",
+    "value": 1500000,
+    "category": "Health",
+    "x_val": 50,
+    "logo": 0
+  },
+  {
+    "id": "SpeedR AI (US)",
+    "country": "United States",
+    "value": 1350000,
+    "category": "Health",
+    "x_val": 51,
+    "logo": 0
+  },
+  {
+    "id": "Lucendi (US)",
+    "country": "United States",
+    "value": 1000000,
+    "category": "Industry & Mobility",
+    "x_val": 52,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/d7d53bde86356de9e18d"
+  },
+  {
+    "id": "Lamatic (US)",
+    "country": "United States",
+    "value": 510000,
+    "category": "Software & cloud",
+    "x_val": 53,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/b307e5acbd774d56a63088ba495352d2"
+  },
+  {
+    "id": "Zeligate.ai (AU)",
+    "country": "Australia",
+    "value": 500000,
+    "category": "Software & cloud",
+    "x_val": 54,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/ilef6brlbmqzo80c4ndh"
+  },
+  {
+    "id": "Swarmer (US)",
+    "country": "United States",
+    "value": 500000,
+    "category": "Industry & Mobility",
+    "x_val": 55,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/toik0lapxzkd6dwvldgj"
+  },
+  {
+    "id": "Auric Essentials (AU)",
+    "country": "Australia",
+    "value": 400000,
+    "category": "Health",
+    "x_val": 56,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/d5ff0b44fce349199a04df0f20a52789"
+  },
+  {
+    "id": "CrowAI (IN)",
+    "country": "India",
+    "value": 250000,
+    "category": "Software & cloud",
+    "x_val": 57,
+    "logo": 0
+  },
+  {
+    "id": "OutreachGenius (CA)",
+    "country": "Canada",
+    "value": 142279,
+    "category": "Software & cloud",
+    "x_val": 58,
+    "logo": 0
+  },
+  {
+    "id": "Insight AI (IN)",
+    "country": "India",
+    "value": 124142,
+    "category": "Finance",
+    "x_val": 59,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/28239b98e6e44e18aa1c1840a9aab4e2"
+  },
+  {
+    "id": "Ariia AI (US)",
+    "country": "United States",
+    "value": 40000,
+    "category": "Software & cloud",
+    "x_val": 60,
+    "logo": 0
+  },
+  {
+    "id": "Neural Labs Africa (KE)",
+    "country": "Kenya",
+    "value": 10000,
+    "category": "Health",
+    "x_val": 61,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/ah0s0xh2p39sp5fmbpht"
+  },
+  {
+    "id": "TaleIt (US)",
+    "country": "United States",
+    "value": 3000,
+    "category": "Education",
+    "x_val": 62,
+    "logo": 0
+  },
+  {
+    "id": "OkeyMeta (NG)",
+    "country": "Nigeria",
+    "value": 845,
+    "category": "Software & cloud",
+    "x_val": 63,
+    "logo": "https://images.crunchbase.com/image/upload/t_cb-default-original/11a1765f8f7f484098f517a033bb3b87"
+  }
+];
+/* Mapea country (o id) -> URL del logo (puede ser flag, marca, etc.) */
+
+
+/* ======= 2) Medidas y contenedor ======= */
+const svg = d3.select("#chart");
+const W = 900, H = 520;
+const m = { top: 16, right: 16, bottom: 16, left: 16 };
+const innerW = W - m.left - m.right;
+const innerH = H - m.top - m.bottom;
+
+const g = svg.append("g").attr("transform", `translate(${m.left},${m.top})`);
+
+/* ======= 3) Escalas ======= */
+const cats = Array.from(new Set(data.map(d => d.category)));
+
+// ======= Colores por categoría =======
+// Mapa fijo para colores de cada categoría (ajustable a tu gusto)
+const CATEGORY_COLORS = {
+  "Education": "#264677",            // azul oscuro
+  "Industry & Mobility": "#F49929",  // naranja
+  "Software & cloud":"#C7544F",     // morado
+  "Legal & Compliance": "#279E7B",   // verde
+  "Data": "#61EBE3",                 // celeste
+  "Finance":"#8F78DB" ,              // rojo ladrillo
+  "Health": "#FFD35B",               // verde menta
+  "Cybersecurity": "#D091D6"         // azul
+};
+const catColor = c => CATEGORY_COLORS[c] || '#999';
+const x = d3.scaleBand().domain(cats).range([0, innerW]).padding(0.25);
+
+const maxVal = d3.max(data, d => d.value) || 1;
+const y = d3.scaleSymlog()
+  .constant(maxVal / 50)   // “curvatura”; sube/baja para más/menos compresión
+  .domain([0, maxVal])
+  .range([innerH, 0])
+  .nice();
+
+// Tamaño de logo en función de value (raíz para percepción)
+// Radio base de los logos (más grande)
+const BUBBLE_SCALE = 1.2; // Ajusta (>1 agranda todo manteniendo proporciones)
+const r = d3.scaleSqrt().domain([0, maxVal]).range([5, 150]);
+const radius = d => r(d.value) * BUBBLE_SCALE;
+/* ======= 4) Ejes y grillas ======= */
+
+
+const xAxis = g.append("g")
+  .attr("class", "axis axis--x")
+  .attr("transform", `translate(0,${innerH})`)
+  .call(d3.axisBottom(x).tickPadding(12)); 
+  
+
+    function wrapTicks(selection, width) {
+  const lineHeight = 1.1; // en em
+  selection.each(function () {
+    const text = d3.select(this);
+    const words = text.text().split(/\s+/).filter(Boolean);
+    text.text(null); // limpiamos el <text>
+
+    let line = [];
+    let lineNumber = 0;
+    let tspan = text.append("tspan").attr("x", 0).attr("dy", "0em");
+
+    for (const w of words) {
+      line.push(w);
+      tspan.text(line.join(" "));
+      if (tspan.node().getComputedTextLength() > width) {
+        line.pop();
+        tspan.text(line.join(" "));
+        line = [w];
+        tspan = text.append("tspan")
+          .attr("x", 0)
+          .attr("dy", `${++lineNumber * lineHeight}em`)
+          .text(w);
+      }
+    }
+    text.attr("text-anchor","middle");
+  });
+}
+
+// aplica el wrap usando el ancho de la categoría
+xAxis.selectAll("text").call(wrapTicks, x.bandwidth())
+xAxis.selectAll("text").remove();
+// Oculta/borra los ejes
+xAxis.remove();
+g.selectAll('.axis').remove();
+const fmtShort = d => d3.format(".2s")(d).replace("G","B");
+
+// Y-axis removido
+g.append("text").attr("class","label")
+  .attr("x", innerW/2).attr("y", innerH + 50).attr("text-anchor","middle").text("");
+
+g.append("text").attr("class","label")
+  .attr("x", -innerH/2).attr("y", -50).attr("transform","rotate(-90)").attr("text-anchor","middle").text("");
+
+/* ======= 5) Puntos (logos) — empaquetado por categoría ======= */
+const GAP = 0.5;                   // separaci�n m�nima entre logos (px)
+const LOGO_PAD = 0.2; // logo inner padding (px)
+const SHAPE_FACTOR = Math.SQRT2;
+// centro de cada categoría y altura fija (Y sin significado)
+
+// ✅ Nuevo layout en rejilla: posiciones tipo columna.fila (col.row)
+const NUM_ROWS = 2;                                  // filas: 1..4
+const nCols   = Math.ceil(cats.length / NUM_ROWS);   // cuántas columnas necesitamos
+const colW    = innerW / nCols;                      // ancho de cada columna
+const rowH    = innerH / NUM_ROWS;                   // alto de cada fila
+
+// Mapa categoría -> {col, row} siguiendo el orden en 'cats'
+const catPos = new Map(
+  cats.map((c, i) => [c, { col: Math.floor(i / NUM_ROWS), row: i % NUM_ROWS }])
+);
+
+// Offsets manuales por categoría para ajustar posición de grupos
+// Edita los valores dx/dy en píxeles según necesites.
+const groupOffset = {
+  "Industry & Mobility": {
+    "dx": 12,
+    "dy": 75
+  },
+  "Health": {
+    "dx": 550,
+    "dy": -90
+  },
+  "Software & cloud": {
+    "dx": 32,
+    "dy": 0
+  },
+  "Data": {
+    "dx": 0,
+    "dy": -80
+  },
+  "Legal & Compliance": {
+    "dx": 0,
+    "dy": 0
+  },
+  "Cybersecurity": {
+    "dx": -50,
+    "dy": -65
+  },
+  "Education": {
+    "dx": -60,
+    "dy": 0
+  },
+  "Finance": {
+    "dx": 30,
+    "dy": -180
+  }
+};
+
+const getOffset = (cat) => (groupOffset[cat] || { dx: 0, dy: 0 });
+
+// Title vertical offsets (px) per category
+const TITLE_OFFSET_Y = {
+  "Industry & Mobility": 70,
+  "Health": 120,
+  "Software & cloud": 4,
+  "Data": 100,
+  "Legal & Compliance": 30,
+  "Cybersecurity": 130,
+  "Education": 80,
+  "Finance": -20
+};
+// Centros del racimo por categoría (columna.fila → píxeles)
+const xCenter = d => {
+  const { col } = catPos.get(d.category);
+  return col * colW + colW / 2;
+};
+const yCenter = cat => {
+  const { row } = catPos.get(cat);
+  return row * rowH + rowH / 2;
+};
+
+// 1) agrupa datos por categoría
+const groups = d3.group(data, d => d.category);
+const clusterH = Math.min(rowH * 1.2, 400); // se adapta a la fila
+  g.selectAll(".cluster-title")
+  .data(cats)                               // ← un texto por categoría
+  .join("text")
+  .attr("class", "cluster-title")
+  .attr("x", d => x(d) + x.bandwidth()/2)   // centro de la banda
+  .attr("y", d => yCenter(d) - clusterH/2 + 30 + (TITLE_OFFSET_Y[d] || 0)) // arriba del racimo
+  .attr("text-anchor", "middle")
+  .text(d => d); 
+// Reposiciona títulos aplicando offsets manuales
+g.selectAll(".cluster-title").attr("x", d => {
+  const p = catPos.get(d);
+  const base = (p.col * colW) + (colW / 2);
+  const { dx } = getOffset(d);
+  return base + dx;
+});
+// 2) para cada grupo, calcula un layout compacto sin solapes
+for (const [cat, arr] of groups) {
+  // construye círculos con el radio visual (radius(d))
+  const circles = arr.map(d => ({ d, r: radius(d) + GAP + 1}));
+
+  // coloca los círculos locales (x,y) sin superposición
+  d3.packSiblings(circles); // muta: c.x, c.y y respeta c.r
+
+  // 3) escala el racimo para que quepa dentro del ancho de la banda
+  const pad = 0;
+  const maxX = d3.max(circles, c => Math.abs(c.x) + c.r) || 1;
+  const maxY = d3.max(circles, c => Math.abs(c.y) + c.r) || 1;
+
+  // altura máxima opcional del racimo (ajusta a gusto)
+  
+  const sx = (colW/2 - pad) / maxX;
+  const sy = (clusterH/2 - pad) / maxY;
+  const s = Math.min(sx, sy, 1); // evita agrandar clusters pequeños
+
+
+  // guarda posiciones y radio escalados por dato (evita solapes)
+  circles.forEach(c => {
+    c.d._px = c.x * s;
+    c.d._py = c.y * s;
+    c.d._r  = radius(c.d) * s;
+  });
+
+}// 4) dibuja las imágenes en su categoría con el offset del racimo
+const nodes = g.selectAll(".dot")
+  .data(data)
+  .join("image")
+  .attr("class","dot")
+  .attr("href", d => d.logo || "")
+  .attr("data-category", d => d.category)
+  .attr("display", d => hasLogo(d) ? null : 'none')
+  .attr("width", d => (d._r - LOGO_PAD) * 2)
+  .attr("height", d => (d._r - LOGO_PAD) * 2)
+  .attr("preserveAspectRatio","xMidYMid meet")
+  .attr("x", d => xCenter(d) + (getOffset(d.category).dx || 0) + (d._px ?? 0) - (d._r - LOGO_PAD))
+  .attr("y", d => yCenter(d.category) + (getOffset(d.category).dy || 0) + (d._py ?? 0) - (d._r - LOGO_PAD))
+  .on("mousemove", (event, d) => {
+      tip.style.opacity = 1;
+      tip.style.left = (event.clientX + 12) + "px";
+      tip.style.top  = (event.clientY + 12) + "px";
+      tip.innerHTML = `<strong>${d.id}</strong><br>${d.country}<br>${d.category}<br>Value: ${new Intl.NumberFormat().format(d.value)}`;
+  })
+  .on("mouseleave", () => { tip.style.opacity = 0; });
+
+// Usa c�rculos: contorno + recorte circular del logo
+g.selectAll("image.dot").each(function(d, i){
+  const sel = d3.select(this);
+  const baseR = d._r;
+  const cx = xCenter(d) + (getOffset(d.category).dx || 0) + (d._px ?? 0);
+  const cy = yCenter(d.category) + (getOffset(d.category).dy || 0) + (d._py ?? 0);
+  const rad = baseR;
+
+  // Guarda posiciones originales para restaurar luego del enfoque
+  d._cx = cx;
+  d._cy = cy;
+  d._r = baseR;
+
+  // c�rculo de fondo con borde negro
+  d3.select(this.parentNode)
+    .insert("circle", () => this)
+      .attr("class", "logo-circle")
+      .datum(d)
+      .attr("cx", cx)
+      .attr("cy", cy)
+      .attr("r", rad)
+      .attr("fill", hasLogo(d) ? "#fff" : catColor(d.category))
+      .attr("stroke", catColor(d.category))
+      .attr("stroke-width", 2.4)
+      .attr("data-category", d.category);
+
+  // recorte circular para la imagen
+  const defs = svg.select("defs").empty() ? svg.append("defs") : svg.select("defs");
+  const clipId = "clip-" + i;
+  d._clipId = clipId;
+  const cp = defs.select("#" + clipId).empty() ? defs.append("clipPath").attr("id", clipId) : defs.select("#" + clipId);
+  cp.selectAll("circle").data([null]).join("circle")
+    .attr("cx", cx)
+    .attr("cy", cy)
+    .attr("r", rad);
+  sel.attr("clip-path", "url(#" + clipId + ")");
+});
+
+// Interacciones para círculos (fallback cuando no hay logo)
+g.selectAll('circle.logo-circle')
+  .on('mousemove', (event, d) => {
+    tip.style.opacity = 1;
+    tip.style.left = (event.clientX + 12) + 'px';
+    tip.style.top  = (event.clientY + 12) + 'px';
+    tip.innerHTML = `<strong>${d.id}</strong><br>${d.country}<br>Category: ${d.category}<br>Value: ${new Intl.NumberFormat().format(d.value)}`;
+  })
+  .on('mouseleave', () => { tip.style.opacity = 0; });
+
+// ======= 5.5) Branding y fuente =======
+// Se usa la barra inferior (.footer-bar) para logo y Source.
+
+// ======= Legend (mistral-style) =======
+const catsForLegend = [...cats].sort((a,b)=>a.localeCompare(b));
+const activeCats = new Set(cats);
+const FOCUS_SCALE = 0.65; // 1.0 = llena más, <1.0 = más pequeño
+let focusedCat = null; // categoría enfocada (o null)
+
+// Enfoca una categoría: oculta el resto, centra y agranda
+const FOCUS_TITLE_SIZE = 20; // px, title size when focused
+function focusCategory(cat){
+  focusedCat = cat;
+  activeCats.clear();
+  activeCats.add(cat);
+
+  const arr = groups.get(cat) || [];
+  if(!arr.length){ updateVisibility(); return; }
+
+  // Empaqueta usando radios base y escala para ocupar el área disponible
+  const circles = arr.map(d => ({ d, r: radius(d) + GAP + 1 }));
+  d3.packSiblings(circles);
+  const pad = 10;
+  const maxX = d3.max(circles, c => Math.abs(c.x) + c.r) || 1;
+  const maxY = d3.max(circles, c => Math.abs(c.y) + c.r) || 1;
+  const sx = ((innerW / 2) - pad) / maxX;
+  const sy = ((innerH / 2) - pad) / maxY;
+  const s  = Math.min(sx, sy) * FOCUS_SCALE;
+
+  circles.forEach(c => {
+    c.d.__fx = c.x * s;
+    c.d.__fy = c.y * s;
+    c.d.__fr = radius(c.d) * s;
+  });
+
+  const cx0 = innerW / 2;
+  const cy0 = innerH / 2;
+  const t = svg.transition().duration(450).ease(d3.easeCubicOut);
+
+  // Actualiza imágenes de la categoría enfocada
+  svg.selectAll('image.dot')
+    .filter(d => d.category === cat)
+    .transition(t)
+    .attr('width',  d => (d.__fr - LOGO_PAD) * 2)
+    .attr('height', d => (d.__fr - LOGO_PAD) * 2)
+    .attr('x',      d => cx0 + (d.__fx || 0) - (d.__fr - LOGO_PAD))
+    .attr('y',      d => cy0 + (d.__fy || 0) - (d.__fr - LOGO_PAD));
+
+  // Actualiza círculos de borde
+  svg.selectAll('circle.logo-circle')
+    .filter(d => d.category === cat)
+    .transition(t)
+    .attr('cx', d => cx0 + (d.__fx || 0))
+    .attr('cy', d => cy0 + (d.__fy || 0))
+    .attr('r',  d => d.__fr);
+
+  // Actualiza clipPaths para mantener recorte circular correcto
+  arr.forEach(d => {
+    if(!d._clipId) return;
+    svg.select('#' + d._clipId + ' circle')
+      .transition(t)
+      .attr('cx', cx0 + (d.__fx || 0))
+      .attr('cy', cy0 + (d.__fy || 0))
+      .attr('r',  d.__fr);
+  });
+
+  // Muestra y reposiciona el título de la categoría enfocada por encima del racimo
+  const minBound = d3.min(arr, d => (d.__fy || 0) - (d.__fr || 0)) || 0;
+  const titleY = cy0 + minBound - 12; // margen superior del racimo
+  svg.selectAll('.cluster-title')
+    .attr('display', d => d === cat ? null : 'none')
+    .filter(d => d === cat)
+    .transition(t)
+    .attr('x', cx0)
+    .attr('y', titleY)
+    .style('font-size', FOCUS_TITLE_SIZE + 'px');
+
+  // Calcula el total y ubícalo centrado apenas por encima de la leyenda (footer-bar)
+  const total = d3.sum(arr, d => d.value) || 0;
+  const totalLabel = `Total amount: ${fmtShort(total)}`;
+
+  // Convertir coordenadas de pantalla a coordenadas del grupo `g` dentro del viewBox
+  const footer = document.querySelector('.footer-bar');
+  const svgRect = svg.node().getBoundingClientRect();
+  const scaleY = H / svgRect.height;
+  const marginPx = 25; // separación respecto al borde superior de la barra
+  let totX = (W / 2) - m.left; // centrado en el SVG, compensando el margen izquierdo del grupo
+  let totY = innerH - 24;      // fallback si no existe footer-bar
+  if (footer) {
+    const footRect = footer.getBoundingClientRect();
+    const yScreen = Math.max(svgRect.top, footRect.top) - marginPx; // justo encima del footer
+    const ySvg = (yScreen - svgRect.top) * scaleY;                   // a coords del viewBox
+    totY = Math.max(24, Math.min(innerH - 4, ySvg - m.top));         // a coords del grupo `g`, con límites
+  }
+
+  const totalSel = g.selectAll('.cluster-total').data([cat]);
+  totalSel
+    .join('text')
+    .attr('class', 'cluster-total')
+    .attr('text-anchor', 'middle')
+    .attr('x', totX)
+    .attr('y', totY)
+    .text(totalLabel)
+    .style('opacity', 0)
+    .transition(t)
+    .style('opacity', 1)
+    .attr('x', totX)
+    .attr('y', totY);
+
+  updateVisibility();
+}
+
+// Quita el foco: restaura posiciones y radios originales y muestra todo
+function resetFocus(){
+  focusedCat = null;
+  activeCats.clear();
+  cats.forEach(c => activeCats.add(c));
+
+  const t = svg.transition().duration(400).ease(d3.easeCubicOut);
+
+  svg.selectAll('image.dot')
+    .transition(t)
+    .attr('width',  d => (d._r - LOGO_PAD) * 2)
+    .attr('height', d => (d._r - LOGO_PAD) * 2)
+    .attr('x',      d => (d._cx ?? 0) - (d._r - LOGO_PAD))
+    .attr('y',      d => (d._cy ?? 0) - (d._r - LOGO_PAD));
+
+  svg.selectAll('circle.logo-circle')
+    .transition(t)
+    .attr('cx', d => d._cx ?? 0)
+    .attr('cy', d => d._cy ?? 0)
+    .attr('r',  d => d._r);
+
+  data.forEach(d => {
+    if(!d._clipId) return;
+    svg.select('#' + d._clipId + ' circle')
+      .transition(t)
+      .attr('cx', d._cx ?? 0)
+      .attr('cy', d._cy ?? 0)
+      .attr('r',  d._r);
+  });
+
+  // Restaura títulos a su posición original y vuelve a mostrarlos
+  svg.selectAll('.cluster-title')
+    .transition(t)
+    .attr('x', d => {
+      const p = catPos.get(d);
+      const base = (p.col * colW) + (colW / 2);
+      const { dx } = getOffset(d);
+      return base + dx;
+    })
+    .attr('y', d => yCenter(d) - clusterH/2 + 30 + (TITLE_OFFSET_Y[d] || 0))
+    .attr('display', null)
+    .style('font-size', null);
+
+  // Oculta y elimina el total al salir del foco
+  svg.selectAll('.cluster-total')
+    .transition(t)
+    .style('opacity', 0)
+    .remove();
+
+  updateVisibility();
+}
+function hasLogo(d){
+  const v = d && d.logo;
+  if (v === null || v === undefined || v === 0) return false;
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (s === '' || s === '0') return false;
+    return true;
+  }
+  return !!v;
+}
+function buildLegend(){
+  const legend = document.getElementById('legend');
+  if(!legend) return;
+  legend.innerHTML = '';
+  catsForLegend.forEach(cat => {
+    const item = document.createElement('div');
+    item.className = 'legend-item active';
+    item.setAttribute('data-category', cat);
+    item.setAttribute('role','button');
+    item.setAttribute('tabindex','0');
+    item.setAttribute('aria-pressed','true');
+    const square = document.createElement('div');
+    square.className = 'legend-square';
+    square.style.backgroundColor = catColor(cat);
+    const label = document.createElement('span');
+    label.textContent = cat;
+    item.appendChild(square);
+    item.appendChild(label);
+    const toggle = () => {
+      if (focusedCat === cat) {
+        resetFocus();
+      } else {
+        focusCategory(cat);
+      }
+    };
+    item.addEventListener('click', toggle);
+    item.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggle(); }});
+    legend.appendChild(item);
+  });
+}
+function updateVisibility(){
+  // Update nodes and circles
+  const show = cat => activeCats.has(cat);
+  svg.selectAll('image.dot').attr('display', function(d){
+    const cat = this.getAttribute('data-category');
+    return (show(cat) && hasLogo(d)) ? null : 'none';
+  });
+  svg.selectAll('circle.logo-circle').attr('display', function(){
+    const cat = this.getAttribute('data-category');
+    return show(cat) ? null : 'none';
+  });
+  // Títulos: si hay foco (una sola activa) muestra solo esa; si no, sigue el filtro
+  const single = activeCats.size === 1;
+  if (single) {
+    const only = Array.from(activeCats)[0];
+    svg.selectAll('.cluster-title').attr('display', function(){
+      const c = this.__data__;
+      return c === only ? null : 'none';
+    });
+  } else {
+    svg.selectAll('.cluster-title').attr('display', function(){
+      const c = this.__data__;
+      return show(c) ? null : 'none';
+    });
+  }
+  // Update legend classes
+  document.querySelectorAll('.legend-item').forEach(el => {
+    const cat = el.getAttribute('data-category');
+    const isActive = activeCats.has(cat);
+    el.classList.toggle('inactive', !isActive);
+    el.classList.toggle('active', isActive);
+    el.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+buildLegend();
+updateVisibility();
+/* ======= 6) Responsivo ======= */
+/* Ya no necesitamos JS para altura: el viewBox + CSS height:100% se encargan */
+</script>
+</body>
+</html>
