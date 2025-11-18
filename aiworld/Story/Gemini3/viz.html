@@ -477,7 +477,7 @@ const yAxisTicks = document.getElementById('yAxisTicks');
 const monthMarkers = document.getElementById('monthMarkers');
 
 let animationInterval = null;
-const yearDecemberReachedTime = {}; // Track when December was reached for each year
+const yearDecemberReachedTime = {};
 
 async function loadOrgData() {
   const response = await fetch('org.json');
@@ -550,7 +550,6 @@ function createMonthMarkers(data) {
     }
   });
 
-  // Skip the first marker (first Nov)
   let isFirst = true;
 
   const allYears = Object.keys(monthsByYear).sort();
@@ -558,14 +557,12 @@ function createMonthMarkers(data) {
   allYears.forEach((year, yearIndex) => {
     const months = monthsByYear[year];
 
-    // Create year marker for every year (will be shown/hidden dynamically)
     const yearMarker = document.createElement('div');
     yearMarker.className = 'month-marker year-marker';
     yearMarker.textContent = year;
     yearMarker.setAttribute('data-year', year);
     monthMarkers.appendChild(yearMarker);
 
-    // Create year divider at the start of this year (except for the first year)
     if (yearIndex > 0) {
       const divider = document.createElement('div');
       divider.className = 'year-divider';
@@ -573,11 +570,10 @@ function createMonthMarkers(data) {
       monthMarkers.appendChild(divider);
     }
 
-    // Always create individual month markers too
     months.forEach(({ date, itemDate }, idx) => {
       if (isFirst) {
         isFirst = false;
-        return; // Skip the first month marker
+        return;
       }
 
       const marker = document.createElement('div');
@@ -640,12 +636,9 @@ function updateMonthMarkers(minDate, maxDate, currentDate) {
 
   const markers = monthMarkers.querySelectorAll('.month-marker');
   const dividers = monthMarkers.querySelectorAll('.year-divider');
-
-  // Track which years have December visible (reached)
   const yearsWithDecember = new Set();
   const currentTime = Date.now();
 
-  // First pass: check for December markers and position regular markers
   markers.forEach(marker => {
     const isYearMarker = marker.classList.contains('year-marker');
 
@@ -657,19 +650,13 @@ function updateMonthMarkers(minDate, maxDate, currentDate) {
       const xPos = (xPercent / 100) * width;
 
       marker.style.left = `${xPos}px`;
-
-      // Check if this is a December marker that has been reached
       if (markerDate <= currentDate) {
         const month = parseInt(marker.getAttribute('data-month'));
-        if (month === 11) { // December is month 11 (0-indexed)
+        if (month === 11) {
           const year = marker.getAttribute('data-year');
-
-          // Record the time when December was first reached
           if (!yearDecemberReachedTime[year]) {
             yearDecemberReachedTime[year] = currentTime;
           }
-
-          // Only add to set if 2 seconds have passed
           if (currentTime - yearDecemberReachedTime[year] >= 2000) {
             yearsWithDecember.add(year);
           }
@@ -678,20 +665,15 @@ function updateMonthMarkers(minDate, maxDate, currentDate) {
     }
   });
 
-  // Second pass: position year markers in the center of their visible range
   markers.forEach(marker => {
     const isYearMarker = marker.classList.contains('year-marker');
 
     if (isYearMarker) {
       const year = marker.getAttribute('data-year');
+      const yearStart = new Date(year, 0, 1);
+      const yearEnd = new Date(parseInt(year) + 1, 0, 1);
 
-      // Calculate the visible portion of this year
-      const yearStart = new Date(year, 0, 1); // Jan 1 of this year
-      const yearEnd = new Date(parseInt(year) + 1, 0, 1); // Jan 1 of next year
-
-      // The visible start is the later of minDate or yearStart
       const visibleStart = minDate > yearStart ? minDate : yearStart;
-      // The visible end is the earlier of maxDate or yearEnd
       const visibleEnd = maxDate < yearEnd ? maxDate : yearEnd;
 
       const dateRange = maxDate - minDate;
@@ -705,11 +687,9 @@ function updateMonthMarkers(minDate, maxDate, currentDate) {
       marker.style.left = `${centerPos}px`;
     }
   });
-
-  // Update dividers positions (at year boundaries)
   dividers.forEach(divider => {
     const yearBoundary = parseInt(divider.getAttribute('data-year-boundary'));
-    const boundaryDate = new Date(yearBoundary, 0, 1); // Jan 1 of this year
+    const boundaryDate = new Date(yearBoundary, 0, 1);
 
     const dateRange = maxDate - minDate;
     const dateOffset = boundaryDate - minDate;
@@ -718,7 +698,6 @@ function updateMonthMarkers(minDate, maxDate, currentDate) {
 
     divider.style.left = `${xPos}px`;
 
-    // Show divider if either adjacent year has December reached
     const currentYear = yearBoundary;
     const previousYear = yearBoundary - 1;
 
@@ -729,13 +708,11 @@ function updateMonthMarkers(minDate, maxDate, currentDate) {
     }
   });
 
-  // Now update visibility for markers
   markers.forEach(marker => {
     const isYearMarker = marker.classList.contains('year-marker');
 
     if (isYearMarker) {
       const markerYear = marker.getAttribute('data-year');
-      // Show year marker only if December of that year has been reached + 2 seconds
       if (yearsWithDecember.has(markerYear)) {
         marker.classList.add('visible');
       } else {
@@ -744,7 +721,6 @@ function updateMonthMarkers(minDate, maxDate, currentDate) {
     } else {
       const markerDate = new Date(marker.getAttribute('data-date'));
       const year = marker.getAttribute('data-year');
-      // Show individual month marker only if year's December hasn't been reached yet
       if (markerDate <= currentDate && !yearsWithDecember.has(year)) {
         marker.classList.add('visible');
       } else {
@@ -849,8 +825,6 @@ async function animateTimeline() {
   if (animationInterval) {
     clearTimeout(animationInterval);
   }
-
-  // Reset year December tracking
   Object.keys(yearDecemberReachedTime).forEach(key => delete yearDecemberReachedTime[key]);
 
   const data = await loadOrgData();
