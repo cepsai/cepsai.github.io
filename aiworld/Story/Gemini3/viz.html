@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Layout Structure</title>
+<style>
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+}
+
+body {
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.viz-layout {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  grid-template-columns: 1fr 1fr;
+  height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
+  row-gap: clamp(6px, 1.5vh, 12px);
+  padding: 0 clamp(12px, 2vw, 20px) env(safe-area-inset-bottom) clamp(12px, 2vw, 20px);
+}
+
+#container1 {
+  grid-row: 1;
+  grid-column: 1 / span 2;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+#container2 {
+  grid-row: 2;
+  grid-column: 1 / span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: clamp(4px, 0.5vh, 8px) 0;
+}
+
+#container3 {
+  grid-row: 3;
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+#container4 {
+  grid-row: 3;
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.y-axis-container {
+  flex: 0 0 clamp(28px, 3vw, 46px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+  padding: 0 6px;
+}
+
+.y-axis-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-align: center;
+  font-weight: 600;
+  font-size: clamp(10px, 1.2vw, 16px);
+  color: #333;
+}
+
+.chart-wrapper {
+  flex: 1 1 auto;
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  position: relative;
+}
+
+.chart-area {
+  flex: 1;
+  position: relative;
+  padding: 32px 40px 56px 74px;
+}
+
+.y-axis-ticks {
+  position: absolute;
+  left: 0;
+  top: 32px;
+  bottom: 56px;
+  width: 74px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.y-tick {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  font-size: 11px;
+  color: #666;
+  font-variant-numeric: tabular-nums;
+  position: relative;
+}
+
+.y-tick::after {
+  content: '';
+  position: absolute;
+  left: 74px;
+  right: -9999px;
+  height: 1px;
+  border-top: 1px dotted #d0d0d0;
+  pointer-events: none;
+}
+
+.y-tick.zero::after {
+  display: none;
+}
+
+.chart-content {
+  position: absolute;
+  top: 32px;
+  left: 74px;
+  right: 40px;
+  bottom: 56px;
+}
+
+.axes-container {
+  position: absolute;
+  bottom: 0;
+  left: 74px;
+  right: 40px;
+  height: 56px;
+  border-top: 1px solid #cfd2d7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #333;
+  font-size: 12px;
+  padding: 0 10px;
+}
+
+.x-axis-label {
+  font-size: 11px;
+  color: #666;
+  position: relative;
+  z-index: 2;
+}
+
+.month-markers {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 12px;
+  height: 20px;
+  pointer-events: none;
+}
+
+.month-marker {
+  position: absolute;
+  font-size: 10px;
+  font-weight: 600;
+  color: #2756d3;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.month-marker.visible {
+  opacity: 1;
+}
+
+.source-text {
+  font-size: clamp(10px, 1.6vw, 16px);
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 clamp(6px, 1vw, 12px);
+}
+
+.source-text a {
+  color: #2756d3;
+  text-decoration: underline;
+}
+
+.logo {
+  height: 100%;
+  width: auto;
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  padding: 0 clamp(6px, 1vw, 12px);
+}
+
+.node {
+  position: absolute;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.node.visible {
+  opacity: 1;
+}
+
+.node.openai {
+  background: #10a37f;
+}
+
+.node.google {
+  background: #4285f4;
+}
+
+.node.star {
+  border-radius: 0;
+  clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+  width: 42px;
+  height: 42px;
+  border: none;
+  box-shadow: none;
+  filter:
+    drop-shadow(0 0 0 2px #fff)
+    drop-shadow(0 0 0 3px #fff)
+    drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
+}
+
+.node.star.visible {
+  animation: starAppear 0.8s ease-out;
+}
+
+@keyframes starAppear {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.3);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+.node-label {
+  position: absolute;
+  font-size: 10px;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+  padding-bottom: 12px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.node-label.visible {
+  opacity: 1;
+}
+
+.node-label.star {
+  font-size: 20px;
+  transform: translate(-100%, -100%);
+  padding-right: 28px;
+  padding-bottom: 16px;
+}
+
+.node-label.below {
+  transform: translate(-50%, 0);
+  padding-bottom: 0;
+  padding-top: 12px;
+}
+
+.connection-line {
+  position: absolute;
+  height: 2px;
+  transform-origin: left center;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.connection-line.visible {
+  opacity: 0.6;
+}
+
+
+.connection-line.openai {
+  background: #10a37f;
+}
+
+.connection-line.google {
+  background: #4285f4;
+}
+
+.timeline-container {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.timeline-bar {
+  width: 100%;
+  height: 8px;
+  background: rgba(207, 210, 215, 0.4);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.timeline-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #2756d3, #4a7de8);
+  width: 0%;
+}
+
+.timeline-date {
+  font-size: clamp(11px, 1.4vw, 14px);
+  font-weight: 600;
+  color: #333;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  #container3 {
+    display: none;
+  }
+}
+
+@media (max-width: 460px), (max-height: 520px) {
+  #container2 {
+    display: none;
+  }
+}
+
+@media (max-height: 480px) {
+  .viz-grid {
+    grid-template-rows: 1fr;
+  }
+  #container2, #container3, #container4 {
+    display: none;
+  }
+}
+</style>
+</head>
+<body>
+<div class="viz-layout">
+  <div class="viz-grid">
+    <div id="container1">
+      <div class="y-axis-container">
+        <div class="y-axis-label">Score</div>
+      </div>
+      <div class="chart-wrapper">
+        <div class="chart-area">
+          <div class="y-axis-ticks" id="yAxisTicks"></div>
+          <div class="chart-content" id="chartContent"></div>
+          <div class="axes-container">
+            <div class="month-markers" id="monthMarkers"></div>
+            <span class="x-axis-label" id="xAxisStart">2022-11-01</span>
+            <span class="x-axis-label" id="xAxisEnd">2025-11-01</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="container2">
+      <div class="timeline-container">
+        <div class="timeline-bar">
+          <div class="timeline-progress" id="timelineProgress"></div>
+        </div>
+        <div class="timeline-date" id="timelineDate">2022-11-01</div>
+      </div>
+    </div>
+    <div id="container3">
+      <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank" rel="noopener">HuggingFace</a></div>
+    </div>
+    <div id="container4">
+      <img src="https://aiworld.eu/logo-transparent.svg" alt="AI World Logo" class="logo">
+    </div>
+  </div>
+</div>
+
+<script>
+const chartContent = document.getElementById('chartContent');
+const progressBar = document.getElementById('timelineProgress');
+const dateDisplay = document.getElementById('timelineDate');
+const xAxisStart = document.getElementById('xAxisStart');
+const xAxisEnd = document.getElementById('xAxisEnd');
+const yAxisTicks = document.getElementById('yAxisTicks');
+const monthMarkers = document.getElementById('monthMarkers');
+
+let animationInterval = null;
+
+async function loadOrgData() {
+  const response = await fetch('org.json');
+  const data = await response.json();
+  return data;
+}
+
+function getDateRange(data) {
+  const dates = data.map(item => new Date(item.date));
+  const minDate = new Date(Math.min(...dates));
+  const maxDate = new Date(Math.max(...dates));
+  return { minDate, maxDate };
+}
+
+function getValueRange(data) {
+  const values = data.map(item => item.value);
+  return { minValue: Math.min(...values), maxValue: Math.max(...values) };
+}
+
+function getDaysBetween(startDate, endDate) {
+  const oneDay = 24 * 60 * 60 * 1000;
+  return Math.round((endDate - startDate) / oneDay);
+}
+
+function formatDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateForAxis(date) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  return months[date.getMonth()];
+}
+
+function createYAxisTicks(minValue, maxValue) {
+  yAxisTicks.innerHTML = '';
+  const numTicks = 6;
+
+  for (let i = 0; i < numTicks; i++) {
+    const value = maxValue - (i * (maxValue - minValue) / (numTicks - 1));
+    const tick = document.createElement('div');
+    const roundedValue = Math.round(value);
+    tick.className = roundedValue === 0 ? 'y-tick zero' : 'y-tick';
+    tick.textContent = roundedValue;
+    yAxisTicks.appendChild(tick);
+  }
+}
+
+function createMonthMarkers(data) {
+  monthMarkers.innerHTML = '';
+  const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const seenMonths = new Set();
+
+  sortedData.forEach((item, index) => {
+    const itemDate = new Date(item.date);
+    const monthKey = `${itemDate.getFullYear()}-${itemDate.getMonth()}`;
+
+    if (!seenMonths.has(monthKey)) {
+      seenMonths.add(monthKey);
+
+      const marker = document.createElement('div');
+      marker.className = 'month-marker';
+      marker.textContent = formatDateForAxis(itemDate);
+      marker.setAttribute('data-date', item.date);
+      monthMarkers.appendChild(marker);
+    }
+  });
+}
+
+function createNodes(data) {
+  chartContent.innerHTML = '';
+  const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const googleNodes = sortedData.map((item, idx) => ({ item, idx })).filter(({ item }) => item.parent === 'Google');
+  const lastGoogleIndex = googleNodes.length > 0 ? googleNodes[googleNodes.length - 1].idx : -1;
+
+  const openaiNodes = sortedData.map((item, idx) => ({ item, idx })).filter(({ item }) => item.parent === 'OpenAI');
+  const lastTwoOpenAIIndices = openaiNodes.length >= 2
+    ? [openaiNodes[openaiNodes.length - 2].idx, openaiNodes[openaiNodes.length - 1].idx]
+    : openaiNodes.length === 1
+      ? [openaiNodes[0].idx]
+      : [];
+
+  sortedData.forEach((item, index) => {
+    const node = document.createElement('div');
+    const isLastGoogle = index === lastGoogleIndex;
+    node.className = `node ${item.parent.toLowerCase()}${isLastGoogle ? ' star' : ''}`;
+    node.setAttribute('data-date', item.date);
+    node.setAttribute('data-value', item.value);
+    node.setAttribute('data-id', item.id);
+    node.setAttribute('data-parent', item.parent);
+    node.setAttribute('data-index', index);
+    chartContent.appendChild(node);
+
+    const label = document.createElement('div');
+    const isLabelBelow = lastTwoOpenAIIndices.includes(index);
+    label.className = `node-label ${item.parent.toLowerCase()}${isLastGoogle ? ' star' : ''}${isLabelBelow ? ' below' : ''}`;
+    label.textContent = item.id;
+    label.setAttribute('data-index', index);
+    chartContent.appendChild(label);
+    const prevSameParent = sortedData.slice(0, index).reverse().find(prev => prev.parent === item.parent);
+    if (prevSameParent) {
+      const prevIndex = sortedData.indexOf(prevSameParent);
+      const line = document.createElement('div');
+      line.className = `connection-line ${item.parent.toLowerCase()}`;
+      line.setAttribute('data-from', prevIndex);
+      line.setAttribute('data-to', index);
+      chartContent.appendChild(line);
+    }
+  });
+}
+
+function updateMonthMarkers(minDate, maxDate, currentDate) {
+  const rect = chartContent.getBoundingClientRect();
+  const width = rect.width;
+
+  const markers = monthMarkers.querySelectorAll('.month-marker');
+
+  markers.forEach(marker => {
+    const markerDate = new Date(marker.getAttribute('data-date'));
+    const dateRange = maxDate - minDate;
+    const dateOffset = markerDate - minDate;
+    const xPercent = (dateOffset / dateRange) * 100;
+    const xPos = (xPercent / 100) * width;
+
+    marker.style.left = `${xPos}px`;
+
+    if (markerDate <= currentDate) {
+      marker.classList.add('visible');
+    } else {
+      marker.classList.remove('visible');
+    }
+  });
+}
+
+function updateNodePositions(data, minDate, maxDate, minValue, maxValue, currentDate) {
+  const rect = chartContent.getBoundingClientRect();
+  const width = rect.width;
+  const height = rect.height;
+
+  const nodes = chartContent.querySelectorAll('.node');
+  const labels = chartContent.querySelectorAll('.node-label');
+  const lines = chartContent.querySelectorAll('.connection-line');
+  const nodePositions = {};
+
+  nodes.forEach(node => {
+    const nodeDate = new Date(node.getAttribute('data-date'));
+    const nodeValue = parseFloat(node.getAttribute('data-value'));
+    const nodeIndex = node.getAttribute('data-index');
+
+    const dateRange = maxDate - minDate;
+    const dateOffset = nodeDate - minDate;
+    const xPercent = (dateOffset / dateRange) * 100;
+    const xPos = (xPercent / 100) * width;
+
+    const valueRange = maxValue - minValue;
+    const valueOffset = nodeValue - minValue;
+    const yPercent = (valueOffset / valueRange) * 100;
+    const yPos = height - (yPercent / 100) * height;
+
+    node.style.left = `${xPos}px`;
+    node.style.top = `${yPos}px`;
+
+    nodePositions[nodeIndex] = { x: xPos, y: yPos };
+
+    if (nodeDate <= currentDate) {
+      node.classList.add('visible');
+    } else {
+      node.classList.remove('visible');
+    }
+  });
+
+  labels.forEach(label => {
+    const labelIndex = label.getAttribute('data-index');
+    const pos = nodePositions[labelIndex];
+    if (pos) {
+      label.style.left = `${pos.x}px`;
+      label.style.top = `${pos.y}px`;
+
+      const node = chartContent.querySelector(`.node[data-index="${labelIndex}"]`);
+      if (node && node.classList.contains('visible')) {
+        label.classList.add('visible');
+      } else {
+        label.classList.remove('visible');
+      }
+    }
+  });
+  const nodeRadius = 12.5;
+  const starRadius = 24;
+
+  lines.forEach(line => {
+    const fromIndex = line.getAttribute('data-from');
+    const toIndex = line.getAttribute('data-to');
+    const fromPos = nodePositions[fromIndex];
+    const toPos = nodePositions[toIndex];
+
+    if (fromPos && toPos) {
+      const dx = toPos.x - fromPos.x;
+      const dy = toPos.y - fromPos.y;
+      const rawLength = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+      const fromNode = chartContent.querySelector(`.node[data-index="${fromIndex}"]`);
+      const toNode = chartContent.querySelector(`.node[data-index="${toIndex}"]`);
+      const isStar = toNode && toNode.classList.contains('star');
+      const endRadius = isStar ? starRadius : nodeRadius;
+
+      const targetLength = Math.max(rawLength - endRadius, 0);
+
+      line.style.left = `${fromPos.x}px`;
+      line.style.top = `${fromPos.y}px`;
+      line.style.transform = `rotate(${angle}deg)`;
+
+      const shouldBeVisible = fromNode && toNode && fromNode.classList.contains('visible') && toNode.classList.contains('visible');
+
+      if (shouldBeVisible) {
+        line.classList.add('visible');
+        line.style.width = `${targetLength}px`;
+      } else {
+        line.classList.remove('visible');
+        line.style.width = '0px';
+      }
+    }
+  });
+}
+
+async function animateTimeline() {
+  if (animationInterval) {
+    clearTimeout(animationInterval);
+  }
+
+  const data = await loadOrgData();
+  const { minDate, maxDate } = getDateRange(data);
+  const totalDays = getDaysBetween(minDate, maxDate);
+
+  const minValue = 0;
+  const maxValue = 75;
+
+  createYAxisTicks(minValue, maxValue);
+  createMonthMarkers(data);
+  createNodes(data);
+
+  const sortedData = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
+  const googleNodes = sortedData.filter(item => item.parent === 'Google');
+  const lastGoogleDate = googleNodes.length > 0 ? new Date(googleNodes[googleNodes.length - 1].date) : null;
+  const slowmoStartDay = lastGoogleDate ? getDaysBetween(minDate, lastGoogleDate) - 60 : totalDays + 1;
+
+  let currentDay = 0;
+  const baseFrameInterval = 10;
+
+  xAxisStart.textContent = formatDate(minDate);
+
+  function animate() {
+    if (currentDay > totalDays) {
+      setTimeout(() => animateTimeline(), 6000);
+      return;
+    }
+
+    const currentDate = new Date(minDate);
+    currentDate.setDate(currentDate.getDate() + currentDay);
+    const xStart = minDate;
+    const xEnd = currentDate;
+
+    xAxisEnd.textContent = formatDate(xEnd);
+
+    const progress = (currentDay / totalDays) * 100;
+    progressBar.style.width = `${progress}%`;
+    dateDisplay.textContent = formatDate(currentDate);
+    updateNodePositions(data, xStart, xEnd, minValue, maxValue, currentDate);
+    updateMonthMarkers(xStart, xEnd, currentDate);
+
+    currentDay++;
+    let nextFrameInterval = baseFrameInterval;
+    if (currentDay >= slowmoStartDay) {
+      nextFrameInterval = baseFrameInterval * 3;
+    }
+
+    animationInterval = setTimeout(animate, nextFrameInterval);
+  }
+
+  animate();
+}
+animateTimeline();
+</script>
+</body>
+</html>
