@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HF Orgs Line Chart — 2025</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+html, body { height: 100%; }
+body { margin: 0; overflow: hidden; background: #ffffff; color: #111; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif; height: 100vh; }
+.viz-layout { position: relative; width: 100%; height: 100vh; display: flex; align-items: stretch; justify-content: flex-start; overflow: hidden; min-width: 0; }
+.viz-grid { display: grid; grid-template-rows: 1fr auto auto; grid-template-columns: 1fr 1fr; height: 100vh; width: 100vw; box-sizing: border-box; row-gap: clamp(6px, 1.5vh, 12px); padding: 0 clamp(12px, 2vw, 20px) env(safe-area-inset-bottom) clamp(12px, 2vw, 20px); }
+#container1 { grid-row: 1; grid-column: 1 / span 2; display: flex; overflow: hidden; min-height: 0; column-gap: 0; padding: 0; }
+#container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; gap: clamp(12px, 2vw, 20px); min-width: 0; padding: clamp(4px, 0.5vh, 8px) 0; position: relative; }
+#container3 { grid-row: 3; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; min-width: 0; }
+#container4 { grid-row: 3; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; gap: clamp(10px, 2vw, 16px); min-width: 0; }
+.source-text { font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal; }
+.source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; }
+.source-text a:visited { color: #2756d3; }
+.logo-note { font-size: clamp(8px, 1vw, 12px); color: #777; font-style: italic; white-space: nowrap; position: absolute; right: 0; }
+.logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
+.y-axis-container { flex: 0 0 clamp(28px, 3vw, 46px); display: flex; align-items: center; justify-content: flex-end; min-width: 0; border-right: 1px solid rgba(0, 0, 0, 0.1); box-sizing: border-box; padding: 0 6px; }
+.y-axis-label { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-weight: 600; font-size: clamp(10px, 1.2vw, 16px); color: #333; line-height: 1.2; letter-spacing: 0.04em; }
+.chart-wrapper { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; margin-left: -6px; }
+.chart-wrapper-inner { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; }
+#viz { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#chart { display: block; width: 100%; height: 100%; }
+#tooltip { position: absolute; background: #fff; border: 1px solid #d9d9df; border-radius: 6px; padding: 6px 8px; font-size: 12px; pointer-events: none; opacity: 0; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); transition: opacity .12s ease; max-width: 220px; }
+.axis path, .axis line { stroke: #cfd2d7; }
+.axis text { fill: #333; font-size: 12px; }
+.x-axis text { font-size: clamp(12px, 1.2vw, 18px); }
+.grid line { stroke: rgba(230, 232, 239, 0.45); }
+.grid .domain { display: none; }
+.final-node { cursor: pointer; }
+.date-display { display: inline-flex; align-items: center; justify-content: center; padding: 6px 12px; border: 1px solid #cfd2d7; border-radius: 10px; background: rgba(255,255,255,.92); font-weight: 700; color: #26344f; font-size: clamp(12px, 1.4vw, 16px); line-height: 1; min-width: clamp(160px, 20vw, 220px); width: clamp(160px, 20vw, 220px); box-sizing: border-box; }
+@media (max-width: 860px) { .logo-note { font-size: clamp(7px, 0.9vw, 10px); } }
+@media (max-width: 640px) { #container3 { display: none; } .logo-note { display: none; } }
+@media (max-width: 460px), (max-height: 520px) { #container2 { display: none; } }
+@media (max-height: 480px) { .viz-grid { grid-template-rows: 1fr; } #container2, #container3, #container4 { display: none; } }
+</style>
+</head>
+<body>
+<div class="viz-layout" id="vizLayout">
+  <div class="viz-grid">
+    <div id="container1" class="container chart-container">
+      <div class="y-axis-container">
+        <div class="y-axis-label" id="yLabel">Repos</div>
+      </div>
+      <div class="chart-wrapper">
+        <div class="chart-wrapper-inner">
+          <div id="viz">
+            <svg id="chart" role="img"></svg>
+            <div id="tooltip"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="container2" class="container note-container">
+      <div id="dateDisplay" class="date-display"></div>
+      <span class="logo-note">* Considering repos above 10 space likes and 500 downloads</span>
+    </div>
+    <div id="container3" class="container source-container">
+      <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank" rel="noopener">HuggingFace</a></div>
+    </div>
+    <div id="container4" class="container logo-container">
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="logo.svg" class="logo" alt="AI World logo" crossorigin="anonymous">
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+const svg = d3.select("#chart");
+const tooltip = d3.select("#tooltip");
+const yLabelEl = document.getElementById("yLabel");
+const vizEl = document.getElementById("viz");
+const dateDisplayEl = document.getElementById("dateDisplay");
+const TARGET_YEAR = 2025;
+const INCLUDED_PERCENT = 50;
+const METRIC = { key: "repos_total", label: "Repos" };
+const DEFAULT_START_DATE = new Date(Date.UTC(2023, 9, 1));
+const DEFAULT_END_DATE = new Date(Date.UTC(2024, 9, 1));
+const TARGET_END_DATE = new Date(Date.UTC(2025, 9, 10));
+const STEP_MIN = 1;
+const STEP_MAX = 16;
+const DELAY_MIN = 60;
+const DELAY_MAX = 4000;
+const REPLAY_DELAY = 4000;
+let autoStep = 1;
+let autoDelay = 160;
+const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
+const formatComma = d3.format(",.0f");
+const formatShort = d3.format(".2s");
+const dateFormatter = d3.utcFormat("%B %-d, %Y");
+let orgMeta = new Map();
+let chartSeries = [];
+let timelineDates = [];
+let xScale = null;
+let yScale = null;
+let lineGenerator = null;
+let currentStart = 0;
+let currentEnd = 0;
+let autoTimer = null;
+let replayTimeout = null;
+let animDefaultStart = 0;
+let animDefaultEnd = 0;
+let animWindowSize = 1;
+let animTargetEnd = 0;
+let modelToParent = new Map();
+
+init();
+
+async function init(){
+  try{
+    const [rawData, orgs] = await Promise.all([
+      fetchJSON("./org_months.json"),
+      fetchJSON("./orgs_test.json")
+    ]);
+    orgMeta = buildOrgMeta(orgs);
+    const processed = buildSeriesAll(rawData);
+    chartSeries = processed.series;
+    timelineDates = processed.timeline;
+    yLabelEl.textContent = METRIC.label;
+    render();
+    setupAnimation();
+    bindSpeedKeys();
+  }catch(err){
+    console.error("Failed to load visualization data:", err);
+  }
+}
+
+function buildOrgMeta(list){
+  const map = new Map();
+  if(Array.isArray(list)){
+    list.forEach(item=>{
+      if(!item || !item.id){ return; }
+      map.set(item.id, { ...item, company: item.company === true, regionKey: normalizeRegion(item.region) });
+    });
+  }
+  return map;
+}
+
+function normalizeRegion(value){
+  return String(value ?? "").trim().toLowerCase();
+}
+
+async function fetchJSON(url){
+  const response = await fetch(url);
+  if(!response.ok){ throw new Error(`HTTP ${response.status} while fetching ${url}`); }
+  return response.json();
+}
+
+function buildSeriesAll(rawData){
+  if (!Array.isArray(rawData)) {
+    return { series: [], timeline: [], totalCompanies: 0, includedCount: 0 };
+  }
+
+  modelToParent = new Map();   // reset mapping
+
+  // group by MODEL id (e.g. "GPT-3.5 Turbo")
+  const groups = d3.group(rawData, d => d.id);
+
+  const perModelAll = [];
+
+  groups.forEach((entries, modelId) => {
+    if (!entries || !entries.length) return;
+
+    // parent company for this model
+    const parentId = entries[0].parent || modelId;
+    const meta = orgMeta.get(parentId);
+    // only include if we actually know this company and it's flagged as company
+    if (!meta || !meta.company) return;
+
+    modelToParent.set(modelId, parentId);
+
+    const all = entries.map(entry => {
+      const date = parseDate(entry.week_date || entry.month_date || null);
+      const raw = Number(entry[METRIC.key]);
+      const total = Number.isFinite(raw) ? raw : 0;
+      return { id: modelId, parentId, date, total };
+    })
+    .filter(p => p.date instanceof Date && !Number.isNaN(p.date.valueOf()))
+    .sort((a, b) => a.date - b.date);
+
+    if (!all.length) return;
+    perModelAll.push({ id: modelId, parentId, all });
+  });
+
+  if (!perModelAll.length) {
+    return { series: [], timeline: [], totalCompanies: 0, includedCount: 0 };
+  }
+
+  // global min/max over all models
+  let globalMin = null;
+  let globalMax = null;
+  perModelAll.forEach(({ all }) => {
+    const a0 = all[0].date;
+    const a1 = all[all.length - 1].date;
+    if (!globalMin || a0 < globalMin) globalMin = a0;
+    if (!globalMax || a1 > globalMax) globalMax = a1;
+  });
+
+  // monthly steps
+  const monthStepDates = [];
+  for (
+    let d = new Date(Date.UTC(globalMin.getUTCFullYear(), globalMin.getUTCMonth(), 1));
+    d <= globalMax;
+    d = d3.utcMonth.offset(d, 1)
+  ) {
+    monthStepDates.push(new Date(d.getTime()));
+  }
+
+  const dummy0 = monthStepDates[0]
+    ? new Date(monthStepDates[0].getTime())
+    : new Date(globalMin.getTime());
+
+  const timeline = [dummy0, ...monthStepDates];
+
+  const series = [];
+
+  perModelAll.forEach(({ id, parentId, all }) => {
+    // baseTotal = last observation before first step date
+    let baseTotal = 0;
+    for (let i = 0; i < all.length; i++) {
+      if (all[i].date < monthStepDates[0]) {
+        baseTotal = all[i].total;
+      } else {
+        break;
+      }
+    }
+
+    const within = all.filter(
+      p => p.date >= monthStepDates[0] && p.date <= monthStepDates[monthStepDates.length - 1]
+    );
+    if (!within.length) return;
+
+    let j = 0;
+    let carry = Math.max(0, within[0].total - baseTotal);
+    const pts = [];
+
+    for (let i = 0; i < monthStepDates.length; i++) {
+      const d = monthStepDates[i];
+
+      while (j < within.length && within[j].date <= d) {
+        carry = Math.max(0, within[j].total - baseTotal);
+        j += 1;
+      }
+
+      const end = carry;
+      const idx = i + 1;
+      pts.push({ id, parentId, date: d, end, delta: 0, index: idx });
+    }
+
+    const ptsWithZero = [
+      { id, parentId, date: dummy0, end: 0, delta: 0, index: 0 },
+      ...pts
+    ];
+
+    for (let k = 1; k < ptsWithZero.length; k++) {
+      ptsWithZero[k].delta = ptsWithZero[k].end - ptsWithZero[k - 1].end;
+    }
+
+    const finalValue = ptsWithZero.length
+      ? ptsWithZero[ptsWithZero.length - 1].end
+      : 0;
+
+    series.push({ id, parentId, values: ptsWithZero, finalValue });
+  });
+
+  // sort models by final value
+  series.sort((a, b) => (b.finalValue || 0) - (a.finalValue || 0));
+
+  const totalCompanies = series.length;
+  const keepCount = totalCompanies
+    ? Math.max(1, Math.round((totalCompanies * INCLUDED_PERCENT) / 100))
+    : 0;
+  const kept = keepCount ? series.slice(0, keepCount) : [];
+
+  return { series: kept, timeline, totalCompanies, includedCount: kept.length };
+}
+
+
+
+    
+
+
+function parseDate(input){
+  if(!input){ return null; }
+  const text = String(input).trim();
+  if(!text){ return null; }
+  const iso = text.includes("T") ? text : `${text}T00:00:00Z`;
+  const date = new Date(iso);
+  return Number.isNaN(date.valueOf()) ? null : date;
+}
+
+function getOrgColor(id){
+  const meta = orgMeta.get(id);
+  if(meta && meta.color){ return meta.color; }
+  return colorScale(id);
+}
+
+function formatValue(value){
+  if(!Number.isFinite(value)){ return "0"; }
+  const abs = Math.abs(value);
+  if(abs >= 1e9){ return formatShort(value).replace("G", "B"); }
+  if(abs >= 1e6){ return formatShort(value); }
+  if(abs >= 1e3){ return formatShort(value); }
+  return formatComma(value);
+}
+
+function getOrgLogo(id){
+  const meta = orgMeta.get(id) || {};
+  return meta.logo || meta.logo_url || meta.avatar || meta.icon || null;
+}
+
+function getMonthTickStep(innerW){
+  if(innerW < 360){ return 6; }
+  if(innerW < 680){ return 3; }
+  if(innerW < 900){ return 2; }
+  return 1;
+}
+
+function render(){
+  if(!chartSeries.length){
+    svg.selectAll("*").remove();
+    return;
+  }
+  const margin = { top: 32, right: 40, bottom: 56, left: 74 };
+  const rect = vizEl.getBoundingClientRect();
+  const width = Math.max(margin.left + margin.right + 360, rect.width || 960);
+  const height = Math.max(margin.top + margin.bottom + 280, rect.height || 560);
+  svg.attr("viewBox", `0 0 ${width} ${height}`);
+  svg.attr("aria-label", `${METRIC.label} line chart for ${TARGET_YEAR}`);
+  const defs = svg.selectAll("defs").data([null]).join("defs");
+  const logoClip = defs.selectAll("clipPath#logoCircleClip").data([null]).join("clipPath").attr("id", "logoCircleClip").attr("clipPathUnits", "objectBoundingBox");
+  logoClip.selectAll("circle").data([null]).join("circle").attr("cx", 0.5).attr("cy", 0.5).attr("r", 0.5);
+  const root = svg.selectAll("g.chart-root").data([null]).join("g").attr("class", "chart-root").attr("transform", `translate(${margin.left},${margin.top})`);
+  const allDates = timelineDates.length ? timelineDates : chartSeries.flatMap(s => s.values.map(p => p.date));
+  if(!allDates.length){
+    svg.selectAll("*").remove();
+    return;
+  }
+  let xDomain = d3.extent(allDates);
+  if(!xDomain[0] || !xDomain[1] || xDomain[0].getTime() === xDomain[1].getTime()){
+    const base = xDomain[0] || new Date(Date.UTC(TARGET_YEAR, 0, 1));
+    xDomain = [d3.utcDay.offset(base, -3), d3.utcDay.offset(base, 3)];
+  }
+  const valuesFlat = chartSeries.flatMap(s => s.values.map(p => p.end));
+  const yMax = d3.max(valuesFlat);
+  xScale = d3.scaleUtc().domain(xDomain).range([0, Math.max(120, width - margin.left - margin.right)]);
+  yScale = d3.scaleLinear().domain([0, yMax]).nice().range([Math.max(120, height - margin.top - margin.bottom), 0]);
+  const innerW = xScale.range()[1];
+  const isTiny = innerW < 420;
+  const compact = innerW < 720 && !isTiny;
+  const dotR = isTiny ? Math.max(1, Math.min(3, Math.round(innerW / 360))) : compact ? Math.round(Math.max(2, Math.min(4, innerW / 300))) : Math.round(Math.max(3, Math.min(6, innerW / 250)));
+  const xTickStep = getMonthTickStep(innerW);
+  const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(xTickStep)).tickFormat(d3.utcFormat("%b %Y"));
+  const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
+  const grid = root.selectAll("g.grid-y").data([null]).join("g").attr("class", "grid grid-y").call(d3.axisLeft(yScale).ticks(6).tickSize(-xScale.range()[1]).tickFormat(""));
+  grid.select(".domain").remove();
+  grid.selectAll("line").attr("stroke", "rgba(230,232,239,0.45)");
+  const xAxisGroup = root.selectAll("g.x-axis").data([null]).join("g").attr("class", "axis x-axis").attr("transform", `translate(0,${yScale.range()[0]})`).call(xAxis);
+  const yAxisGroup = root.selectAll("g.y-axis").data([null]).join("g").attr("class", "axis y-axis").call(yAxis);
+  yAxisGroup.select(".domain").remove();
+  xAxisGroup.select(".domain").attr("stroke", "#cfd2d7");
+  lineGenerator = d3.line().defined(point => Number.isFinite(point.end)).x(point => xScale(point.date)).y(point => yScale(point.end));
+  const seriesGroups = root.selectAll("g.series-group").data(chartSeries, d => d.id);
+  const seriesEnter = seriesGroups.enter().append("g").attr("class", "series-group");
+  seriesEnter.append("path").attr("class", "series-line").attr("fill", "none").attr("stroke-width", 2);
+  seriesEnter.append("g").attr("class", "series-dots");
+  const finalNode = seriesEnter.append("g").attr("class", "final-node");
+  finalNode.append("circle").attr("class", "final-outline");
+  finalNode.append("image").attr("class", "final-logo");
+  const seriesMerged = seriesEnter.merge(seriesGroups);
+  seriesMerged.each(function(series){
+    d3.select(this).select("path.series-line").attr("stroke", getOrgColor(series.id));
+    d3.select(this).select("g.series-dots").attr("data-dot-r", dotR);
+  });
+  seriesGroups.exit().remove();
+  updateFrameRange(currentStart, currentEnd);
+}
+
+function updateFrameRange(startIndex, endIndex){
+  if(!chartSeries.length || !timelineDates.length || !xScale || !yScale || !lineGenerator){ return; }
+  currentStart = Math.max(0, Math.min(startIndex, timelineDates.length - 1));
+  currentEnd = Math.max(currentStart, Math.min(endIndex, timelineDates.length - 1));
+  const root = svg.select("g.chart-root");
+  const innerWidth = xScale.range()[1];
+  const isTinyW = innerWidth < 420;
+  const compact = innerWidth < 720 && !isTinyW;
+  const logoSize = isTinyW ? Math.round(Math.max(14, Math.min(22, innerWidth / 40))) : compact ? Math.round(Math.max(16, Math.min(28, innerWidth / 36))) : Math.round(Math.max(22, Math.min(42, innerWidth / 26)));
+  const r = Math.round(logoSize / 2 + 2);
+  const recomputedDotR = (()=>{ if(isTinyW){ return Math.max(1, Math.min(3, Math.round(innerWidth / 360))); } if(compact){ return Math.round(Math.max(2, Math.min(4, innerWidth / 300))); } return Math.round(Math.max(3, Math.min(6, innerWidth / 250))); })();
+  const xTickStep = getMonthTickStep(innerWidth);
+  const domainStartDate = timelineDates[currentStart];
+  const domainEndDate = timelineDates[currentEnd];
+  xScale.domain([domainStartDate, domainEndDate]);
+  const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(xTickStep)).tickFormat(d3.utcFormat("%b %Y"));
+  root.select("g.x-axis").attr("transform", `translate(0,${yScale.range()[0]})`).call(xAxis);
+  root.select("g.x-axis .domain").attr("stroke", "#cfd2d7");
+  const adjustedById = new Map();
+  chartSeries.forEach(s=>{
+    const vis = s.values.filter(v => v.index >= currentStart && v.index <= currentEnd);
+    const baseIndex = currentStart - 1;
+    const basePt = baseIndex >= 0 ? s.values.find(v => v.index === baseIndex) : null;
+    const baseline = basePt ? basePt.end : 0;
+    const adj = vis.map(v => ({ ...v, end: Math.max(0, v.end - baseline) }));
+    adjustedById.set(s.id, { adj, last: adj[adj.length - 1] || null });
+  });
+  const yMaxWindow = d3.max(Array.from(adjustedById.values(), d => d3.max(d.adj, p => p.end))) || 0;
+  const newDomainMax = yMaxWindow > 0 ? yMaxWindow : 1;
+  yScale.domain([0, newDomainMax]).nice();
+  const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
+  root.select("g.y-axis").call(yAxis);
+  const gridCall = d3.axisLeft(yScale).ticks(6).tickSize(-xScale.range()[1]).tickFormat("");
+  const grid = root.select("g.grid-y").call(gridCall);
+  grid.select(".domain").remove();
+  grid.selectAll("line").attr("stroke", "rgba(230,232,239,0.45)");
+  const seriesMerged = root.selectAll("g.series-group");
+  seriesMerged.each(function(series){
+    const rec = adjustedById.get(series.id) || { adj: [], last: null };
+    const adjValues = rec.adj;
+    const drawValues = adjValues;
+    d3.select(this).select("path.series-line").attr("d", lineGenerator(drawValues));
+    const dotsSel = d3.select(this).select("g.series-dots").selectAll("circle.dot").data(drawValues, d => d.date.getTime());
+    dotsSel.enter().append("circle").attr("class", "dot").attr("fill", getOrgColor(series.id)).attr("stroke", "#fff").attr("stroke-width", 1).merge(dotsSel).attr("r", recomputedDotR).attr("cx", point => xScale(point.date)).attr("cy", point => yScale(point.end)).on("mouseenter", function(event, point){
+      const seriesGroup = d3.select(this.parentNode.parentNode);
+      seriesGroup.raise();
+      d3.select(this).transition().duration(120).attr("r", recomputedDotR + 3).attr("stroke-width", 2);
+      showTooltip(event, { ...point, seriesId: series.id });
+    }).on("mousemove", function(event, point){ moveTooltip(event, { ...point, seriesId: series.id }); }).on("mouseleave", function(){ d3.select(this).transition().duration(120).attr("r", recomputedDotR).attr("stroke-width", 1); hideTooltip(); });
+    dotsSel.exit().remove();
+    const lastPoint = rec.last;
+    const node = d3.select(this).select("g.final-node");
+    if(lastPoint){
+      const cx = xScale(lastPoint.date);
+      const cy = yScale(lastPoint.end);
+      const logoUrl = getOrgLogo(series.id) || "";
+      node.raise();
+      node.style("display", null);
+      node.select("circle.final-outline").attr("cx", cx).attr("cy", cy).attr("r", r).attr("fill", "#ffffff").attr("stroke", getOrgColor(series.id)).attr("stroke-width", 2);
+      node.select("image.final-logo").attr("href", logoUrl).attr("x", cx - logoSize / 2).attr("y", cy - logoSize / 2).attr("width", logoSize).attr("height", logoSize).attr("preserveAspectRatio", "xMidYMid slice").attr("clip-path", "url(#logoCircleClip)");
+      node.style("pointer-events", "all").on("mouseenter", (event)=>{ showTooltip(event, { ...lastPoint, seriesId: series.id }); }).on("mousemove", (event)=>{ moveTooltip(event, { ...lastPoint, seriesId: series.id }); }).on("mouseleave", ()=>{ hideTooltip(); });
+    }else{
+      node.style("display", "none");
+    }
+  });
+  updateDateUI();
+}
+
+function showTooltip(event, point){
+  tooltip.style("opacity", 1);
+  moveTooltip(event, point);
+}
+
+function moveTooltip(event, point){
+  const [x, y] = d3.pointer(event, vizEl);
+
+  let dateText = "Month";
+  if (point.date) {
+    dateText = dateFormatter(point.date); // e.g. "May 1, 2023"
+  }
+
+  const deltaText = Number.isFinite(point.delta) ? formatValue(point.delta) : "0";
+
+  tooltip.html(
+    `<strong>${point.id}</strong><br>` +
+    `${dateText}<br>` +
+    `${METRIC.label} so far: ${formatValue(point.end)}<br>` +
+    `This month: ${deltaText}`
+  );
+
+  const ttNode = tooltip.node();
+  const ttWidth = ttNode ? ttNode.offsetWidth : 0;
+  const left = Math.max(6, x - ttWidth - 14);
+  const top = Math.max(6, y - 28);
+  tooltip.style("left", `${left}px`);
+  tooltip.style("top", `${top}px`);
+}
+
+
+
+function hideTooltip(){ tooltip.style("opacity", 0); }
+
+function updateDateUI(){
+  if (!timelineDates.length || !dateDisplayEl) return;
+
+  const idx = Math.max(0, Math.min(currentEnd, timelineDates.length - 1));
+  const d = timelineDates[idx];
+
+  // Just show the month date directly
+  dateDisplayEl.textContent = dateFormatter(d);
+}
+
+function setupAnimation(){
+  if(!timelineDates.length){ return; }
+  const clampIndex = v => Math.max(0, Math.min(v, timelineDates.length - 1));
+  const findStartIdx = (date)=>{
+    let idx = timelineDates.findIndex(d => d.getTime() >= date.getTime());
+    if(idx === -1){ idx = timelineDates.length - 1; }
+    return clampIndex(idx);
+  };
+  const findEndIdx = (date)=>{
+    let idx = timelineDates.length - 1;
+    for(let i = timelineDates.length - 1; i >= 0; i--){
+      if(timelineDates[i].getTime() <= date.getTime()){ idx = i; break; }
+    }
+    return clampIndex(idx);
+  };
+  const startIdx = findStartIdx(DEFAULT_START_DATE);
+  const endIdx = findEndIdx(DEFAULT_END_DATE);
+  animDefaultStart = startIdx;
+  animDefaultEnd = endIdx;
+  animWindowSize = Math.max(1, animDefaultEnd - animDefaultStart);
+  currentEnd = animDefaultEnd;
+  currentStart = Math.max(0, currentEnd - animWindowSize);
+  animTargetEnd = findEndIdx(TARGET_END_DATE);
+  updateFrameRange(currentStart, currentEnd);
+  startTimer();
+}
+
+function tick(){
+  const hardStop = Math.min(animTargetEnd, timelineDates.length - 1);
+  if(currentEnd >= hardStop){
+    stopTimer();
+    if(replayTimeout){ window.clearTimeout(replayTimeout); }
+    replayTimeout = window.setTimeout(()=>{
+      currentEnd = animDefaultEnd;
+      currentStart = Math.max(0, currentEnd - animWindowSize);
+      updateFrameRange(currentStart, currentEnd);
+      startTimer();
+    }, REPLAY_DELAY);
+    return;
+  }
+  const nextEnd = Math.min(hardStop, currentEnd + autoStep);
+  const nextStart = Math.max(0, nextEnd - animWindowSize);
+  currentStart = nextStart;
+  currentEnd = nextEnd;
+  updateFrameRange(currentStart, currentEnd);
+}
+
+function startTimer(){
+  stopTimer();
+  autoTimer = window.setInterval(tick, autoDelay);
+}
+
+function stopTimer(){
+  if(autoTimer){ window.clearInterval(autoTimer); autoTimer = null; }
+}
+
+function restartTimerIfPlaying(){
+  if(autoTimer){ startTimer(); }
+}
+
+function setAutoStep(n){
+  const v = Math.max(STEP_MIN, Math.min(STEP_MAX, Math.round(n)));
+  autoStep = v;
+  restartTimerIfPlaying();
+}
+
+function setAutoDelay(ms){
+  const v = Math.max(DELAY_MIN, Math.min(DELAY_MAX, Math.round(ms)));
+  autoDelay = v;
+  restartTimerIfPlaying();
+}
+
+function bindSpeedKeys(){
+  window.addEventListener("keydown", e=>{
+    if(e.key === "-" || e.key === "_"){ setAutoDelay(autoDelay + 150); }
+    else if(e.key === "=" || e.key === "+"){ setAutoDelay(autoDelay - 120); }
+    else if(e.key === "["){ setAutoStep(autoStep - 1); }
+    else if(e.key === "]"){ setAutoStep(autoStep + 1); }
+  });
+  window.AnimationSpeed = { setAutoStep, setAutoDelay };
+}
+
+if(typeof ResizeObserver !== "undefined" && vizEl){
+  const chartObserver = new ResizeObserver(()=>{ render(); updateFrameRange(currentStart, currentEnd); });
+  chartObserver.observe(vizEl);
+}
+window.addEventListener("resize", ()=>{ render(); updateFrameRange(currentStart, currentEnd); });
+svg.on("mouseleave", hideTooltip);
+</script>
+</body>
+</html>
