@@ -1,0 +1,682 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style type="text/css">
+.knitr .inline { background-color: #F7F7F7; border: solid 1px #B0B0B0; }
+.error { font-weight: bold; color: #FF0000; }
+.warning { font-weight: bold; }
+.message { font-style: italic; }
+.source, .output, .warning, .error, .message { padding: 0 1em; border: solid 1px #F7F7F7; }
+.source { background-color: #F5F5F5; }
+.rimage .left { text-align: left; }
+.rimage .right { text-align: right; }
+.rimage .center { text-align: center; }
+.hl.num { color: #AF0F91; }
+.hl.str { color: #317ECC; }
+.hl.com { color: #AD95AF; font-style: italic; }
+.hl.opt { color: #000000; }
+.hl.std { color: #585858; }
+.hl.kwa { color: #295F94; font-weight: bold; }
+.hl.kwb { color: #B05A65; }
+.hl.kwc { color: #55AA55; }
+.hl.kwd { color: #BC5A65; font-weight: bold; }
+body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-serif; }
+
+.viz-grid { display: grid; grid-template-rows: 17fr 2fr 1fr; grid-template-columns: 1fr 1fr; height: 100vh; width: 100vw; box-sizing: border-box; padding-bottom: clamp(8px, 2vh, 18px); }
+#container1 { grid-row: 1; grid-column: 1 / span 2; overflow: hidden; min-height: 0; }
+#container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(8px, 1vh, 18px); padding: clamp(10px, 1.5vh, 18px) clamp(12px, 2vw, 24px); overflow: hidden; }
+#container3 { grid-row: 3; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 20px; overflow: visible; min-width: 0; }
+#container4 { grid-row: 3; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; padding: 0 20px; overflow: hidden; min-width: 0; gap: clamp(6px, 1.5vw, 18px); }
+#container4 a { height: 100%; display: flex; align-items: center; }
+
+#treemap { width: 100%; height: 100%; min-height: 0; min-width: 0; }
+.logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
+.source-text { font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal; }
+.source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; font-style: normal; }
+.source-text a:visited { color: #2756d3; }
+.custom-legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: clamp(6px, 1.5vw, 14px); background: rgba(255, 255, 255, 0.9); padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 16px); border-radius: clamp(6px, 1.2vw, 12px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: auto; max-width: 100%; max-height: 100%; font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; }
+.legend-item { display: flex; align-items: center; gap: 6px; cursor: pointer; transition: opacity 0.2s ease; font-weight: 600; color: #333; position: relative; }
+.legend-item.inactive { opacity: 0.35; }
+.legend-square { width: clamp(10px, 1.2vw, 14px); height: clamp(10px, 1.2vw, 14px); border-radius: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+.legend-item:focus-visible { outline: 2px solid rgba(0,0,0,0.5); outline-offset: 2px; }
+
+.top-filter { display: inline-flex; align-items: stretch; border: 1.5px solid #2756d3; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 3px 8px rgba(31,49,99,0.15); }
+.top-filter-button { border: none; background: transparent; color: #2756d3; padding: clamp(6px, 1vh, 10px) clamp(16px, 2vw, 22px); font-size: clamp(11px, 1.4vw, 15px); font-weight: 700; letter-spacing: 0.5px; cursor: pointer; transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease; text-transform: uppercase; line-height: 1.2; min-width: clamp(46px, 6vw, 70px); }
+.top-filter-button + .top-filter-button { border-left: 1px solid rgba(39,86,211,0.2); }
+.top-filter-button.active { background: #2756d3; color: #fff; box-shadow: inset 0 -2px 6px rgba(0,0,0,0.2); }
+.top-filter-button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.8), 0 0 0 2px rgba(31,49,99,0.4); }
+
+.source-wrapper { display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; flex-wrap: wrap; }
+.venue-selector { position: relative; display: flex; align-items: center; }
+.venue-dropdown-toggle { border: 1.5px solid rgba(39,86,211,0.4); background: #ffffff; color: #2756d3; padding: clamp(6px, 1vh, 11px) clamp(12px, 2vw, 18px); border-radius: 14px; font-size: clamp(11px, 1.4vw, 15px); font-weight: 600; cursor: pointer; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease; display: inline-flex; align-items: flex-start; justify-content: space-between; gap: 8px; width: clamp(220px, 24vw, 280px); white-space: normal; overflow: visible; text-align: left; line-height: 1.2; }
+.venue-dropdown-toggle:hover, .venue-dropdown-toggle:focus-visible { border-color: #2756d3; outline: none; }
+.venue-dropdown-toggle::after { content: ''; margin-left: auto; font-size: 0.9em; flex-shrink: 0; }
+.venue-dropdown { position: absolute; bottom: calc(100% + 6px); right: 0; width: clamp(220px, 24vw, 280px); max-height: clamp(180px, 30vh, 320px); overflow-y: auto; background: #fff; border: 1px solid rgba(0,0,0,0.15); border-radius: 12px; box-shadow: 0 12px 24px rgba(0,0,0,0.15); padding: 6px; display: none; z-index: 10; }
+.venue-dropdown.open { display: block; }
+.venue-option { width: 100%; border: none; background: transparent; text-align: left; padding: 8px 10px; border-radius: 8px; font-size: 0.92em; font-weight: 600; color: #333; cursor: pointer; transition: background 0.15s ease; }
+.venue-option:hover, .venue-option:focus { background: rgba(31,49,99,0.09); outline: none; }
+
+.error-message { font-size: clamp(12px, 1.6vw, 18px); font-weight: 600; color: #333; text-align: center; padding: clamp(12px, 2vh, 20px); }
+
+@media (max-height: 500px) {
+  .viz-grid { grid-template-rows: 1fr; grid-template-columns: 1fr; }
+  #container1 { grid-row: 1; grid-column: 1; }
+  #container2, #container3, #container4 { display: none !important; }
+  .custom-legend, .source-text, .logo, .venue-selector, .top-filter { display: none !important; }
+}
+</style>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1" class="container treemap-container">
+    <div id="treemap"></div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div class="custom-legend" id="legend"></div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-wrapper">
+      <div class="source-text">Source: <a href="https://openreview.net/group?id=NeurIPS.cc/2025" target="_blank">NeurIPS 2025</a></div>
+      <div class="venue-selector">
+        <button id="venueDropdownToggle" class="venue-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false">Select venue</button>
+        <div class="venue-dropdown" id="venueDropdown" role="listbox" aria-label="Lista de venues"></div>
+      </div>
+    </div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <div class="top-filter" id="topFilter" role="group" aria-label="Filtro Top de instituciones"></div>
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+    </a>
+  </div>
+</div>
+<script>
+(function(){
+var rawData = [];
+var groups = [];
+var groupColors = {};
+var activeGroups = new Set();
+var currentVenue = null;
+var venueTotals = [];
+var resizeTimer;
+var dataReady = false;
+var venueDropdownOpen = false;
+var venuePaperCounts = {};
+var hasVenuePaperCounts = false;
+var topLimitOptions = [
+  { label: "50", value: 50 },
+  { label: "100", value: 100 },
+  { label: "ALL", value: "All" }
+];
+var currentTopLimit = "All";
+var combinedVenueConfigs = [
+  {
+    id: "__spotlight_oral__",
+    label: "Spotlight + oral",
+    sources: [
+      "NeurIPS 2025 spotlight",
+      "NeurIPS 2025 oral"
+    ]
+  }
+];
+var combinedVenueMap = {};
+combinedVenueConfigs.forEach(function(cfg){
+  combinedVenueMap[cfg.id] = cfg;
+});
+
+function parseInstitutionFile(text){
+  var trimmed = (text || "").trim();
+  if(!trimmed) return [];
+  try {
+    var parsed = JSON.parse(trimmed);
+    if(Array.isArray(parsed)) return parsed;
+    if(parsed && Array.isArray(parsed.data)) return parsed.data;
+    return [];
+  } catch (initialError){
+    var normalized = trimmed;
+    if(normalized.charAt(0) !== "["){
+      normalized = "[" + normalized;
+    }
+    if(!normalized.endsWith("]")){
+      normalized = normalized + "]";
+    }
+    normalized = normalized.replace(/}\s*{/g, "},{");
+    var fallback = JSON.parse(normalized);
+    return Array.isArray(fallback) ? fallback : [];
+  }
+}
+
+function loadInstitutionData(){
+  return d3.text("institution_venues_v2.json").then(function(text){
+    try {
+      return parseInstitutionFile(text);
+    } catch (err) {
+      console.error("No se pudo interpretar institution_venues_v2.json", err);
+      throw err;
+    }
+  });
+}
+
+function getDatumField(d, field){
+  if(!d || !field) return undefined;
+  if(Object.prototype.hasOwnProperty.call(d, field) && d[field] !== undefined && d[field] !== null){
+    return d[field];
+  }
+  if(d.data && Object.prototype.hasOwnProperty.call(d.data, field)){
+    var value = d.data[field];
+    if(value !== undefined && value !== null) return value;
+  }
+  if(d.__d3plus__ && Object.prototype.hasOwnProperty.call(d.__d3plus__, field)){
+    var nested = d.__d3plus__[field];
+    if(nested !== undefined && nested !== null) return nested;
+  }
+  return undefined;
+}
+
+function lightenColor(hex, amount){
+  if(typeof hex !== "string") return hex;
+  var color = hex.trim();
+  var original = hex;
+  if(!color) return hex;
+  if(color.charAt(0) === "#"){
+    color = color.slice(1);
+  }
+  if(color.length === 3){
+    color = color.split("").map(function(ch){ return ch + ch; }).join("");
+  }
+  if(color.length !== 6) return original;
+  var amt = isNaN(amount) ? 0 : Math.max(0, Math.min(1, amount));
+  function mix(component){
+    var value = parseInt(component, 16);
+    if(isNaN(value)) return component;
+    var mixed = Math.round(value + (255 - value) * amt);
+    return mixed.toString(16).padStart(2, "0");
+  }
+  var r = mix(color.slice(0, 2));
+  var g = mix(color.slice(2, 4));
+  var b = mix(color.slice(4, 6));
+  return "#" + r + g + b;
+}
+
+function getBaseGroupKey(d){
+  if(!d) return "Unknown";
+  var direct = getDatumField(d, "parent");
+  if(typeof direct === "string" && direct){
+    return direct;
+  }
+  if(typeof d.depth === "number"){
+    if(d.depth === 0){
+      return d.id || "Unknown";
+    }
+    if(d.parent){
+      return getBaseGroupKey(d.parent);
+    }
+  }
+  return d.parent || d.id || "Unknown";
+}
+
+function formatVenueName(name){
+  if(!name) return "";
+  var cleaned = name.replace(/^NeurIPS 2025\s*/i, "").trim();
+  if(!cleaned) return "";
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+function getVenueDisplayName(name){
+  if(combinedVenueMap[name]) return combinedVenueMap[name].label;
+  return formatVenueName(name);
+}
+
+function getVenueSources(name){
+  if(combinedVenueMap[name]) return combinedVenueMap[name].sources;
+  return [name];
+}
+
+function buildVenuePaperCounts(rows){
+  var counts = {};
+  var seen = new Set();
+  rows.forEach(function(row){
+    if(!row) return;
+    var venue = row.venue || "";
+    var id = row.paperId || "";
+    if(!venue || !id || seen.has(id)) return;
+    seen.add(id);
+    counts[venue] = (counts[venue] || 0) + 1;
+  });
+  return counts;
+}
+
+function getDisplayCountForVenue(name, fallbackTotals){
+  var sources = getVenueSources(name);
+  return sources.reduce(function(sum, src){
+    var value = 0;
+    if(hasVenuePaperCounts){
+      value = venuePaperCounts[src] || 0;
+      if(value === 0 && fallbackTotals){
+        value = fallbackTotals[src] || 0;
+      }
+    } else if(fallbackTotals){
+      value = fallbackTotals[src] || 0;
+    }
+    return sum + value;
+  }, 0);
+}
+
+  var treemap = new d3plus.Treemap()
+    .select("#treemap")
+    .groupBy(["parent","parent2","name"])
+    .tooltipConfig({
+      title: function(d){ return d.name || d.id; },
+      body: function(d){
+        var region = getDatumField(d, "parent") || (d.parent && d.parent.id) || d.parent || d.id || "Sin region";
+        var subregion = getDatumField(d, "parent2");
+        var urbanZone = getDatumField(d, "urban_zone") || getDatumField(d, "urbanZone");
+        var value = d.value || 0;
+        var venueLabel = currentVenue ? getVenueDisplayName(currentVenue) : "Sin venue";
+        var lines = [
+          "<strong>Region:</strong> " + region
+        ];
+        if(subregion){
+          lines.push("<strong>Subregion:</strong> " + subregion);
+        }
+        lines.push("<strong>Urban zone:</strong> " + (urbanZone ? urbanZone : "Sin urban zone"));
+        lines.push("<strong>Venue:</strong> " + venueLabel);
+        lines.push("<strong>Count:</strong> " + value);
+        return lines.join("<br>");
+      }
+    })
+    .sum("value")
+    .layoutPadding(2)
+    .legend(false)
+    .color(function(d){
+      var baseKey = getBaseGroupKey(d);
+      var baseColor = getGroupColor(baseKey);
+      if(typeof d.depth === "number"){
+        if(d.depth === 1){
+          return lightenColor(baseColor, 0.35);
+        }
+        if(d.depth > 1){
+          return lightenColor(baseColor, 0.15);
+        }
+      }
+      return baseColor;
+    })
+    .shapeConfig({
+      rx: 6,
+      ry: 6,
+      stroke:function(d){
+        if(d.depth===0){
+          return getGroupColor(d.id);
+        }
+        if(d.depth===1){
+          return getGroupColor(getBaseGroupKey(d));
+        }
+        return "transparent";
+      },
+      strokeWidth:function(d){
+        if(d.depth===0){
+          return 3;
+        }
+        if(d.depth===1){
+          return 1.8;
+        }
+        return 0;
+      }
+    });
+
+  function init(){
+    var institutionsPromise = loadInstitutionData();
+    var papersPromise = d3.csv("neurips_2025_papers_with_institutions.csv", function(row){
+      var venue = (row.venue || "").trim();
+      var paperId = (row.id || row.forum || "").trim();
+      if(!venue || !paperId) return null;
+      return { venue: venue, paperId: paperId };
+    }).catch(function(err){
+      console.warn("No se pudo cargar neurips_2025_papers_with_institutions.csv", err);
+      return [];
+    });
+
+    Promise.all([institutionsPromise, papersPromise]).then(function(results){
+      var json = results[0];
+      var paperRows = Array.isArray(results[1]) ? results[1] : [];
+      rawData = (Array.isArray(json) ? json : []).filter(function(entry){
+        return entry && entry.parent && entry.parent !== "Unknown";
+      });
+      if(!rawData.length){
+        displayNoData("No se encontraron instituciones para visualizar.");
+        return;
+      }
+      venuePaperCounts = buildVenuePaperCounts(paperRows);
+      hasVenuePaperCounts = Object.keys(venuePaperCounts).length > 0;
+      buildGroupColorMap();
+      groups = Array.from(new Set(rawData.map(function(d){ return d.parent || "Unknown"; })));
+      activeGroups = new Set(groups);
+      buildVenueList();
+      buildVenueDropdown();
+      buildTopFilter();
+      buildLegend();
+      updateVisualization();
+      renderToContainerSize();
+    }).catch(function(err){
+      console.error("Error al cargar institution_venues_v2.json", err);
+      displayNoData("No se pudo cargar institution_venues_v2.json. Sirve el archivo desde un servidor local.");
+    });
+  }
+
+  function buildGroupColorMap(){
+    rawData.forEach(function(entry){
+      var parent = entry.parent || "Unknown";
+      if(!groupColors[parent] && entry.color){
+        groupColors[parent] = entry.color;
+      }
+    });
+  }
+
+  function buildVenueList(){
+    var totals = {};
+    rawData.forEach(function(entry){
+      Object.keys(entry.venues || {}).forEach(function(venue){
+        totals[venue] = (totals[venue] || 0) + (entry.venues[venue] || 0);
+      });
+    });
+    venueTotals = Object.keys(totals).map(function(key){
+      return {
+        name: key,
+        total: getDisplayCountForVenue(key, totals),
+        display: getVenueDisplayName(key)
+      };
+    }).sort(function(a, b){ return b.total - a.total; });
+    var comboEntries = combinedVenueConfigs.map(function(cfg){
+      var comboTotal = getDisplayCountForVenue(cfg.id, totals);
+      return { name: cfg.id, total: comboTotal, display: cfg.label, isCombined: true };
+    }).filter(function(entry){ return entry.total > 0; });
+    if(comboEntries.length){
+      venueTotals = comboEntries.concat(venueTotals);
+    }
+    currentVenue = venueTotals.length ? venueTotals[0].name : null;
+  }
+
+  function prepareDataForVenue(venue){
+    if(!venue) return [];
+    var sources = getVenueSources(venue);
+    var rows = rawData.map(function(entry){
+      var value = sources.reduce(function(sum, src){
+        return sum + ((entry.venues && entry.venues[src]) || 0);
+      }, 0);
+      var parentGroup = entry.parent || "Unknown";
+      var parent2Value = entry.parent2;
+      if(typeof parent2Value === "string"){
+        parent2Value = parent2Value.trim();
+      } else if(parent2Value !== undefined && parent2Value !== null){
+        parent2Value = String(parent2Value);
+      }
+      if(!parent2Value){
+        parent2Value = "Sin parent 2";
+      }
+      var zoneValue = entry.urban_zone;
+      if(zoneValue === undefined || zoneValue === null){
+        zoneValue = entry.urbanZone;
+      }
+      if(typeof zoneValue === "string"){
+        zoneValue = zoneValue.trim();
+      } else if(zoneValue !== undefined && zoneValue !== null){
+        zoneValue = String(zoneValue);
+      } else {
+        zoneValue = "";
+      }
+      return {
+        name: entry.name,
+        parent: parentGroup,
+        parent2: parent2Value,
+        urban_zone: zoneValue,
+        value: value
+      };
+    }).filter(function(d){
+      return d.value > 0 && activeGroups.has(d.parent);
+    });
+    rows.sort(function(a, b){ return b.value - a.value; });
+    return applyTopLimit(rows);
+  }
+
+  function applyTopLimit(dataset){
+    if(currentTopLimit === "All"){ return dataset; }
+    var limitValue = typeof currentTopLimit === "number" ? currentTopLimit : parseInt(currentTopLimit, 10);
+    if(isNaN(limitValue)){ return dataset; }
+    return dataset.slice(0, Math.max(0, limitValue));
+  }
+
+  function getGroupColor(parent){
+    return groupColors[parent] || "#666666";
+  }
+
+  function updateVisualization(){
+    if(!currentVenue){
+      dataReady = false;
+      treemap.data([]).render();
+      updateLegendState();
+      updateVenueToggleLabel();
+      updateTopFilterState();
+      return;
+    }
+    var dataset = prepareDataForVenue(currentVenue);
+    treemap.data(dataset).render();
+    dataReady = true;
+    updateLegendState();
+    updateVenueToggleLabel();
+    updateTopFilterState();
+  }
+
+  function buildVenueDropdown(){
+    var dropdown = document.getElementById("venueDropdown");
+    var toggle = document.getElementById("venueDropdownToggle");
+    if(!dropdown || !toggle) return;
+    dropdown.innerHTML = "";
+    venueTotals.forEach(function(info){
+      var option = document.createElement("button");
+      option.type = "button";
+      option.className = "venue-option";
+      option.setAttribute("data-venue", info.name);
+      option.setAttribute("role", "option");
+      option.textContent = info.display + " (" + info.total + ")";
+      option.addEventListener("click", function(){
+        setVenue(info.name);
+      });
+      dropdown.appendChild(option);
+    });
+    toggle.disabled = venueTotals.length === 0;
+    toggleVenueDropdown(false);
+    updateVenueToggleLabel();
+  }
+
+  function updateVenueToggleLabel(){
+    var toggle = document.getElementById("venueDropdownToggle");
+    if(!toggle) return;
+    var label = currentVenue ? getVenueDisplayName(currentVenue) : "Seleccionar venue";
+    toggle.textContent = label;
+    toggle.setAttribute("aria-expanded", venueDropdownOpen ? "true" : "false");
+    toggle.title = currentVenue ? "Mostrando: " + label : "Selecciona un venue";
+  }
+
+  function toggleVenueDropdown(forceOpen){
+    var dropdown = document.getElementById("venueDropdown");
+    var toggle = document.getElementById("venueDropdownToggle");
+    if(!dropdown || !toggle) return;
+    var nextState = typeof forceOpen === "boolean" ? forceOpen : !venueDropdownOpen;
+    venueDropdownOpen = nextState;
+    dropdown.classList.toggle("open", nextState);
+    toggle.setAttribute("aria-expanded", nextState ? "true" : "false");
+  }
+
+  function closeVenueDropdown(){
+    if(venueDropdownOpen){
+      toggleVenueDropdown(false);
+    }
+  }
+
+  function setVenue(name){
+    if(!name){
+      closeVenueDropdown();
+      return;
+    }
+    if(currentVenue === name){
+      closeVenueDropdown();
+      return;
+    }
+    currentVenue = name;
+    closeVenueDropdown();
+    updateVisualization();
+  }
+
+  function buildTopFilter(){
+    var container = document.getElementById("topFilter");
+    if(!container) return;
+    container.innerHTML = "";
+    topLimitOptions.forEach(function(opt){
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "top-filter-button";
+      button.textContent = opt.label;
+      button.setAttribute("data-limit", opt.value);
+      var description = opt.value === "All" ? "Mostrar todas las instituciones" : "Mostrar top " + opt.value + " instituciones";
+      button.title = description;
+      button.setAttribute("aria-label", description);
+      button.addEventListener("click", function(){
+        if(currentTopLimit === opt.value){
+          return;
+        }
+        currentTopLimit = opt.value;
+        updateTopFilterState();
+        updateVisualization();
+      });
+      container.appendChild(button);
+    });
+    updateTopFilterState();
+  }
+
+  function updateTopFilterState(){
+    document.querySelectorAll(".top-filter-button").forEach(function(btn){
+      var valueAttr = btn.getAttribute("data-limit");
+      var normalized = valueAttr === "All" ? "All" : parseInt(valueAttr, 10);
+      var isActive = (currentTopLimit === "All" && normalized === "All") ||
+                     (typeof currentTopLimit === "number" && normalized === currentTopLimit);
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
+
+  function buildLegend(){
+    var legend = document.getElementById("legend");
+    if(!legend) return;
+    legend.innerHTML = "";
+    groups.forEach(function(group){
+      var item = document.createElement("div");
+      item.className = "legend-item active";
+      item.setAttribute("data-group", group);
+      item.setAttribute("role","button");
+      item.setAttribute("tabindex","0");
+      item.setAttribute("aria-pressed","true");
+      var square = document.createElement("div");
+      square.className = "legend-square";
+      square.style.backgroundColor = getGroupColor(group);
+      var label = document.createElement("span");
+      label.textContent = group;
+      item.appendChild(square);
+      item.appendChild(label);
+
+      function toggle(){
+        if(activeGroups.has(group)){
+          activeGroups.delete(group);
+        } else {
+          activeGroups.add(group);
+        }
+        updateVisualization();
+      }
+
+      item.addEventListener("click", toggle);
+      item.addEventListener("keydown", function(e){
+        if(e.key === "Enter" || e.key === " "){
+          e.preventDefault();
+          toggle();
+        }
+      });
+      legend.appendChild(item);
+    });
+  }
+
+  function updateLegendState(){
+    document.querySelectorAll(".legend-item").forEach(function(item){
+      var grp = item.getAttribute("data-group");
+      var isActive = activeGroups.has(grp);
+      item.classList.toggle("inactive", !isActive);
+      item.classList.toggle("active", isActive);
+      item.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
+
+  function displayNoData(message){
+    var el = document.getElementById("treemap");
+    dataReady = false;
+    if(el){
+      el.innerHTML = "<div class='error-message'>" + message + "</div>";
+    }
+    updateVenueToggleLabel();
+  }
+
+  function renderToContainerSize(){
+    if(!dataReady) return;
+    var el = document.getElementById("treemap");
+    if(!el) return;
+    var rect = el.getBoundingClientRect();
+    try {
+      if(typeof treemap.width === "function") treemap.width(rect.width);
+      if(typeof treemap.height === "function") treemap.height(rect.height);
+    } catch(e) {}
+    treemap.render();
+  }
+
+  function bindVenueSelectorEvents(){
+    var toggle = document.getElementById("venueDropdownToggle");
+    var dropdown = document.getElementById("venueDropdown");
+    if(toggle){
+      toggle.addEventListener("click", function(e){
+        e.stopPropagation();
+        toggleVenueDropdown();
+      });
+    }
+    if(dropdown){
+      dropdown.addEventListener("click", function(e){
+        e.stopPropagation();
+      });
+    }
+    document.addEventListener("click", function(){
+      closeVenueDropdown();
+    });
+    document.addEventListener("keydown", function(e){
+      if(e.key === "Escape"){
+        closeVenueDropdown();
+      }
+    });
+  }
+
+  window.addEventListener("resize", function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(renderToContainerSize, 120);
+  });
+
+  if (typeof ResizeObserver !== "undefined") {
+    var observer = new ResizeObserver(function(){ renderToContainerSize(); });
+    var treemapEl = document.getElementById("treemap");
+    if(treemapEl){
+      observer.observe(treemapEl);
+    }
+  }
+
+  bindVenueSelectorEvents();
+  init();
+})();
+</script>
+</body>
+</html>
