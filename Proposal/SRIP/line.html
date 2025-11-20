@@ -272,11 +272,29 @@ function buildSeriesData(sourceData){
   var seriesMap = new Map();
   years.forEach(function(year){
     var yearData = sourceData[year] || [];
+
+    // Aggregate multiple rows per entity within the same year
+    var aggregated = new Map();
     yearData.forEach(function(d){
-      if(!seriesMap.has(d.name)){
-        seriesMap.set(d.name, { name: d.name, continent: d.continent, values: [] });
+      if(!d.name) return;
+      var val = Number(d.value);
+      if(!isFinite(val)) val = 0;
+      if(!aggregated.has(d.name)){
+        aggregated.set(d.name, { value: val, continent: d.continent || null });
+      } else {
+        var entry = aggregated.get(d.name);
+        entry.value += val;
+        if(!entry.continent && d.continent){ entry.continent = d.continent; }
       }
-      seriesMap.get(d.name).values.push({ year: +year, value: d.value });
+    });
+
+    aggregated.forEach(function(entry, name){
+      if(!seriesMap.has(name)){
+        seriesMap.set(name, { name: name, continent: entry.continent, values: [] });
+      }
+      var series = seriesMap.get(name);
+      if(!series.continent && entry.continent){ series.continent = entry.continent; }
+      series.values.push({ year: +year, value: entry.value });
     });
   });
 
