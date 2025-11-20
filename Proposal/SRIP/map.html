@@ -282,14 +282,12 @@
         let cityIdToContinentMap = {};
         let countryToContinentMap = {};
 
-        // World map projection
         const projection = d3.geoNaturalEarth1()
             .scale(200)
             .translate([width / 2, height / 2]);
 
         const path = d3.geoPath().projection(projection);
 
-        // Zoom behavior
         const zoom = d3.zoom()
             .scaleExtent([1, 8])
             .on("zoom", (event) => {
@@ -297,7 +295,6 @@
             });
         svg.call(zoom);
 
-        // CSV parsing function
         function parseCSV(text) {
             const lines = text.trim().split('\n');
             const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
@@ -333,12 +330,12 @@
             return data;
         }
 
-        // Transform CSV to usable data
         function transformCSVData(csvData) {
-            return csvData.map(row => ({
-                name: row.geo || '',
-                value: parseFloat(row.count) || 0
-            }));
+            return csvData.map(row => {
+                const rawValue = parseFloat(row.count);
+                const value = Number.isFinite(rawValue) ? rawValue : 0;
+                return { name: row.geo || '', value: value };
+            });
         }
 
         function buildGeoLookupMaps(geoData) {
@@ -442,35 +439,28 @@
             return null;
         }
 
-        // Load all data
         function loadAllData() {
             const years = ['2020', '2021', '2022', '2023', '2024', '2025'];
 
             Promise.all([
-                // Load world map
                 d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"),
-                // Load geo location data from local crosswalk.json - handle NaN values
                 fetch("crosswalk.json")
                     .then(r => r.text())
                     .then(text => {
-                        // Replace NaN with null before parsing
                         const cleanedText = text.replace(/:\s*NaN\s*,/g, ': null,').replace(/:\s*NaN\s*}/g, ': null}');
                         return JSON.parse(cleanedText);
                     }),
-                // Load all year country CSVs
                 ...years.map(year =>
                     fetch('country/' + year + '.csv')
                         .then(r => r.text())
                         .then(text => ({ year: year, category: 'country', data: parseCSV(text) }))
                 ),
-                // Load all year city CSVs
                 ...years.map(year =>
                     fetch('urban/' + year + '.csv')
                         .then(r => r.text())
                         .then(text => ({ year: year, category: 'city', data: parseCSV(text) }))
                 )
             ]).then(([worldData, geoData, ...yearResults]) => {
-                // Draw world map
                 mapLayer.append("path")
                     .datum(topojson.feature(worldData, worldData.objects.countries))
                     .attr("class", "land")
@@ -483,7 +473,6 @@
 
                 buildGeoLookupMaps(geoData);
 
-                // Process CSV data for each year
                 yearResults.forEach(result => {
                     if (result.category === 'country') {
                         countriesData[result.year] = transformCSVData(result.data);
@@ -492,7 +481,6 @@
                     }
                 });
 
-                // Hide spinner and render initial view
                 d3.select("#spinner").style("display", "none");
                 updateVisualization();
             }).catch(err => {
@@ -501,7 +489,6 @@
             });
         }
 
-        // Apply limit to data
         function applyLimit(arr, limit) {
             if (limit === 'all') return arr;
             const limitNum = parseInt(limit);
@@ -509,20 +496,16 @@
             return sorted.slice(0, limitNum);
         }
 
-        // Match city names with geo locations
         function matchCityName(csvName) {
-            // Try exact match first
             if (geoLocationMap[csvName]) {
                 return geoLocationMap[csvName];
             }
 
-            // Try removing code in parentheses
             const cleanName = csvName.replace(/\s*\(\d+\)$/, '').trim();
             if (geoLocationMap[cleanName]) {
                 return geoLocationMap[cleanName];
             }
 
-            // Try partial match
             for (let geoName in geoLocationMap) {
                 if (csvName.includes(geoName) || geoName.includes(csvName.split(' ')[0])) {
                     return geoLocationMap[geoName];
@@ -532,23 +515,21 @@
             return null;
         }
 
-        // Format number for display
         function formatNumber(num) {
-            if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
-            if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
-            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
-            return Math.round(num).toString();
+            let value = Number(num);
+            if (!isFinite(value)) value = 0;
+            if (value >= 1e9) return (value / 1e9).toFixed(1) + 'B';
+            if (value >= 1e6) return (value / 1e6).toFixed(1) + 'M';
+            if (value >= 1e3) return (value / 1e3).toFixed(1) + 'K';
+            return Math.round(value).toString();
         }
 
-        // Match country names with geo locations
         function matchCountryName(csvName) {
             if (!csvName) return null;
-            // Try exact match first
             if (countryLocationMap[csvName]) {
                 return countryLocationMap[csvName];
             }
 
-            // Try ISO code in parentheses (e.g., "United States (US)")
             const isoMatch = csvName.match(/\(([^)]+)\)\s*$/);
             if (isoMatch) {
                 const code = isoMatch[1].trim().toUpperCase();
@@ -557,13 +538,12 @@
                 }
             }
 
-            // Try removing code in parentheses (e.g., "United States (US)" -> "United States")
+
             const cleanName = csvName.replace(/\s*\([^)]+\)\s*$/, '').trim();
             if (countryLocationMap[cleanName]) {
                 return countryLocationMap[cleanName];
             }
 
-            // Try partial match
             for (let countryName in countryLocationMap) {
                 if (csvName.includes(countryName) || countryName.includes(csvName.split(' ')[0])) {
                     return countryLocationMap[countryName];
@@ -573,15 +553,13 @@
             return null;
         }
 
-        // Update visualization
         function updateVisualization() {
-            let yearData, dataWithCoords;
+            let yearData, dataWithCoord
 
             if (currentCategory === 'cities') {
                 yearData = citiesData[currentYear] || [];
                 const limitedData = applyLimit(yearData, currentLimit);
 
-                // Add geo coordinates to city data
                 dataWithCoords = limitedData
                     .map(d => {
                         const geo = matchCityName(d.name);
@@ -599,11 +577,9 @@
                     })
                     .filter(d => d !== null && !isNaN(d.x) && !isNaN(d.y));
             } else {
-                // Countries
                 yearData = countriesData[currentYear] || [];
                 const limitedData = applyLimit(yearData, currentLimit);
 
-                // Add geo coordinates to country data
                 dataWithCoords = limitedData
                     .map(d => {
                         const geo = matchCountryName(d.name);
@@ -622,24 +598,23 @@
                     .filter(d => d !== null && !isNaN(d.x) && !isNaN(d.y));
             }
 
-            // Calculate radius scale
             const maxValue = d3.max(dataWithCoords, d => d.value) || 1;
             const radiusScale = d3.scaleSqrt()
                 .domain([0, maxValue])
                 .range([2, 30]);
 
-            // Update bubbles
+
             const bubbles = bubbleLayer.selectAll("circle.bubble")
                 .data(dataWithCoords, d => d.name);
 
-            // Exit
+
             bubbles.exit()
                 .transition()
                 .duration(500)
                 .attr("r", 0)
                 .remove();
 
-            // Enter + Update
+
             bubbles.enter()
                 .append("circle")
                 .attr("class", "bubble")
@@ -678,7 +653,7 @@
                 .attr("r", d => radiusScale(d.value));
         }
 
-        // Year slider control
+
         const yearSlider = document.getElementById('year-slider');
         const yearLabel = document.getElementById('year-label');
 
@@ -691,7 +666,6 @@
             updateVisualization();
         });
 
-        // Limit buttons control
         document.querySelectorAll('#limit-group .control-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('#limit-group .control-btn').forEach(b => b.classList.remove('active'));
@@ -701,7 +675,6 @@
             });
         });
 
-        // Category buttons control
         document.querySelectorAll('#category-group .control-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 document.querySelectorAll('#category-group .control-btn').forEach(b => b.classList.remove('active'));
@@ -711,7 +684,6 @@
             });
         });
 
-        // Initialize
         loadAllData();
     </script>
 </body>

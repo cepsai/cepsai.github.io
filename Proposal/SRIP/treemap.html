@@ -124,14 +124,16 @@ var currentYear = '2024';
 var buttonsDisabled = false;
 
 function formatNumber(num){
-  if(num >= 1e9){
-    return (num / 1e9).toFixed(1) + 'B';
-  } else if(num >= 1e6){
-    return (num / 1e6).toFixed(1) + 'M';
-  } else if(num >= 1e3){
-    return (num / 1e3).toFixed(1) + 'K';
+  var value = Number(num);
+  if(!isFinite(value)) value = 0;
+  if(value >= 1e9){
+    return (value / 1e9).toFixed(1) + 'B';
+  } else if(value >= 1e6){
+    return (value / 1e6).toFixed(1) + 'M';
+  } else if(value >= 1e3){
+    return (value / 1e3).toFixed(1) + 'K';
   }
-  return Math.round(num).toString();
+  return Math.round(value).toString();
 }
 
 function normalizeData(arr){
@@ -139,6 +141,7 @@ function normalizeData(arr){
     var parent = d.parent || d.parentName || d.group || d.domain || d.category || d.type || d.class;
     var name = d.name || d.id || d.label || d.title;
     var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+    if(!isFinite(value)) value = 0;
     return { parent: parent, name: name, value: value };
   }).filter(function(d){
     return d.parent && d.name;
@@ -202,14 +205,11 @@ function getLabelColor(d){
 
 var percentageMap = {};
 
-// UPDATED: Logic for the label (Name + Value/Percentage)
 function getLabelText(d){
   if(d.depth === 0) return d.id;
 
-  // Build the label with name and value/percentage
   var label = d.name;
 
-  // Add the value or percentage based on current view
   if(currentView === 'percent') {
     var key = (d.parent || d.id) + '|' + d.name;
     var percentage = percentageMap[key] || 0;
@@ -256,19 +256,23 @@ function applyLimit(arr, limit){
 
   var limitNum = parseInt(limit);
 
-  // Sort all items by value (descending) and take top N globally
   var sorted = arr.slice().sort(function(a, b){ return b.value - a.value; });
   return sorted.slice(0, limitNum);
 }
 
 function calculatePercentages(arr){
-  // Calculate global total across ALL items (world total)
-  var globalTotal = arr.reduce(function(sum, d){ return sum + d.value; }, 0);
+  var globalTotal = arr.reduce(function(sum, d){
+    var val = Number(d.value);
+    if(!isFinite(val)) val = 0;
+    return sum + val;
+  }, 0);
 
   var map = {};
   arr.forEach(function(d){
     var key = d.parent + '|' + d.name;
-    map[key] = globalTotal > 0 ? (d.value / globalTotal) * 100 : 0;
+    var val = Number(d.value);
+    if(!isFinite(val)) val = 0;
+    map[key] = globalTotal > 0 ? (val / globalTotal) * 100 : 0;
   });
 
   return map;
@@ -279,7 +283,6 @@ function updateVisualization(){
   var filteredData = rawOriginalData.filter(function(d){ return activeGroups.has(d.parent); });
   var limitedData = applyLimit(filteredData, currentLimit);
 
-  // Calculate percentages before rendering
   percentageMap = calculatePercentages(limitedData);
 
   data = limitedData;
@@ -383,13 +386,11 @@ function initializeVisualization(){
   });
   activeGroups = new Set(groups);
   
-  // Ensure everything is set up before first render
   buildLegend();
   updateVisualization();
 }
 
 function buildCityToContinentMap(){
-  // Load crosswalk data to map cities and countries to continents
   cityToContinentMap = {};
   cityIdToContinentMap = {};
   countryToContinentMap = {};
@@ -397,7 +398,6 @@ function buildCityToContinentMap(){
   return fetch('crosswalk.json')
     .then(function(r){ return r.text(); })
     .then(function(text){
-      // Replace NaN with null before parsing
       var cleanedText = text.replace(/:\s*NaN\s*,/g, ': null,').replace(/:\s*NaN\s*}/g, ': null}');
       var geoData = JSON.parse(cleanedText);
 
@@ -410,7 +410,6 @@ function buildCityToContinentMap(){
         }
       }
 
-      // Build maps using urban_id and names directly from crosswalk
       geoData.forEach(function(city){
         var cityName = city.urban_name ? city.urban_name.trim() : '';
         var urbanId = city.urban_id;
@@ -419,18 +418,15 @@ function buildCityToContinentMap(){
         var countryNameUN = city.country_name_un ? city.country_name_un.trim() : '';
         var countryCode = city.country_id ? city.country_id.toString().trim().toUpperCase() : '';
 
-        // Use continent field directly from crosswalk.json
         if(cityName && continent){
           cityToContinentMap[cityName] = continent;
         }
 
-        // Also map by urban_id (the number in parentheses in CSV)
         var numericId = parseInt(urbanId, 10);
         if(!isNaN(numericId) && continent){
           cityIdToContinentMap[numericId] = continent;
         }
 
-        // Country-level mappings so country CSV rows can find continents
         addCountryMapping(countryName, continent);
         addCountryMapping(countryNameUN, continent);
         addCountryMapping(countryCode, continent);
@@ -455,8 +451,6 @@ function getCitiesDataWithContinents(yearData){
     var cityName = city.name || '';
     var continent = null;
 
-    // Strategy 1: Extract urban_id from parentheses (most accurate)
-    // e.g., "Beijing (204)" -> urban_id = 204
     var idMatch = cityName.match(/\((\d+)\)$/);
     if(idMatch){
       var urbanId = parseInt(idMatch[1]);
@@ -464,24 +458,17 @@ function getCitiesDataWithContinents(yearData){
         continent = cityIdToContinentMap[urbanId];
       }
     }
-
-    // Strategy 2: Try name-based matching if ID lookup failed
     if(!continent){
-      // Remove the ID in parentheses for name matching
       var cleanName = cityName.replace(/\s*\(\d+\)$/, '').trim();
 
-      // Try exact match with cleaned name
       if(cityToContinentMap[cleanName]){
         continent = cityToContinentMap[cleanName];
       } else if(cityToContinentMap[cityName]){
-        // Try original name
         continent = cityToContinentMap[cityName];
       }
     }
-
-    // Default to "Urban Areas" if no continent found
     if(!continent){
-      continent = "Urban Areas";
+      continent = "Unknown";
     }
 
     var newCity = Object.assign({}, city);
@@ -569,10 +556,8 @@ function transformCSVToTreemapData(csvData, isCity){
 
     var continent;
     if(isCity){
-      // For cities, we'll determine continent later
-      continent = "Other"; // Temporary, will be updated in getCitiesDataWithContinents
+      continent = "Other";
     } else {
-      // For countries, look up continent
       continent = getCountryContinent(geo);
     }
 

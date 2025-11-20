@@ -1,0 +1,582 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-serif; background: #ffffff; }
+
+.viz-grid { display: grid; grid-template-rows: 17fr 2fr 1fr; grid-template-columns: 1fr 1fr; height: 100vh; width: 100vw; box-sizing: border-box; padding-bottom: clamp(8px, 2vh, 18px); }
+#container1 { grid-row: 1; grid-column: 1 / span 2; position: relative; overflow: hidden; min-height: 0; }
+#container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; gap: clamp(16px, 3vw, 36px); padding: 0 20px; overflow: visible; position: relative; z-index: 20; }
+#container3 { grid-row: 3; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 20px; overflow: hidden; min-width: 0; }
+#container4 { grid-row: 3; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; padding: 0 20px; overflow: hidden; min-width: 0; }
+#container4 a { height: 100%; display: flex; align-items: center; }
+
+#linechart { width: 100%; height: 100%; min-height: 0; min-width: 0; background: #ffffff; }
+.status-text { position: absolute; top: 16px; left: 20px; z-index: 15; font-size: 13px; font-weight: 600; color: #555; background: rgba(255,255,255,0.9); padding: 6px 10px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); display: none; }
+.logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
+.source-text { font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal; }
+.source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; font-style: normal; }
+.source-text a:visited { color: #2756d3; }
+
+.select-container { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.6vw, 16px); background: rgba(255, 255, 255, 0.9); border-radius: clamp(4px, 0.8vw, 8px); box-shadow: 0 1px 4px rgba(0,0,0,0.15); z-index: 30; }
+.select-label { font-size: clamp(11px, 1.4vw, 14px); font-weight: 600; color: #4169E1; }
+.entity-toggle { border: 1px solid #d0d0d0; border-radius: 8px; padding: 10px 12px; min-width: clamp(200px, 28vw, 360px); background: #ffffff; font-size: 12px; font-weight: 700; color: #333; cursor: pointer; text-align: left; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.entity-toggle:hover { background: #f5f5f5; }
+.entity-toggle .chevron { font-size: 14px; }
+.entity-list { position: absolute; bottom: calc(100% + 8px); left: 0; min-width: clamp(200px, 28vw, 360px); max-height: 240px; overflow-y: auto; border: 1px solid #d0d0d0; border-radius: 8px; background: #ffffff; box-shadow: 0 6px 24px rgba(0,0,0,0.18); z-index: 40; display: none; }
+.entity-item { padding: 8px 10px; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.entity-item.active { background: #e9efff; font-weight: 700; }
+.entity-item:hover { background: #f5f5f5; }
+.button-group { display: flex; align-items: center; gap: 0; border-radius: clamp(4px, 0.8vw, 8px); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+.control-btn { padding: clamp(6px, 1vh, 10px) clamp(12px, 2vw, 20px); font-size: clamp(11px, 1.4vw, 14px); font-weight: 600; border: none; background: #ffffff; color: #333; cursor: pointer; transition: all 0.2s ease; }
+.control-btn:not(:last-child) { border-right: 1px solid #e0e0e0; }
+.control-btn:hover:not(.active) { background: #f5f5f5; }
+.control-btn.active { background: #4169E1; color: #ffffff; }
+.control-btn:focus-visible { outline: 2px solid rgba(65, 105, 225, 0.5); outline-offset: -2px; z-index: 1; }
+
+.tooltip { position: absolute; background: white; padding: 10px; border: 1px solid #ccc; border-radius: 4px; pointer-events: none; opacity: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.2); font-size: 12px; z-index: 20; }
+.legend { display: flex; flex-wrap: wrap; gap: 10px; padding: 10px 20px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: #333; background: rgba(255,255,255,0.9); padding: 6px 10px; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+.legend-swatch { width: 12px; height: 12px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+
+.spinner { position: absolute; top: 50%; left: 50%; width: 50px; height: 50px; border: 5px solid #ccc; border-top: 5px solid #4169E1; border-radius: 50%; animation: spin 1s linear infinite; z-index: 10; }
+@keyframes spin { 0% { transform: translate(-50%, -50%) rotate(0deg); } 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1">
+    <div class="spinner" id="spinner"></div>
+    <div class="status-text" id="status"></div>
+    <svg id="linechart"></svg>
+    <div class="tooltip" id="tooltip"></div>
+  </div>
+  <div id="container2">
+    <div class="select-container">
+      <label for="entity-select" class="select-label" id="select-label">Select Countries</label>
+      <button id="entity-toggle" class="entity-toggle" aria-haspopup="listbox" aria-expanded="false">
+        <span id="entity-toggle-label">Top 5 Countries</span>
+        <span class="chevron">▼</span>
+      </button>
+      <div id="entity-list" class="entity-list" role="listbox" aria-multiselectable="true"></div>
+    </div>
+    <div class="button-group" id="category-group">
+      <button class="control-btn active" data-category="countries">COUNTRIES</button>
+      <button class="control-btn" data-category="cities">CITIES</button>
+    </div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank">Crunchbase</a></div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+    </a>
+  </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+var years = ['2020','2021','2022','2023','2024','2025'];
+var countriesData = {};
+var citiesData = {};
+var countryToContinentMap = {};
+var cityToContinentMap = {};
+var cityIdToContinentMap = {};
+var currentCategory = 'countries';
+var statusEl;
+var selectedEntities = new Set();
+var defaultTopCount = 10;
+var defaultSelectedCount = 5;
+var hasInitializedSelection = false;
+var dropdownOpen = false;
+
+var regionColorMap = {
+  "United States & Canada": "#ec787a",
+  "North America": "#ec787a",
+  "Asia": "#fadb56",
+  "Europe": "#f5ae6c",
+  "Oceania": "#887aa5",
+  "Africa": "#7a98ad",
+  "Latin America": "#81b29a",
+  "Urban Areas": "#7f8c8d"
+};
+var fallbackPalette = ["#1F77B4","#FF7F0E","#2CA02C","#9467BD","#D62728","#17BECF","#8C564B","#E377C2","#7F7F7F","#BCBD22"];
+
+function parseCSV(text){
+  return d3.csvParse(text);
+}
+
+function buildCrosswalkMaps(){
+  countryToContinentMap = {};
+  cityToContinentMap = {};
+  cityIdToContinentMap = {};
+
+  function addCountryMapping(key, continent){
+    if(!key || !continent) return;
+    var cleanKey = key.toString().trim();
+    if(!cleanKey) return;
+    if(!countryToContinentMap[cleanKey]){
+      countryToContinentMap[cleanKey] = continent;
+    }
+  }
+
+  return fetch('crosswalk.json')
+    .then(function(r){ return r.text(); })
+    .then(function(text){
+      var cleanedText = text.replace(/:\s*NaN\s*,/g, ': null,').replace(/:\s*NaN\s*}/g, ': null}');
+      var geoData = JSON.parse(cleanedText);
+
+      geoData.forEach(function(item){
+        var continent = item.continent || null;
+        var countryName = item.country_name ? item.country_name.trim() : '';
+        var countryNameUN = item.country_name_un ? item.country_name_un.trim() : '';
+        var countryCode = item.country_id ? item.country_id.toString().trim().toUpperCase() : '';
+        var cityName = item.urban_name ? item.urban_name.trim() : '';
+        var cityNameOld = item.urban_name_old ? item.urban_name_old.trim() : '';
+        var urbanId = parseInt(item.urban_id, 10);
+
+        addCountryMapping(countryName, continent);
+        addCountryMapping(countryNameUN, continent);
+        addCountryMapping(countryCode, continent);
+        if(countryName && countryCode) addCountryMapping(countryName + ' (' + countryCode + ')', continent);
+        if(countryNameUN && countryCode) addCountryMapping(countryNameUN + ' (' + countryCode + ')', continent);
+
+        if(cityName && continent) cityToContinentMap[cityName] = continent;
+        if(cityNameOld && continent) cityToContinentMap[cityNameOld] = continent;
+        if(!isNaN(urbanId) && continent) cityIdToContinentMap[urbanId] = continent;
+      });
+
+      return geoData;
+    })
+    .catch(function(err){
+      console.warn('Could not load crosswalk data:', err);
+      return [];
+    });
+}
+
+function getCountryContinent(geo){
+  var label = (geo || '').trim();
+  if(!label) return "Other";
+
+  var isoMatch = label.match(/\\(([^)]+)\\)\\s*$/);
+  var baseName = label.replace(/\\s*\\([^)]+\\)\\s*$/, '').trim();
+  var continent = null;
+
+  if(isoMatch){
+    var code = isoMatch[1].trim().toUpperCase();
+    if(code){
+      continent = countryToContinentMap[code];
+    }
+  }
+  if(!continent && label){
+    continent = countryToContinentMap[label];
+  }
+  if(!continent && baseName){
+    continent = countryToContinentMap[baseName];
+  }
+  return continent || "Other";
+}
+
+function getCityContinent(name){
+  if(!name) return "Urban Areas";
+  var idMatch = name.match(/\((\d+)\)\s*$/);
+  if(idMatch){
+    var urbanId = parseInt(idMatch[1], 10);
+    if(!isNaN(urbanId) && cityIdToContinentMap[urbanId]){
+      return cityIdToContinentMap[urbanId];
+    }
+  }
+  var cleanName = name.replace(/\s*\(\d+\)\s*$/, '').trim();
+  if(cityToContinentMap[cleanName]) return cityToContinentMap[cleanName];
+  if(cityToContinentMap[name.trim()]) return cityToContinentMap[name.trim()];
+  return "Urban Areas";
+}
+
+function transformCountryData(csvData){
+  return csvData.map(function(row){
+    var name = row.geo || '';
+    var value = parseFloat(row.count);
+    if(!isFinite(value)) value = 0;
+    var continent = getCountryContinent(name);
+    return { name: name, value: value, continent: continent };
+  });
+}
+
+function transformCityData(csvData){
+  return csvData.map(function(row){
+    var name = row.geo || '';
+    var value = parseFloat(row.count);
+    if(!isFinite(value)) value = 0;
+    var continent = getCityContinent(name);
+    return { name: name, value: value, continent: continent };
+  });
+}
+
+function loadAllData(){
+  var countryPromises = years.map(function(year){
+    return fetch('./country/' + year + '.csv')
+      .then(function(r){ if(!r.ok) throw new Error('Country ' + year + ' csv not found'); return r.text(); })
+      .then(function(text){ return { year: year, data: parseCSV(text) }; });
+  });
+
+  var cityPromises = years.map(function(year){
+    return fetch('./urban/' + year + '.csv')
+      .then(function(r){ if(!r.ok) throw new Error('Urban ' + year + ' csv not found'); return r.text(); })
+      .then(function(text){ return { year: year, data: parseCSV(text) }; });
+  });
+
+  Promise.all([buildCrosswalkMaps(), Promise.all(countryPromises), Promise.all(cityPromises)])
+  .then(function(results){
+    var countryResults = results[1] || [];
+    var cityResults = results[2] || [];
+
+    countryResults.forEach(function(result){
+      countriesData[result.year] = transformCountryData(result.data);
+    });
+    cityResults.forEach(function(result){
+      citiesData[result.year] = transformCityData(result.data);
+    });
+    document.getElementById('spinner').style.display = 'none';
+    var totalCountries = Object.values(countriesData).reduce(function(sum, arr){ return sum + (arr ? arr.length : 0); }, 0);
+    var totalCities = Object.values(citiesData).reduce(function(sum, arr){ return sum + (arr ? arr.length : 0); }, 0);
+    if(!totalCountries && !totalCities){
+      setStatus('No data loaded from CSV files.');
+    } else {
+      setStatus('Loaded ' + totalCountries + ' country rows and ' + totalCities + ' city rows.');
+      setTimeout(function(){ setStatus(''); }, 1800);
+    }
+    rebuildEntityList();
+    renderChart();
+  })
+  .catch(function(err){
+    console.error('Error loading data:', err);
+    document.getElementById('spinner').style.display = 'none';
+    setStatus('Error loading data. Check console for details.');
+  });
+}
+
+function prepareSeries(topN){
+  var sourceData = currentCategory === 'cities' ? citiesData : countriesData;
+  var selections = Array.from(selectedEntities);
+  var seriesArr = buildSeriesData(sourceData);
+
+  if(selections.length){
+    return seriesArr.filter(function(s){ return selections.indexOf(s.name) !== -1; });
+  }
+  return seriesArr.slice(0, topN);
+}
+
+function buildSeriesData(sourceData){
+  var seriesMap = new Map();
+  years.forEach(function(year){
+    var yearData = sourceData[year] || [];
+    yearData.forEach(function(d){
+      if(!seriesMap.has(d.name)){
+        seriesMap.set(d.name, { name: d.name, continent: d.continent, values: [] });
+      }
+      seriesMap.get(d.name).values.push({ year: +year, value: d.value });
+    });
+  });
+
+  var seriesArr = Array.from(seriesMap.values()).map(function(s){
+    var yearValueMap = new Map(s.values.map(function(v){ return [+v.year, v.value]; }));
+    var orderedValues = years.map(function(y){
+      return { year: +y, value: yearValueMap.has(+y) ? yearValueMap.get(+y) : null };
+    });
+    var total = d3.sum(orderedValues, function(v){ return v.value != null ? v.value : 0; });
+    var latestNonNull = orderedValues.slice().reverse().find(function(v){ return v.value != null; });
+    var latest = latestNonNull ? latestNonNull.value : 0;
+    return { name: s.name, continent: s.continent, values: orderedValues, total: total, latest: latest };
+  });
+
+  seriesArr.sort(function(a, b){ return b.latest - a.latest; });
+  if(!hasInitializedSelection && seriesArr.length){
+    seriesArr.slice(0, defaultSelectedCount).forEach(function(s){ selectedEntities.add(s.name); });
+    hasInitializedSelection = true;
+  }
+  return seriesArr;
+}
+
+function getColor(continent, idx){
+  if(regionColorMap[continent]) return regionColorMap[continent];
+  return fallbackPalette[idx % fallbackPalette.length];
+}
+
+function renderChart(){
+  var svg = d3.select('#linechart');
+  var node = svg.node();
+  if(!node) return;
+  statusEl = statusEl || document.getElementById('status');
+  var rect = node.getBoundingClientRect();
+  var width = rect.width || 800;
+  var height = rect.height || 500;
+  svg.attr('width', width).attr('height', height);
+
+  svg.selectAll('*').remove();
+
+  var data = prepareSeries(defaultTopCount);
+  if(statusEl){
+    statusEl.style.display = data.length ? 'none' : 'block';
+    statusEl.textContent = data.length ? '' : 'No data available for this selection.';
+  }
+
+  var margin = { top: 24, right: 120, bottom: 40, left: 70 };
+  var innerWidth = width - margin.left - margin.right;
+  var innerHeight = height - margin.top - margin.bottom;
+
+  var x = d3.scalePoint()
+    .domain(years.map(function(y){ return +y; }))
+    .range([0, innerWidth])
+    .padding(0.5);
+
+  var yMax = d3.max(data, function(series){
+    return d3.max(series.values, function(v){
+      return v.value != null ? v.value : undefined;
+    });
+  }) || 1;
+  var allDefinedValues = data.flatMap(function(series){ return series.values.filter(function(v){ return v.value != null; }).map(function(v){ return v.value; }); });
+  var yMinDefined = d3.min(allDefinedValues);
+  var yStart = 0;
+  if(yMinDefined != null && yMinDefined > 0){
+    var ratio = yMax / yMinDefined;
+    // If the range is too wide (e.g., early years look like zero), start near the smallest value
+    if(ratio > 20){
+      yStart = yMinDefined * 0.8;
+    }
+  }
+
+  var y = d3.scaleLinear()
+    .domain([yStart, yMax * 1.05])
+    .range([innerHeight, 0])
+    .nice();
+
+  if(!data.length){
+    return;
+  }
+
+  var g = svg.append('g').attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+  var xAxis = d3.axisBottom(x).tickFormat(function(d){ return d; });
+  var yAxis = d3.axisLeft(y).ticks(6).tickFormat(function(d){ 
+    if(d >= 1e9) return (d/1e9).toFixed(1) + 'B';
+    if(d >= 1e6) return (d/1e6).toFixed(1) + 'M';
+    if(d >= 1e3) return (d/1e3).toFixed(1) + 'K';
+    return d;
+  });
+
+  g.append('g')
+    .attr('transform', 'translate(0,' + innerHeight + ')')
+    .call(xAxis)
+    .selectAll('text')
+    .style('font-size', '12px');
+
+  g.append('g')
+    .call(yAxis)
+    .selectAll('text')
+    .style('font-size', '12px');
+
+  var line = d3.line()
+    .defined(function(d){ return d.value != null; })
+    .x(function(d){ return x(d.year); })
+    .y(function(d){ return y(d.value); })
+    .curve(d3.curveMonotoneX);
+
+  var linesGroup = g.append('g').attr('fill', 'none').attr('stroke-width', 2.5);
+  var labelGroup = g.append('g').attr('class', 'line-labels');
+
+  data.forEach(function(series, idx){
+    var color = getColor(series.continent, idx);
+    linesGroup.append('path')
+      .datum(series.values)
+      .attr('stroke', color)
+      .attr('d', line)
+      .attr('stroke-linejoin', 'round')
+      .attr('stroke-linecap', 'round');
+
+    // Points for hover
+    var definedValues = series.values.filter(function(v){ return v.value != null; });
+    g.selectAll('.point-' + idx)
+      .data(definedValues)
+      .enter()
+      .append('circle')
+      .attr('class', 'point-' + idx)
+      .attr('cx', function(d){ return x(d.year); })
+      .attr('cy', function(d){ return y(d.value); })
+      .attr('r', 4)
+      .attr('fill', color)
+      .attr('stroke', '#fff')
+      .attr('stroke-width', 1.5)
+      .on('mouseover', function(event, d){
+        showTooltip(event, series.name, d.year, d.value, series.continent);
+      })
+      .on('mousemove', function(event, d){
+        showTooltip(event, series.name, d.year, d.value, series.continent);
+      })
+      .on('mouseout', hideTooltip);
+
+    var lastPoint = definedValues.length ? definedValues[definedValues.length - 1] : null;
+    if(!lastPoint) return;
+    labelGroup.append('text')
+      .attr('x', x(lastPoint.year) + 8)
+      .attr('y', y(lastPoint.value))
+      .attr('fill', color)
+      .attr('font-size', '12px')
+      .attr('font-weight', '700')
+      .attr('dominant-baseline', 'middle')
+      .text(series.name);
+  });
+
+  var tooltip = d3.select('#tooltip');
+  function showTooltip(event, name, year, value, continent){
+    var html = '<div style="font-weight:700;">' + name + '</div>';
+    html += '<div>Year: ' + year + '</div>';
+    if(continent) html += '<div>Continent: ' + continent + '</div>';
+    html += '<div>Investment: ' + formatNumber(value) + '</div>';
+    tooltip
+      .style('opacity', 1)
+      .html(html)
+      .style('left', (event.pageX + 12) + 'px')
+      .style('top', (event.pageY - 20) + 'px');
+  }
+  function hideTooltip(){
+    tooltip.style('opacity', 0);
+  }
+}
+
+function formatNumber(num){
+  var value = Number(num);
+  if(!isFinite(value)) value = 0;
+  if(value >= 1e9) return (value / 1e9).toFixed(1) + 'B';
+  if(value >= 1e6) return (value / 1e6).toFixed(1) + 'M';
+  if(value >= 1e3) return (value / 1e3).toFixed(1) + 'K';
+  return Math.round(value).toString();
+}
+
+function setStatus(msg){
+  statusEl = statusEl || document.getElementById('status');
+  if(statusEl){
+    statusEl.textContent = msg || '';
+    statusEl.style.display = msg ? 'block' : 'none';
+  }
+}
+
+function setSelectLabel(){
+  var label = document.getElementById('select-label');
+  if(label){
+    label.textContent = 'Select ' + (currentCategory === 'cities' ? 'Cities' : 'Countries');
+  }
+}
+
+function updateEntityToggleLabel(){
+  var btnLabel = document.getElementById('entity-toggle-label');
+  if(!btnLabel) return;
+  var count = selectedEntities.size;
+  var entity = currentCategory === 'cities' ? 'Cities' : 'Countries';
+  var prefix = count ? count + ' selected' : 'Select ' + entity;
+  btnLabel.textContent = prefix;
+}
+
+function rebuildEntityList(){
+  var list = document.getElementById('entity-list');
+  setSelectLabel();
+  if(!list) return;
+  list.innerHTML = '';
+  var sourceData = currentCategory === 'cities' ? citiesData : countriesData;
+  var allSeries = buildSeriesData(sourceData);
+  if(!hasInitializedSelection && selectedEntities.size === 0 && allSeries.length){
+    allSeries.slice(0, defaultSelectedCount).forEach(function(s){ selectedEntities.add(s.name); });
+    hasInitializedSelection = true;
+  }
+  allSeries.forEach(function(s){
+    var item = document.createElement('div');
+    item.className = 'entity-item' + (selectedEntities.has(s.name) ? ' active' : '');
+    item.setAttribute('role', 'option');
+    item.setAttribute('aria-selected', selectedEntities.has(s.name));
+    item.textContent = s.name + (s.continent ? ' (' + s.continent + ')' : '');
+    item.addEventListener('click', function(e){
+      e.stopPropagation();
+      toggleEntitySelection(s.name);
+    });
+    list.appendChild(item);
+  });
+  updateEntityToggleLabel();
+}
+
+function toggleEntitySelection(name){
+  if(selectedEntities.has(name)){
+    selectedEntities.delete(name);
+  } else {
+    selectedEntities.add(name);
+  }
+  updateEntityToggleLabel();
+  rebuildEntityList();
+  renderChart();
+}
+
+function closeDropdown(){
+  var list = document.getElementById('entity-list');
+  var toggle = document.getElementById('entity-toggle');
+  dropdownOpen = false;
+  if(list) list.style.display = 'none';
+  if(toggle) toggle.setAttribute('aria-expanded', 'false');
+  var chev = toggle ? toggle.querySelector('.chevron') : null;
+  if(chev) chev.textContent = '▼';
+}
+
+function openDropdown(){
+  var list = document.getElementById('entity-list');
+  var toggle = document.getElementById('entity-toggle');
+  dropdownOpen = true;
+  if(list) list.style.display = 'block';
+  if(toggle) toggle.setAttribute('aria-expanded', 'true');
+  var chev = toggle ? toggle.querySelector('.chevron') : null;
+  if(chev) chev.textContent = '▲';
+}
+
+document.querySelectorAll('#category-group .control-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('#category-group .control-btn').forEach(function(b){ b.classList.remove('active'); });
+    this.classList.add('active');
+    currentCategory = this.getAttribute('data-category');
+    selectedEntities.clear();
+    hasInitializedSelection = false;
+    rebuildEntityList();
+    renderChart();
+  });
+});
+
+document.getElementById('entity-toggle').addEventListener('click', function(e){
+  e.stopPropagation();
+  if(dropdownOpen){
+    closeDropdown();
+  } else {
+    openDropdown();
+  }
+});
+
+document.addEventListener('click', function(){
+  if(dropdownOpen){
+    closeDropdown();
+  }
+});
+
+// Keyboard support for dropdown
+document.getElementById('entity-toggle').addEventListener('keydown', function(e){
+  if(e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' '){
+    e.preventDefault();
+    if(!dropdownOpen){
+      openDropdown();
+    }
+  }
+});
+
+window.addEventListener('resize', function(){
+  renderChart();
+});
+
+loadAllData();
+</script>
+</body>
+</html>
