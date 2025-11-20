@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>World AI Investment Map</title>
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        #container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: grid;
+            grid-template-rows: 1fr auto auto;
+            grid-template-columns: 1fr 1fr;
+        }
+        #mapContainer {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            position: relative;
+        }
+        #controlsContainer {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(20px, 3vw, 40px);
+            padding: clamp(6px, 1.2vh, 10px) 20px;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 1000;
+        }
+        #sourceContainer {
+            grid-row: 3;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            min-height: 40px;
+        }
+        #logoContainer {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            min-height: 40px;
+        }
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(4px, 0.8vh, 8px);
+            padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.6vw, 16px);
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: clamp(4px, 0.8vw, 8px);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+        }
+        .slider-label {
+            font-size: clamp(11px, 1.4vw, 14px);
+            font-weight: 600;
+            color: #4169E1;
+        }
+        .year-slider {
+            width: clamp(120px, 20vw, 200px);
+            height: clamp(4px, 0.8vh, 6px);
+            -webkit-appearance: none;
+            appearance: none;
+            background: #e0e0e0;
+            outline: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .year-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: clamp(14px, 2.4vw, 18px);
+            height: clamp(14px, 2.4vw, 18px);
+            background: #4169E1;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .year-slider::-webkit-slider-thumb:hover {
+            background: #315bb5;
+            transform: scale(1.1);
+        }
+        .year-slider::-moz-range-thumb {
+            width: clamp(14px, 2.4vw, 18px);
+            height: clamp(14px, 2.4vw, 18px);
+            background: #4169E1;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .year-slider::-moz-range-thumb:hover {
+            background: #315bb5;
+            transform: scale(1.1);
+        }
+        .button-group {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            border-radius: clamp(4px, 0.8vw, 8px);
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+        }
+        .control-btn {
+            padding: clamp(6px, 1vh, 10px) clamp(12px, 2vw, 20px);
+            font-size: clamp(11px, 1.4vw, 14px);
+            font-weight: 600;
+            border: none;
+            background: #ffffff;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .control-btn:not(:last-child) {
+            border-right: 1px solid #e0e0e0;
+        }
+        .control-btn:hover:not(.active) {
+            background: #f5f5f5;
+        }
+        .control-btn.active {
+            background: #4169E1;
+            color: #ffffff;
+        }
+        .control-btn:focus-visible {
+            outline: 2px solid rgba(65, 105, 225, 0.5);
+            outline-offset: -2px;
+            z-index: 1;
+        }
+        #spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #ccc;
+            border-top: 5px solid #4169E1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            z-index: 9999;
+        }
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        svg {
+            width: 100%;
+            height: 100%;
+            background: #f0f8ff;
+            display: block;
+        }
+        .land {
+            fill: #ddd;
+            stroke: #fff;
+            stroke-width: 0.5px;
+        }
+        .country-boundary {
+            fill: none;
+            stroke: #999;
+            stroke-width: 0.3px;
+        }
+        circle.bubble {
+            fill: #4169E1;
+            fill-opacity: 0.6;
+            stroke: #fff;
+            stroke-width: 1px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        circle.bubble:hover {
+            fill-opacity: 0.9;
+            stroke-width: 2px;
+        }
+        .tooltip {
+            position: absolute;
+            background: white;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            font-size: 12px;
+            z-index: 2000;
+        }
+        .tooltip-city {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+        }
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        .source-text a:visited {
+            color: #2756d3;
+        }
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+        }
+        @media (max-height: 500px) {
+            #controlsContainer, #sourceContainer, #logoContainer {
+                display: none !important;
+            }
+            #mapContainer {
+                grid-row: 1 / span 3;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="mapContainer">
+            <div id="spinner"></div>
+            <svg></svg>
+        </div>
+        <div id="controlsContainer">
+            <div class="slider-container">
+                <label for="year-slider" class="slider-label" id="year-label">2024</label>
+                <input type="range" id="year-slider" class="year-slider" min="2020" max="2025" value="2024" step="1">
+            </div>
+            <div class="button-group" id="limit-group">
+                <button class="control-btn" data-limit="50">50</button>
+                <button class="control-btn" data-limit="100">100</button>
+                <button class="control-btn active" data-limit="all">ALL</button>
+            </div>
+            <div class="button-group" id="category-group">
+                <button class="control-btn" data-category="countries">COUNTRIES</button>
+                <button class="control-btn active" data-category="cities">CITIES</button>
+            </div>
+        </div>
+        <div id="sourceContainer">
+            <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank">Crunchbase</a></div>
+        </div>
+        <div id="logoContainer">
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+            </a>
+        </div>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/topojson@3"></script>
+    <script>
+        const svg = d3.select("svg");
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const tooltip = d3.select("body").append("div").attr("class", "tooltip");
+
+        const allLayers = svg.append("g");
+        const mapLayer = allLayers.append("g").attr("id", "mapLayer");
+        const bubbleLayer = allLayers.append("g").attr("id", "bubbleLayer");
+
+        let currentYear = '2024';
+        let currentLimit = 'all';
+        let currentCategory = 'cities';
+        let citiesData = {};
+        let countriesData = {};
+        let geoLocationMap = {};
+        let countryLocationMap = {};
+
+        // World map projection
+        const projection = d3.geoNaturalEarth1()
+            .scale(200)
+            .translate([width / 2, height / 2]);
+
+        const path = d3.geoPath().projection(projection);
+
+        // Zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([1, 8])
+            .on("zoom", (event) => {
+                allLayers.attr("transform", event.transform);
+            });
+        svg.call(zoom);
+
+        // CSV parsing function
+        function parseCSV(text) {
+            const lines = text.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+            const data = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                const values = [];
+                let inQuotes = false;
+                let currentValue = '';
+
+                for (let j = 0; j < line.length; j++) {
+                    const char = line[j];
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        values.push(currentValue.trim());
+                        currentValue = '';
+                    } else {
+                        currentValue += char;
+                    }
+                }
+                values.push(currentValue.trim());
+
+                if (values.length === headers.length) {
+                    const obj = {};
+                    headers.forEach((header, idx) => {
+                        obj[header] = values[idx];
+                    });
+                    data.push(obj);
+                }
+            }
+            return data;
+        }
+
+        // Transform CSV to usable data
+        function transformCSVData(csvData) {
+            return csvData.map(row => ({
+                name: row.geo || '',
+                value: parseFloat(row.count) || 0
+            }));
+        }
+
+        // Load all data
+        function loadAllData() {
+            const years = ['2020', '2021', '2022', '2023', '2024', '2025'];
+
+            Promise.all([
+                // Load world map
+                d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"),
+                // Load geo location data from local crosswalk.json - handle NaN values
+                fetch("crosswalk.json")
+                    .then(r => r.text())
+                    .then(text => {
+                        // Replace NaN with null before parsing
+                        const cleanedText = text.replace(/:\s*NaN\s*,/g, ': null,').replace(/:\s*NaN\s*}/g, ': null}');
+                        return JSON.parse(cleanedText);
+                    }),
+                // Load all year country CSVs
+                ...years.map(year =>
+                    fetch('country/' + year + '.csv')
+                        .then(r => r.text())
+                        .then(text => ({ year: year, category: 'country', data: parseCSV(text) }))
+                ),
+                // Load all year city CSVs
+                ...years.map(year =>
+                    fetch('urban/' + year + '.csv')
+                        .then(r => r.text())
+                        .then(text => ({ year: year, category: 'city', data: parseCSV(text) }))
+                )
+            ]).then(([worldData, geoData, ...yearResults]) => {
+                // Draw world map
+                mapLayer.append("path")
+                    .datum(topojson.feature(worldData, worldData.objects.countries))
+                    .attr("class", "land")
+                    .attr("d", path);
+
+                mapLayer.append("path")
+                    .datum(topojson.mesh(worldData, worldData.objects.countries, (a, b) => a !== b))
+                    .attr("class", "country-boundary")
+                    .attr("d", path);
+
+                // Build geo location map for cities
+                geoData.forEach(city => {
+                    const cleanName = city.urban_name ? city.urban_name.trim() : '';
+                    if (cleanName && city.latitude && city.longitude) {
+                        geoLocationMap[cleanName] = {
+                            latitude: city.latitude,
+                            longitude: city.longitude,
+                            country: city.country_name
+                        };
+                    }
+
+                    // Also build country location map (use first city as country centroid approximation)
+                    const countryName = city.country_name;
+                    if (countryName && city.latitude && city.longitude && !countryLocationMap[countryName]) {
+                        countryLocationMap[countryName] = {
+                            latitude: city.latitude,
+                            longitude: city.longitude
+                        };
+                    }
+                });
+
+                // Process CSV data for each year
+                yearResults.forEach(result => {
+                    if (result.category === 'country') {
+                        countriesData[result.year] = transformCSVData(result.data);
+                    } else if (result.category === 'city') {
+                        citiesData[result.year] = transformCSVData(result.data);
+                    }
+                });
+
+                // Hide spinner and render initial view
+                d3.select("#spinner").style("display", "none");
+                updateVisualization();
+            }).catch(err => {
+                console.error("Error loading data:", err);
+                d3.select("#spinner").style("display", "none");
+            });
+        }
+
+        // Apply limit to data
+        function applyLimit(arr, limit) {
+            if (limit === 'all') return arr;
+            const limitNum = parseInt(limit);
+            const sorted = arr.slice().sort((a, b) => b.value - a.value);
+            return sorted.slice(0, limitNum);
+        }
+
+        // Match city names with geo locations
+        function matchCityName(csvName) {
+            // Try exact match first
+            if (geoLocationMap[csvName]) {
+                return geoLocationMap[csvName];
+            }
+
+            // Try removing code in parentheses
+            const cleanName = csvName.replace(/\s*\(\d+\)$/, '').trim();
+            if (geoLocationMap[cleanName]) {
+                return geoLocationMap[cleanName];
+            }
+
+            // Try partial match
+            for (let geoName in geoLocationMap) {
+                if (csvName.includes(geoName) || geoName.includes(csvName.split(' ')[0])) {
+                    return geoLocationMap[geoName];
+                }
+            }
+
+            return null;
+        }
+
+        // Format number for display
+        function formatNumber(num) {
+            if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
+            if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+            return Math.round(num).toString();
+        }
+
+        // Match country names with geo locations
+        function matchCountryName(csvName) {
+            // Try exact match first
+            if (countryLocationMap[csvName]) {
+                return countryLocationMap[csvName];
+            }
+
+            // Try removing code in parentheses (e.g., "United States (US)" -> "United States")
+            const cleanName = csvName.replace(/\s*\([A-Z]{2}\)$/, '').trim();
+            if (countryLocationMap[cleanName]) {
+                return countryLocationMap[cleanName];
+            }
+
+            // Try partial match
+            for (let countryName in countryLocationMap) {
+                if (csvName.includes(countryName) || countryName.includes(csvName.split(' ')[0])) {
+                    return countryLocationMap[countryName];
+                }
+            }
+
+            return null;
+        }
+
+        // Update visualization
+        function updateVisualization() {
+            let yearData, dataWithCoords;
+
+            if (currentCategory === 'cities') {
+                yearData = citiesData[currentYear] || [];
+                const limitedData = applyLimit(yearData, currentLimit);
+
+                // Add geo coordinates to city data
+                dataWithCoords = limitedData
+                    .map(d => {
+                        const geo = matchCityName(d.name);
+                        if (geo) {
+                            const coords = projection([geo.longitude, geo.latitude]);
+                            return {
+                                ...d,
+                                x: coords[0],
+                                y: coords[1],
+                                country: geo.country
+                            };
+                        }
+                        return null;
+                    })
+                    .filter(d => d !== null && !isNaN(d.x) && !isNaN(d.y));
+            } else {
+                // Countries
+                yearData = countriesData[currentYear] || [];
+                const limitedData = applyLimit(yearData, currentLimit);
+
+                // Add geo coordinates to country data
+                dataWithCoords = limitedData
+                    .map(d => {
+                        const geo = matchCountryName(d.name);
+                        if (geo) {
+                            const coords = projection([geo.longitude, geo.latitude]);
+                            return {
+                                ...d,
+                                x: coords[0],
+                                y: coords[1],
+                                country: d.name
+                            };
+                        }
+                        return null;
+                    })
+                    .filter(d => d !== null && !isNaN(d.x) && !isNaN(d.y));
+            }
+
+            // Calculate radius scale
+            const maxValue = d3.max(dataWithCoords, d => d.value) || 1;
+            const radiusScale = d3.scaleSqrt()
+                .domain([0, maxValue])
+                .range([2, 30]);
+
+            // Update bubbles
+            const bubbles = bubbleLayer.selectAll("circle.bubble")
+                .data(dataWithCoords, d => d.name);
+
+            // Exit
+            bubbles.exit()
+                .transition()
+                .duration(500)
+                .attr("r", 0)
+                .remove();
+
+            // Enter + Update
+            bubbles.enter()
+                .append("circle")
+                .attr("class", "bubble")
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y)
+                .attr("r", 0)
+                .on("mouseover", (event, d) => {
+                    const isCountry = currentCategory === 'countries';
+                    const locationLabel = isCountry ? 'Country' : 'City';
+                    const countryLine = isCountry ? '' : `<div>Country: ${d.country || 'Unknown'}</div>`;
+
+                    tooltip
+                        .style("opacity", 1)
+                        .html(`
+                            <div class="tooltip-city">${d.name}</div>
+                            ${countryLine}
+                            <div>Investment: ${formatNumber(d.value)}</div>
+                        `)
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 10) + "px");
+                })
+                .on("mousemove", event => {
+                    tooltip
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 10) + "px");
+                })
+                .on("mouseout", () => {
+                    tooltip.style("opacity", 0);
+                })
+                .merge(bubbles)
+                .transition()
+                .duration(500)
+                .attr("cx", d => d.x)
+                .attr("cy", d => d.y)
+                .attr("r", d => radiusScale(d.value));
+        }
+
+        // Year slider control
+        const yearSlider = document.getElementById('year-slider');
+        const yearLabel = document.getElementById('year-label');
+
+        yearSlider.addEventListener('input', function() {
+            yearLabel.textContent = this.value;
+        });
+
+        yearSlider.addEventListener('change', function() {
+            currentYear = this.value;
+            updateVisualization();
+        });
+
+        // Limit buttons control
+        document.querySelectorAll('#limit-group .control-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('#limit-group .control-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentLimit = this.getAttribute('data-limit');
+                updateVisualization();
+            });
+        });
+
+        // Category buttons control
+        document.querySelectorAll('#category-group .control-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('#category-group .control-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentCategory = this.getAttribute('data-category');
+                updateVisualization();
+            });
+        });
+
+        // Initialize
+        loadAllData();
+    </script>
+</body>
+</html>
