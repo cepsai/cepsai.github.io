@@ -44,23 +44,12 @@ body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-seri
 .legend-item:focus-visible { outline: 2px solid rgba(0,0,0,0.5); outline-offset: 2px; }
 
 .slider-container { display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 0.8vh, 8px); padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.6vw, 16px); background: rgba(255, 255, 255, 0.9); border-radius: clamp(4px, 0.8vw, 8px); box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
-/* .slider-label { font-size: clamp(11px, 1.4vw, 14px); font-weight: 600; color: #4169E1; font-family: Arial, sans-serif; } */
-.slider-label {
-  font-size: clamp(8px, 2.2vw, 16px);  /* bigger */
-  font-weight: 600;
-  color: #4169E1;
-  letter-spacing: 0.03em;
-  text-shadow: 0 0 4px rgba(255,255,255,0.9);  /* better contrast */
-  margin-top: 8px;    
-  display: block;       
-  text-align: center;   
-
-}
-/* .year-slider { width: clamp(120px, 20vw, 200px); height: clamp(4px, 0.8vh, 6px); -webkit-appearance: none; appearance: none; background: #e0e0e0; outline: none; border-radius: 3px; cursor: pointer; }
+.slider-label { font-size: clamp(11px, 1.4vw, 14px); font-weight: 600; color: #4169E1; font-family: Arial, sans-serif; }
+.year-slider { width: clamp(120px, 20vw, 200px); height: clamp(4px, 0.8vh, 6px); -webkit-appearance: none; appearance: none; background: #e0e0e0; outline: none; border-radius: 3px; cursor: pointer; }
 .year-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: clamp(14px, 2.4vw, 18px); height: clamp(14px, 2.4vw, 18px); background: #4169E1; border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
 .year-slider::-webkit-slider-thumb:hover { background: #315bb5; transform: scale(1.1); }
 .year-slider::-moz-range-thumb { width: clamp(14px, 2.4vw, 18px); height: clamp(14px, 2.4vw, 18px); background: #4169E1; border: none; border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
-.year-slider::-moz-range-thumb:hover { background: #315bb5; transform: scale(1.1); } */
+.year-slider::-moz-range-thumb:hover { background: #315bb5; transform: scale(1.1); }
 
 .button-group { display: flex; align-items: center; gap: 0; border-radius: clamp(4px, 0.8vw, 8px); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
 .control-btn { padding: clamp(6px, 1vh, 10px) clamp(12px, 2vw, 20px); font-size: clamp(11px, 1.4vw, 14px); font-weight: 600; border: none; background: #ffffff; color: #333; cursor: pointer; transition: all 0.2s ease; font-family: Arial, sans-serif; }
@@ -68,6 +57,9 @@ body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-seri
 .control-btn:hover:not(.active) { background: #f5f5f5; }
 .control-btn.active { background: #4169E1; color: #ffffff; }
 .control-btn:focus-visible { outline: 2px solid rgba(65, 105, 225, 0.5); outline-offset: -2px; z-index: 1; }
+
+
+
 
 /* Hide d3plus automatic percentage sublabels */
 .d3plus-textBox tspan:last-child {
@@ -80,82 +72,38 @@ body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-seri
   #container2, #container2-5, #container3, #container4 { display: none !important; }
   .custom-legend, .source-text, .logo, .button-group { display: none !important; }
 }
-/* === YEAR RANGE SLIDER (dual handle) === */
 
 .range-wrapper {
   position: relative;
   width: clamp(140px, 24vw, 260px);
-  height: 32px;
+  height: 30px; /* enough for track + thumb */
 }
 
-.year-slider {
-  -webkit-appearance: none;
-  appearance: none;
+/* both sliders on the same track */
+.range-wrapper .year-slider {
   position: absolute;
   left: 0;
   right: 0;
   top: 50%;
   transform: translateY(-50%);
   margin: 0;
-  width: 100%;
-  background: transparent;      /* track drawn separately */
-  pointer-events: none;         /* only thumbs handle input */
+  pointer-events: none; /* we’ll enable pointer-events only on thumbs */
 }
 
-/* grey track behind both knobs */
-.range-wrapper::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 6px;
-  background: #e0e0e0;
-  border-radius: 3px;
+/* WebKit (Chrome, Safari, Edge) */
+.range-wrapper .year-slider::-webkit-slider-thumb {
+  pointer-events: auto;        /* draggable */
+  margin-top: -6px;            /* move circle up so it sits on top of bar */
 }
 
-/* END slider thumb needs to be on top */
-.year-slider-top {
-  z-index: 2;
-}
-
-/* WebKit thumbs (Chrome/Safari/Edge) */
-.year-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #4169E1;
-  cursor: pointer;
-  pointer-events: auto;         /* now draggable */
-  margin-top: -6px;             /* puts dot fully ON TOP of bar */
-  transition: transform 0.2s ease;
-}
-.year-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
-}
-
-/* Firefox thumbs */
-.year-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #4169E1;
-  border: none;
-  cursor: pointer;
+/* Firefox */
+.range-wrapper .year-slider::-moz-range-thumb {
   pointer-events: auto;
-  transform: translateY(-3px);  /* lift dot onto bar */
-  transition: transform 0.2s ease;
-}
-.year-slider::-moz-range-thumb:hover {
-  transform: translateY(-3px) scale(1.1);
+  transform: translateY(-3px); /* small upward shift */
 }
 
-/* hide built-in track in Firefox */
-.year-slider::-moz-range-track {
-  background: transparent;
+.range-wrapper .year-slider-top {
+  z-index: 2;
 }
 
 
@@ -344,11 +292,11 @@ function buildLegend(){
     legend.appendChild(item);
   });
 }
-// var whiteTextRegions = ["United States & Canada", "North America", "Africa", "Oceania"];
-// function getLabelColor(d){
-//   var parent = d.parent || d.id;
-//   return whiteTextRegions.indexOf(parent) !== -1 ? "#FFFFFF" : "#000000";
-// }
+var whiteTextRegions = ["United States & Canada", "North America", "Africa", "Oceania"];
+function getLabelColor(d){
+  var parent = d.parent || d.id;
+  return whiteTextRegions.indexOf(parent) !== -1 ? "#FFFFFF" : "#000000";
+}
 
 var percentageMap = {};
 
@@ -393,9 +341,9 @@ var treemap = new d3plus.Treemap()
   .shapeConfig({
     stroke:function(d){ if(d.depth===0){ return getGroupColor(d.id); } return "transparent"; },
     strokeWidth:function(d){ if(d.depth===0){ return 3; } return 0; },
-    // labelConfig: {
-    //   fontColor: "#FFFFFF" 
-    // }
+    labelConfig: {
+      fontColor: getLabelColor
+    }
   });
 
 function applyLimit(arr, limit){
@@ -902,7 +850,6 @@ function transformCSVToTreemapData(csvData, isCity){
     var geo = (row.geo || "").trim();
     if (!geo) return false;
     if (geo === "nan (NA) (NA)") return false;
-    if (geo === "(NA)") return false;
     return true;
   });
 
