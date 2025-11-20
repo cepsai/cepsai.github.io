@@ -1,0 +1,636 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style type="text/css">
+/* --- CSS STYLES (UNCHANGED) --- */
+.knitr .inline { background-color: #F7F7F7; border: solid 1px #B0B0B0; }
+.error { font-weight: bold; color: #FF0000; }
+.warning { font-weight: bold; }
+.message { font-style: italic; }
+.source, .output, .warning, .error, .message { padding: 0 1em; border: solid 1px #F7F7F7; }
+.source { background-color: #F5F5F5; }
+.rimage .left { text-align: left; }
+.rimage .right { text-align: right; }
+.rimage .center { text-align: center; }
+.hl.num { color: #AF0F91; }
+.hl.str { color: #317ECC; }
+.hl.com { color: #AD95AF; font-style: italic; }
+.hl.opt { color: #000000; }
+.hl.std { color: #585858; }
+.hl.kwa { color: #295F94; font-weight: bold; }
+.hl.kwb { color: #B05A65; }
+.hl.kwc { color: #55AA55; }
+.hl.kwd { color: #BC5A65; font-weight: bold; }
+body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-serif; }
+
+.viz-grid { display: grid; grid-template-rows: 17fr 2fr 1fr 1fr; grid-template-columns: 1fr 1fr; height: 100vh; width: 100vw; box-sizing: border-box; padding-bottom: clamp(8px, 2vh, 18px); }
+#container1 { grid-row: 1; grid-column: 1 / span 2; overflow: hidden; min-height: 0; }
+#container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+#container2-5 { grid-row: 3; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; gap: clamp(20px, 3vw, 40px); padding: clamp(6px, 1.2vh, 10px) 20px; overflow: hidden; }
+#container3 { grid-row: 4; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 20px; overflow: hidden; min-width: 0; }
+#container4 { grid-row: 4; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; padding: 0 20px; overflow: hidden; min-width: 0; }
+#container4 a { height: 100%; display: flex; align-items: center; }
+
+#treemap { width: 100%; height: 100%; min-height: 0; min-width: 0; }
+.logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
+.source-text { font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal; }
+.source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; font-style: normal; }
+.source-text a:visited { color: #2756d3; }
+.custom-legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: clamp(6px, 1.5vw, 14px); background: rgba(255, 255, 255, 0.9); padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 16px); border-radius: clamp(6px, 1.2vw, 12px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: auto; max-width: 100%; max-height: 100%; font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; }
+.legend-item { display: flex; align-items: center; gap: 6px; cursor: pointer; transition: opacity 0.2s ease; font-weight: 600; color: #333; position: relative; }
+.legend-item.inactive { opacity: 0.35; }
+.legend-square { width: clamp(10px, 1.2vw, 14px); height: clamp(10px, 1.2vw, 14px); border-radius: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+.legend-item:focus-visible { outline: 2px solid rgba(0,0,0,0.5); outline-offset: 2px; }
+
+.slider-container { display: flex; flex-direction: column; align-items: center; gap: clamp(4px, 0.8vh, 8px); padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.6vw, 16px); background: rgba(255, 255, 255, 0.9); border-radius: clamp(4px, 0.8vw, 8px); box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+.slider-label { font-size: clamp(11px, 1.4vw, 14px); font-weight: 600; color: #4169E1; font-family: Arial, sans-serif; }
+.year-slider { width: clamp(120px, 20vw, 200px); height: clamp(4px, 0.8vh, 6px); -webkit-appearance: none; appearance: none; background: #e0e0e0; outline: none; border-radius: 3px; cursor: pointer; }
+.year-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: clamp(14px, 2.4vw, 18px); height: clamp(14px, 2.4vw, 18px); background: #4169E1; border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
+.year-slider::-webkit-slider-thumb:hover { background: #315bb5; transform: scale(1.1); }
+.year-slider::-moz-range-thumb { width: clamp(14px, 2.4vw, 18px); height: clamp(14px, 2.4vw, 18px); background: #4169E1; border: none; border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
+.year-slider::-moz-range-thumb:hover { background: #315bb5; transform: scale(1.1); }
+
+.button-group { display: flex; align-items: center; gap: 0; border-radius: clamp(4px, 0.8vw, 8px); overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+.control-btn { padding: clamp(6px, 1vh, 10px) clamp(12px, 2vw, 20px); font-size: clamp(11px, 1.4vw, 14px); font-weight: 600; border: none; background: #ffffff; color: #333; cursor: pointer; transition: all 0.2s ease; font-family: Arial, sans-serif; }
+.control-btn:not(:last-child) { border-right: 1px solid #e0e0e0; }
+.control-btn:hover:not(.active) { background: #f5f5f5; }
+.control-btn.active { background: #4169E1; color: #ffffff; }
+.control-btn:focus-visible { outline: 2px solid rgba(65, 105, 225, 0.5); outline-offset: -2px; z-index: 1; }
+
+/* Hide d3plus automatic percentage sublabels */
+.d3plus-textBox tspan:last-child {
+  display: none !important;
+}
+
+@media (max-height: 500px) {
+  .viz-grid { grid-template-rows: 1fr; grid-template-columns: 1fr; }
+  #container1 { grid-row: 1; grid-column: 1; }
+  #container2, #container2-5, #container3, #container4 { display: none !important; }
+  .custom-legend, .source-text, .logo, .button-group { display: none !important; }
+}
+</style>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1" class="container treemap-container">
+    <div id="treemap"></div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div class="custom-legend" id="legend"></div>
+  </div>
+  <div id="container2-5" class="container controls-container">
+    <div class="slider-container" id="year-slider-container">
+      <label for="year-slider" class="slider-label" id="year-label">2025</label>
+      <input type="range" id="year-slider" class="year-slider" min="2020" max="2025" value="2025" step="1">
+    </div>
+    <div class="button-group" id="limit-group">
+      <button class="control-btn" data-limit="50">50</button>
+      <button class="control-btn" data-limit="100">100</button>
+      <button class="control-btn active" data-limit="all">ALL</button>
+    </div>
+    <div class="button-group" id="view-group">
+      <button class="control-btn active" data-view="count">#</button>
+      <button class="control-btn" data-view="percent">%</button>
+    </div>
+    <div class="button-group" id="category-group">
+      <button class="control-btn active" data-category="countries">COUNTRIES</button>
+      <button class="control-btn" data-category="cities">CITIES</button>
+    </div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank">Crunchbase</a></div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+    </a>
+  </div>
+</div>
+<script>
+var originalData = [];
+var rawOriginalData = [];
+var countriesData = {};
+var citiesData = {};
+var cityToContinentMap = {};
+var cityIdToContinentMap = {};
+var countryToContinentMap = {};
+var currentLimit = 'all';
+var currentView = 'count';
+var currentCategory = 'countries';
+var currentYear = '2025';
+var buttonsDisabled = false;
+
+function formatNumber(num){
+  var value = Number(num);
+  if(!isFinite(value)) value = 0;
+  if(value >= 1e9){
+    return (value / 1e9).toFixed(1) + 'B';
+  } else if(value >= 1e6){
+    return (value / 1e6).toFixed(1) + 'M';
+  } else if(value >= 1e3){
+    return (value / 1e3).toFixed(1) + 'K';
+  }
+  return Math.round(value).toString();
+}
+
+function normalizeData(arr){
+  return arr.map(function(d){
+    var parent = d.parent || d.parentName || d.group || d.domain || d.category || d.type || d.class;
+    var name = d.name || d.id || d.label || d.title;
+    var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+    if(!isFinite(value)) value = 0;
+    return { parent: parent, name: name, value: value };
+  }).filter(function(d){
+    return d.parent && d.name;
+  });
+}
+var data = [];
+var groups = [];
+var inferredColors = {};
+var regionColorMap = {
+  "United States & Canada": "#ec787a",
+  "North America": "#ec787a",
+  "Asia": "#fadb56",
+  "Europe": "#f5ae6c",
+  "Oceania": "#887aa5",
+  "Africa": "#7a98ad",
+  "Latin America": "#81b29a"
+};
+var fallbackPalette = ["#1F77B4","#FF7F0E","#2CA02C","#9467BD","#D62728","#17BECF","#8C564B","#E377C2","#7F7F7F","#BCBD22"];
+var groupColors = {};
+var activeGroups = new Set();
+function getGroupColor(parent){ return groupColors[parent] || "#666666"; }
+function buildLegend(){
+  var legend = document.getElementById('legend');
+  if(!legend) return;
+  legend.innerHTML = '';
+  groups.forEach(function(g){
+    var item = document.createElement('div');
+    item.className = 'legend-item active';
+    item.setAttribute('data-group', g);
+    item.setAttribute('role','button');
+    item.setAttribute('tabindex','0');
+    item.setAttribute('aria-pressed','true');
+    var square = document.createElement('div');
+    square.className = 'legend-square';
+    square.style.backgroundColor = getGroupColor(g);
+    var label = document.createElement('span');
+    label.textContent = g;
+    item.appendChild(square);
+    item.appendChild(label);
+    item.addEventListener('click', function(){
+      var grp = this.getAttribute('data-group');
+      if(activeGroups.has(grp)){ activeGroups.delete(grp); } else { activeGroups.add(grp); }
+      updateVisualization();
+    });
+    item.addEventListener('keydown', function(e){
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        var grp = this.getAttribute('data-group');
+        if(activeGroups.has(grp)){ activeGroups.delete(grp); } else { activeGroups.add(grp); }
+        updateVisualization();
+      }
+    });
+    legend.appendChild(item);
+  });
+}
+var whiteTextRegions = ["United States & Canada", "North America", "Africa", "Oceania"];
+function getLabelColor(d){
+  var parent = d.parent || d.id;
+  return whiteTextRegions.indexOf(parent) !== -1 ? "#FFFFFF" : "#000000";
+}
+
+var percentageMap = {};
+
+function getLabelText(d){
+  if(d.depth === 0) return d.id;
+
+  var label = d.name;
+
+  if(currentView === 'percent') {
+    var key = (d.parent || d.id) + '|' + d.name;
+    var percentage = percentageMap[key] || 0;
+    label += '\n' + percentage.toFixed(1) + "%";
+  } else {
+    label += '\n' + formatNumber(d.value || 0);
+  }
+
+  return label;
+}
+
+var treemap = new d3plus.Treemap()
+  .select("#treemap")
+  .data(data)
+  .groupBy(["parent","name"])
+  .tooltipConfig({
+    title:function(d){ return d.name; },
+    body:function(d){
+      var formattedCount = formatNumber(d.value || 0);
+      var key = (d.parent || d.id) + '|' + d.name;
+      var percentage = percentageMap[key] || 0;
+
+      if(currentView === 'percent'){
+        return "<strong>Sector:</strong> " + (d.parent || d.id) + "<br><strong>% of World Total:</strong> " + percentage.toFixed(1) + "%<br><strong>Count:</strong> " + formattedCount;
+      } else {
+        return "<strong>Sector:</strong> " + (d.parent || d.id) + "<br><strong>Count:</strong> " + formattedCount;
+      }
+    }
+  })
+  .sum("value")
+  .layoutPadding(2)
+  .legend(false)
+  .color(function(d){ return getGroupColor(d.parent || d.id); })
+  .shapeConfig({
+    stroke:function(d){ if(d.depth===0){ return getGroupColor(d.id); } return "transparent"; },
+    strokeWidth:function(d){ if(d.depth===0){ return 3; } return 0; },
+    labelConfig: {
+      fontColor: getLabelColor
+    }
+  });
+
+function applyLimit(arr, limit){
+  if(limit === 'all') return arr;
+
+  var limitNum = parseInt(limit);
+
+  var sorted = arr.slice().sort(function(a, b){ return b.value - a.value; });
+  return sorted.slice(0, limitNum);
+}
+
+function calculatePercentages(arr){
+  var globalTotal = arr.reduce(function(sum, d){
+    var val = Number(d.value);
+    if(!isFinite(val)) val = 0;
+    return sum + val;
+  }, 0);
+
+  var map = {};
+  arr.forEach(function(d){
+    var key = d.parent + '|' + d.name;
+    var val = Number(d.value);
+    if(!isFinite(val)) val = 0;
+    map[key] = globalTotal > 0 ? (val / globalTotal) * 100 : 0;
+  });
+
+  return map;
+}
+
+function updateVisualization(){
+  rawOriginalData = normalizeData(originalData);
+  var filteredData = rawOriginalData.filter(function(d){ return activeGroups.has(d.parent); });
+  var limitedData = applyLimit(filteredData, currentLimit);
+
+  percentageMap = calculatePercentages(limitedData);
+
+  data = limitedData;
+
+  treemap.label(function(d){ return getLabelText(d); });
+  treemap.data(data);
+  treemap.render();
+
+  document.querySelectorAll('.legend-item').forEach(function(item){
+    var grp = item.getAttribute('data-group');
+    var isActive = activeGroups.has(grp);
+    item.classList.toggle('inactive', !isActive);
+    item.classList.toggle('active', isActive);
+    item.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+function disableAllButtons(){
+  buttonsDisabled = true;
+  document.querySelectorAll('.control-btn').forEach(function(btn){
+    btn.style.pointerEvents = 'none';
+    btn.style.opacity = '0.6';
+  });
+  var slider = document.getElementById('year-slider');
+  if(slider){
+    slider.disabled = true;
+    slider.style.opacity = '0.6';
+  }
+  setTimeout(function(){
+    buttonsDisabled = false;
+    document.querySelectorAll('.control-btn').forEach(function(btn){
+      btn.style.pointerEvents = 'auto';
+      btn.style.opacity = '1';
+    });
+    if(slider){
+      slider.disabled = false;
+      slider.style.opacity = '1';
+    }
+  }, 600);
+}
+
+function initializeControls(){
+  var yearSlider = document.getElementById('year-slider');
+  var yearLabel = document.getElementById('year-label');
+
+  if(yearSlider && yearLabel){
+    yearSlider.addEventListener('input', function(){
+      yearLabel.textContent = this.value;
+    });
+
+    yearSlider.addEventListener('change', function(){
+      if(buttonsDisabled) return;
+      currentYear = this.value;
+      disableAllButtons();
+      switchToCategory(currentCategory);
+    });
+  }
+
+  document.querySelectorAll('#limit-group .control-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if(buttonsDisabled) return;
+      document.querySelectorAll('#limit-group .control-btn').forEach(function(b){ b.classList.remove('active'); });
+      this.classList.add('active');
+      currentLimit = this.getAttribute('data-limit');
+      disableAllButtons();
+      updateVisualization();
+    });
+  });
+  document.querySelectorAll('#view-group .control-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if(buttonsDisabled) return;
+      document.querySelectorAll('#view-group .control-btn').forEach(function(b){ b.classList.remove('active'); });
+      this.classList.add('active');
+      currentView = this.getAttribute('data-view');
+      disableAllButtons();
+      updateVisualization();
+    });
+  });
+  document.querySelectorAll('#category-group .control-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if(buttonsDisabled) return;
+      document.querySelectorAll('#category-group .control-btn').forEach(function(b){ b.classList.remove('active'); });
+      this.classList.add('active');
+      currentCategory = this.getAttribute('data-category');
+      disableAllButtons();
+      switchToCategory(currentCategory);
+    });
+  });
+}
+
+function initializeVisualization(){
+  data = normalizeData(originalData);
+  groups = Array.from(new Set(data.map(function(d){ return d.parent; })));
+  inferredColors = {};
+  groups.forEach(function(g){
+    var item = originalData.find(function(x){ var p = x.parent || x.parentName || x.group || x.domain || x.category || x.type || x.class; return p === g; });
+    inferredColors[g] = item && item.color ? item.color : null;
+  });
+  groupColors = {};
+  groups.forEach(function(g, i){
+    groupColors[g] = inferredColors[g] || regionColorMap[g] || fallbackPalette[i % fallbackPalette.length];
+  });
+  activeGroups = new Set(groups);
+  
+  buildLegend();
+  updateVisualization();
+}
+
+function buildCityToContinentMap(){
+  cityToContinentMap = {};
+  cityIdToContinentMap = {};
+  countryToContinentMap = {};
+
+  return fetch('crosswalk.json')
+    .then(function(r){ return r.text(); })
+    .then(function(text){
+      var cleanedText = text.replace(/:\s*NaN\s*,/g, ': null,').replace(/:\s*NaN\s*}/g, ': null}');
+      var geoData = JSON.parse(cleanedText);
+
+      function addCountryMapping(key, continent){
+        if(!key || !continent) return;
+        var cleanKey = key.toString().trim();
+        if(!cleanKey) return;
+        if(!countryToContinentMap[cleanKey]){
+          countryToContinentMap[cleanKey] = continent;
+        }
+      }
+
+      geoData.forEach(function(city){
+        var cityName = city.urban_name ? city.urban_name.trim() : '';
+        var urbanId = city.urban_id;
+        var continent = city.continent || null;
+        var countryName = city.country_name ? city.country_name.trim() : '';
+        var countryNameUN = city.country_name_un ? city.country_name_un.trim() : '';
+        var countryCode = city.country_id ? city.country_id.toString().trim().toUpperCase() : '';
+
+        if(cityName && continent){
+          cityToContinentMap[cityName] = continent;
+        }
+
+        var numericId = parseInt(urbanId, 10);
+        if(!isNaN(numericId) && continent){
+          cityIdToContinentMap[numericId] = continent;
+        }
+
+        addCountryMapping(countryName, continent);
+        addCountryMapping(countryNameUN, continent);
+        addCountryMapping(countryCode, continent);
+        if(countryCode && countryName){
+          addCountryMapping(countryName + ' (' + countryCode + ')', continent);
+        }
+        if(countryCode && countryNameUN){
+          addCountryMapping(countryNameUN + ' (' + countryCode + ')', continent);
+        }
+      });
+
+      return geoData;
+    })
+    .catch(function(error){
+      console.warn('Could not load crosswalk data:', error);
+      return [];
+    });
+}
+
+function getCitiesDataWithContinents(yearData){
+  return yearData.map(function(city){
+    var cityName = city.name || '';
+    var continent = null;
+
+    var idMatch = cityName.match(/\((\d+)\)$/);
+    if(idMatch){
+      var urbanId = parseInt(idMatch[1]);
+      if(cityIdToContinentMap[urbanId]){
+        continent = cityIdToContinentMap[urbanId];
+      }
+    }
+    if(!continent){
+      var cleanName = cityName.replace(/\s*\(\d+\)$/, '').trim();
+
+      if(cityToContinentMap[cleanName]){
+        continent = cityToContinentMap[cleanName];
+      } else if(cityToContinentMap[cityName]){
+        continent = cityToContinentMap[cityName];
+      }
+    }
+    if(!continent){
+      continent = "Unknown";
+    }
+
+    var newCity = Object.assign({}, city);
+    newCity.parent = continent;
+    newCity.parentName = continent;
+    newCity.group = continent;
+    return newCity;
+  });
+}
+
+function switchToCategory(category){
+  var yearData;
+  if(category === 'countries'){
+    yearData = countriesData[currentYear] || [];
+    originalData = yearData;
+  } else if(category === 'cities'){
+    yearData = citiesData[currentYear] || [];
+    originalData = getCitiesDataWithContinents(yearData);
+  }
+  initializeVisualization();
+}
+
+function parseCSV(text){
+  var lines = text.trim().split('\n');
+  var headers = lines[0].split(',').map(function(h){ return h.replace(/"/g, '').trim(); });
+  var data = [];
+
+  for(var i = 1; i < lines.length; i++){
+    var line = lines[i];
+    var values = [];
+    var inQuotes = false;
+    var currentValue = '';
+
+    for(var j = 0; j < line.length; j++){
+      var char = line[j];
+      if(char === '"'){
+        inQuotes = !inQuotes;
+      } else if(char === ',' && !inQuotes){
+        values.push(currentValue.trim());
+        currentValue = '';
+      } else {
+        currentValue += char;
+      }
+    }
+    values.push(currentValue.trim());
+
+    if(values.length === headers.length){
+      var obj = {};
+      headers.forEach(function(header, idx){
+        obj[header] = values[idx];
+      });
+      data.push(obj);
+    }
+  }
+  return data;
+}
+
+function getCountryContinent(geo){
+  var label = (geo || '').trim();
+  if(!label) return "Other";
+
+  var isoMatch = label.match(/\(([^)]+)\)\s*$/);
+  var baseName = label.replace(/\s*\([^)]+\)\s*$/, '').trim();
+  var continent = null;
+
+  if(isoMatch){
+    var code = isoMatch[1].trim().toUpperCase();
+    if(code){
+      continent = countryToContinentMap[code];
+    }
+  }
+  if(!continent && label){
+    continent = countryToContinentMap[label];
+  }
+  if(!continent && baseName){
+    continent = countryToContinentMap[baseName];
+  }
+  return continent || "Other";
+}
+
+function transformCSVToTreemapData(csvData, isCity){
+  return csvData.map(function(row){
+    var geo = row.geo || '';
+    var count = parseFloat(row.count) || 0;
+
+    var continent;
+    if(isCity){
+      continent = "Other";
+    } else {
+      continent = getCountryContinent(geo);
+    }
+
+    return {
+      name: geo,
+      parent: continent,
+      parentName: continent,
+      value: count,
+      count: count
+    };
+  });
+}
+
+function loadAllData(){
+  var years = ['2020', '2021', '2022', '2023', '2024', '2025'];
+  var countryPromises = years.map(function(year){
+    return fetch('country/' + year + '.csv')
+      .then(function(r){ return r.text(); })
+      .then(function(text){ return { year: year, data: parseCSV(text) }; });
+  });
+
+  var cityPromises = years.map(function(year){
+    return fetch('urban/' + year + '.csv')
+      .then(function(r){ return r.text(); })
+      .then(function(text){ return { year: year, data: parseCSV(text) }; });
+  });
+
+  Promise.all([
+    buildCityToContinentMap(),
+    Promise.all(countryPromises),
+    Promise.all(cityPromises)
+  ])
+    .then(function(results){
+      var countryResults = results[1] || [];
+      var cityResults = results[2] || [];
+
+      countryResults.forEach(function(result){
+        countriesData[result.year] = transformCSVToTreemapData(result.data, false);
+      });
+
+      cityResults.forEach(function(result){
+        citiesData[result.year] = transformCSVToTreemapData(result.data, true);
+      });
+
+      switchToCategory(currentCategory);
+    })
+    .catch(function(error){
+      console.error('Error loading data:', error);
+    });
+}
+
+initializeControls();
+loadAllData();
+
+function renderToContainerSize(){
+  var el = document.getElementById('treemap');
+  if(!el) return;
+  var rect = el.getBoundingClientRect();
+  try {
+    if(typeof treemap.width === 'function') treemap.width(rect.width);
+    if(typeof treemap.height === 'function') treemap.height(rect.height);
+  } catch(e) {}
+  treemap.render();
+}
+var _resizeTimer;
+window.addEventListener('resize', function(){
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(renderToContainerSize, 120);
+});
+if (typeof ResizeObserver !== 'undefined') {
+  var _ro = new ResizeObserver(function(){ renderToContainerSize(); });
+  _ro.observe(document.getElementById('treemap'));
+}
+</script>
+</body>
+</html>
