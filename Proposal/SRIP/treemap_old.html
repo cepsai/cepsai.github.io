@@ -83,14 +83,9 @@ body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-seri
   </div>
   <div id="container2-5" class="container controls-container">
     <div class="slider-container" id="year-slider-container">
-      <label class="slider-label" id="year-range-label">2025</label>
-      <input type="range" id="year-start-slider" class="year-slider" min="2020" max="2025" value="2025" step="1">
-      <input type="range" id="year-end-slider" class="year-slider" min="2020" max="2025" value="2025" step="1">
-    </div>
-    <!-- <div class="slider-container" id="year-slider-container">
       <label for="year-slider" class="slider-label" id="year-label">2025</label>
       <input type="range" id="year-slider" class="year-slider" min="2020" max="2025" value="2025" step="1">
-    </div> -->
+    </div>
     <div class="button-group" id="limit-group">
       <button class="control-btn" data-limit="50">50</button>
       <button class="control-btn" data-limit="100">100</button>
@@ -103,11 +98,6 @@ body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-seri
     <div class="button-group" id="category-group">
       <button class="control-btn active" data-category="countries">COUNTRIES</button>
       <button class="control-btn" data-category="cities">CITIES</button>
-    </div>
-    <div class="button-group" id="metric-group">
-      <button class="control-btn active" data-metric="investments">INVESTMENTS</button>
-      <button class="control-btn" data-metric="patents">PATENTS</button>
-      <button class="control-btn" data-metric="publications">PUBLICATIONS</button>
     </div>
   </div>
   <div id="container3" class="container source-container">
@@ -131,30 +121,6 @@ var currentLimit = 'all';
 var currentView = 'count';
 var currentCategory = 'countries';
 var currentYear = '2025';
-var currentMetric = 'investments';
-var currentYearStart = '2025';
-var currentYearEnd = '2025';
-
-var metricConfig = {
-  investments: {
-    label: 'Crunchbase',
-    sourceUrl: 'https://www.crunchbase.com/',
-    basePathCountry: 'country/crunchbase',
-    basePathCity: 'urban/crunchbase'
-  },
-  patents: {
-    label: 'RegPat',
-    sourceUrl: 'https://www.oecd.org/sti/inno/oecdpatentdatabase.htm',
-    basePathCountry: 'country/regpat',
-    basePathCity: 'urban/regpat'
-  },
-  publications: {
-    label: 'OpenAlex',
-    sourceUrl: 'https://openalex.org/',
-    basePathCountry: 'country/openalex',
-    basePathCity: 'urban/openalex'
-  }
-};
 var buttonsDisabled = false;
 
 function formatNumber(num){
@@ -325,40 +291,13 @@ function updateVisualization(){
   treemap.data(data);
   treemap.render();
 
-    // metric switcher
-  document.querySelectorAll('#metric-group .control-btn').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      if (buttonsDisabled) return;
-
-      // toggle active state
-      document.querySelectorAll('#metric-group .control-btn').forEach(function(b){
-        b.classList.remove('active');
-      });
-      this.classList.add('active');
-
-      currentMetric = this.getAttribute('data-metric');
-
-      // update source label (bottom-left)
-      var cfg = metricConfig[currentMetric];
-      var srcEl = document.querySelector('.source-text');
-      if (srcEl && cfg) {
-        srcEl.innerHTML =
-          'Source: <a href="' + cfg.sourceUrl +
-          '" target="_blank" rel="noopener">' + cfg.label + '</a>';
-      }
-
-      disableAllButtons();
-      loadAllData(currentMetric);  // reload data for the chosen metric
-    });
+  document.querySelectorAll('.legend-item').forEach(function(item){
+    var grp = item.getAttribute('data-group');
+    var isActive = activeGroups.has(grp);
+    item.classList.toggle('inactive', !isActive);
+    item.classList.toggle('active', isActive);
+    item.setAttribute('aria-pressed', isActive ? 'true' : 'false');
   });
-
-  // document.querySelectorAll('.legend-item').forEach(function(item){
-  //   var grp = item.getAttribute('data-group');
-  //   var isActive = activeGroups.has(grp);
-  //   item.classList.toggle('inactive', !isActive);
-  //   item.classList.toggle('active', isActive);
-  //   item.setAttribute('aria-pressed', isActive ? 'true' : 'false');
-  // });
 }
 function disableAllButtons(){
   buttonsDisabled = true;
@@ -385,60 +324,23 @@ function disableAllButtons(){
 }
 
 function initializeControls(){
-  var startSlider = document.getElementById('year-start-slider');
-  var endSlider = document.getElementById('year-end-slider');
-  var rangeLabel = document.getElementById('year-range-label');
+  var yearSlider = document.getElementById('year-slider');
+  var yearLabel = document.getElementById('year-label');
 
-  function updateYearLabel(){
-    if (!rangeLabel) return;
-    if (currentYearStart === currentYearEnd){
-      rangeLabel.textContent = currentYearStart;
-    } else {
-      rangeLabel.textContent = currentYearStart + '–' + currentYearEnd;
-    }
-  }
-
-  if (startSlider && endSlider){
-    // init label
-    currentYearStart = startSlider.value;
-    currentYearEnd = endSlider.value;
-    updateYearLabel();
-
-    startSlider.addEventListener('input', function(){
-      var v = this.value;
-      // ensure start <= end
-      if (parseInt(v, 10) > parseInt(currentYearEnd, 10)){
-        v = currentYearEnd;
-        this.value = v;
-      }
-      currentYearStart = v;
-      updateYearLabel();
+  if(yearSlider && yearLabel){
+    yearSlider.addEventListener('input', function(){
+      yearLabel.textContent = this.value;
     });
 
-    endSlider.addEventListener('input', function(){
-      var v = this.value;
-      // ensure end >= start
-      if (parseInt(v, 10) < parseInt(currentYearStart, 10)){
-        v = currentYearStart;
-        this.value = v;
-      }
-      currentYearEnd = v;
-      updateYearLabel();
-    });
-
-    // recompute data when user releases sliders
-    startSlider.addEventListener('change', function(){
-      if (buttonsDisabled) return;
-      disableAllButtons();
-      switchToCategory(currentCategory);
-    });
-    endSlider.addEventListener('change', function(){
-      if (buttonsDisabled) return;
+    yearSlider.addEventListener('change', function(){
+      if(buttonsDisabled) return;
+      currentYear = this.value;
       disableAllButtons();
       switchToCategory(currentCategory);
     });
   }
-    document.querySelectorAll('#limit-group .control-btn').forEach(function(btn){
+
+  document.querySelectorAll('#limit-group .control-btn').forEach(function(btn){
     btn.addEventListener('click', function(){
       if(buttonsDisabled) return;
       document.querySelectorAll('#limit-group .control-btn').forEach(function(b){ b.classList.remove('active'); });
@@ -469,28 +371,6 @@ function initializeControls(){
     });
   });
 }
-
-  // … keep the rest of initializeControls() (limit/view/category/metric listeners) as is …
-
-
-// function initializeControls(){
-//   var yearSlider = document.getElementById('year-slider');
-//   var yearLabel = document.getElementById('year-label');
-
-//   if(yearSlider && yearLabel){
-//     yearSlider.addEventListener('input', function(){
-//       yearLabel.textContent = this.value;
-//     });
-
-//     yearSlider.addEventListener('change', function(){
-//       if(buttonsDisabled) return;
-//       currentYear = this.value;
-//       disableAllButtons();
-//       switchToCategory(currentCategory);
-//     });
-//   }
-
-
 
 function initializeVisualization(){
   data = normalizeData(originalData);
@@ -599,57 +479,16 @@ function getCitiesDataWithContinents(yearData){
   });
 }
 
-// function switchToCategory(category){
-//   var yearData;
-//   if(category === 'countries'){
-//     yearData = countriesData[currentYear] || [];
-//     originalData = yearData;
-//   } else if(category === 'cities'){
-//     yearData = citiesData[currentYear] || [];
-//     originalData = getCitiesDataWithContinents(yearData);
-//   }
-//   initializeVisualization();
-// }
-
-function aggregateYearRange(sourceByYear, startYear, endYear){
-  var acc = {};
-
-  for (var y = startYear; y <= endYear; y++){
-    var yearKey = String(y);
-    var arr = sourceByYear[yearKey] || [];
-    arr.forEach(function(d){
-      var key = (d.parent || "") + "|" + (d.name || "");
-      if (!acc[key]){
-        // clone so we don't mutate original
-        acc[key] = Object.assign({}, d);
-      } else {
-        var add = Number(d.value) || 0;
-        acc[key].value = (acc[key].value || 0) + add;
-        acc[key].count = acc[key].value;
-      }
-    });
-  }
-
 function switchToCategory(category){
-  var startY = parseInt(currentYearStart, 10);
-  var endY = parseInt(currentYearEnd, 10);
-  if (isNaN(startY) || isNaN(endY)){
-    startY = endY = parseInt(currentYear, 10) || 2025; // fallback
-  }
-
   var yearData;
-  if (category === 'countries'){
-    yearData = aggregateYearRange(countriesData, startY, endY);
+  if(category === 'countries'){
+    yearData = countriesData[currentYear] || [];
     originalData = yearData;
-  } else if (category === 'cities'){
-    yearData = aggregateYearRange(citiesData, startY, endY);
+  } else if(category === 'cities'){
+    yearData = citiesData[currentYear] || [];
     originalData = getCitiesDataWithContinents(yearData);
   }
-
   initializeVisualization();
-}
-
-  return Object.values(acc);
 }
 
 function parseCSV(text){
@@ -684,8 +523,7 @@ function parseCSV(text){
       data.push(obj);
     }
   }
-  return data.filter(row => (row.domain || "").trim() === "Artificial Intelligence");
-  // return data;
+  return data;
 }
 
 function getCountryContinent(geo){
@@ -712,20 +550,12 @@ function getCountryContinent(geo){
 }
 
 function transformCSVToTreemapData(csvData, isCity){
-  // 🔥 Drop bad/missing geos
-  csvData = csvData.filter(function(row){
-    var geo = (row.geo || "").trim();
-    if (!geo) return false;
-    if (geo === "nan (NA) (NA)") return false;
-    return true;
-  });
-
   return csvData.map(function(row){
     var geo = row.geo || '';
     var count = parseFloat(row.count) || 0;
 
     var continent;
-    if (isCity){
+    if(isCity){
       continent = "Other";
     } else {
       continent = getCountryContinent(geo);
@@ -741,83 +571,16 @@ function transformCSVToTreemapData(csvData, isCity){
   });
 }
 
-// function transformCSVToTreemapData(csvData, isCity){
-//   return csvData.map(function(row){
-//     var geo = row.geo || '';
-//     var count = parseFloat(row.count) || 0;
-
-//     var continent;
-//     if(isCity){
-//       continent = "Other";
-//     } else {
-//       continent = getCountryContinent(geo);
-//     }
-
-//     return {
-//       name: geo,
-//       parent: continent,
-//       parentName: continent,
-//       value: count,
-//       count: count
-//     };
-//   });
-// }
-
-// function loadAllData(){
-//   var years = ['2020', '2021', '2022', '2023', '2024', '2025'];
-//   var countryPromises = years.map(function(year){
-//     return fetch('country/' + year + '.csv')
-//       .then(function(r){ return r.text(); })
-//       .then(function(text){ return { year: year, data: parseCSV(text) }; });
-//   });
-
-//   var cityPromises = years.map(function(year){
-//     return fetch('urban/' + year + '.csv')
-//       .then(function(r){ return r.text(); })
-//       .then(function(text){ return { year: year, data: parseCSV(text) }; });
-//   });
-
-//   Promise.all([
-//     buildCityToContinentMap(),
-//     Promise.all(countryPromises),
-//     Promise.all(cityPromises)
-//   ])
-//     .then(function(results){
-//       var countryResults = results[1] || [];
-//       var cityResults = results[2] || [];
-
-//       countryResults.forEach(function(result){
-//         countriesData[result.year] = transformCSVToTreemapData(result.data, false);
-//       });
-
-//       cityResults.forEach(function(result){
-//         citiesData[result.year] = transformCSVToTreemapData(result.data, true);
-//       });
-
-//       switchToCategory(currentCategory);
-//     })
-//     .catch(function(error){
-//       console.error('Error loading data:', error);
-//     });
-// }
-function loadAllData(metric){
-  var m = metric || currentMetric;
-  var cfg = metricConfig[m];
-  if (!cfg) {
-    console.error('Unknown metric:', m);
-    return;
-  }
-
+function loadAllData(){
   var years = ['2020', '2021', '2022', '2023', '2024', '2025'];
-
   var countryPromises = years.map(function(year){
-    return fetch(cfg.basePathCountry + '/' + year + '.csv')
+    return fetch('country/' + year + '.csv')
       .then(function(r){ return r.text(); })
       .then(function(text){ return { year: year, data: parseCSV(text) }; });
   });
 
   var cityPromises = years.map(function(year){
-    return fetch(cfg.basePathCity + '/' + year + '.csv')
+    return fetch('urban/' + year + '.csv')
       .then(function(r){ return r.text(); })
       .then(function(text){ return { year: year, data: parseCSV(text) }; });
   });
@@ -831,9 +594,6 @@ function loadAllData(metric){
       var countryResults = results[1] || [];
       var cityResults = results[2] || [];
 
-      countriesData = {};
-      citiesData = {};
-
       countryResults.forEach(function(result){
         countriesData[result.year] = transformCSVToTreemapData(result.data, false);
       });
@@ -842,15 +602,15 @@ function loadAllData(metric){
         citiesData[result.year] = transformCSVToTreemapData(result.data, true);
       });
 
-      switchToCategory(currentCategory);  // will respect currentYear
+      switchToCategory(currentCategory);
     })
     .catch(function(error){
-      console.error('Error loading data for metric', m, error);
+      console.error('Error loading data:', error);
     });
 }
 
 initializeControls();
-loadAllData(currentMetric);
+loadAllData();
 
 function renderToContainerSize(){
   var el = document.getElementById('treemap');
