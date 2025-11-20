@@ -352,18 +352,12 @@ function buildLegend(){
 
 var percentageMap = {};
 
-function cleanGeoName(name){
-  // remove trailing " (XXX)" — works for (NL), (US), (166), etc.
-  return (name || '').replace(/\s*\([^)]+\)\s*$/, '');
-}
-
 function getLabelText(d){
-  if (d.depth === 0) return d.id;
+  if(d.depth === 0) return d.id;
 
-  var baseName = cleanGeoName(d.name);
-  var label = baseName;
+  var label = d.name;
 
-  if (currentView === 'percent') {
+  if(currentView === 'percent') {
     var key = (d.parent || d.id) + '|' + d.name;
     var percentage = percentageMap[key] || 0;
     label += '\n' + percentage.toFixed(1) + "%";
@@ -373,22 +367,6 @@ function getLabelText(d){
 
   return label;
 }
-
-// function getLabelText(d){
-//   if(d.depth === 0) return d.id;
-
-//   var label = d.name;
-
-//   if(currentView === 'percent') {
-//     var key = (d.parent || d.id) + '|' + d.name;
-//     var percentage = percentageMap[key] || 0;
-//     label += '\n' + percentage.toFixed(1) + "%";
-//   } else {
-//     label += '\n' + formatNumber(d.value || 0);
-//   }
-
-//   return label;
-// }
 
 var treemap = new d3plus.Treemap()
   .select("#treemap")
@@ -705,7 +683,7 @@ function buildCityToContinentMap(){
       geoData.forEach(function(city){
         var cityName = city.urban_name ? city.urban_name.trim() : '';
         var urbanId = city.urban_id;
-        var continent = city.parent || null;
+        var continent = city.continent || null;
         var countryName = city.country_name ? city.country_name.trim() : '';
         var countryNameUN = city.country_name_un ? city.country_name_un.trim() : '';
         var countryCode = city.country_id ? city.country_id.toString().trim().toUpperCase() : '';
@@ -897,11 +875,9 @@ function parseCSV(text){
 
 function getCountryContinent(geo){
   var label = (geo || '').trim();
-  if(!label) return "Rest of the world";
-
+  if(!label) return "Other";
 
   var isoMatch = label.match(/\(([^)]+)\)\s*$/);
-  if(isoMatch[1]=='UK') return "United Kingdom";
   var baseName = label.replace(/\s*\([^)]+\)\s*$/, '').trim();
   var continent = null;
 
@@ -917,7 +893,7 @@ function getCountryContinent(geo){
   if(!continent && baseName){
     continent = countryToContinentMap[baseName];
   }
-  return continent || "Rest of the world";
+  return continent || "Other";
 }
 
 function transformCSVToTreemapData(csvData, isCity){
