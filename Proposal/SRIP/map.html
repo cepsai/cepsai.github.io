@@ -278,6 +278,9 @@
         let countriesData = {};
         let geoLocationMap = {};
         let countryLocationMap = {};
+        let cityToContinentMap = {};
+        let cityIdToContinentMap = {};
+        let countryToContinentMap = {};
 
         // World map projection
         const projection = d3.geoNaturalEarth1()
@@ -338,6 +341,107 @@
             }));
         }
 
+        function buildGeoLookupMaps(geoData) {
+            geoLocationMap = {};
+            countryLocationMap = {};
+            cityToContinentMap = {};
+            cityIdToContinentMap = {};
+            countryToContinentMap = {};
+
+            function addCountryContinent(key, continent) {
+                if (!key || !continent) return;
+                const cleanKey = key.toString().trim();
+                if (!cleanKey) return;
+                if (!countryToContinentMap[cleanKey]) {
+                    countryToContinentMap[cleanKey] = continent;
+                }
+            }
+
+            geoData.forEach(city => {
+                const cityName = city.urban_name ? city.urban_name.trim() : '';
+                const cityNameOld = city.urban_name_old ? city.urban_name_old.trim() : '';
+                const urbanId = parseInt(city.urban_id, 10);
+                const continent = city.continent || null;
+                const countryName = city.country_name ? city.country_name.trim() : '';
+                const countryNameUN = city.country_name_un ? city.country_name_un.trim() : '';
+                const countryCode = city.country_id ? city.country_id.toString().trim().toUpperCase() : '';
+                const lat = parseFloat(city.latitude);
+                const lon = parseFloat(city.longitude);
+
+                if (cityName && !isNaN(lat) && !isNaN(lon)) {
+                    geoLocationMap[cityName] = { latitude: lat, longitude: lon, country: countryName || countryNameUN || '' };
+                }
+                if (cityNameOld && !isNaN(lat) && !isNaN(lon)) {
+                    geoLocationMap[cityNameOld] = { latitude: lat, longitude: lon, country: countryName || countryNameUN || '' };
+                }
+
+                if (cityName && continent) cityToContinentMap[cityName] = continent;
+                if (cityNameOld && continent) cityToContinentMap[cityNameOld] = continent;
+                if (!isNaN(urbanId) && continent) cityIdToContinentMap[urbanId] = continent;
+
+                if (countryName && !isNaN(lat) && !isNaN(lon) && !countryLocationMap[countryName]) {
+                    countryLocationMap[countryName] = { latitude: lat, longitude: lon };
+                }
+                if (countryNameUN && !isNaN(lat) && !isNaN(lon) && !countryLocationMap[countryNameUN]) {
+                    countryLocationMap[countryNameUN] = { latitude: lat, longitude: lon };
+                }
+                if (countryCode && !isNaN(lat) && !isNaN(lon) && !countryLocationMap[countryCode]) {
+                    countryLocationMap[countryCode] = { latitude: lat, longitude: lon };
+                }
+                if (countryName && countryCode && !isNaN(lat) && !isNaN(lon) && !countryLocationMap[countryName + ' (' + countryCode + ')']) {
+                    countryLocationMap[countryName + ' (' + countryCode + ')'] = { latitude: lat, longitude: lon };
+                }
+                if (countryNameUN && countryCode && !isNaN(lat) && !isNaN(lon) && !countryLocationMap[countryNameUN + ' (' + countryCode + ')']) {
+                    countryLocationMap[countryNameUN + ' (' + countryCode + ')'] = { latitude: lat, longitude: lon };
+                }
+
+                addCountryContinent(countryName, continent);
+                addCountryContinent(countryNameUN, continent);
+                addCountryContinent(countryCode, continent);
+                if (countryName && countryCode) addCountryContinent(countryName + ' (' + countryCode + ')', continent);
+                if (countryNameUN && countryCode) addCountryContinent(countryNameUN + ' (' + countryCode + ')', continent);
+            });
+        }
+
+        function getCountryContinent(csvName) {
+            const label = (csvName || '').trim();
+            if (!label) return null;
+
+            const isoMatch = label.match(/\(([^)]+)\)\s*$/);
+            const baseName = label.replace(/\s*\([^)]+\)\s*$/, '').trim();
+            let continent = null;
+
+            if (isoMatch) {
+                const code = isoMatch[1].trim().toUpperCase();
+                if (code) {
+                    continent = countryToContinentMap[code];
+                }
+            }
+            if (!continent && label) {
+                continent = countryToContinentMap[label];
+            }
+            if (!continent && baseName) {
+                continent = countryToContinentMap[baseName];
+            }
+            return continent || null;
+        }
+
+        function getCityContinent(csvName) {
+            if (!csvName) return null;
+            const idMatch = csvName.match(/\((\d+)\)\s*$/);
+            if (idMatch) {
+                const urbanId = parseInt(idMatch[1], 10);
+                if (!isNaN(urbanId) && cityIdToContinentMap[urbanId]) {
+                    return cityIdToContinentMap[urbanId];
+                }
+            }
+
+            const cleanName = csvName.replace(/\s*\(\d+\)\s*$/, '').trim();
+            if (cityToContinentMap[cleanName]) return cityToContinentMap[cleanName];
+            if (cityToContinentMap[csvName.trim()]) return cityToContinentMap[csvName.trim()];
+            return null;
+        }
+
         // Load all data
         function loadAllData() {
             const years = ['2020', '2021', '2022', '2023', '2024', '2025'];
@@ -377,26 +481,7 @@
                     .attr("class", "country-boundary")
                     .attr("d", path);
 
-                // Build geo location map for cities
-                geoData.forEach(city => {
-                    const cleanName = city.urban_name ? city.urban_name.trim() : '';
-                    if (cleanName && city.latitude && city.longitude) {
-                        geoLocationMap[cleanName] = {
-                            latitude: city.latitude,
-                            longitude: city.longitude,
-                            country: city.country_name
-                        };
-                    }
-
-                    // Also build country location map (use first city as country centroid approximation)
-                    const countryName = city.country_name;
-                    if (countryName && city.latitude && city.longitude && !countryLocationMap[countryName]) {
-                        countryLocationMap[countryName] = {
-                            latitude: city.latitude,
-                            longitude: city.longitude
-                        };
-                    }
-                });
+                buildGeoLookupMaps(geoData);
 
                 // Process CSV data for each year
                 yearResults.forEach(result => {
@@ -457,13 +542,23 @@
 
         // Match country names with geo locations
         function matchCountryName(csvName) {
+            if (!csvName) return null;
             // Try exact match first
             if (countryLocationMap[csvName]) {
                 return countryLocationMap[csvName];
             }
 
+            // Try ISO code in parentheses (e.g., "United States (US)")
+            const isoMatch = csvName.match(/\(([^)]+)\)\s*$/);
+            if (isoMatch) {
+                const code = isoMatch[1].trim().toUpperCase();
+                if (code && countryLocationMap[code]) {
+                    return countryLocationMap[code];
+                }
+            }
+
             // Try removing code in parentheses (e.g., "United States (US)" -> "United States")
-            const cleanName = csvName.replace(/\s*\([A-Z]{2}\)$/, '').trim();
+            const cleanName = csvName.replace(/\s*\([^)]+\)\s*$/, '').trim();
             if (countryLocationMap[cleanName]) {
                 return countryLocationMap[cleanName];
             }
@@ -496,7 +591,8 @@
                                 ...d,
                                 x: coords[0],
                                 y: coords[1],
-                                country: geo.country
+                                country: geo.country,
+                                continent: getCityContinent(d.name) || getCountryContinent(geo.country)
                             };
                         }
                         return null;
@@ -517,7 +613,8 @@
                                 ...d,
                                 x: coords[0],
                                 y: coords[1],
-                                country: d.name
+                                country: d.name,
+                                continent: getCountryContinent(d.name)
                             };
                         }
                         return null;
@@ -551,14 +648,15 @@
                 .attr("r", 0)
                 .on("mouseover", (event, d) => {
                     const isCountry = currentCategory === 'countries';
-                    const locationLabel = isCountry ? 'Country' : 'City';
                     const countryLine = isCountry ? '' : `<div>Country: ${d.country || 'Unknown'}</div>`;
+                    const continentLine = d.continent ? `<div>Continent: ${d.continent}</div>` : '';
 
                     tooltip
                         .style("opacity", 1)
                         .html(`
                             <div class="tooltip-city">${d.name}</div>
                             ${countryLine}
+                            ${continentLine}
                             <div>Investment: ${formatNumber(d.value)}</div>
                         `)
                         .style("left", (event.pageX + 10) + "px")
