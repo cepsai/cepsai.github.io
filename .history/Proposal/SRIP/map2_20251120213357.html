@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>World AI Investment Map</title>
+
+<style>
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+
+#container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  grid-template-columns: 1fr 1fr;
+}
+
+#mapContainer {
+  grid-row: 1;
+  grid-column: 1 / span 2;
+  position: relative;
+}
+
+#controlsContainer {
+  grid-row: 2;
+  grid-column: 1 / span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(20px, 3vw, 40px);
+  padding: clamp(6px, 1.2vh, 10px) 20px;
+  background: rgba(255, 255, 255, 0.95);
+  z-index: 1000;
+}
+
+#sourceContainer {
+  grid-row: 3;
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 20px;
+  min-height: 40px;
+}
+
+#logoContainer {
+  grid-row: 3;
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 20px;
+  min-height: 40px;
+}
+
+/* --- SLIDER --- */
+.slider-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+.slider-label {
+  font-size: 18px;
+  font-weight: 800;
+  color: #4169E1;
+  margin-top: 4px;
+}
+
+.range-wrapper {
+  position: relative;
+  width: 240px;
+  height: 32px;
+}
+
+/* remove old slider track */
+.range-wrapper input[type=range] {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  width: 100%;
+  -webkit-appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* custom track */
+.range-wrapper::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+}
+
+/* top slider thumb gets z-index */
+.year-slider-top { z-index: 2; }
+
+/* THUMB (webkit) */
+.range-wrapper input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4169E1;
+  cursor: pointer;
+  pointer-events: auto;
+  margin-top: -6px;
+}
+
+/* THUMB (firefox) */
+.range-wrapper input[type=range]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4169E1;
+  border: none;
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translateY(-3px);
+}
+
+/* --- BUTTONS --- */
+.button-group {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+.control-btn {
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  background: #ffffff;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.control-btn:not(:last-child) {
+  border-right: 1px solid #e0e0e0;
+}
+
+.control-btn:hover:not(.active) {
+  background: #f5f5f5;
+}
+
+.control-btn.active {
+  background: #4169E1;
+  color: #ffffff;
+}
+
+/* --- MAP --- */
+svg {
+  width: 100%;
+  height: 100%;
+  background: #f0f8ff;
+  display: block;
+}
+
+.land {
+  fill: #ddd;
+  stroke: #fff;
+  stroke-width: 0.5px;
+}
+
+.country-boundary {
+  fill: none;
+  stroke: #999;
+  stroke-width: 0.3px;
+}
+
+circle.bubble {
+  fill: #4169E1;
+  fill-opacity: 0.6;
+  stroke: #fff;
+  stroke-width: 1px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+circle.bubble:hover {
+  fill-opacity: 0.9;
+  stroke-width: 2px;
+}
+
+.tooltip {
+  position: absolute;
+  background: white;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  font-size: 12px;
+  z-index: 2000;
+}
+
+.source-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.logo {
+  height: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+</style>
+</head>
+
+<body>
+<div id="container">
+
+  <div id="mapContainer">
+    <svg></svg>
+    <div id="spinner"></div>
+  </div>
+
+  <div id="controlsContainer">
+
+    <!-- YEAR RANGE SLIDER -->
+    <div class="slider-container">
+      <label class="slider-label" id="year-label">2000–2025</label>
+      <div class="range-wrapper">
+        <input type="range" id="year-start-slider" min="2000" max="2025" value="2000" class="year-slider">
+        <input type="range" id="year-end-slider" min="2000" max="2025" value="2025" class="year-slider year-slider-top">
+      </div>
+    </div>
+
+    <!-- LIMIT -->
+    <div class="button-group" id="limit-group">
+      <button class="control-btn" data-limit="50">50</button>
+      <button class="control-btn" data-limit="100">100</button>
+      <button class="control-btn active" data-limit="all">ALL</button>
+    </div>
+
+    <!-- CATEGORY -->
+    <div class="button-group" id="category-group">
+      <button class="control-btn active" data-category="cities">CITIES</button>
+      <button class="control-btn" data-category="countries">COUNTRIES</button>
+    </div>
+
+    <!-- METRIC -->
+    <div class="button-group" id="metric-group">
+      <button class="control-btn active" data-metric="investments">INVESTMENTS</button>
+      <button class="control-btn" data-metric="patents">PATENTS</button>
+      <button class="control-btn" data-metric="publications">PUBLICATIONS</button>
+    </div>
+
+  </div>
+
+  <div id="sourceContainer">
+    <div class="source-text">
+      Source:
+      <a href="https://www.crunchbase.com/" target="_blank">Crunchbase</a>
+    </div>
+  </div>
+
+  <div id="logoContainer">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo">
+    </a>
+  </div>
+
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://unpkg.com/topojson@3"></script>
+
+<script>
+
+/* ----------------------------------------------------------
+   METRIC CONFIG (YOUR STRUCTURE)
+---------------------------------------------------------- */
+const metricConfig = {
+  investments: {
+    label: 'Crunchbase',
+    sourceUrl: 'https://www.crunchbase.com/',
+    basePathCountry: 'country/crunchbase',
+    basePathCity: 'urban/crunchbase'
+  },
+  patents: {
+    label: 'RegPat',
+    sourceUrl: 'https://www.oecd.org/sti/inno/oecdpatentdatabase.htm',
+    basePathCountry: 'country/regpat',
+    basePathCity: 'urban/regpat'
+  },
+  publications: {
+    label: 'OpenAlex',
+    sourceUrl: 'https://openalex.org/',
+    basePathCountry: 'country/openalex',
+    basePathCity: 'urban/openalex'
+  }
+};
+
+let currentMetric = "investments";
+let currentCategory = "cities";
+let currentLimit = "all";
+
+let currentYearStart = 2000;
+let currentYearEnd = 2025;
+
+let countriesData = {};
+let citiesData = {};
+
+let geoLocationMap = {};
+let countryLocationMap = {};
+let cityToContinentMap = {};
+let cityIdToContinentMap = {};
+let countryToContinentMap = {};
+
+const svg = d3.select("svg");
+const width = window.innerWidth;
+const height = window.innerHeight;
+
+const tooltip = d3.select("body").append("div").attr("class", "tooltip");
+
+const allLayers = svg.append("g");
+const mapLayer = allLayers.append("g");
+const bubbleLayer = allLayers.append("g");
+
+const projection = d3.geoNaturalEarth1()
+  .scale(200)
+  .translate([width / 2, height / 2]);
+
+const path = d3.geoPath().projection(projection);
+
+svg.call(d3.zoom().scaleExtent([1, 8]).on("zoom", e => {
+  allLayers.attr("transform", e.transform);
+}));
+
+/* ----------------------------------------------------------
+   CSV PARSE WITH AI FILTER + BAD GEO FILTER
+---------------------------------------------------------- */
+function parseCSV(text) {
+  if (!text) return [];
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.trim());
+  const out = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const vals = lines[i].split(",");
+    if (vals.length !== headers.length) continue;
+    const row = {};
+    headers.forEach((h, idx) => row[h] = vals[idx]);
+
+    // AI-domain ONLY
+    if ((row.domain || "").trim() !== "Artificial Intelligence") continue;
+
+    // skip bad geo
+    if ((row.geo || "").trim() === "nan (NA) (NA)") continue;
+
+    row.count = Number(row.count) || 0;
+    out.push(row);
+  }
+  return out;
+}
+
+/* ----------------------------------------------------------
+   AGGREGATE YEARS
+---------------------------------------------------------- */
+function aggregateYearRange(dataByYear, start, end) {
+  const acc = {};
+  for (let y = start; y <= end; y++) {
+    const arr = dataByYear[y] || [];
+    arr.forEach(d => {
+      if (!acc[d.name]) acc[d.name] = { ...d };
+      else acc[d.name].value += d.value;
+    });
+  }
+  return Object.values(acc);
+}
+
+/* ----------------------------------------------------------
+   GEO PARSING & CONTINENT LOOKUP
+---------------------------------------------------------- */
+function buildGeoLookupMaps(geoData) {
+  geoLocationMap = {};
+  countryLocationMap = {};
+  cityToContinentMap = {};
+  cityIdToContinentMap = {};
+  countryToContinentMap = {};
+
+  function addCountry(key, cont) {
+    if (!key || !cont) return;
+    key = key.trim();
+    if (!key) return;
+    countryToContinentMap[key] = cont;
+  }
+
+  geoData.forEach(c => {
+    const cn = (c.urban_name || "").trim();
+    const old = (c.urban_name_old || "").trim();
+    const cont = c.continent;
+    const code = (c.country_id || "").toString().trim();
+    const country = (c.country_name || "").trim();
+    const countryUN = (c.country_name_un || "").trim();
+    const id = Number(c.urban_id);
+
+    const lat = Number(c.latitude);
+    const lon = Number(c.longitude);
+
+    if (cn && !isNaN(lat) && !isNaN(lon)) geoLocationMap[cn] = { latitude: lat, longitude: lon, country };
+    if (old && !isNaN(lat) && !isNaN(lon)) geoLocationMap[old] = { latitude: lat, longitude: lon, country };
+
+    if (cn && cont) cityToContinentMap[cn] = cont;
+    if (old && cont) cityToContinentMap[old] = cont;
+    if (!isNaN(id) && cont) cityIdToContinentMap[id] = cont;
+
+    if (country && !isNaN(lat)) countryLocationMap[country] = { latitude: lat, longitude: lon };
+    if (!isNaN(lat) && countryUN) countryLocationMap[countryUN] = { latitude: lat, longitude: lon };
+    if (!isNaN(lat) && code) countryLocationMap[code] = { latitude: lat, longitude: lon };
+
+    addCountry(country, cont);
+    addCountry(countryUN, cont);
+    addCountry(code, cont);
+  });
+}
+
+function matchCityName(name) {
+  if (geoLocationMap[name]) return geoLocationMap[name];
+  const clean = name.replace(/\(\d+\)/, "").trim();
+  if (geoLocationMap[clean]) return geoLocationMap[clean];
+  return null;
+}
+
+function matchCountryName(name) {
+  if (countryLocationMap[name]) return countryLocationMap[name];
+  const clean = name.replace(/\([^)]+\)/, "").trim();
+  if (countryLocationMap[clean]) return countryLocationMap[clean];
+  return null;
+}
+
+function getCityContinent(name) {
+  const idMatch = name.match(/\((\d+)\)/);
+  if (idMatch) {
+    const id = Number(idMatch[1]);
+    if (cityIdToContinentMap[id]) return cityIdToContinentMap[id];
+  }
+  const clean = name.replace(/\(\d+\)/, "").trim();
+  return cityToContinentMap[clean] || null;
+}
+
+function getCountryContinent(name) {
+  const clean = name.replace(/\([^)]+\)/, "").trim();
+  return countryToContinentMap[name] ||
+         countryToContinentMap[clean] || null;
+}
+
+/* ----------------------------------------------------------
+   LOAD DATA BASED ON METRIC + YEAR RANGE
+---------------------------------------------------------- */
+async function loadAllData() {
+  d3.select("#spinner").style("display", "block");
+
+  const cfg = metricConfig[currentMetric];
+  const minY = Number(document.getElementById("year-start-slider").min);
+  const maxY = Number(document.getElementById("year-end-slider").max);
+
+  const years = [];
+  for (let y = minY; y <= maxY; y++) years.push(y);
+
+  function safeFetch(path) {
+    return fetch(path).then(r => r.ok ? r.text() : null);
+  }
+
+  const worldData = await d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json");
+
+  const crosswalkText = await fetch("crosswalk.json").then(r => r.text());
+  const geoData = JSON.parse(crosswalkText.replace(/:\s*NaN/g, ": null"));
+
+  const countryFiles = await Promise.all(
+    years.map(y => safeFetch(`${cfg.basePathCountry}/${y}.csv`)
+      .then(t => ({ y, cat: "country", rows: parseCSV(t) })))
+  );
+
+  const cityFiles = await Promise.all(
+    years.map(y => safeFetch(`${cfg.basePathCity}/${y}.csv`)
+      .then(t => ({ y, cat: "city", rows: parseCSV(t) })))
+  );
+
+  mapLayer.selectAll("*").remove();
+  mapLayer.append("path")
+    .datum(topojson.feature(worldData, worldData.objects.countries))
+    .attr("class", "land")
+    .attr("d", path);
+
+  mapLayer.append("path")
+    .datum(topojson.mesh(worldData, worldData.objects.countries, (a, b) => a !== b))
+    .attr("class", "country-boundary")
+    .attr("d", path);
+
+  buildGeoLookupMaps(geoData);
+
+  countriesData = {};
+  citiesData = {};
+
+  [...countryFiles, ...cityFiles].forEach(r => {
+    const transformed = r.rows.map(d => ({
+      name: d.geo,
+      value: d.count
+    }));
+
+    if (r.cat === "country") countriesData[r.y] = transformed;
+    else citiesData[r.y] = transformed;
+  });
+
+  d3.select("#spinner").style("display", "none");
+
+  updateVisualization();
+}
+
+/* ----------------------------------------------------------
+   UPDATE MAP
+---------------------------------------------------------- */
+function updateVisualization() {
+  let raw, data;
+
+  if (currentCategory === "cities") {
+    raw = aggregateYearRange(citiesData, currentYearStart, currentYearEnd);
+
+    data = raw.map(d => {
+      const geo = matchCityName(d.name);
+      if (!geo) return null;
+      const [x, y] = projection([geo.longitude, geo.latitude]);
+      return { ...d, x, y, continent: getCityContinent(d.name) };
+    });
+
+  } else {
+    raw = aggregateYearRange(countriesData, currentYearStart, currentYearEnd);
+
+    data = raw.map(d => {
+      const geo = matchCountryName(d.name);
+      if (!geo) return null;
+      const [x, y] = projection([geo.longitude, geo.latitude]);
+      return { ...d, x, y, continent: getCountryContinent(d.name) };
+    });
+  }
+
+  data = data.filter(d => d && !isNaN(d.x) && !isNaN(d.y));
+  data = applyLimit(data, currentLimit);
+
+  const radiusMax = d3.max(data, d => d.value) || 1;
+  const rScale = d3.scaleSqrt().domain([0, radiusMax]).range([2, 30]);
+
+  const bubbles = bubbleLayer.selectAll("circle.bubble")
+    .data(data, d => d.name);
+
+  bubbles.exit().transition().duration(300).attr("r", 0).remove();
+
+  bubbles.enter()
+    .append("circle")
+    .attr("class", "bubble")
+    .attr("cx", d => d.x)
+    .attr("cy", d => d.y)
+    .attr("r", 0)
+    .on("mouseover", (e, d) => {
+      tooltip.style("opacity", 1).html(
+        `<b>${d.name}</b><br>
+         Value: ${formatNumber(d.value)}`
+      );
+    })
+    .on("mousemove", e => {
+      tooltip.style("left", e.pageX + 12 + "px")
+             .style("top", e.pageY - 12 + "px");
+    })
+    .on("mouseout", () => tooltip.style("opacity", 0))
+    .merge(bubbles)
+    .transition().duration(400)
+    .attr("cx", d => d.x)
+    .attr("cy", d => d.y)
+    .attr("r", d => rScale(d.value));
+}
+
+function applyLimit(arr, limit) {
+  if (limit === "all") return arr;
+  const lim = Number(limit);
+  return arr.sort((a, b) => b.value - a.value).slice(0, lim);
+}
+
+function formatNumber(n) {
+  n = Number(n) || 0;
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + "B";
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + "K";
+  return n.toString();
+}
+
+/* ----------------------------------------------------------
+   SLIDER EVENTS
+---------------------------------------------------------- */
+document.getElementById("year-start-slider").addEventListener("input", e => {
+  if (+e.target.value > +document.getElementById("year-end-slider").value)
+    e.target.value = document.getElementById("year-end-slider").value;
+
+  currentYearStart = +e.target.value;
+  updateYearLabel();
+});
+document.getElementById("year-end-slider").addEventListener("input", e => {
+  if (+e.target.value < +document.getElementById("year-start-slider").value)
+    e.target.value = document.getElementById("year-start-slider").value;
+
+  currentYearEnd = +e.target.value;
+  updateYearLabel();
+});
+document.getElementById("year-start-slider").addEventListener("change", loadAllData);
+document.getElementById("year-end-slider").addEventListener("change", loadAllData);
+
+function updateYearLabel() {
+  const lbl = document.getElementById("year-label");
+  lbl.textContent =
+    currentYearStart === currentYearEnd
+      ? currentYearStart
+      : `${currentYearStart}–${currentYearEnd}`;
+}
+
+/* ----------------------------------------------------------
+   BUTTON EVENTS
+---------------------------------------------------------- */
+document.querySelectorAll("#limit-group .control-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#limit-group .control-btn")
+      .forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentLimit = btn.dataset.limit;
+    updateVisualization();
+  });
+});
+
+document.querySelectorAll("#category-group .control-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#category-group .control-btn")
+      .forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentCategory = btn.dataset.category;
+    updateVisualization();
+  });
+});
+
+document.querySelectorAll("#metric-group .control-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#metric-group .control-btn")
+      .forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    currentMetric = btn.dataset.metric;
+
+    // update source text
+    const cfg = metricConfig[currentMetric];
+    document.querySelector(".source-text").innerHTML =
+      `Source: <a href="${cfg.sourceUrl}" target="_blank">${cfg.label}</a>`;
+
+    loadAllData();
+  });
+});
+
+/* START */
+loadAllData();
+
+</script>
+</body>
+</html>
