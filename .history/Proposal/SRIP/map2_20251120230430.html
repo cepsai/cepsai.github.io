@@ -392,7 +392,17 @@ function parseCSV(text) {
 
   const rows = d3.csvParse(text);
 
-  
+  return rows
+  .map(r => {
+    const rawGeo = (r.geo || "").trim();
+    const cleanGeo = rawGeo.replace(/\s*\([A-Z]{2,3}\)\s*$/, "");
+    return {
+      geo: cleanGeo,        // cleaned version used for display
+      geoRaw: rawGeo,       // keep original for matching lat/lon
+      domain: (r.domain || "").trim(),
+      count: Number(r.count) || 0
+    };
+  }) }
 
   return rows
     .map(r => ({
