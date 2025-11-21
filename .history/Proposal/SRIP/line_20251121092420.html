@@ -341,7 +341,7 @@ const legend = svg.append("g")
   .attr("transform", `translate(${width + margin.left + 10}, ${margin.top})`)
   .attr("class", "legend");
 
-["US","EU","China","UK","Rest of world",'World'].forEach((r, i) => {
+["US","EU","China","UK","Rest of world"].forEach((r, i) => {
   const row = legend.append("g")
     .attr("transform", `translate(0, ${i * 20})`);
   row.append("rect")
@@ -412,17 +412,15 @@ function updateLineChart() {
   const perYear = years.map(y => {
     const row = {year: y};
     regions.forEach(r => row[r] = 0);
-
     lineRawData
       .filter(d => d.year === y)
       .forEach(d => {
-        const region = regions.includes(d.region) ? d.region : "Rest of world";
-        row[region] += d.value;
+        if (regions.indexOf(d.region) !== -1) {
+          row[d.region] += d.value;
+        } else {
+          row["Rest of world"] += d.value;
+        }
       });
-
-    // Add WORLD sum
-    row.World = row.US + row.EU + row.China + row.UK + row["Rest of world"];
-
     return row;
   });
 
