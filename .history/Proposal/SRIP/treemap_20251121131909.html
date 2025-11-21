@@ -815,53 +815,6 @@ function buildCityToContinentMap(){
 //     });
 // }
 
-function getCitiesDataWithContinents(yearData){
-  return yearData.map(function(city){
-    var cityName = city.name || '';
-    var continent = null;
-    var urbanId = null;
-
-    var idMatch = cityName.match(/\((\d+)\)$/);
-    if(idMatch){
-      urbanId = parseInt(idMatch[1]);
-      if(cityIdToContinentMap[urbanId]){
-        continent = cityIdToContinentMap[urbanId];
-      }
-    }
-    if(!continent){
-      var cleanName = cityName.replace(/\s*\(\d+\)$/, '').trim();
-
-      if(cityToContinentMap[cleanName]){
-        continent = cityToContinentMap[cleanName];
-      } else if(cityToContinentMap[cityName]){
-        continent = cityToContinentMap[cityName];
-      }
-    }
-    if(!continent){
-      continent = "Unknown";
-    }
-
-    // 🌍 Europe -> EU / UK / Rest-of-world
-    if (continent === "Europe" && urbanId && cityIdToCountryCode[urbanId]) {
-      var code = cityIdToCountryCode[urbanId];
-
-      if (code === "UK" || code === "GB") {
-        continent = "United Kingdom";
-      } else if (euCountryCodes.has(code)) {
-        continent = "EU";
-      } else {
-        continent = "Rest of the world";
-      }
-    }
-
-    var newCity = Object.assign({}, city);
-    newCity.parent = continent;
-    newCity.parentName = continent;
-    newCity.group = continent;
-    return newCity;
-  });
-}
-
 // function getCitiesDataWithContinents(yearData){
 //   return yearData.map(function(city){
 //     var cityName = city.name || '';
