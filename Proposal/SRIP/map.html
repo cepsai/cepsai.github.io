@@ -65,24 +65,17 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
+  gap: 6px;
+  padding: 6px 13px;
   background: rgba(255, 255, 255, 0.9);
-  border-radius: 8px;
+  border-radius: 6px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-}
-
-.slider-label {
-  font-size: 18px;
-  font-weight: 800;
-  color: #4169E1;
-  margin-top: 4px;
 }
 
 .range-wrapper {
   position: relative;
-  width: 240px;
-  height: 32px;
+  width: clamp(220px, 40vw, 420px);
+  height: 28px;
 }
 
 /* remove old slider track */
@@ -107,7 +100,7 @@ html, body {
   right: 0;
   top: 50%;
   transform: translateY(-50%);
-  height: 6px;
+  height: 5px;
   background: #e0e0e0;
   border-radius: 3px;
 }
@@ -119,25 +112,41 @@ html, body {
 .range-wrapper input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #4169E1;
   cursor: pointer;
   pointer-events: auto;
-  margin-top: -6px;
+  margin-top: -5px;
 }
 
 /* THUMB (firefox) */
 .range-wrapper input[type=range]::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #4169E1;
   border: none;
   cursor: pointer;
   pointer-events: auto;
-  transform: translateY(-3px);
+  transform: translateY(-2px);
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  justify-content: center;
+}
+
+.year-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #4169E1;
+  min-width: 34px;
+  text-align: center;
 }
 
 /* --- BUTTONS --- */
@@ -145,14 +154,14 @@ html, body {
   display: flex;
   align-items: center;
   gap: 0;
-  border-radius: 8px;
+  border-radius: 2px;
   overflow: hidden;
   box-shadow: 0 1px 4px rgba(0,0,0,0.15);
 }
 
 .control-btn {
-  padding: 8px 20px;
-  font-size: 14px;
+  padding: 4.8px 12px;
+  font-size: 8.4px;
   font-weight: 600;
   border: none;
   background: #ffffff;
@@ -248,10 +257,13 @@ circle.bubble:hover {
 
     <!-- YEAR RANGE SLIDER -->
     <div class="slider-container">
-      <label class="slider-label" id="year-label">2000–2025</label>
-      <div class="range-wrapper">
-        <input type="range" id="year-start-slider" min="2000" max="2025" value="2000" class="year-slider">
-        <input type="range" id="year-end-slider" min="2000" max="2025" value="2025" class="year-slider year-slider-top">
+      <div class="slider-row">
+        <span class="year-value" id="year-start-value">2000</span>
+        <div class="range-wrapper">
+          <input type="range" id="year-start-slider" min="2000" max="2025" value="2000" class="year-slider">
+          <input type="range" id="year-end-slider" min="2000" max="2025" value="2025" class="year-slider year-slider-top">
+        </div>
+        <span class="year-value" id="year-end-value">2025</span>
       </div>
     </div>
 
@@ -659,10 +671,16 @@ document.getElementById("year-end-slider").addEventListener("change", loadAllDat
 
 function updateYearLabel() {
   const lbl = document.getElementById("year-label");
-  lbl.textContent =
-    currentYearStart === currentYearEnd
-      ? currentYearStart
-      : `${currentYearStart}–${currentYearEnd}`;
+  if (lbl) {
+    lbl.textContent =
+      currentYearStart === currentYearEnd
+        ? currentYearStart
+        : `${currentYearStart}–${currentYearEnd}`;
+  }
+  const startValue = document.getElementById("year-start-value");
+  const endValue = document.getElementById("year-end-value");
+  if (startValue) startValue.textContent = currentYearStart;
+  if (endValue) endValue.textContent = currentYearEnd;
 }
 
 /* ----------------------------------------------------------
@@ -706,6 +724,7 @@ document.querySelectorAll("#metric-group .control-btn").forEach(btn => {
 });
 
 /* START */
+updateYearLabel();
 loadAllData();
 
 </script>
