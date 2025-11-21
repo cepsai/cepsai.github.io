@@ -222,10 +222,6 @@ body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-seri
       <button class="control-btn" data-limit="100">100</button>
       <button class="control-btn active" data-limit="all">ALL</button>
     </div>
-    <div class="button-group" id="view-group">
-      <button class="control-btn active" data-view="count">#</button>
-      <button class="control-btn" data-view="percent">%</button>
-    </div>
     <div class="button-group" id="category-group">
       <button class="control-btn active" data-category="countries">COUNTRIES</button>
       <button class="control-btn" data-category="cities">CITIES</button>
@@ -384,14 +380,7 @@ function getLabelText(d){
 
   var baseName = cleanGeoName(d.name);
   var label = baseName;
-
-  if (currentView === 'percent') {
-    var key = (d.parent || d.id) + '|' + d.name;
-    var percentage = percentageMap[key] || 0;
-    label += '\n' + percentage.toFixed(1) + "%";
-  } else {
-    label += '\n' + formatNumber(d.value || 0);
-  }
+  label += '\n' + formatNumber(d.value || 0);
 
   return label;
 }
@@ -420,14 +409,7 @@ var treemap = new d3plus.Treemap()
     title:function(d){ return d.name; },
     body:function(d){
       var formattedCount = formatNumber(d.value || 0);
-      var key = (d.parent || d.id) + '|' + d.name;
-      var percentage = percentageMap[key] || 0;
-
-      if(currentView === 'percent'){
-        return "<strong>Sector:</strong> " + (d.parent || d.id) + "<br><strong>% of World Total:</strong> " + percentage.toFixed(1) + "%<br><strong>Count:</strong> " + formattedCount;
-      } else {
-        return "<strong>Sector:</strong> " + (d.parent || d.id) + "<br><strong>Count:</strong> " + formattedCount;
-      }
+      return "<strong>Sector:</strong> " + (d.parent || d.id) + "<br><strong>Count:</strong> " + formattedCount;
     }
   })
   .sum("value")
@@ -607,18 +589,6 @@ function initializeControls() {
     });
   });
 
-  // --- VIEW (# / %) ---
-  document.querySelectorAll('#view-group .control-btn').forEach(function(btn){
-    btn.addEventListener('click', function(){
-      if (buttonsDisabled) return;
-      document.querySelectorAll('#view-group .control-btn')
-          .forEach(b => b.classList.remove('active'));
-      this.classList.add('active');
-      currentView = this.dataset.view;
-      disableAllButtons();
-      updateVisualization();
-    });
-  });
 
   // --- COUNTRY / CITY ---
   document.querySelectorAll('#category-group .control-btn').forEach(function(btn){
