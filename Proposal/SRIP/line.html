@@ -25,10 +25,11 @@
       grid-row: 1;
       grid-column: 1 / span 2;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
+      align-items: stretch;
+      justify-content: stretch;
+      padding: 0;
       box-sizing: border-box;
+      min-height: 0;
     }
 
     #controlsContainer {
@@ -86,22 +87,16 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
+      gap: 6px;
+      padding: 6px 13px;
       background: rgba(255, 255, 255, 0.9);
-      border-radius: 8px;
+      border-radius: 6px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.15);
-    }
-    .slider-label {
-      font-size: 18px;
-      font-weight: 800;
-      color: #4169E1;
-      margin-top: 4px;
     }
     .range-wrapper {
       position: relative;
-      width: 240px;
-      height: 32px;
+      width: clamp(220px, 40vw, 420px);
+      height: 28px;
     }
     .range-wrapper input[type=range] {
       position: absolute;
@@ -122,7 +117,7 @@
       right: 0;
       top: 50%;
       transform: translateY(-50%);
-      height: 6px;
+      height: 5px;
       background: #e0e0e0;
       border-radius: 3px;
     }
@@ -131,33 +126,49 @@
     .range-wrapper input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
-      width: 18px;
-      height: 18px;
+      width: 14px;
+      height: 14px;
       border-radius: 50%;
       background: #4169E1;
       cursor: pointer;
       pointer-events: auto;
-      margin-top: -6px;
+      margin-top: -5px;
     }
     .range-wrapper input[type=range]::-moz-range-thumb {
-      width: 18px;
-      height: 18px;
+      width: 14px;
+      height: 14px;
       border-radius: 50%;
       background: #4169E1;
       border: none;
       cursor: pointer;
       pointer-events: auto;
-      transform: translateY(-3px);
+      transform: translateY(-2px);
     }
     .range-wrapper input[type=range]::-moz-range-track {
       background: transparent;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .year-value {
+      font-size: 12px;
+      font-weight: 700;
+      color: #4169E1;
+      min-width: 34px;
+      text-align: center;
     }
 
     .button-group {
       display: flex;
       align-items: center;
       gap: 0;
-      border-radius: 8px;
+      border-radius: 2px;
       overflow: hidden;
       box-shadow: 0 1px 4px rgba(0,0,0,0.15);
       background: #fff;
@@ -188,12 +199,9 @@
     /* Chart placeholder */
     #linechart {
       width: 100%;
-      max-width: 1100px;
       height: 100%;
-      max-height: 520px;
-      background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      min-width: 0;
+      min-height: 0;
     }
 
     svg {
@@ -223,10 +231,13 @@
   <div id="controlsContainer">
     <!-- YEAR RANGE SLIDER -->
     <div class="slider-container">
-      <label class="slider-label" id="line-year-label">2000–2025</label>
-      <div class="range-wrapper">
-        <input type="range" id="line-year-start" min="2000" max="2025" value="2000">
-        <input type="range" id="line-year-end"   min="2000" max="2025" value="2025" class="year-slider-top">
+      <div class="slider-row">
+        <span class="year-value" id="line-year-start-value">2000</span>
+        <div class="range-wrapper">
+          <input type="range" id="line-year-start" min="2000" max="2025" value="2000">
+          <input type="range" id="line-year-end"   min="2000" max="2025" value="2025" class="year-slider-top">
+        </div>
+        <span class="year-value" id="line-year-end-value">2025</span>
       </div>
     </div>
 
@@ -306,24 +317,20 @@ let lineYearEnd = 2025;
 let lineRawData = []; // [{year, region, value}, ...]
 
 /* ---------------- D3 chart setup ---------------- */
+const chartEl = document.getElementById("linechart");
 const margin = {top: 30, right: 120, bottom: 40, left: 70};
-const outerWidth = 1100;
-const outerHeight = 520;
-const width = outerWidth - margin.left - margin.right;
-const height = outerHeight - margin.top - margin.bottom;
+let outerWidth = 1100;
+let outerHeight = 520;
+let width = outerWidth - margin.left - margin.right;
+let height = outerHeight - margin.top - margin.bottom;
 
-const svg = d3.select("#linechart")
-  .append("svg")
-  .attr("width", outerWidth)
-  .attr("height", outerHeight);
+const svg = d3.select("#linechart").append("svg");
+const g = svg.append("g");
 
-const g = svg.append("g")
-  .attr("transform", `translate(${margin.left},${margin.top})`);
+const xScale = d3.scaleLinear();
+const yScale = d3.scaleLinear();
 
-const xScale = d3.scaleLinear().range([0, width]);
-const yScale = d3.scaleLinear().range([height, 0]);
-
-const xAxisG = g.append("g").attr("transform", `translate(0,${height})`);
+const xAxisG = g.append("g");
 const yAxisG = g.append("g");
 
 const colorScale = d3.scaleOrdinal()
@@ -337,9 +344,24 @@ const lineGenerator = d3.line()
   .defined(d => d.value != null && !isNaN(d.value));
 
 /* Legend */
-const legend = svg.append("g")
-  .attr("transform", `translate(${width + margin.left + 10}, ${margin.top})`)
-  .attr("class", "legend");
+const legend = svg.append("g").attr("class", "legend");
+
+function resizeChart() {
+  outerWidth = chartEl.clientWidth || 1100;
+  outerHeight = chartEl.clientHeight || 520;
+  width = Math.max(outerWidth - margin.left - margin.right, 200);
+  height = Math.max(outerHeight - margin.top - margin.bottom, 200);
+
+  svg.attr("width", outerWidth).attr("height", outerHeight);
+  g.attr("transform", `translate(${margin.left},${margin.top})`);
+
+  xScale.range([0, width]);
+  yScale.range([height, 0]);
+  xAxisG.attr("transform", `translate(0,${height})`);
+  legend.attr("transform", `translate(${width + margin.left + 10}, ${margin.top})`);
+}
+
+resizeChart();
 
 ["US","EU","China","UK","Rest of world",'World'].forEach((r, i) => {
   const row = legend.append("g")
@@ -348,13 +370,13 @@ const legend = svg.append("g")
     .attr("x", 0)
     .attr("y", -8)
     .attr("width", 12)
-    .attr("height", 12)
-    .attr("fill", colorScale(r));
-  row.append("text")
-    .attr("x", 18)
-    .attr("y", 0)
-    .attr("dominant-baseline", "middle")
-    .text(r);
+  .attr("height", 12)
+  .attr("fill", colorScale(r));
+row.append("text")
+  .attr("x", 18)
+  .attr("y", 0)
+  .attr("dominant-baseline", "middle")
+  .text(r);
 });
 
 /* ---------------- Data loading ---------------- */
@@ -409,6 +431,18 @@ function updateLineChart() {
   const regions = ["US","EU","China","UK","Rest of world",'World'];
   const years = d3.range(lineYearStart, lineYearEnd + 1);
 
+  function buildYearTicks() {
+    const maxTicks = Math.max(2, Math.floor(width / 70));
+    const raw = d3.ticks(lineYearStart, lineYearEnd, maxTicks);
+    const rounded = raw.map(t => Math.round(t));
+    const uniq = [...new Set(rounded)]
+      .filter(t => t >= lineYearStart && t <= lineYearEnd)
+      .sort((a, b) => a - b);
+    if (!uniq.includes(lineYearStart)) uniq.unshift(lineYearStart);
+    if (!uniq.includes(lineYearEnd)) uniq.push(lineYearEnd);
+    return uniq;
+  }
+
   const perYear = years.map(y => {
     const row = {year: y};
     regions.forEach(r => row[r] = 0);
@@ -441,7 +475,11 @@ function updateLineChart() {
 
   // x domain
   xScale.domain(d3.extent(years));
-  xAxisG.call(d3.axisBottom(xScale).tickFormat(d3.format("d")));
+  xAxisG.call(
+    d3.axisBottom(xScale)
+      .tickValues(buildYearTicks())
+      .tickFormat(d3.format("d"))
+  );
 
   if (lineStackMode === "absolute") {
     // Remove World from stacking (only original regions stack)
@@ -522,14 +560,12 @@ function updateLineChart() {
 /* ---------------- Controls wiring ---------------- */
 const lineStartSlider = document.getElementById("line-year-start");
 const lineEndSlider   = document.getElementById("line-year-end");
-const lineYearLabel   = document.getElementById("line-year-label");
+const lineYearStartValue = document.getElementById("line-year-start-value");
+const lineYearEndValue = document.getElementById("line-year-end-value");
 
 function updateLineYearLabel() {
-  if (lineYearStart === lineYearEnd) {
-    lineYearLabel.textContent = lineYearStart;
-  } else {
-    lineYearLabel.textContent = lineYearStart + "–" + lineYearEnd;
-  }
+  if (lineYearStartValue) lineYearStartValue.textContent = lineYearStart;
+  if (lineYearEndValue) lineYearEndValue.textContent = lineYearEnd;
 }
 
 lineStartSlider.addEventListener("input", function() {
@@ -543,6 +579,13 @@ lineEndSlider.addEventListener("input", function() {
   if (+this.value < +lineStartSlider.value) this.value = lineStartSlider.value;
   lineYearEnd = +this.value;
   updateLineYearLabel();
+  updateLineChart();
+});
+
+updateLineYearLabel();
+
+window.addEventListener("resize", () => {
+  resizeChart();
   updateLineChart();
 });
 
