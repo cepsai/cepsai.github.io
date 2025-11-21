@@ -906,57 +906,42 @@ function parseCSV(text){
   // return data;
 }
 
+
+
 function getCountryContinent(geo){
   var label = (geo || '').trim();
   if (!label) return "Rest of the world";
 
-  // Extract "(XX)" → ISO2 code
+  // Extract ISO code in brackets, e.g. "The Netherlands (NL)" → "NL"
   var isoMatch = label.match(/\(([^)]+)\)\s*$/);
   var code = isoMatch ? isoMatch[1].trim().toUpperCase() : null;
 
-  // Base country name
+  // Base country name without "(XX)"
   var baseName = label.replace(/\s*\([^)]+\)\s*$/, '').trim();
 
   var continent = null;
 
-  // From code
+  // Prefer ISO code mapping if available
   if (code && countryToContinentMap[code]) {
     continent = countryToContinentMap[code];
-  }
-  // From full label
-  else if (countryToContinentMap[label]) {
+  } else if (countryToContinentMap[label]) {
     continent = countryToContinentMap[label];
-  }
-  // From name without code
-  else if (countryToContinentMap[baseName]) {
+  } else if (countryToContinentMap[baseName]) {
     continent = countryToContinentMap[baseName];
   }
 
-  // Fallback
-  continent = continent || "Rest of the world";
-
-  // 🌍 Europe special logic
+  // If it's Europe, split into EU vs Rest of the world
   if (continent === "Europe") {
-
-    // 🇬🇧 UK stays its own category
-    if (code === "UK" || code === "GB") {
-      return "United Kingdom";
-    }
-
-    // 🇪🇺 EU block (list from your earlier definition)
     if (code && euCountryCodes.has(code)) {
-      return "EU";
+      return "EU";                 // EU member states
+    } else {
+      return "Rest of the world";  // Switzerland, UK, Norway, etc.
     }
-
-    // 🇨🇭🇳🇴🇮🇸 Switzerland, Norway, Iceland, etc.
-    return "Rest of the world";
   }
 
-  // 🌎 Other continents remain unchanged
-  return continent;
+  // Other continents stay as they are, or Rest of the world if unknown
+  return continent || "Rest of the world";
 }
-
-
 function transformCSVToTreemapData(csvData, isCity){
   
   csvData = csvData.filter(function(row){

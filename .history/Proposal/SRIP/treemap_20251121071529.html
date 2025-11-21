@@ -312,14 +312,6 @@ var regionColorMap = {
   "Africa": "#7a98ad",
   "Latin America": "#81b29a"
 };
-
-// ISO2 codes of EU Member States
-var euCountryCodes = new Set([
-  "AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR",
-  "DE","GR","HU","IE","IT","LV","LT","LU","MT","NL",
-  "PL","PT","RO","SK","SI","ES","SE"
-]);
-
 var fallbackPalette = ["#1F77B4","#FF7F0E","#2CA02C","#9467BD","#D62728","#17BECF","#8C564B","#E377C2","#7F7F7F","#BCBD22"];
 var groupColors = {};
 var activeGroups = new Set();
@@ -906,59 +898,51 @@ function parseCSV(text){
   // return data;
 }
 
+
+
 function getCountryContinent(geo){
   var label = (geo || '').trim();
   if (!label) return "Rest of the world";
 
-  // Extract "(XX)" → ISO2 code
+  // Extract "(XX)"
   var isoMatch = label.match(/\(([^)]+)\)\s*$/);
-  var code = isoMatch ? isoMatch[1].trim().toUpperCase() : null;
 
-  // Base country name
+  // Base name without brackets
   var baseName = label.replace(/\s*\([^)]+\)\s*$/, '').trim();
 
+  // Prepare result
   var continent = null;
 
-  // From code
-  if (code && countryToContinentMap[code]) {
-    continent = countryToContinentMap[code];
-  }
-  // From full label
-  else if (countryToContinentMap[label]) {
-    continent = countryToContinentMap[label];
-  }
-  // From name without code
-  else if (countryToContinentMap[baseName]) {
-    continent = countryToContinentMap[baseName];
-  }
+  // Special handling for UK
+  if (isoMatch) {
+    var code = isoMatch[1].trim().toUpperCase();
 
-  // Fallback
-  continent = continent || "Rest of the world";
-
-  // 🌍 Europe special logic
-  if (continent === "Europe") {
-
-    // 🇬🇧 UK stays its own category
+    // Handle UK cases
     if (code === "UK" || code === "GB") {
       return "United Kingdom";
     }
 
-    // 🇪🇺 EU block (list from your earlier definition)
-    if (code && euCountryCodes.has(code)) {
-      return "EU";
+    // Look up ISO code normally
+    if (countryToContinentMap[code]) {
+      return countryToContinentMap[code];
     }
-
-    // 🇨🇭🇳🇴🇮🇸 Switzerland, Norway, Iceland, etc.
-    return "Rest of the world";
   }
 
-  // 🌎 Other continents remain unchanged
-  return continent;
+  // Try full label
+  if (countryToContinentMap[label]) {
+    return countryToContinentMap[label];
+  }
+
+  // Try base name
+  if (countryToContinentMap[baseName]) {
+    return countryToContinentMap[baseName];
+  }
+
+  return "Rest of the world";
 }
 
-
 function transformCSVToTreemapData(csvData, isCity){
-  
+  // 🔥 Drop bad/missing geos
   csvData = csvData.filter(function(row){
     var geo = (row.geo || "").trim();
     if (!geo) return false;
