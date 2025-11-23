@@ -69,6 +69,46 @@ body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-seri
   display: none !important;
 }
 
+/* Loading spinner */
+.loading-spinner {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #4169E1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  z-index: 9999;
+}
+
+.loading-spinner.active {
+  display: block;
+}
+
+@keyframes spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.loading-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.7);
+  z-index: 9998;
+}
+
+.loading-overlay.active {
+  display: block;
+}
+
 @media (max-height: 500px) {
   .viz-grid { grid-template-rows: 1fr; grid-template-columns: 1fr; }
   #container1 { grid-row: 1; grid-column: 1; }
@@ -175,6 +215,8 @@ body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-seri
 <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
 </head>
 <body>
+<div class="loading-overlay" id="loading-overlay"></div>
+<div class="loading-spinner" id="loading-spinner"></div>
 <div class="viz-grid">
   <div id="container1" class="container treemap-container">
     <div id="treemap"></div>
@@ -371,7 +413,6 @@ function buildLegend(){
 var percentageMap = {};
 
 function cleanGeoName(name){
-  // remove trailing " (XXX)" — works for (NL), (US), (166), etc.
   return (name || '').replace(/\s*\([^)]+\)\s*$/, '');
 }
 
@@ -464,20 +505,20 @@ function updateVisualization(){
   treemap.data(data);
   treemap.render();
 
-    // metric switcher
+  if (buttonsDisabled) {
+    setTimeout(function(){
+      enableAllButtons();
+    }, 300);
+  }
   document.querySelectorAll('#metric-group .control-btn').forEach(function(btn){
     btn.addEventListener('click', function(){
       if (buttonsDisabled) return;
-
-      // toggle active state
       document.querySelectorAll('#metric-group .control-btn').forEach(function(b){
         b.classList.remove('active');
       });
       this.classList.add('active');
 
       currentMetric = this.getAttribute('data-metric');
-
-      // update source label (bottom-left)
       var cfg = metricConfig[currentMetric];
       var srcEl = document.querySelector('.source-text');
       if (srcEl && cfg) {
@@ -487,7 +528,7 @@ function updateVisualization(){
       }
 
       disableAllButtons();
-      loadAllData(currentMetric);  // reload data for the chosen metric
+      loadAllData(currentMetric);
     });
   });
 
@@ -501,26 +542,56 @@ function updateVisualization(){
 }
 function disableAllButtons(){
   buttonsDisabled = true;
+
+  var spinner = document.getElementById('loading-spinner');
+  var overlay = document.getElementById('loading-overlay');
+  if(spinner) spinner.classList.add('active');
+  if(overlay) overlay.classList.add('active');
+
   document.querySelectorAll('.control-btn').forEach(function(btn){
     btn.style.pointerEvents = 'none';
-    btn.style.opacity = '0.6';
-  });
-  var slider = document.getElementById('year-slider');
-  if(slider){
-    slider.disabled = true;
-    slider.style.opacity = '0.6';
-  }
-  setTimeout(function(){
-    buttonsDisabled = false;
-    document.querySelectorAll('.control-btn').forEach(function(btn){
-      btn.style.pointerEvents = 'auto';
-      btn.style.opacity = '1';
-    });
-    if(slider){
-      slider.disabled = false;
-      slider.style.opacity = '1';
+    if(btn.classList.contains('active')){
+      btn.style.opacity = '0.6';
+    } else {
+      btn.style.opacity = '0.35';
     }
-  }, 600);
+  });
+
+  var startSlider = document.getElementById('year-start-slider');
+  var endSlider = document.getElementById('year-end-slider');
+  if(startSlider){
+    startSlider.disabled = true;
+    startSlider.style.opacity = '0.6';
+  }
+  if(endSlider){
+    endSlider.disabled = true;
+    endSlider.style.opacity = '0.6';
+  }
+}
+
+function enableAllButtons(){
+  buttonsDisabled = false;
+
+  var spinner = document.getElementById('loading-spinner');
+  var overlay = document.getElementById('loading-overlay');
+  if(spinner) spinner.classList.remove('active');
+  if(overlay) overlay.classList.remove('active');
+
+  document.querySelectorAll('.control-btn').forEach(function(btn){
+    btn.style.pointerEvents = 'auto';
+    btn.style.opacity = '1';
+  });
+
+  var startSlider = document.getElementById('year-start-slider');
+  var endSlider = document.getElementById('year-end-slider');
+  if(startSlider){
+    startSlider.disabled = false;
+    startSlider.style.opacity = '1';
+  }
+  if(endSlider){
+    endSlider.disabled = false;
+    endSlider.style.opacity = '1';
+  }
 }
 
 function initializeControls() {
@@ -535,12 +606,10 @@ function initializeControls() {
   }
 
   if (startSlider && endSlider){
-    // initialize
     currentYearStart = startSlider.value;
     currentYearEnd = endSlider.value;
     updateYearLabel();
 
-    // --- START SLIDER ---
     startSlider.addEventListener('input', function(){
       var v = parseInt(this.value, 10);
       if (v > parseInt(currentYearEnd, 10)){
@@ -551,7 +620,6 @@ function initializeControls() {
       updateYearLabel();
     });
 
-    // --- END SLIDER ---
     endSlider.addEventListener('input', function(){
       var v = parseInt(this.value, 10);
       if (v < parseInt(currentYearStart, 10)){
@@ -562,7 +630,6 @@ function initializeControls() {
       updateYearLabel();
     });
 
-    // Apply filter when user releases sliders
     startSlider.addEventListener('change', function(){
       if (buttonsDisabled) return;
       disableAllButtons();
@@ -576,7 +643,6 @@ function initializeControls() {
     });
   }
 
-  // --- LIMIT BUTTONS ---
   document.querySelectorAll('#limit-group .control-btn').forEach(function(btn){
     btn.addEventListener('click', function(){
       if (buttonsDisabled) return;
@@ -589,8 +655,6 @@ function initializeControls() {
     });
   });
 
-
-  // --- COUNTRY / CITY ---
   document.querySelectorAll('#category-group .control-btn').forEach(function(btn){
     btn.addEventListener('click', function(){
       if (buttonsDisabled) return;
@@ -675,7 +739,7 @@ function buildCityToContinentMap(){
   cityToContinentMap = {};
   cityIdToContinentMap = {};
   countryToContinentMap = {};
-  cityIdToCountryCode = {};   // 👈 NEW
+  cityIdToCountryCode = {};
 
   return fetch('crosswalk.json')
     .then(function(r){ return r.text(); })
@@ -707,7 +771,7 @@ function buildCityToContinentMap(){
         var numericId = parseInt(urbanId, 10);
         if(!isNaN(numericId) && continent){
           cityIdToContinentMap[numericId] = continent;
-          cityIdToCountryCode[numericId] = countryCode;   // 👈 NEW
+          cityIdToCountryCode[numericId] = countryCode;
         }
 
         addCountryMapping(countryName, continent);
@@ -907,7 +971,6 @@ function aggregateYearRange(sourceByYear, startYear, endYear){
     arr.forEach(function(d){
       var key = (d.parent || "") + "|" + (d.name || "");
       if (!acc[key]){
-        // clone so we don't mutate original
         acc[key] = Object.assign({}, d);
       } else {
         var add = Number(d.value) || 0;
@@ -988,18 +1051,15 @@ function parseCSV(text){
     }
   }
   return data.filter(row => (row.domain || "").trim() === "Artificial Intelligence");
-  // return data;
 }
 
 function getCountryContinent(geo){
   var label = (geo || '').trim();
   if (!label) return "Rest of the world";
 
-  // Extract "(XX)" → ISO2 code
   var isoMatch = label.match(/\(([^)]+)\)\s*$/);
   var code = isoMatch ? isoMatch[1].trim().toUpperCase() : null;
 
-  // Base country name
   var baseName = label.replace(/\s*\([^)]+\)\s*$/, '').trim();
 
   var continent = null;
@@ -1141,7 +1201,6 @@ function loadAllData(metric){
     return;
   }
 
-  // Use slider min/max so HTML + JS stay in sync
   var startSlider = document.getElementById('year-start-slider');
   var endSlider   = document.getElementById('year-end-slider');
 
@@ -1153,11 +1212,10 @@ function loadAllData(metric){
     years.push(String(y));
   }
 
-  // helper: fetch CSV but return [] if file/year missing
   function fetchYear(pathPrefix, year){
     return fetch(pathPrefix + '/' + year + '.csv')
       .then(function(r){
-        if (!r.ok) return null;         // 404 etc → treat as empty
+        if (!r.ok) return null;
         return r.text();
       })
       .then(function(text){
@@ -1186,7 +1244,6 @@ function loadAllData(metric){
       var countryResults = results[1] || [];
       var cityResults    = results[2] || [];
 
-      // reset caches for this metric
       countriesData = {};
       citiesData = {};
 
@@ -1198,11 +1255,14 @@ function loadAllData(metric){
         citiesData[result.year] = transformCSVToTreemapData(result.data, true);
       });
 
-      // render with current category + year range
       switchToCategory(currentCategory);
+
+      enableAllButtons();
     })
     .catch(function(err){
       console.error('Error loading data for metric', m, err);
+      // Re-enable buttons even if there's an error
+      enableAllButtons();
     });
 }
 // function loadAllData(metric){
