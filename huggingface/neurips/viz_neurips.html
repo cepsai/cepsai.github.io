@@ -47,6 +47,12 @@ body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-seri
 .top-filter-button.active { background: #2756d3; color: #fff; box-shadow: inset 0 -2px 6px rgba(0,0,0,0.2); }
 .top-filter-button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.8), 0 0 0 2px rgba(31,49,99,0.4); }
 
+.year-filter { display: inline-flex; align-items: stretch; border: 1.5px solid #2756d3; border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 3px 8px rgba(31,49,99,0.15); }
+.year-filter-button { border: none; background: transparent; color: #2756d3; padding: clamp(6px, 1vh, 10px) clamp(14px, 2vw, 18px); font-size: clamp(11px, 1.4vw, 15px); font-weight: 700; letter-spacing: 0.5px; cursor: pointer; transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease; text-transform: uppercase; line-height: 1.2; min-width: clamp(52px, 6vw, 74px); }
+.year-filter-button + .year-filter-button { border-left: 1px solid rgba(39,86,211,0.2); }
+.year-filter-button.active { background: #2756d3; color: #fff; box-shadow: inset 0 -2px 6px rgba(0,0,0,0.2); }
+.year-filter-button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.8), 0 0 0 2px rgba(31,49,99,0.4); }
+
 .source-wrapper { display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; flex-wrap: wrap; }
 .venue-selector { position: relative; display: flex; align-items: center; }
 .venue-dropdown-toggle { border: 1.5px solid rgba(39,86,211,0.4); background: #ffffff; color: #2756d3; padding: clamp(6px, 1vh, 11px) clamp(12px, 2vw, 18px); border-radius: 14px; font-size: clamp(11px, 1.4vw, 15px); font-weight: 600; cursor: pointer; transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease; display: inline-flex; align-items: flex-start; justify-content: space-between; gap: 8px; width: clamp(220px, 24vw, 280px); white-space: normal; overflow: visible; text-align: left; line-height: 1.2; }
@@ -79,7 +85,7 @@ body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-seri
   </div>
   <div id="container3" class="container source-container">
     <div class="source-wrapper">
-      <div class="source-text">Source: <a href="https://openreview.net/group?id=NeurIPS.cc/2025" target="_blank">NeurIPS 2025</a></div>
+      <div class="source-text" id="sourceText">Source: <a href="https://openreview.net/group?id=NeurIPS.cc/2025" id="sourceLink" target="_blank" rel="noopener">NeurIPS 2025</a></div>
       <div class="venue-selector">
         <button id="venueDropdownToggle" class="venue-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false">Select venue</button>
         <div class="venue-dropdown" id="venueDropdown" role="listbox" aria-label="Lista de venues"></div>
@@ -87,6 +93,7 @@ body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-seri
     </div>
   </div>
   <div id="container4" class="container logo-container">
+    <div class="year-filter" id="yearFilter" role="group" aria-label="Seleccionar año de NeurIPS"></div>
     <div class="top-filter" id="topFilter" role="group" aria-label="Filtro Top de instituciones"></div>
     <a href="https://aiworld.eu/" target="_blank" rel="noopener">
       <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
@@ -106,6 +113,26 @@ var dataReady = false;
 var venueDropdownOpen = false;
 var venuePaperCounts = {};
 var hasVenuePaperCounts = false;
+var yearOptions = [
+  { label: "2024", value: "2024" },
+  { label: "2025", value: "2025" }
+];
+var yearConfigs = {
+  "2024": {
+    label: "2024",
+    institutionFile: "institution_venues_2024_v4.json",
+    paperCsv: "neurips_2024_papers_with_institutions.csv",
+    sourceUrl: "https://openreview.net/group?id=NeurIPS.cc/2024"
+  },
+  "2025": {
+    label: "2025",
+    institutionFile: "institution_venues_v4.json",
+    paperCsv: "neurips_2025_papers_with_institutions.csv",
+    sourceUrl: "https://openreview.net/group?id=NeurIPS.cc/2025"
+  }
+};
+var currentYear = "2025";
+var loadRequestId = 0;
 var topLimitOptions = [
   { label: "50", value: 50 },
   { label: "100", value: 100 },
@@ -155,14 +182,35 @@ function parseInstitutionFile(text){
   }
 }
 
-function loadInstitutionData(){
-  return d3.text("institution_venues_v4.json").then(function(text){
+function getYearConfig(year){
+  return yearConfigs[year] || null;
+}
+
+function loadInstitutionData(fileName){
+  if(!fileName) return Promise.resolve([]);
+  return d3.text(fileName).then(function(text){
     try {
       return parseInstitutionFile(text);
     } catch (err) {
-      console.error("No se pudo interpretar institution_venues_v4.json", err);
+      console.error("No se pudo interpretar " + fileName, err);
       throw err;
     }
+  }).catch(function(err){
+    console.error("No se pudo cargar " + fileName, err);
+    throw err;
+  });
+}
+
+function loadPaperData(fileName){
+  if(!fileName) return Promise.resolve([]);
+  return d3.csv(fileName, function(row){
+    var venue = (row.venue || "").trim();
+    var paperId = (row.id || row.forum || "").trim();
+    if(!venue || !paperId) return null;
+    return { venue: venue, paperId: paperId };
+  }).catch(function(err){
+    console.warn("No se pudo cargar " + fileName, err);
+    return [];
   });
 }
 
@@ -207,6 +255,36 @@ function lightenColor(hex, amount){
   return "#" + r + g + b;
 }
 
+function hslToHex(h, s, l){
+  var hh = (h % 360 + 360) % 360;
+  var ss = Math.max(0, Math.min(100, s)) / 100;
+  var ll = Math.max(0, Math.min(100, l)) / 100;
+  var c = (1 - Math.abs(2 * ll - 1)) * ss;
+  var x = c * (1 - Math.abs((hh / 60) % 2 - 1));
+  var m = ll - c / 2;
+  var r = 0, g = 0, b = 0;
+  if(hh < 60){ r = c; g = x; }
+  else if(hh < 120){ r = x; g = c; }
+  else if(hh < 180){ g = c; b = x; }
+  else if(hh < 240){ g = x; b = c; }
+  else if(hh < 300){ r = x; b = c; }
+  else { r = c; b = x; }
+  function toHex(value){ return Math.round((value + m) * 255).toString(16).padStart(2, "0"); }
+  return "#" + toHex(r) + toHex(g) + toHex(b);
+}
+
+function deterministicColorFromString(str){
+  var text = String(str || "Unknown");
+  var hash = 0;
+  for(var i = 0; i < text.length; i++){
+    hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  }
+  var hue = hash % 360;
+  var saturation = 55 + (hash % 20);
+  var lightness = 45 + (Math.floor(hash / 7) % 10);
+  return hslToHex(hue, saturation, lightness);
+}
+
 function getBaseGroupKey(d){
   if(!d) return "Unknown";
   var direct = getDatumField(d, "parent");
@@ -226,7 +304,7 @@ function getBaseGroupKey(d){
 
 function formatVenueName(name){
   if(!name) return "";
-  var cleaned = name.replace(/^NeurIPS 2025\s*/i, "").trim();
+  var cleaned = name.replace(/^NeurIPS\s*20\d{2}\s*/i, "").trim();
   if(!cleaned) return "";
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
@@ -322,8 +400,8 @@ function getDisplayCountForVenue(name, fallbackTotals){
       return baseColor;
     })
     .shapeConfig({
-      rx: 6,
-      ry: 6,
+      rx: 0,
+      ry: 0,
       stroke:function(d){
         if(d.depth===0){
           return getGroupColor(d.id);
@@ -345,25 +423,53 @@ function getDisplayCountForVenue(name, fallbackTotals){
     });
 
   function init(){
-    var institutionsPromise = loadInstitutionData();
-    var papersPromise = d3.csv("neurips_2025_papers_with_institutions.csv", function(row){
-      var venue = (row.venue || "").trim();
-      var paperId = (row.id || row.forum || "").trim();
-      if(!venue || !paperId) return null;
-      return { venue: venue, paperId: paperId };
-    }).catch(function(err){
-      console.warn("No se pudo cargar neurips_2025_papers_with_institutions.csv", err);
-      return [];
-    });
+    buildTopFilter();
+    buildYearFilter();
+    bindVenueSelectorEvents();
+    setYear(currentYear);
+  }
+
+  function setYear(year){
+    var cfg = getYearConfig(year);
+    if(!cfg) return;
+    currentYear = year;
+    updateYearFilterState();
+    updateSourceText();
+    loadDataForCurrentYear();
+  }
+
+  function loadDataForCurrentYear(){
+    var cfg = getYearConfig(currentYear);
+    if(!cfg){
+      displayNoData("No se encontró configuración para el año " + currentYear + ".");
+      return;
+    }
+    var requestId = ++loadRequestId;
+    var institutionsPromise = loadInstitutionData(cfg.institutionFile);
+    var papersPromise = loadPaperData(cfg.paperCsv);
 
     Promise.all([institutionsPromise, papersPromise]).then(function(results){
+      if(requestId !== loadRequestId) return;
       var json = results[0];
       var paperRows = Array.isArray(results[1]) ? results[1] : [];
+      venuePaperCounts = {};
+      hasVenuePaperCounts = false;
       rawData = (Array.isArray(json) ? json : []).filter(function(entry){
         return entry && entry.parent && entry.parent !== "Unknown";
       });
       if(!rawData.length){
-        displayNoData("No se encontraron instituciones para visualizar.");
+        rawData = [];
+        venueTotals = [];
+        allVenueNames = [];
+        groups = [];
+        activeGroups = new Set();
+        currentVenue = null;
+        buildVenueDropdown();
+        var legendEl = document.getElementById("legend");
+        if(legendEl){
+          legendEl.innerHTML = "";
+        }
+        displayNoData("No se encontraron instituciones para " + currentYear + ".");
         return;
       }
       venuePaperCounts = buildVenuePaperCounts(paperRows);
@@ -371,28 +477,58 @@ function getDisplayCountForVenue(name, fallbackTotals){
       buildGroupColorMap();
       groups = Array.from(new Set(rawData.map(function(d){ return d.parent || "Unknown"; })));
       activeGroups = new Set(groups);
-      buildVenueList();
+      var previousVenue = currentVenue;
+      currentVenue = null;
+      buildVenueList(previousVenue);
       buildVenueDropdown();
-      buildTopFilter();
       buildLegend();
       updateVisualization();
       renderToContainerSize();
     }).catch(function(err){
-      console.error("Error al cargar institution_venues_v2.json", err);
-      displayNoData("No se pudo cargar institution_venues_v2.json. Sirve el archivo desde un servidor local.");
+      if(requestId !== loadRequestId) return;
+      console.error("Error al cargar datos para " + currentYear, err);
+      rawData = [];
+      venueTotals = [];
+      allVenueNames = [];
+      groups = [];
+      activeGroups = new Set();
+      currentVenue = null;
+      buildVenueDropdown();
+      var legendEl = document.getElementById("legend");
+      if(legendEl){
+        legendEl.innerHTML = "";
+      }
+      displayNoData("No se pudo cargar los datos para " + currentYear + ". Sirve los archivos desde un servidor local.");
     });
+  }
+
+  function updateSourceText(){
+    var link = document.getElementById("sourceLink");
+    var cfg = getYearConfig(currentYear);
+    if(!link || !cfg) return;
+    var label = "NeurIPS " + (cfg.label || currentYear);
+    link.textContent = label;
+    if(cfg.sourceUrl){
+      link.href = cfg.sourceUrl;
+    } else {
+      link.removeAttribute("href");
+    }
   }
 
   function buildGroupColorMap(){
     rawData.forEach(function(entry){
       var parent = entry.parent || "Unknown";
-      if(!groupColors[parent] && entry.color){
-        groupColors[parent] = entry.color;
+      if(!groupColors[parent]){
+        if(entry.color){
+          groupColors[parent] = entry.color;
+        } else {
+          groupColors[parent] = deterministicColorFromString(parent);
+        }
       }
     });
   }
 
-  function buildVenueList(){
+  function buildVenueList(previousVenue){
     var totals = {};
     rawData.forEach(function(entry){
       Object.keys(entry.venues || {}).forEach(function(venue){
@@ -415,7 +551,15 @@ function getDisplayCountForVenue(name, fallbackTotals){
     if(comboEntries.length){
       venueTotals = comboEntries.concat(venueTotals);
     }
-    currentVenue = venueTotals.length ? venueTotals[0].name : null;
+    var nextVenue = null;
+    if(previousVenue && venueTotals.some(function(v){ return v.name === previousVenue; })){
+      nextVenue = previousVenue;
+    } else if(currentVenue && venueTotals.some(function(v){ return v.name === currentVenue; })){
+      nextVenue = currentVenue;
+    } else {
+      nextVenue = venueTotals.length ? venueTotals[0].name : null;
+    }
+    currentVenue = nextVenue;
   }
 
   function prepareDataForVenue(venue){
@@ -586,6 +730,39 @@ function getDisplayCountForVenue(name, fallbackTotals){
     });
   }
 
+  function buildYearFilter(){
+    var container = document.getElementById("yearFilter");
+    if(!container) return;
+    container.innerHTML = "";
+    yearOptions.forEach(function(opt){
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "year-filter-button";
+      button.textContent = opt.label;
+      button.setAttribute("data-year", opt.value);
+      var description = "Mostrar datos de " + opt.label;
+      button.title = description;
+      button.setAttribute("aria-label", description);
+      button.addEventListener("click", function(){
+        if(currentYear === opt.value){
+          return;
+        }
+        setYear(opt.value);
+      });
+      container.appendChild(button);
+    });
+    updateYearFilterState();
+  }
+
+  function updateYearFilterState(){
+    document.querySelectorAll(".year-filter-button").forEach(function(btn){
+      var valueAttr = btn.getAttribute("data-year");
+      var isActive = currentYear === valueAttr;
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
+
   function buildLegend(){
     var legend = document.getElementById("legend");
     if(!legend) return;
@@ -693,7 +870,6 @@ function getDisplayCountForVenue(name, fallbackTotals){
     }
   }
 
-  bindVenueSelectorEvents();
   init();
 })();
 </script>
