@@ -120,13 +120,13 @@ var yearOptions = [
 var yearConfigs = {
   "2024": {
     label: "2024",
-    institutionFile: "institution_venues_2024_v4.json",
+    institutionFile: "institution_venues_2024_v7.json",
     paperCsv: "neurips_2024_papers_with_institutions.csv",
     sourceUrl: "https://openreview.net/group?id=NeurIPS.cc/2024"
   },
   "2025": {
     label: "2025",
-    institutionFile: "institution_venues_v4.json",
+    institutionFile: "institution_venues_v7.json",
     paperCsv: "neurips_2025_papers_with_institutions.csv",
     sourceUrl: "https://openreview.net/group?id=NeurIPS.cc/2025"
   }
@@ -153,7 +153,15 @@ var combinedVenueConfigs = [
     id: "__all_venues__",
     label: "All",
     includeAll: true
-  }
+  },
+    {
+    id: "__spotlight_oral__",
+    label: "Spotlight + oral",
+    sources: [
+      "NeurIPS 2024 spotlight",
+      "NeurIPS 2024 oral"
+    ]
+  },
 ];
 var combinedVenueMap = {};
 combinedVenueConfigs.forEach(function(cfg){
@@ -182,6 +190,22 @@ function parseInstitutionFile(text){
   }
 }
 
+function normalizeInstitutionRecords(records){
+  if(!Array.isArray(records)) return [];
+  return records.map(function(entry){
+    if(!entry || typeof entry !== "object") return null;
+    var record = entry;
+    if(!record.venues || typeof record.venues !== "object"){
+      if(record.venues_x && typeof record.venues_x === "object"){
+        record.venues = record.venues_x;
+      } else {
+        record.venues = {};
+      }
+    }
+    return record;
+  }).filter(Boolean);
+}
+
 function getYearConfig(year){
   return yearConfigs[year] || null;
 }
@@ -190,7 +214,8 @@ function loadInstitutionData(fileName){
   if(!fileName) return Promise.resolve([]);
   return d3.text(fileName).then(function(text){
     try {
-      return parseInstitutionFile(text);
+      var parsed = parseInstitutionFile(text);
+      return normalizeInstitutionRecords(parsed);
     } catch (err) {
       console.error("No se pudo interpretar " + fileName, err);
       throw err;
