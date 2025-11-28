@@ -140,33 +140,30 @@ var topLimitOptions = [
 ];
 var currentTopLimit = "All";
 var allVenueNames = [];
-var combinedVenueConfigs = [
-  {
-    id: "__spotlight_oral__",
-    label: "Spotlight + oral",
-    sources: [
-      "NeurIPS 2025 spotlight",
-      "NeurIPS 2025 oral"
-    ]
-  },
-  {
-    id: "__all_venues__",
-    label: "All",
-    includeAll: true
-  },
-    {
-    id: "__spotlight_oral__",
-    label: "Spotlight + oral",
-    sources: [
-      "NeurIPS 2024 spotlight",
-      "NeurIPS 2024 oral"
-    ]
-  },
-];
+var combinedVenueConfigs = [];
 var combinedVenueMap = {};
-combinedVenueConfigs.forEach(function(cfg){
-  combinedVenueMap[cfg.id] = cfg;
-});
+
+function configureCombinedVenuesForYear(year){
+  combinedVenueConfigs = [
+    {
+      id: "__spotlight_oral__",
+      label: "Spotlight + oral",
+      sources: [
+        "NeurIPS " + year + " spotlight",
+        "NeurIPS " + year + " oral"
+      ]
+    },
+    {
+      id: "__all_venues__",
+      label: "All",
+      includeAll: true
+    }
+  ];
+  combinedVenueMap = {};
+  combinedVenueConfigs.forEach(function(cfg){
+    combinedVenueMap[cfg.id] = cfg;
+  });
+}
 
 function parseInstitutionFile(text){
   var trimmed = (text || "").trim();
@@ -394,10 +391,11 @@ function getDisplayCountForVenue(name, fallbackTotals){
         var region = getDatumField(d, "parent") || (d.parent && d.parent.id) || d.parent || d.id || "Sin region";
         var subregion = getDatumField(d, "parent2");
         var urbanZone = getDatumField(d, "urban_zone") || getDatumField(d, "urbanZone");
+        var countryCode = getDatumField(d, "country");
         var value = d.value || 0;
         var venueLabel = currentVenue ? getVenueDisplayName(currentVenue) : "Sin venue";
         var lines = [
-          "<strong>Country:</strong> " + region
+          "<strong>Parent:</strong> " + region + (countryCode ? " (" + countryCode + ")" : "")
         ];
         if(subregion){
           lines.push("<strong>Region:</strong> " + subregion);
@@ -458,6 +456,7 @@ function getDisplayCountForVenue(name, fallbackTotals){
     var cfg = getYearConfig(year);
     if(!cfg) return;
     currentYear = year;
+    configureCombinedVenuesForYear(currentYear);
     updateYearFilterState();
     updateSourceText();
     loadDataForCurrentYear();
@@ -620,6 +619,7 @@ function getDisplayCountForVenue(name, fallbackTotals){
         parent: parentGroup,
         parent2: parent2Value,
         urban_zone: zoneValue,
+        country: entry.country,
         value: value
       };
     }).filter(function(d){
