@@ -1,0 +1,1041 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: "Inter", "Segoe UI", Arial, sans-serif;
+      background: #ffffff;
+      color: #1f2933;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 18fr auto 1fr;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(8px, 1vh, 18px);
+      height: 100vh;
+      width: 100vw;
+      padding: clamp(12px, 2vh, 24px);
+      box-sizing: border-box;
+    }
+
+    .container {
+      border-radius: 16px;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    #containerYear {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: center;
+      padding: 0 clamp(12px, 2vw, 20px);
+      font-size: clamp(18px, 2.5vw, 26px);
+      font-weight: 700;
+      color: #0f172a;
+      height: clamp(28px, 4vh, 40px);
+      position: relative;
+    }
+
+    .year-left,
+    .year-right {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      position: relative;
+    }
+
+    .year-left {
+      justify-content: center;
+    }
+
+    .year-right {
+      justify-content: center;
+    }
+
+    .year-left::before,
+    .year-right::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.35) 50%, rgba(15, 23, 42, 0) 100%);
+      pointer-events: none;
+    }
+
+    #container1 {
+      grid-row: 1;
+      grid-column: 1 / span 2;
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #container3 {
+      grid-row: 3;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      padding: 0 clamp(12px, 2vw, 20px);
+      overflow: hidden;
+    }
+
+    #container4 {
+      grid-row: 3;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 clamp(12px, 2vw, 20px);
+      overflow: hidden;
+    }
+
+    #container4 a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+    }
+
+    #refresh-button {
+      margin-right: clamp(12px, 2vw, 20px);
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: none;
+      background: #2756d3;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    #refresh-button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+
+    #refresh-button:not(:disabled):hover {
+      background: #1c3e99;
+    }
+
+    #viz {
+      width: 100%;
+      height: 100%;
+      flex: 1;
+      min-height: 0;
+      min-width: 0;
+      position: relative;
+    }
+
+    #viz svg,
+    #viz canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #viz canvas {
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #viz svg {
+      z-index: 2;
+    }
+
+    .source-text {
+      font-size: clamp(12px, 1.5vw, 16px);
+      font-weight: 600;
+      color: #475569;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .source-text a {
+      color: #2756d3;
+      text-decoration: none;
+    }
+
+    .source-text a:hover {
+      text-decoration: underline;
+    }
+
+    .logo {
+      height: 100%;
+      width: auto;
+      max-height: clamp(36px, 6vh, 60px);
+      max-width: 100%;
+      pointer-events: auto;
+      object-fit: contain;
+    }
+
+    .links path {
+      fill: none;
+      stroke-opacity: 0.4;
+      transition: all 0.3s ease;
+    }
+
+    .nodes rect {
+      stroke-width: 1px;
+      transition: all 0.3s ease;
+    }
+
+    .nodes text {
+      font-size: clamp(12px, 1vw, 16px);
+      pointer-events: none;
+      transition: all 0.3s ease;
+    }
+
+    .hoveredNode rect {
+      filter: drop-shadow(0 0 5px #fff);
+      stroke-width: 2px;
+    }
+
+    .hoveredNode text {
+      font-size: clamp(14px, 1.2vw, 18px);
+      stroke: #fff;
+      stroke-width: 2px;
+      paint-order: stroke fill;
+      font-weight: bold;
+    }
+
+    .hoveredLink {
+      stroke-opacity: 1 !important;
+      filter: drop-shadow(0 0 5px #fff);
+    }
+
+    .dimmedNode rect {
+      fill: #ccc !important;
+      stroke: #ccc !important;
+      filter: none;
+    }
+
+    .dimmedNode text {
+      fill: #666 !important;
+      stroke: none;
+      font-weight: normal;
+      font-size: clamp(12px, 1vw, 16px);
+    }
+
+    .dimmedLink {
+      stroke: #ccc !important;
+      filter: none;
+    }
+
+    .tooltip {
+      position: absolute;
+      text-align: left;
+      padding: 8px 10px;
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid rgba(39, 86, 211, 0.2);
+      font-size: 12px;
+      border-radius: 8px;
+      box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+      pointer-events: none;
+      opacity: 0;
+      color: #0f172a;
+      z-index: 9999;
+    }
+
+    .particle {
+      fill: #fff;
+      stroke: rgba(255, 255, 255, 0.8);
+      stroke-width: 1px;
+      filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.6));
+      pointer-events: none;
+    }
+
+    @media (max-height: 500px) {
+      .viz-grid {
+        grid-template-rows: 1fr;
+        grid-template-columns: 1fr;
+        padding: 12px;
+      }
+
+      #container1 {
+        grid-row: 1;
+        grid-column: 1;
+      }
+
+      #container3,
+      #container4 {
+        display: none !important;
+      }
+
+      #containerYear {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="viz-grid">
+    <div id="containerYear" class="container year-container">
+      <div class="year-left">2024</div>
+      <div class="year-right">2025</div>
+    </div>
+    <div id="container1" class="container viz-container">
+      <div id="viz">
+        <canvas id="particle-canvas"></canvas>
+        <svg id="sankey"></svg>
+      </div>
+    </div>
+    <div id="container3" class="container source-container">
+      <div class="source-text">
+        Source:
+        <a href="https://neurips.cc/" target="_blank" rel="noopener">
+          NeurIPS
+        </a>
+        & 
+        <a href="https://aiworld.eu" target="_blank" rel="noopener">
+          AI World
+        </a>
+      </div>
+    </div>
+    <div id="container4" class="container logo-container">
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" />
+      </a>
+    </div>
+  </div>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+  <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
+  <script>
+    const DATA_URL = 'https://docs.google.com/spreadsheets/d/1mO4uUE0aMCy2WODJKakUSf4dCNtSJn84sU-WaWluL80/export?format=csv';
+    const vizContainer = document.getElementById('viz');
+    const svg = d3.select('#sankey');
+    const tooltip = d3.select('body').append('div')
+      .attr('class', 'tooltip');
+    const refreshButton = document.getElementById('refresh-button');
+    const particleCanvas = document.getElementById('particle-canvas');
+    const particleContext = particleCanvas ? particleCanvas.getContext('2d') : null;
+
+    let width = 0;
+    let height = 0;
+    let cleanData = [];
+    let nodeColorMap = new Map();
+    let particles = [];
+    let particleLinks = [];
+    let particleTimer = null;
+    let hoveredLinkIds = new Set();
+
+    const PARTICLE_TIMER_DELAY = 800;
+    const PARTICLE_SETTINGS = {
+      frequencyRange: [0.08, 0.65],
+      sizeRange: [1.5, 4],
+      speedRange: [0.15, 0.54],
+      emissionIterations: 2,
+      densityScale: 0.02
+    };
+
+    const sankey = d3.sankey()
+      .nodeWidth(20)
+      .nodePadding(16);
+
+    const linkPath = d3.sankeyLinkHorizontal();
+
+    function updateDimensions() {
+      const rect = vizContainer.getBoundingClientRect();
+      width = rect.width || window.innerWidth;
+      height = rect.height || window.innerHeight;
+      svg
+        .attr('width', width)
+        .attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`);
+      sankey.size([width, height]);
+      if (particleCanvas) {
+        particleCanvas.width = width;
+        particleCanvas.height = height;
+      }
+    }
+
+    function positionTooltip(event) {
+      const tooltipOffset = 10;
+      const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
+      const tooltipNode = tooltip.node();
+      const tooltipWidth = tooltipNode ? tooltipNode.offsetWidth : 150;
+      const tooltipHeight = tooltipNode ? tooltipNode.offsetHeight : 120;
+
+      const isLeftSide = event.pageX < screenWidth / 2;
+      const isTopHalf = event.pageY < screenHeight / 2;
+
+      const leftPos = isLeftSide
+        ? (event.pageX + tooltipOffset)
+        : (event.pageX - tooltipWidth - tooltipOffset);
+      const topPos = isTopHalf
+        ? (event.pageY + tooltipOffset)
+        : (event.pageY - tooltipHeight - tooltipOffset);
+
+      tooltip
+        .style('left', `${leftPos}px`)
+        .style('top', `${topPos}px`);
+    }
+
+    function setHoveredLinks(links) {
+      const linkArray = Array.isArray(links) ? links : Array.from(links || []);
+      const idSet = new Set();
+      linkArray.forEach(link => {
+        if (link && link.id) {
+          idSet.add(link.id);
+        }
+      });
+      hoveredLinkIds = idSet;
+      return hoveredLinkIds;
+    }
+
+    function clearHoveredLinks() {
+      hoveredLinkIds = new Set();
+      return hoveredLinkIds;
+    }
+
+    function buildGraph(data) {
+      if (!data.length) {
+        return { nodes: [], links: [], levelCount: 0 };
+      }
+
+      const nodeNames = new Set();
+      const linkKeyMap = new Map();
+
+      data.forEach(d => {
+        nodeNames.add(d.from);
+        nodeNames.add(d.to);
+
+        const key = `${d.from}|${d.to}`;
+        let link = linkKeyMap.get(key);
+        if (!link) {
+          link = {
+            id: key,
+            sourceName: d.from,
+            targetName: d.to,
+            value: 0,
+            growth: null,
+            color: null
+          };
+          linkKeyMap.set(key, link);
+        }
+        link.value += d.value;
+        if (d.color && !link.color) {
+          link.color = d.color;
+        }
+        if (Number.isFinite(d.growth) && link.growth === null) {
+          link.growth = d.growth;
+        }
+      });
+
+      const adjacency = new Map();
+      const indegree = new Map();
+      nodeNames.forEach(name => {
+        adjacency.set(name, new Set());
+        indegree.set(name, 0);
+      });
+
+      linkKeyMap.forEach(link => {
+        if (!adjacency.has(link.sourceName)) {
+          adjacency.set(link.sourceName, new Set());
+        }
+        adjacency.get(link.sourceName).add(link.targetName);
+        indegree.set(link.targetName, (indegree.get(link.targetName) || 0) + 1);
+      });
+
+      const levels = new Map();
+      const queue = [];
+
+      nodeNames.forEach(name => {
+        if ((indegree.get(name) || 0) === 0) {
+          queue.push(name);
+          levels.set(name, 0);
+        }
+      });
+
+      while (queue.length) {
+        const current = queue.shift();
+        const currentLevel = levels.get(current) || 0;
+        const neighbors = adjacency.get(current);
+        if (!neighbors) continue;
+        neighbors.forEach(target => {
+          const candidate = currentLevel + 1;
+          const existing = levels.get(target);
+          if (existing === undefined || candidate > existing) {
+            levels.set(target, candidate);
+          }
+          indegree.set(target, (indegree.get(target) || 0) - 1);
+          if ((indegree.get(target) || 0) === 0) {
+            queue.push(target);
+          }
+        });
+      }
+
+      nodeNames.forEach(name => {
+        if (!levels.has(name)) {
+          levels.set(name, 0);
+        }
+      });
+
+      const isMisc = name => {
+        const lower = (name || '').toLowerCase();
+        return lower.includes('other') || lower.includes('rest');
+      };
+
+      const maxLevel = levels.size
+        ? Math.max(...Array.from(levels.values()))
+        : 0;
+
+      const priorityOrder = ['computer', 'natural', 'reinforcement', 'explainable', 'science', 'ethics'];
+      const priorityIndex = name => {
+        const lower = (name || '').toLowerCase();
+        const idx = priorityOrder.findIndex(key => lower.includes(key));
+        if (idx !== -1) return idx;
+        if (isMisc(name)) return priorityOrder.length + 1;
+        return priorityOrder.length;
+      };
+
+      const sortedNames = Array.from(nodeNames).sort((a, b) => {
+        const levelA = levels.get(a) || 0;
+        const levelB = levels.get(b) || 0;
+        const levelDiff = levelA - levelB;
+        if (levelDiff !== 0) return levelDiff;
+
+        const isEdgeLevel = levelA === 0 || levelA === maxLevel;
+        if (isEdgeLevel) {
+          const aMisc = isMisc(a);
+          const bMisc = isMisc(b);
+          if (aMisc !== bMisc) return aMisc ? 1 : -1;
+          const pa = priorityIndex(a);
+          const pb = priorityIndex(b);
+          if (pa !== pb) return pa - pb;
+        }
+
+        const aMisc = isMisc(a);
+        const bMisc = isMisc(b);
+        if (aMisc !== bMisc) return aMisc ? 1 : -1;
+        return a.localeCompare(b);
+      });
+
+      const nodes = sortedNames.map(name => ({
+        name,
+        level: levels.get(name) || 0,
+        color: nodeColorMap.get(name) || '#b3b3b3'
+      }));
+
+      const nodeIndexMap = new Map(nodes.map((node, index) => [node.name, index]));
+
+      const levelCount = nodes.length
+        ? nodes.reduce((max, node) => Math.max(max, node.level), 0) + 1
+        : 0;
+
+      const midLevel = levelCount ? Math.floor(levelCount / 2) : 1;
+
+      const links = Array.from(linkKeyMap.values())
+        .map(link => ({
+          id: link.id || `${link.sourceName}|${link.targetName}`,
+          source: nodeIndexMap.get(link.sourceName),
+          target: nodeIndexMap.get(link.targetName),
+          value: link.value,
+          growth: link.growth,
+          color: ((levels.get(link.sourceName) || 0) >= midLevel
+            ? (link.color || nodeColorMap.get(link.targetName) || nodeColorMap.get(link.sourceName) || '#999')
+            : (link.color || nodeColorMap.get(link.sourceName) || '#999'))
+        }))
+        .filter(link => link.source !== undefined && link.target !== undefined && link.value > 0);
+
+      return { nodes, links, levelCount };
+    }
+
+    function render() {
+      resetParticles();
+      if (!cleanData.length) {
+        return;
+      }
+
+      updateDimensions();
+      svg.selectAll('*').remove();
+
+      const graph = buildGraph(cleanData);
+      const midLevel = graph.levelCount ? Math.floor(graph.levelCount / 2) : 0;
+
+      const priorityOrderSort = ['computer', 'natural', 'reinforcement', 'explainable', 'science', 'ethics'];
+      const priorityIndexSort = name => {
+        const lower = (name || '').toLowerCase();
+        const idx = priorityOrderSort.findIndex(k => lower.includes(k));
+        if (idx !== -1) return idx;
+        if (lower.includes('other') || lower.includes('rest')) return priorityOrderSort.length + 1;
+        return priorityOrderSort.length;
+      };
+
+      sankey.nodeAlign((node, columns) => {
+        const maxColumns = Number.isFinite(columns) ? columns : (graph.levelCount ? graph.levelCount - 1 : 0);
+        const maxLevel = graph.levelCount ? Math.min(graph.levelCount - 1, maxColumns) : maxColumns;
+        const nodeLevel = typeof node.level === 'number' ? node.level : 0;
+        return Math.max(0, Math.min(nodeLevel, maxLevel));
+      });
+
+      sankey.nodeSort((a, b) => {
+        if (!a || !b) return 0;
+        if (a.level !== b.level) return 0;
+        const isEdge = (a.level === 0) || (graph.levelCount && a.level === graph.levelCount - 1);
+        if (!isEdge) return 0;
+        return priorityIndexSort(a.name) - priorityIndexSort(b.name);
+      });
+
+      sankey(graph);
+
+      const incomingTotals = new Map();
+      const outgoingTotals = new Map();
+      graph.links.forEach(l => {
+        incomingTotals.set(l.target.index, (incomingTotals.get(l.target.index) || 0) + l.value);
+        outgoingTotals.set(l.source.index, (outgoingTotals.get(l.source.index) || 0) + l.value);
+      });
+
+      const colorTotalsByLevel = new Map();
+      graph.links.forEach(l => {
+        const targetNode = graph.nodes[l.target.index];
+        if (!targetNode) return;
+        const targetLevel = typeof targetNode.level === 'number' ? targetNode.level : null;
+        if (targetLevel === null) return;
+        const colorKey = l.color || (graph.nodes[l.target.index] && graph.nodes[l.target.index].color) || (graph.nodes[l.source.index] && graph.nodes[l.source.index].color);
+        if (!colorKey) return;
+        if (!colorTotalsByLevel.has(targetLevel)) {
+          colorTotalsByLevel.set(targetLevel, new Map());
+        }
+        const levelMap = colorTotalsByLevel.get(targetLevel);
+        levelMap.set(colorKey, (levelMap.get(colorKey) || 0) + l.value);
+      });
+
+      graph.nodes.forEach(n => {
+        const isFinal = graph.levelCount ? n.level === graph.levelCount - 1 : false;
+        const isMiddle = graph.levelCount ? n.level === midLevel : false;
+        if (isFinal && n.color) {
+          const currentMap = colorTotalsByLevel.get(n.level);
+          const prevMap = colorTotalsByLevel.get(n.level - 1);
+          const currentTotal = currentMap ? (currentMap.get(n.color) || 0) : 0;
+          const prevTotal = prevMap ? (prevMap.get(n.color) || 0) : 0;
+          n.growth = prevTotal > 0 ? (currentTotal - prevTotal) / prevTotal : null;
+        } else if (isMiddle) {
+          const incoming = incomingTotals.get(n.index) || 0;
+          const outgoing = outgoingTotals.get(n.index) || 0;
+          n.growth = incoming > 0 ? (outgoing - incoming) / incoming : null;
+        } else {
+          n.growth = null;
+        }
+      });
+
+      const linkSelection = svg.append('g')
+        .attr('class', 'links')
+        .selectAll('path')
+        .data(graph.links)
+        .enter().append('path')
+        .attr('d', linkPath)
+        .attr('stroke-width', d => Math.max(1, d.width))
+        .attr('stroke', d => d.color);
+
+      const nodeSelection = svg.append('g')
+        .attr('class', 'nodes')
+        .selectAll('g')
+        .data(graph.nodes)
+        .enter().append('g')
+        .attr('transform', d => `translate(${d.x0},${d.y0})`);
+
+      function getLabelFontSize() {
+        const minSide = Math.max(0, Math.min(width, height));
+        return Math.max(12, Math.min(22, Math.round(minSide * 0.022)));
+      }
+
+      const labelLayer = svg.append('g')
+        .attr('class', 'link-labels')
+        .style('pointer-events', 'none');
+
+      function clearLinkLabels() {
+        labelLayer.selectAll('*').remove();
+      }
+
+      function showLinkLabels(links) {
+        clearLinkLabels();
+        if (!links || !links.length) {
+          return;
+        }
+        const fontSize = getLabelFontSize();
+        const labelOffset = Math.max(14, fontSize * 1.4);
+        const labelFill = '#ffffff';
+        const labelStroke = 'rgba(0,0,0,0.45)';
+
+        function appendLabel(point, textValue) {
+          if (!point || textValue === null || textValue === undefined) return;
+          labelLayer.append('text')
+            .attr('x', point.x)
+            .attr('y', point.y)
+            .attr('dy', '0.35em')
+            .attr('text-anchor', 'middle')
+            .attr('fill', labelFill)
+            .attr('stroke', labelStroke)
+            .attr('stroke-width', Math.max(1.5, fontSize * 0.12))
+            .attr('paint-order', 'stroke fill')
+            .style('font-weight', '700')
+            .style('font-size', `${fontSize}px`)
+            .style('fill', labelFill)
+            .style('stroke', labelStroke)
+            .style('paint-order', 'stroke fill')
+            .text(textValue);
+        }
+
+        links.forEach(link => {
+          const pathNode = linkSelection.filter(ld => ld.id === link.id).node();
+          if (!pathNode || !pathNode.getTotalLength) return;
+          const pathLength = pathNode.getTotalLength();
+          if (!pathLength) return;
+
+          const startLen = Math.min(pathLength, labelOffset);
+          const endLen = Math.max(0, pathLength - labelOffset);
+
+          const startPoint = pathNode.getPointAtLength(startLen);
+          const endPoint = pathNode.getPointAtLength(endLen);
+
+          const sourceTotal = outgoingTotals.get(link.source.index) || graph.nodes[link.source.index].value || 0;
+          const targetTotal = incomingTotals.get(link.target.index) || graph.nodes[link.target.index].value || 0;
+          const sourceShare = sourceTotal ? (link.value / sourceTotal) * 100 : null;
+          const targetShare = targetTotal ? (link.value / targetTotal) * 100 : null;
+
+          if (sourceShare !== null) {
+            appendLabel(startPoint, `${sourceShare.toFixed(1)}%`);
+          }
+          if (targetShare !== null) {
+            appendLabel(endPoint, `${targetShare.toFixed(1)}%`);
+          }
+        });
+      }
+
+      function bringLinksToFront(linkIds) {
+        if (!linkIds || !linkSelection) return;
+        const ids = Array.isArray(linkIds) ? new Set(linkIds.map(id => (typeof id === 'object' && id.id) ? id.id : id)) : new Set(linkIds);
+        linkSelection
+          .filter(ld => ids.has(ld.id))
+          .each(function () {
+            if (this.parentNode) {
+              this.parentNode.appendChild(this);
+            }
+          });
+      }
+
+      nodeSelection.append('rect')
+        .attr('height', d => d.y1 - d.y0)
+        .attr('width', sankey.nodeWidth())
+        .attr('fill', d => (d.level === midLevel ? '#ffffff' : (d.color || '#b3b3b3')))
+        .attr('stroke', '#999');
+
+      function getLabelX(node, isHovered) {
+        const baseOffset = sankey.nodeWidth();
+        const hoverShift = isHovered ? 48 : 0;
+        if (node.x0 < width / 2) {
+          return 6 + baseOffset + hoverShift;
+        }
+        return -6 - hoverShift;
+      }
+
+      nodeSelection.append('text')
+        .attr('x', d => getLabelX(d, false))
+        .attr('y', d => (d.y1 - d.y0) / 2)
+        .attr('dy', '0.35em')
+        .attr('text-anchor', d => (d.x0 < width / 2 ? 'start' : 'end'))
+        .attr('fill', '#000')
+        .text(d => d.name);
+
+      nodeSelection
+        .on('mouseover', function (d) {
+          d3.select(this).style('cursor', 'pointer');
+          tooltip.transition().duration(200).style('opacity', 0.95);
+          const columnText = graph.levelCount ? `Column: ${Math.min(d.level + 1, graph.levelCount)} / ${graph.levelCount}` : '';
+          const isFinal = graph.levelCount ? d.level === graph.levelCount - 1 : false;
+          const isMiddle = graph.levelCount ? d.level === midLevel : false;
+          const growthText = (isFinal || isMiddle) && Number.isFinite(d.growth)
+            ? `<br/>Growth: ${(d.growth * 100).toFixed(1)}%`
+            : '';
+          const incomingTotal = incomingTotals.get(d.index) || 0;
+          const outgoingTotal = outgoingTotals.get(d.index) || 0;
+          const totalText = isMiddle
+            ? `2024 Total: ${incomingTotal}<br/>2025 Total: ${outgoingTotal}`
+            : `Total: ${d.value}`;
+
+          const nodeTooltip = columnText
+            ? `Name: ${d.name}<br/>${totalText}${growthText}<br/>`
+            : `Name: ${d.name}<br/>${totalText}${growthText}`;
+          tooltip.html(nodeTooltip);
+          positionTooltip(d3.event);
+          d3.select(this).select('text').attr('x', nd => getLabelX(nd, true));
+
+          const nodeIndex = d.index;
+          const connectedLinks = graph.links.filter(l => l.source.index === nodeIndex || l.target.index === nodeIndex);
+          const connectedNodes = new Set([nodeIndex]);
+          const connectedLinkIds = setHoveredLinks(connectedLinks);
+          connectedLinks.forEach(l => {
+            connectedNodes.add(l.source.index);
+            connectedNodes.add(l.target.index);
+          });
+          showLinkLabels(connectedLinks);
+          bringLinksToFront(connectedLinkIds);
+
+          nodeSelection.classed('dimmedNode', true).classed('hoveredNode', false);
+          linkSelection.classed('dimmedLink', true).classed('hoveredLink', false);
+
+          nodeSelection.filter(nd => connectedNodes.has(nd.index))
+            .classed('dimmedNode', false)
+            .classed('hoveredNode', true);
+          linkSelection.filter(ld => connectedLinkIds.has(ld.id))
+            .classed('dimmedLink', false)
+            .classed('hoveredLink', true);
+        })
+        .on('mousemove', function () {
+          positionTooltip(d3.event);
+        })
+        .on('mouseout', function () {
+          tooltip.transition().duration(200).style('opacity', 0);
+          clearHoveredLinks();
+          clearLinkLabels();
+          nodeSelection.classed('hoveredNode', false).classed('dimmedNode', false);
+          linkSelection.classed('hoveredLink', false).classed('dimmedLink', false);
+          d3.select(this).style('cursor', null);
+          d3.select(this).select('text').attr('x', nd => getLabelX(nd, false));
+        });
+
+      linkSelection
+        .on('mouseover', function (d) {
+          d3.select(this).style('cursor', 'pointer');
+          tooltip.transition().duration(200).style('opacity', 0.95);
+          const sourceName = graph.nodes[d.source.index].name;
+          const targetName = graph.nodes[d.target.index].name;
+          const sourceLevel = graph.levelCount ? `${Math.min((d.source.level || 0) + 1, graph.levelCount)}` : null;
+          const targetLevel = graph.levelCount ? `${Math.min((d.target.level || 0) + 1, graph.levelCount)}` : null;
+          const levelInfo = (sourceLevel && targetLevel)
+            ? `<br/>Columns: ${sourceLevel} -> ${targetLevel} / ${graph.levelCount}`
+            : '';
+          const targetTotal = incomingTotals.get(d.target.index) || graph.nodes[d.target.index].value || 0;
+          const targetShare = targetTotal ? (d.value / targetTotal) * 100 : null;
+          const shareText = targetShare !== null ? `<br/>Share: ${targetShare.toFixed(1)}%` : '';
+          const growthText = Number.isFinite(d.growth) ? `<br/>Growth: ${(d.growth * 100).toFixed(1)}%` : '';
+          tooltip.html(`Source: ${sourceName}<br/>Target: ${targetName}<br/>Value: ${d.value}${shareText}${growthText}`);
+          positionTooltip(d3.event);
+
+          const connectedNodes = new Set([d.source.index, d.target.index]);
+          setHoveredLinks([d]);
+          showLinkLabels([d]);
+          bringLinksToFront([d.id]);
+          nodeSelection.classed('dimmedNode', true).classed('hoveredNode', false);
+          linkSelection.classed('dimmedLink', true).classed('hoveredLink', false);
+
+          nodeSelection.filter(nd => connectedNodes.has(nd.index))
+            .classed('dimmedNode', false)
+            .classed('hoveredNode', true);
+          d3.select(this).classed('dimmedLink', false).classed('hoveredLink', true);
+        })
+        .on('mousemove', function () {
+          positionTooltip(d3.event);
+        })
+        .on('mouseout', function () {
+          tooltip.transition().duration(200).style('opacity', 0);
+          clearHoveredLinks();
+          clearLinkLabels();
+          nodeSelection.classed('hoveredNode', false).classed('dimmedNode', false);
+          linkSelection.classed('hoveredLink', false).classed('dimmedLink', false);
+          d3.select(this).style('cursor', null);
+        });
+
+      startParticleFlow(graph, linkSelection);
+    }
+
+    function resetParticles() {
+      if (particleTimer) {
+        particleTimer.stop();
+        particleTimer = null;
+      }
+      particles = [];
+      particleLinks = [];
+      clearHoveredLinks();
+      if (particleContext && particleCanvas) {
+        particleContext.clearRect(0, 0, particleCanvas.width || width, particleCanvas.height || height);
+      }
+    }
+
+    function startParticleFlow(graph, linkSelection) {
+      if (!particleContext || !particleCanvas || !graph.links.length) {
+        return;
+      }
+
+      function getResponsiveSizeRange() {
+        const minSide = Math.max(0, Math.min(width, height));
+        const factor = minSide
+          ? Math.max(0.75, Math.min(1.5, minSide / 800))
+          : 1;
+        return [
+          PARTICLE_SETTINGS.sizeRange[0] * factor,
+          PARTICLE_SETTINGS.sizeRange[1] * factor
+        ];
+      }
+
+      const values = graph.links.map(l => l.value);
+      const extent = d3.extent(values);
+      if (!extent || !Number.isFinite(extent[0]) || !Number.isFinite(extent[1])) {
+        return;
+      }
+      const normalizedExtent = extent[0] === extent[1]
+        ? [extent[0], extent[0] + 1]
+        : extent;
+
+      const frequencyScale = d3.scaleLinear()
+        .domain(normalizedExtent)
+        .range(PARTICLE_SETTINGS.frequencyRange);
+
+      const responsiveSizeRange = getResponsiveSizeRange();
+      const sizeScale = d3.scaleLinear()
+        .domain(normalizedExtent)
+        .range(responsiveSizeRange);
+
+      particleLinks = [];
+      linkSelection.each(function (d) {
+        const sourceColor = d.source.color || (graph.nodes[d.source.index] && graph.nodes[d.source.index].color) || '#999';
+        const targetColor = d.target.color || (graph.nodes[d.target.index] && graph.nodes[d.target.index].color) || '#ccc';
+        const freqValue = frequencyScale(d.value);
+        const clampedFreq = Math.max(PARTICLE_SETTINGS.frequencyRange[0], Math.min(freqValue, PARTICLE_SETTINGS.frequencyRange[1]));
+        d.freq = clampedFreq * PARTICLE_SETTINGS.densityScale;
+        d.particleSize = sizeScale(d.value);
+        d.particleColor = d3.scaleLinear().domain([0, 1]).range([sourceColor, targetColor]);
+        particleLinks.push({ link: d, path: this });
+      });
+
+      if (particleTimer) {
+        particleTimer.stop();
+      }
+      particles = [];
+
+      particleTimer = d3.timer((elapsed) => {
+        tickParticles(elapsed);
+      }, PARTICLE_TIMER_DELAY);
+    }
+
+    function tickParticles(elapsed) {
+      particles = particles.filter(p => p.current < p.length && p.path);
+      particleLinks.forEach(({ link, path }) => {
+        if (!path || !link.freq) {
+          return;
+        }
+        for (let i = 0; i < PARTICLE_SETTINGS.emissionIterations; i += 1) {
+          if (Math.random() < link.freq) {
+            const offsetRange = Math.max(1, (link.width || 2) - (link.particleSize || 1));
+            const offset = (Math.random() - 0.5) * offsetRange;
+            const totalLength = path.getTotalLength();
+            particles.push({
+              link,
+              path,
+              length: totalLength,
+              startTime: elapsed,
+              offset,
+              speed: PARTICLE_SETTINGS.speedRange[0] +
+                Math.random() * (PARTICLE_SETTINGS.speedRange[1] - PARTICLE_SETTINGS.speedRange[0])
+            });
+          }
+        }
+      });
+      drawParticles(elapsed);
+    }
+
+    function drawParticles(elapsed) {
+      if (!particleContext || !particleCanvas) {
+        return;
+      }
+      particleContext.clearRect(0, 0, particleCanvas.width || width, particleCanvas.height || height);
+      particles.forEach(p => {
+        const elapsedTime = elapsed - p.startTime;
+        p.current = elapsedTime * 0.15 * p.speed;
+        if (p.current > p.length) {
+          return;
+        }
+        const currentPos = p.path.getPointAtLength(p.current);
+        if (!currentPos) {
+          return;
+        }
+        particleContext.beginPath();
+        const hasHoveredId = p.link && p.link.id && hoveredLinkIds.has(p.link.id);
+        const hasHoveredClass = p.path && p.path.classList && p.path.classList.contains('hoveredLink');
+        const isHovered = hasHoveredId || hasHoveredClass;
+        const fill = isHovered
+          ? '#ffffff'
+          : (typeof p.link.particleColor === 'function'
+              ? p.link.particleColor(Math.random())
+              : (p.link.color || '#999'));
+
+        particleContext.fillStyle = fill;
+        particleContext.arc(
+          currentPos.x,
+          currentPos.y + p.offset,
+          p.link.particleSize || 2,
+          0,
+          2 * Math.PI
+        );
+        particleContext.fill();
+      });
+    }
+
+    function setRefreshing(isLoading) {
+      if (!refreshButton) return;
+      refreshButton.disabled = isLoading;
+      refreshButton.textContent = isLoading ? 'Refreshing…' : 'Refresh';
+    }
+
+    function loadData() {
+      setRefreshing(true);
+      d3.csv(DATA_URL).then(rows => {
+        cleanData = rows
+          .map(row => {
+            const from = row.from ? row.from.trim() : null;
+            const to = row.to ? row.to.trim() : null;
+            const color = row.color ? row.color.trim() : null;
+            const value = row.count ? +row.count : NaN;
+            const growth = row.growth ? +row.growth : NaN;
+            return { from, to, color, value, growth };
+          })
+          .filter(d => d.from && d.to && Number.isFinite(d.value));
+
+        nodeColorMap = new Map();
+
+        cleanData.forEach(d => {
+          if (d.color && !nodeColorMap.has(d.from)) {
+            nodeColorMap.set(d.from, d.color);
+          }
+          if (d.color && !nodeColorMap.has(d.to)) {
+            nodeColorMap.set(d.to, d.color);
+          }
+        });
+
+        render();
+      }).catch(error => {
+        console.error('Unable to load data', error);
+      }).finally(() => {
+        setRefreshing(false);
+      });
+    }
+
+    if (refreshButton) {
+      refreshButton.addEventListener('click', loadData);
+    }
+    window.addEventListener('resize', render);
+    loadData();
+  </script>
+</body>
+
+</html>
