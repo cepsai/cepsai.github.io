@@ -492,6 +492,66 @@
       transition: opacity 0.15s ease;
       z-index: 2000;
     }
+
+    .table-view-container {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      gap: 12px;
+    }
+
+    .table-filters {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 4px 0;
+    }
+
+    .table-filter-input {
+      padding: 6px 10px;
+      border: 1px solid #d0d0d0;
+      border-radius: 4px;
+      font-size: 13px;
+      min-width: 140px;
+    }
+
+    .table-wrapper {
+      flex: 1;
+      overflow: auto;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .data-table th {
+      background: #f5f5f5;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 10px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid #d0d0d0;
+      color: #111;
+    }
+
+    .data-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #eee;
+      color: #333;
+    }
+
+    .data-table tr:hover td {
+      background: #f9f9f9;
+    }
   </style>
 
   <script src="https://d3js.org/d3.v5.min.js"></script>
@@ -544,7 +604,8 @@
 
     const DATASETS = [
       { id: 'default', label: 'Default', sheet: null, grouped: true, legendKey: 'id', tooltipField: 'display' },
-      { id: 'epoch', label: 'Epoch', sheet: 'epoch', grouped: false, legendKey: 'parent' }
+      { id: 'epoch', label: 'Epoch', sheet: 'epoch', grouped: false, legendKey: 'parent' },
+      { id: 'ml_perf', label: 'ML-Perf', type: 'csv', url: 'ml_perf.csv' }
     ];
 
     const VIZ_CONTAINER_ID = 'viz';
@@ -1141,6 +1202,87 @@
       renderLegendContent(numericData, colorScale, legendKeyForEntry);
     };
 
+    const renderTable = function (csvData) {
+      if (!vizContainer) return;
+      clearVizContainer();
+
+      const container = document.createElement('div');
+      container.className = 'table-view-container';
+
+      const filterContainer = document.createElement('div');
+      filterContainer.className = 'table-filters';
+
+      const tableWrapper = document.createElement('div');
+      tableWrapper.className = 'table-wrapper';
+
+      const table = document.createElement('table');
+      table.className = 'data-table';
+
+      if (!csvData || !csvData.length) {
+        showVizMessage('No data available');
+        return;
+      }
+
+      const columns = csvData.columns || Object.keys(csvData[0]);
+      const filterableColumns = ['Organization', 'System Name', 'Benchmark', 'Scenario'];
+      const filters = {};
+
+      filterableColumns.forEach(col => {
+        if (!columns.includes(col) && !columns.find(c => c.startsWith(col))) return;
+        const actualCol = columns.find(c => c.startsWith(col)) || col;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = `Filter ${col}...`;
+        input.className = 'table-filter-input';
+        input.addEventListener('input', (e) => {
+          filters[actualCol] = e.target.value.toLowerCase();
+          updateTableRows();
+        });
+        filterContainer.appendChild(input);
+      });
+
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      columns.forEach(col => {
+        const th = document.createElement('th');
+        th.textContent = col;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+
+      const updateTableRows = () => {
+        tbody.innerHTML = '';
+        const filteredData = csvData.filter(row => {
+          return Object.entries(filters).every(([key, value]) => {
+            if (!value) return true;
+            const cellValue = String(row[key] || '').toLowerCase();
+            return cellValue.includes(value);
+          });
+        });
+
+        filteredData.forEach(row => {
+          const tr = document.createElement('tr');
+          columns.forEach(col => {
+            const td = document.createElement('td');
+            td.textContent = row[col];
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+      };
+
+      updateTableRows();
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      container.appendChild(filterContainer);
+      container.appendChild(tableWrapper);
+      vizContainer.appendChild(container);
+    };
+
     const renderVisualizationForContainer = function () {
       if (!vizContainer) {
         return;
@@ -1151,6 +1293,14 @@
 
       if (!width || !height) {
         return;
+      }
+
+      if (activeDatasetConfig && activeDatasetConfig.type === 'csv') {
+        const cachedData = datasetCache[activeDatasetConfig.id];
+        if (cachedData) {
+          renderTable(cachedData);
+          return;
+        }
       }
 
       renderVisualization(data, width, height);
@@ -1249,33 +1399,49 @@
       const dataset = getDatasetById(datasetId);
       activeDatasetConfig = dataset;
       const forceReload = Boolean(options.force);
+
       try {
         sheetState = { status: 'loading', message: 'Loading data...' };
         renderVisualizationForContainer();
         setRefreshButtonState(true);
 
-        let cachedRows = datasetCache[dataset.id];
-        if (!cachedRows || forceReload) {
-          hiddenLegendKeys.clear();
-          const response = await fetch(buildSheetUrl(dataset));
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
+        if (dataset.type === 'csv') {
+          let cachedData = datasetCache[dataset.id];
+          if (!cachedData || forceReload) {
+            const response = await fetch(dataset.url);
+            if (!response.ok) throw new Error('Failed to fetch CSV');
+            const text = await response.text();
+            cachedData = d3.csvParse(text);
+            datasetCache[dataset.id] = cachedData;
+          }
+          data.length = 0;
+          sheetState = { status: 'ready', message: '' };
+          renderTable(cachedData);
+          renderLegendContent([], null);
+        } else {
+          let cachedRows = datasetCache[dataset.id];
+          if (!cachedRows || forceReload) {
+            hiddenLegendKeys.clear();
+            const response = await fetch(buildSheetUrl(dataset));
+            if (!response.ok) {
+              throw new Error('Network response was not ok');
+            }
+
+            const text = await response.text();
+            const parsedResponse = parseGoogleSheetResponse(text);
+            cachedRows = parseSheetTable(parsedResponse && parsedResponse.table);
+            datasetCache[dataset.id] = cachedRows;
           }
 
-          const text = await response.text();
-          const parsedResponse = parseGoogleSheetResponse(text);
-          cachedRows = parseSheetTable(parsedResponse && parsedResponse.table);
-          datasetCache[dataset.id] = cachedRows;
+          data.splice(0, data.length, ...(cachedRows || []));
+          sheetState = { status: 'ready', message: '' };
+          renderVisualizationForContainer();
         }
-
-        data.splice(0, data.length, ...(cachedRows || []));
-        sheetState = { status: 'ready', message: '' };
-        renderVisualizationForContainer();
       } catch (error) {
-        console.error('Error loading sheet data', error);
+        console.error('Error loading data', error);
         sheetState = {
           status: 'error',
-          message: 'Unable to load data from the Google Sheet.'
+          message: 'Unable to load data.'
         };
         renderVisualizationForContainer();
       } finally {
