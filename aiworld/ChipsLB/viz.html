@@ -573,8 +573,8 @@
     <div id="container3" class="container source-container">
       <div class="source-text" id="source-text">
         Source:
-        <a href="https://aiworld.eu" target="_blank">
-          AI World
+        <a href="https://epoch.ai/" target="_blank">
+          Epoch AI
         </a>
       </div>
       <div class="dataset-selector" id="dataset-selector">
@@ -1003,6 +1003,20 @@
       return scaled.toFixed(2) + suffix;
     };
 
+    const formatAxisNumber = function (d) {
+      if (d === 0) return "0";
+      const suffixes = ["", "k", "M", "B", "T", "P", "E", "Z", "Y"];
+      const tier = Math.floor(Math.log10(Math.abs(d)) / 3);
+
+      if (tier <= 0) return d3.format(".1f")(d);
+
+      const suffix = suffixes[Math.min(tier, suffixes.length - 1)];
+      const scale = Math.pow(10, tier * 3);
+      const scaled = d / scale;
+
+      return scaled.toFixed(1) + suffix;
+    };
+
     const renderVisualization = function (currentData, width, height) {
       if (!vizContainer) {
         return;
@@ -1131,7 +1145,7 @@
 
       const yAxis = d3.axisLeft(y)
         .ticks(Math.max(3, Math.min(8, Math.floor(chartHeight / 40))))
-        .tickFormat(formatLargeNumber);
+        .tickFormat(formatAxisNumber);
 
       const xAxisGroup = chartArea.append('g')
         .attr('class', 'x-axis')
@@ -1149,6 +1163,18 @@
       yAxisGroup.selectAll('text')
         .attr('fill', '#111111')
         .style('font-size', '12px');
+
+      // Add Y-axis title
+      yAxisGroup.append('text')
+        .attr('transform', 'rotate(-90)')
+        .attr('y', -margin.left + 6)
+        .attr('x', -chartHeight / 2)
+        .attr('dy', '1em')
+        .style('text-anchor', 'middle')
+        .style('fill', '#111111')
+        .style('font-size', '14px')
+        .style('font-weight', '600')
+        .text(datasetConfig ? datasetConfig.label : '');
 
       chartArea.selectAll('.x-axis path, .x-axis line, .y-axis path, .y-axis line')
         .attr('stroke', 'rgba(0, 0, 0, 0.3)');
