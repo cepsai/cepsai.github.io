@@ -133,7 +133,7 @@ body {
   padding: 0 20px;
   gap: clamp(12px, 2vw, 28px);
   flex-wrap: wrap;
-  overflow: hidden;
+  overflow: visible;
   min-width: 0;
   position: relative;
   margin-top: var(--vertical-spacing);
@@ -489,8 +489,8 @@ const data = [];
 const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/1tqfTR95FY0UKkKFebiVrBxU0PdOzR0Hx-B1FTcuxVxg/gviz/tq?tqx=out:json';
 
 const DATASETS = [
-  { id: 'default', label: 'Default', sheet: null },
-  { id: 'epoch', label: 'Epoch', sheet: 'epoch' }
+  { id: 'default', label: 'Default', sheet: null, grouped: true },
+  { id: 'epoch', label: 'Epoch', sheet: 'epoch', grouped: false }
 ];
 
 const VIZ_CONTAINER_ID = 'viz';
@@ -829,6 +829,12 @@ const renderVisualization = function(currentData, width, height) {
     return;
   }
 
+  const datasetConfig = getDatasetById(activeDatasetId);
+  const useGrouping = !datasetConfig || datasetConfig.grouped !== false;
+  const identifiers = Array.from(new Set(numericData.map(function(item) {
+    return item.id;
+  })));
+
   const margin = { top: 24, right: 32, bottom: 24, left: 64 };
   const chartWidth = Math.max(width - margin.left - margin.right, 0);
   const chartHeight = Math.max(height - margin.top - margin.bottom, 0);
@@ -847,13 +853,11 @@ const renderVisualization = function(currentData, width, height) {
   const chartArea = svg.append('g')
     .attr('transform', `translate(${margin.left}, ${margin.top})`);
 
-  const groups = Array.from(new Set(numericData.map(function(item) {
-    return item.group || 'Ungrouped';
-  })));
-
-  const identifiers = Array.from(new Set(numericData.map(function(item) {
-    return item.id;
-  })));
+  const groups = useGrouping
+    ? Array.from(new Set(numericData.map(function(item) {
+        return item.group || 'Ungrouped';
+      })))
+    : identifiers;
 
   const x0 = d3.scaleBand()
     .domain(groups)
@@ -916,9 +920,18 @@ const renderVisualization = function(currentData, width, height) {
     return customColor || colorScale(entry.id);
   };
 
-const nestedData = d3.nest()
-    .key(function(item) { return item.group || 'Ungrouped'; })
-    .entries(numericData);
+  const nestedData = useGrouping
+    ? d3.nest()
+        .key(function(item) { return item.group || 'Ungrouped'; })
+        .entries(numericData)
+    : groups.map(function(id) {
+        return {
+          key: id,
+          values: numericData.filter(function(entry) {
+            return entry.id === id;
+          })
+        };
+      });
 
   const innerBandWidth = Math.max(x0.bandwidth(), 0);
   const groupInnerScales = {};
