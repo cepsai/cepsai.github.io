@@ -368,7 +368,13 @@ const container4 = document.getElementById('container4');
 const refreshButton = document.getElementById(REFRESH_BUTTON_ID);
 const bodyElement = document.body;
 
-let titleVisible = true;
+// Parse URL parameters
+const urlParams = new URLSearchParams(window.location.search);
+const titleParam = urlParams.get('title');
+const refreshParam = urlParams.get('refresh');
+
+let titleVisible = titleParam === '0' ? false : true; // default true, hide if ?title=0
+let showRefreshButton = refreshParam === '1' ? true : false; // default false, show if ?refresh=1
 let debugMode = false;
 let sheetState = {
   status: 'loading',
@@ -405,6 +411,11 @@ const layoutVizGrid = function() {
   if (titleContainer) {
     titleContainer.classList.toggle('is-hidden', !titleVisible);
     titleContainer.setAttribute('aria-hidden', String(!titleVisible));
+  }
+
+  // Control refresh button visibility based on URL parameter
+  if (refreshButton) {
+    refreshButton.style.display = showRefreshButton ? 'inline-flex' : 'none';
   }
 
   if (container1) {
@@ -517,11 +528,6 @@ const renderVisualization = function(currentData, width, height) {
     .paddingInner(0.2)
     .paddingOuter(0.05);
 
-  const x1 = d3.scaleBand()
-    .domain(names)
-    .range([0, Math.max(x0.bandwidth(), 0)])
-    .padding(0.08);
-
   const y = d3.scaleLinear()
     .domain([0, d3.max(numericData, function(d) { return d.value; }) || 0])
     .nice()
@@ -593,6 +599,32 @@ const renderVisualization = function(currentData, width, height) {
     .key(function(item) { return item.group || 'Ungrouped'; })
     .entries(numericData);
 
+  const innerBandWidth = Math.max(x0.bandwidth(), 0);
+  const groupInnerScales = {};
+  nestedData.forEach(function(groupEntry) {
+    const domain = Array.from(new Set(groupEntry.values.map(function(valueEntry) {
+      return valueEntry.name || valueEntry.id;
+    })));
+    groupInnerScales[groupEntry.key] = d3.scaleBand()
+      .domain(domain)
+      .range([0, innerBandWidth])
+      .padding(0.12);
+  });
+
+  const fallbackInnerScale = d3.scaleBand()
+    .domain(['value'])
+    .range([0, innerBandWidth])
+    .padding(0.12);
+
+  const getGroupScale = function(groupKey) {
+    return groupInnerScales[groupKey] || fallbackInnerScale;
+  };
+
+  const barWidthFor = function(entry) {
+    const scale = getGroupScale(entry.__groupKey || entry.group || 'Ungrouped');
+    return Math.max(scale.bandwidth(), 1);
+  };
+
   const groupSelection = chartArea.selectAll('.group')
     .data(nestedData)
     .enter()
@@ -602,16 +634,18 @@ const renderVisualization = function(currentData, width, height) {
       return `translate(${x0(d.key)}, 0)`;
     });
 
-  const barWidth = Math.max(x1.bandwidth(), 1);
-
   const bars = groupSelection.selectAll('.bar')
-    .data(function(d) { return d.values; })
+    .data(function(groupEntry) {
+      return groupEntry.values.map(function(valueEntry) {
+        return Object.assign({}, valueEntry, { __groupKey: groupEntry.key });
+      });
+    })
     .enter()
     .append('g')
     .attr('class', 'bar')
     .attr('transform', function(d) {
-      const key = d.name || d.id;
-      const xPosition = x1(key);
+      const scale = getGroupScale(d.__groupKey || d.group || 'Ungrouped');
+      const xPosition = scale(d.name || d.id);
       const safeX = typeof xPosition === 'number' && Number.isFinite(xPosition) ? xPosition : 0;
       return `translate(${safeX}, 0)`;
     });
@@ -619,7 +653,7 @@ const renderVisualization = function(currentData, width, height) {
   const rects = bars.append('rect')
     .attr('x', 0)
     .attr('y', function(d) { return y(d.value); })
-    .attr('width', barWidth)
+    .attr('width', function(d) { return barWidthFor(d); })
     .attr('height', function(d) { return chartHeight - y(d.value); })
     .attr('fill', function(d) {
       return getBarColor(d);
@@ -639,7 +673,7 @@ const renderVisualization = function(currentData, width, height) {
   };
 
   bars.append('text')
-    .attr('x', barWidth / 2)
+    .attr('x', function(d) { return barWidthFor(d) / 2; })
     .attr('y', function(d) {
       const barHeight = chartHeight - y(d.value);
       const offset = Math.max(Math.min(barHeight * 0.25, 18), 6);
@@ -648,8 +682,8 @@ const renderVisualization = function(currentData, width, height) {
     .attr('text-anchor', 'middle')
     .attr('dominant-baseline', 'middle')
     .attr('font-weight', '600')
-    .attr('font-size', function() {
-      return `${getLabelFontSize(barWidth)}px`;
+    .attr('font-size', function(d) {
+      return `${getLabelFontSize(barWidthFor(d))}px`;
     })
     .attr('fill', function(d) {
       const barColor = getBarColor(d);
