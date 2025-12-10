@@ -604,9 +604,10 @@
     const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/1tqfTR95FY0UKkKFebiVrBxU0PdOzR0Hx-B1FTcuxVxg/gviz/tq?tqx=out:json';
 
     const DATASETS = [
-      { id: 'default', label: 'Default', sheet: null, grouped: true, legendKey: 'id', tooltipField: 'display' },
-      { id: 'epoch', label: 'Epoch', sheet: 'epoch', grouped: false, legendKey: 'parent' },
-      { id: 'ml_perf', label: 'ML-Perf', type: 'csv', url: 'ml_perf.csv' }
+      { id: 'energy_efficiency', label: 'Energy efficiency', type: 'csv', url: 'ml_hardware.csv', grouped: false, legendKey: 'Manufacturer', xAxisLabelKey: 'id' },
+      { id: 'total_processing_performance', label: 'Total processing performance', type: 'csv', url: 'ml_hardware.csv', grouped: false, legendKey: 'Manufacturer', xAxisLabelKey: 'id' },
+      { id: 'price_performance', label: 'Price-performance', type: 'csv', url: 'ml_hardware.csv', grouped: false, legendKey: 'Manufacturer', xAxisLabelKey: 'id' },
+      { id: 'ml_ops', label: 'ML OP/s', type: 'csv', url: 'ml_hardware.csv', grouped: false, legendKey: 'Manufacturer', xAxisLabelKey: 'id' }
     ];
 
     const VIZ_CONTAINER_ID = 'viz';
@@ -761,13 +762,63 @@
     };
 
     const initializeDatasetSelector = function () {
-      if (!datasetSelectorButton || !datasetOptionsList) {
-        return;
+      const selector = document.getElementById('dataset-selector');
+      const optionsContainer = document.getElementById('dataset-options');
+      const selectorButton = document.getElementById('dataset-selector-button');
+
+      function updateSelectorText(dataset) {
+        if (selectorButton) {
+          selectorButton.textContent = dataset.label;
+        }
       }
-      setDatasetButtonLabel(getDatasetById(activeDatasetId));
-      buildDatasetOptions();
-      datasetSelectorButton.addEventListener('click', function () {
-        toggleDatasetMenu();
+
+      // Set initial text
+      const initialDataset = getDatasetById(activeDatasetId);
+      if (initialDataset) {
+        updateSelectorText(initialDataset);
+      }
+
+      // Create options
+      DATASETS.forEach(dataset => {
+        const li = document.createElement('li');
+        const button = document.createElement('button');
+        button.className = 'selector-option';
+        button.textContent = dataset.label;
+
+        if (dataset.disabled) {
+          button.disabled = true;
+          button.style.opacity = '0.5';
+          button.style.cursor = 'not-allowed';
+        } else {
+          button.addEventListener('click', () => {
+            activeDatasetId = dataset.id;
+            updateSelectorText(dataset);
+            selector.classList.remove('open'); // Use 'open' class as defined in closeDatasetMenu
+            loadDataForDataset(activeDatasetId);
+          });
+        }
+
+        li.appendChild(button);
+        optionsContainer.appendChild(li);
+      });
+
+      // Toggle dropdown
+      if (selectorButton) {
+        selectorButton.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selector.classList.toggle('open'); // Use 'open' class
+          selectorButton.setAttribute('aria-expanded', selector.classList.contains('open'));
+        });
+      }
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (selector && !selector.contains(e.target)) {
+          selector.classList.remove('open');
+          if (selectorButton) {
+            selectorButton.setAttribute('aria-expanded', 'false');
+          }
+        }
       });
     };
 
@@ -869,7 +920,7 @@
 
       legendContent.innerHTML = '';
 
-      if (!SHOW_LEGEND_CONTAINER || !dataset || !dataset.length) {
+      if (!SHOW_LEGEND_CONTAINER || !dataset || !dataset.length || (activeDatasetConfig && activeDatasetConfig.showLegend === false)) {
         layoutVizGrid();
         return;
       }
@@ -938,6 +989,20 @@
       vizContainer.appendChild(placeholder);
     };
 
+    const formatLargeNumber = function (d) {
+      if (d === 0) return "0";
+      const suffixes = ["", "k", "M", "B", "T", "P", "E", "Z", "Y"];
+      const tier = Math.floor(Math.log10(Math.abs(d)) / 3);
+
+      if (tier <= 0) return d3.format(".2f")(d);
+
+      const suffix = suffixes[Math.min(tier, suffixes.length - 1)];
+      const scale = Math.pow(10, tier * 3);
+      const scaled = d / scale;
+
+      return scaled.toFixed(2) + suffix;
+    };
+
     const renderVisualization = function (currentData, width, height) {
       if (!vizContainer) {
         return;
@@ -978,6 +1043,9 @@
       const legendKeyForEntry = function (entry) {
         if (!entry) {
           return '';
+        }
+        if (datasetConfig && datasetConfig.legendKey && entry[datasetConfig.legendKey]) {
+          return String(entry[datasetConfig.legendKey]);
         }
         if (useParentLegend && entry.parent) {
           return String(entry.parent);
@@ -1054,9 +1122,16 @@
       gridGroup.select('.domain').remove();
 
       const xAxis = d3.axisBottom(x0);
+      if (datasetConfig && datasetConfig.xAxisLabelKey) {
+        xAxis.tickFormat(function (d) {
+          const entry = numericData.find(item => item.id === d);
+          return entry ? entry[datasetConfig.xAxisLabelKey] : d;
+        });
+      }
+
       const yAxis = d3.axisLeft(y)
         .ticks(Math.max(3, Math.min(8, Math.floor(chartHeight / 40))))
-        .tickFormat(d3.format('~s'));
+        .tickFormat(formatLargeNumber);
 
       const xAxisGroup = chartArea.append('g')
         .attr('class', 'x-axis')
@@ -1196,7 +1271,7 @@
         })
         .attr('fill', '#111111')
         .text(function (d) {
-          return formatValue(d.value);
+          return formatLargeNumber(d.value);
         })
         .style('pointer-events', 'none');
 
@@ -1294,14 +1369,6 @@
 
       if (!width || !height) {
         return;
-      }
-
-      if (activeDatasetConfig && activeDatasetConfig.type === 'csv') {
-        const cachedData = datasetCache[activeDatasetConfig.id];
-        if (cachedData) {
-          renderTable(cachedData);
-          return;
-        }
       }
 
       renderVisualization(data, width, height);
@@ -1412,13 +1479,48 @@
             const response = await fetch(dataset.url);
             if (!response.ok) throw new Error('Failed to fetch CSV');
             const text = await response.text();
-            cachedData = d3.csvParse(text);
+            const rawData = d3.csvParse(text);
+
+            // Process ML-Perf data
+            const processedData = rawData
+              .map(d => {
+                let val = 0;
+                if (dataset.id === 'energy_efficiency') {
+                  val = parseFloat((d['Energy efficiency'] || '').replace(/,/g, ''));
+                } else if (dataset.id === 'total_processing_performance') {
+                  val = parseFloat((d['Total processing performance (bit-OP/s)'] || '').replace(/,/g, ''));
+                } else if (dataset.id === 'price_performance') {
+                  val = parseFloat((d['Price-performance'] || '').replace(/,/g, ''));
+                } else if (dataset.id === 'ml_ops') {
+                  val = parseFloat((d['ML OP/s'] || '').replace(/,/g, ''));
+                }
+
+                return {
+                  id: d['Hardware name'] || 'Unknown',
+                  value: isNaN(val) ? 0 : val,
+                  group: d['Hardware name'] || 'Ungrouped', // X-axis label
+                  Manufacturer: d['Manufacturer'], // For coloring
+                  display: `${d['Hardware name']}\n${dataset.label}: ${formatLargeNumber(val)}`
+                };
+              })
+              .sort((a, b) => b.value - a.value)
+              .slice(0, 10);
+
+            // Assign colors based on Manufacturer
+            const manufacturers = Array.from(new Set(processedData.map(d => d.Manufacturer)));
+            const colorScale = d3.scaleOrdinal(d3.schemeTableau10).domain(manufacturers);
+            processedData.forEach(d => {
+              d.color = colorScale(d.Manufacturer);
+            });
+
+            cachedData = processedData;
             datasetCache[dataset.id] = cachedData;
           }
-          data.length = 0;
+
+          hiddenLegendKeys.clear();
+          data.splice(0, data.length, ...(cachedData || []));
           sheetState = { status: 'ready', message: '' };
-          renderTable(cachedData);
-          renderLegendContent([], null);
+          renderVisualizationForContainer();
         } else {
           let cachedRows = datasetCache[dataset.id];
           if (!cachedRows || forceReload) {
