@@ -24,11 +24,12 @@ body {
 
 .viz-grid {
   --title-row-size: auto;
+  --legend-row-size: auto;
   --meta-row-size: auto;
   --col-gap: clamp(8px, 1vh, 20px);
   --vertical-spacing: clamp(8px, 1vh, 20px);
   display: grid;
-  grid-template-rows: var(--title-row-size) minmax(0, 1fr) var(--meta-row-size);
+  grid-template-rows: var(--title-row-size) var(--legend-row-size) minmax(0, 1fr) var(--meta-row-size);
   grid-template-columns: 1fr 1fr;
   height: 100vh;
   width: 100vw;
@@ -48,6 +49,10 @@ body {
 
 .viz-grid.title-hidden {
   --title-row-size: 0fr;
+}
+
+.viz-grid.legend-hidden {
+  --legend-row-size: 0fr;
 }
 
 .viz-grid.meta-hidden {
@@ -98,7 +103,7 @@ body {
 }
 
 #container1 {
-  grid-row: 2;
+  grid-row: 3;
   grid-column: 1 / span 2;
   overflow: hidden;
   min-height: 0;
@@ -120,7 +125,7 @@ body {
 }
 
 #container3 {
-  grid-row: 3;
+  grid-row: 4;
   grid-column: 1;
   display: flex;
   align-items: center;
@@ -147,7 +152,7 @@ body {
 }
 
 #container4 {
-  grid-row: 3;
+  grid-row: 4;
   grid-column: 2;
   display: flex;
   align-items: center;
@@ -159,8 +164,46 @@ body {
   margin-top: var(--vertical-spacing);
 }
 
-.viz-grid.title-hidden #container1 {
+.viz-grid.title-hidden #container1,
+.viz-grid.legend-hidden #container1 {
   margin-top: 0;
+}
+
+#container2 {
+  grid-row: 2;
+  grid-column: 1 / span 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(8px, 1.5vw, 22px);
+  overflow: hidden;
+  min-width: 0;
+  position: relative;
+}
+
+.legend-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(8px, 1vw, 18px);
+  width: 100%;
+  justify-content: center;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: clamp(10px, 1.6vw, 15px);
+  font-weight: 600;
+  color: #0e1c36;
+  white-space: nowrap;
+}
+
+.legend-swatch {
+  width: clamp(12px, 1.2vw, 16px);
+  height: clamp(12px, 1.2vw, 16px);
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
 #container4::before {
@@ -197,7 +240,7 @@ body {
   justify-content: center;
   cursor: pointer;
   min-width: clamp(30px, 4vw, 42px);
-  min-height: clamp(10px, 4vw, 22px);
+  min-height: clamp(30px, 4vw, 42px);
   transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
@@ -277,11 +320,27 @@ body.debug-mode #container4 {
   background: #27ae60;
 }
 
+body.debug-mode #container2 {
+  background: #d35400;
+}
+
+body.debug-mode #title-container::before,
+body.debug-mode #container2::before,
 body.debug-mode #container1::before,
 body.debug-mode #container3::before,
 body.debug-mode #container4::before {
   opacity: 1;
   color: #ffffff;
+}
+
+body.debug-mode #title-container::before {
+  content: "Title";
+}
+
+body.debug-mode #container2::before {
+  content: "Legend";
+  top: 10px;
+  left: 10px;
 }
 
 body.debug-mode .source-text {
@@ -307,12 +366,14 @@ body.debug-mode .source-text a:visited {
   }
 
   #title-container,
+  #container2,
   #container3,
   #container4 {
     display: none !important;
   }
 
   .source-text,
+  .legend-content,
   .logo {
     display: none !important;
   }
@@ -325,7 +386,10 @@ body.debug-mode .source-text a:visited {
 <body>
 <div class="viz-grid">
   <div id="title-container" class="container title-container">
-    <div class="title-text" id="title-text">AI World Chips Leaderboard</div>
+    <div class="title-text" id="title-text">AI Chips Leaderboard</div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div class="legend-content" id="legend-content"></div>
   </div>
   <div id="container1" class="container viz-container">
     <div id="viz"></div>
@@ -351,6 +415,7 @@ body.debug-mode .source-text a:visited {
 <script>
 const SHOW_SOURCE_CONTAINER = 1;
 const SHOW_LOGO_CONTAINER = 1;
+const SHOW_LEGEND_CONTAINER = 1;
 
 const data = [];
 const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1tqfTR95FY0UKkKFebiVrBxU0PdOzR0Hx-B1FTcuxVxg/gviz/tq?tqx=out:json';
@@ -358,17 +423,28 @@ const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1tqfTR95FY0UKkK
 const VIZ_CONTAINER_ID = 'viz';
 const TITLE_CONTAINER_ID = 'title-container';
 const REFRESH_BUTTON_ID = 'refresh-button';
+const LEGEND_CONTENT_ID = 'legend-content';
 
 const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
 const titleContainer = document.getElementById(TITLE_CONTAINER_ID);
 const vizGrid = document.querySelector('.viz-grid');
 const container1 = document.getElementById('container1');
+const container2 = document.getElementById('container2');
 const container3 = document.getElementById('container3');
 const container4 = document.getElementById('container4');
 const refreshButton = document.getElementById(REFRESH_BUTTON_ID);
+const legendContent = document.getElementById(LEGEND_CONTENT_ID);
 const bodyElement = document.body;
 
+const tooltipElement = document.createElement('div');
+tooltipElement.className = 'viz-tooltip';
+tooltipElement.setAttribute('role', 'status');
+tooltipElement.setAttribute('aria-live', 'polite');
+document.body.appendChild(tooltipElement);
+
 // Parse URL parameters
+let colorScaleForLegend = null;
+
 const urlParams = new URLSearchParams(window.location.search);
 const titleParam = urlParams.get('title');
 const refreshParam = urlParams.get('refresh');
@@ -389,6 +465,28 @@ const setRefreshButtonState = function(isLoading) {
   refreshButton.setAttribute('aria-busy', String(Boolean(isLoading)));
 };
 
+const showTooltip = function(content) {
+  if (!tooltipElement) {
+    return;
+  }
+  tooltipElement.textContent = content || '';
+  tooltipElement.style.opacity = content ? '1' : '0';
+};
+
+const hideTooltip = function() {
+  if (tooltipElement) {
+    tooltipElement.style.opacity = '0';
+  }
+};
+
+const moveTooltip = function(event) {
+  if (!tooltipElement || !event) {
+    return;
+  }
+  tooltipElement.style.left = `${event.clientX}px`;
+  tooltipElement.style.top = `${event.clientY - 12}px`;
+};
+
 const setDebugMode = function(enabled) {
   debugMode = Boolean(enabled);
   if (bodyElement) {
@@ -401,32 +499,44 @@ const layoutVizGrid = function() {
     return;
   }
 
+  const legendVisible = Boolean(SHOW_LEGEND_CONTAINER && legendContent && legendContent.childElementCount);
   const metaVisible = Boolean(SHOW_SOURCE_CONTAINER || SHOW_LOGO_CONTAINER);
 
   if (vizGrid) {
     vizGrid.classList.toggle('title-hidden', !titleVisible);
+    vizGrid.classList.toggle('legend-hidden', !legendVisible);
     vizGrid.classList.toggle('meta-hidden', !metaVisible);
   }
 
   if (titleContainer) {
     titleContainer.classList.toggle('is-hidden', !titleVisible);
     titleContainer.setAttribute('aria-hidden', String(!titleVisible));
+    titleContainer.style.display = titleVisible ? 'flex' : 'none';
+    titleContainer.style.gridRow = '1';
   }
 
-  // Control refresh button visibility based on URL parameter
   if (refreshButton) {
     refreshButton.style.display = showRefreshButton ? 'inline-flex' : 'none';
   }
 
+  if (container2) {
+    if (legendVisible) {
+      container2.style.display = 'flex';
+      container2.style.gridRow = '2';
+    } else {
+      container2.style.display = 'none';
+    }
+  }
+
   if (container1) {
-    container1.style.gridRow = '2';
+    container1.style.gridRow = '3';
   }
 
   if (metaVisible) {
     if (container3) {
       if (SHOW_SOURCE_CONTAINER) {
         container3.style.display = 'flex';
-        container3.style.gridRow = '3';
+        container3.style.gridRow = '4';
         container3.style.gridColumn = SHOW_LOGO_CONTAINER ? '1' : '1 / span 2';
       } else {
         container3.style.display = 'none';
@@ -436,7 +546,7 @@ const layoutVizGrid = function() {
     if (container4) {
       if (SHOW_LOGO_CONTAINER) {
         container4.style.display = 'flex';
-        container4.style.gridRow = '3';
+        container4.style.gridRow = '4';
         container4.style.gridColumn = SHOW_SOURCE_CONTAINER ? '2' : '1 / span 2';
       } else {
         container4.style.display = 'none';
@@ -447,10 +557,49 @@ const layoutVizGrid = function() {
     if (container4) container4.style.display = 'none';
   }
 };
- 
+
 setDebugMode(false);
 layoutVizGrid();
 setRefreshButtonState(false);
+
+const renderLegendContent = function(dataset, colorScale) {
+  if (!legendContent) {
+    layoutVizGrid();
+    return;
+  }
+
+  legendContent.innerHTML = '';
+
+  if (!SHOW_LEGEND_CONTAINER || !dataset || !dataset.length) {
+    layoutVizGrid();
+    return;
+  }
+
+  const seen = new Set();
+  dataset.forEach(function(entry) {
+    if (!entry || !entry.id || seen.has(entry.id)) {
+      return;
+    }
+    seen.add(entry.id);
+    const legendItem = document.createElement('div');
+    legendItem.className = 'legend-item';
+
+    const swatch = document.createElement('span');
+    swatch.className = 'legend-swatch';
+    const fillColor = entry.color && String(entry.color).trim();
+    const computedColor = fillColor || (colorScale ? colorScale(entry.id) : '#666');
+    swatch.style.background = computedColor;
+
+    const label = document.createElement('span');
+    label.textContent = entry.id;
+
+    legendItem.appendChild(swatch);
+    legendItem.appendChild(label);
+    legendContent.appendChild(legendItem);
+  });
+
+  layoutVizGrid();
+};
 
 const clearVizContainer = function() {
   if (!vizContainer) {
@@ -477,14 +626,17 @@ const renderVisualization = function(currentData, width, height) {
   }
 
   clearVizContainer();
+  hideTooltip();
 
   if (sheetState.status !== 'ready') {
     showVizMessage(sheetState.message || 'Loading data...');
+    renderLegendContent([], null);
     return;
   }
 
   if (!currentData || !currentData.length) {
     showVizMessage('No data available.');
+    renderLegendContent([], null);
     return;
   }
 
@@ -494,6 +646,7 @@ const renderVisualization = function(currentData, width, height) {
 
   if (!numericData.length) {
     showVizMessage('No numeric values available to chart.');
+    renderLegendContent([], null);
     return;
   }
 
@@ -503,6 +656,7 @@ const renderVisualization = function(currentData, width, height) {
 
   if (!chartWidth || !chartHeight) {
     showVizMessage('Not enough space to render the chart.');
+    renderLegendContent([], null);
     return;
   }
 
@@ -518,8 +672,8 @@ const renderVisualization = function(currentData, width, height) {
     return item.group || 'Ungrouped';
   })));
 
-  const names = Array.from(new Set(numericData.map(function(item) {
-    return item.name || item.id;
+  const identifiers = Array.from(new Set(numericData.map(function(item) {
+    return item.id;
   })));
 
   const x0 = d3.scaleBand()
@@ -573,14 +727,15 @@ const renderVisualization = function(currentData, width, height) {
 
   const defaultColors = d3.schemeTableau10 || ['#4a90e2', '#e74c3c', '#f39c12', '#16a085', '#8e44ad', '#2c3e50', '#1abc9c', '#d35400', '#7f8c8d', '#9b59b6'];
   const colorScale = d3.scaleOrdinal()
-    .domain(names)
+    .domain(identifiers)
     .range(defaultColors);
+  colorScaleForLegend = colorScale;
 
   const formatValue = d3.format(',');
 
   const getBarColor = function(entry) {
     const customColor = entry.color && String(entry.color).trim();
-    return customColor || colorScale(entry.name || entry.id);
+    return customColor || colorScale(entry.id);
   };
 
   const isColorDark = function(colorValue) {
@@ -603,7 +758,7 @@ const renderVisualization = function(currentData, width, height) {
   const groupInnerScales = {};
   nestedData.forEach(function(groupEntry) {
     const domain = Array.from(new Set(groupEntry.values.map(function(valueEntry) {
-      return valueEntry.name || valueEntry.id;
+      return valueEntry.id;
     })));
     groupInnerScales[groupEntry.key] = d3.scaleBand()
       .domain(domain)
@@ -645,7 +800,7 @@ const renderVisualization = function(currentData, width, height) {
     .attr('class', 'bar')
     .attr('transform', function(d) {
       const scale = getGroupScale(d.__groupKey || d.group || 'Ungrouped');
-      const xPosition = scale(d.name || d.id);
+      const xPosition = scale(d.id);
       const safeX = typeof xPosition === 'number' && Number.isFinite(xPosition) ? xPosition : 0;
       return `translate(${safeX}, 0)`;
     });
@@ -660,11 +815,16 @@ const renderVisualization = function(currentData, width, height) {
     })
     .attr('opacity', 0.95);
 
-  rects.append('title')
-    .text(function(d) {
-      const groupLabel = d.group || 'Ungrouped';
-      const nameLabel = d.name || d.id;
-      return `${groupLabel} • ${nameLabel}: ${formatValue(d.value)}`;
+  rects
+    .on('mouseenter', function(d) {
+      showTooltip(d.display || d.id);
+      moveTooltip(d3.event);
+    })
+    .on('mousemove', function() {
+      moveTooltip(d3.event);
+    })
+    .on('mouseleave', function() {
+      hideTooltip();
     });
 
   const getLabelFontSize = function(widthValue) {
@@ -675,24 +835,22 @@ const renderVisualization = function(currentData, width, height) {
   bars.append('text')
     .attr('x', function(d) { return barWidthFor(d) / 2; })
     .attr('y', function(d) {
-      const barHeight = chartHeight - y(d.value);
-      const offset = Math.max(Math.min(barHeight * 0.25, 18), 6);
-      return y(d.value) + offset;
+      const topY = y(d.value);
+      return Math.max(topY - 6, 6);
     })
     .attr('text-anchor', 'middle')
-    .attr('dominant-baseline', 'middle')
+    .attr('dominant-baseline', 'baseline')
     .attr('font-weight', '600')
     .attr('font-size', function(d) {
       return `${getLabelFontSize(barWidthFor(d))}px`;
     })
-    .attr('fill', function(d) {
-      const barColor = getBarColor(d);
-      return isColorDark(barColor) ? '#ffffff' : '#111111';
-    })
+    .attr('fill', '#111111')
     .text(function(d) {
       return formatValue(d.value);
     })
     .style('pointer-events', 'none');
+
+  renderLegendContent(numericData, colorScale);
 };
 
 const renderVisualizationForContainer = function() {
@@ -764,7 +922,7 @@ const parseSheetTable = function(table) {
   return (table.rows || []).map(function(row) {
     const cells = row.c || [];
     const rawId = getCellValue(cells, columnIndex.id);
-    const rawName = getCellValue(cells, columnIndex.name);
+    const rawDisplay = getCellValue(cells, columnIndex.display);
     const rawGroup = getCellValue(cells, columnIndex.group);
     const rawColor = getCellValue(cells, columnIndex.color);
     const rawValue = getCellValue(cells, columnIndex.value);
@@ -777,10 +935,10 @@ const parseSheetTable = function(table) {
 
     return {
       id: String(rawId),
-      name: rawName ? String(rawName) : String(rawId),
       value: numericValue,
       color: rawColor ? String(rawColor) : null,
-      group: rawGroup ? String(rawGroup) : 'Ungrouped'
+      group: rawGroup ? String(rawGroup) : 'Ungrouped',
+      display: rawDisplay ? String(rawDisplay) : String(rawId)
     };
   }).filter(Boolean);
 };
@@ -831,3 +989,19 @@ loadDataFromSheet();
 </script>
 </body>
 </html>
+.viz-tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(14, 28, 54, 0.9);
+  color: #ffffff;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: clamp(160px, 32vw, 320px);
+  white-space: pre-line;
+  opacity: 0;
+  transform: translate(-50%, -8px);
+  transition: opacity 0.15s ease;
+  z-index: 2000;
+}
