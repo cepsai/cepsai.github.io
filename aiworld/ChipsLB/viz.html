@@ -1,0 +1,799 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style type="text/css">
+.knitr .inline { background-color: #F7F7F7; border: solid 1px #B0B0B0; }
+.error { font-weight: bold; color: #FF0000; }
+.warning { font-weight: bold; }
+.message { font-style: italic; }
+.source, .output, .warning, .error, .message { padding: 0 1em; border: solid 1px #F7F7F7; }
+.source { background-color: #F5F5F5; }
+.rimage .left { text-align: left; }
+.rimage .right { text-align: right; }
+.rimage .center { text-align: center; }
+
+body {
+  margin: 0;
+  overflow: hidden;
+  height: 100vh;
+  font-family: Arial, sans-serif;
+  background: #ffffff;
+  color: #111111;
+}
+
+.viz-grid {
+  --title-row-size: auto;
+  --meta-row-size: auto;
+  --col-gap: clamp(8px, 1vh, 20px);
+  --vertical-spacing: clamp(8px, 1vh, 20px);
+  display: grid;
+  grid-template-rows: var(--title-row-size) minmax(0, 1fr) var(--meta-row-size);
+  grid-template-columns: 1fr 1fr;
+  height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
+  padding: clamp(8px, 2vh, 18px);
+  row-gap: 0;
+  column-gap: var(--col-gap);
+  transition: grid-template-rows 0.45s ease;
+}
+
+.container {
+  background: #ffffff;
+  border-radius: 0;
+  border: none;
+  transition: background-color 0.35s ease, opacity 0.35s ease, max-height 0.35s ease, padding 0.35s ease;
+}
+
+.viz-grid.title-hidden {
+  --title-row-size: 0fr;
+}
+
+.viz-grid.meta-hidden {
+  --meta-row-size: 0fr;
+}
+
+#title-container {
+  grid-row: 1;
+  grid-column: 1 / span 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(8px, 1.5vw, 28px);
+  background: #ffffff;
+  color: #0e1c36;
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  gap: clamp(8px, 1vw, 24px);
+  flex-wrap: wrap;
+  max-height: 320px;
+  opacity: 1;
+  transform: translateY(0);
+  transition: transform 0.35s ease, opacity 0.35s ease, max-height 0.35s ease, padding 0.35s ease;
+}
+
+#title-container.is-hidden {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  pointer-events: none;
+  transform: translateY(-12px);
+}
+
+.title-text {
+  font-size: clamp(22px, 3vw, 48px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+}
+
+.title-hint {
+  font-size: clamp(10px, 1.4vw, 16px);
+  font-weight: 500;
+  color: rgba(14, 28, 54, 0.65);
+  text-transform: uppercase;
+}
+
+#container1 {
+  grid-row: 2;
+  grid-column: 1 / span 2;
+  overflow: hidden;
+  min-height: 0;
+  position: relative;
+  margin-top: var(--vertical-spacing);
+}
+
+#container1::before {
+  content: "Viz";
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #0e1c36;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#container3 {
+  grid-row: 3;
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 20px;
+  overflow: hidden;
+  min-width: 0;
+  position: relative;
+  margin-top: var(--vertical-spacing);
+}
+
+#container3::before {
+  content: "Source";
+  position: absolute;
+  top: 50%;
+  left: 10px;
+  transform: translateY(-50%);
+  font-size: 16px;
+  font-weight: bold;
+  color: #0e1c36;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#container4 {
+  grid-row: 3;
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 20px;
+  overflow: hidden;
+  min-width: 0;
+  position: relative;
+  margin-top: var(--vertical-spacing);
+}
+
+.viz-grid.title-hidden #container1 {
+  margin-top: 0;
+}
+
+#container4::before {
+  content: "Logo";
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  font-size: 16px;
+  font-weight: bold;
+  color: #0e1c36;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#container4 a {
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.refresh-button {
+  border: 1px solid #2756d3;
+  background: #2756d3;
+  color: #ffffff;
+  border-radius: 4px;
+  padding: clamp(6px, 1vh, 10px);
+  margin-right: clamp(8px, 1vw, 16px);
+  font-size: clamp(14px, 2vw, 20px);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  min-width: clamp(30px, 4vw, 42px);
+  min-height: clamp(10px, 4vw, 22px);
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.refresh-button:focus-visible {
+  outline: 2px solid #122c6c;
+  outline-offset: 2px;
+}
+
+.refresh-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#viz {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.viz-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(14px, 2vw, 20px);
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.logo {
+  height: 100%;
+  width: auto;
+  max-height: 100%;
+  max-width: 100%;
+  pointer-events: auto;
+  object-fit: contain;
+}
+
+.source-text {
+  font-size: clamp(10px, 1.6vw, 16px);
+  font-weight: 600;
+  color: rgba(20, 20, 20, 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  font-style: normal;
+}
+
+.source-text a {
+  color: #0b57d0;
+  text-decoration: underline;
+  cursor: pointer;
+  font-style: normal;
+}
+
+.source-text a:visited {
+  color: #0b57d0;
+}
+
+body.debug-mode #title-container {
+  background: #0f1e41;
+  color: #ffffff;
+}
+
+body.debug-mode #container1 {
+  background: #4a90e2;
+}
+
+body.debug-mode #container3 {
+  background: #f39c12;
+}
+
+body.debug-mode #container4 {
+  background: #27ae60;
+}
+
+body.debug-mode #container1::before,
+body.debug-mode #container3::before,
+body.debug-mode #container4::before {
+  opacity: 1;
+  color: #ffffff;
+}
+
+body.debug-mode .source-text {
+  color: #1e1e1e;
+}
+
+body.debug-mode .source-text a,
+body.debug-mode .source-text a:visited {
+  color: #0b2d6d;
+}
+
+
+@media (max-height: 500px) {
+  .viz-grid {
+    grid-template-rows: 1fr;
+    grid-template-columns: 1fr;
+  }
+
+  #container1 {
+    grid-row: 1;
+    grid-column: 1;
+    margin-top: 0;
+  }
+
+  #title-container,
+  #container3,
+  #container4 {
+    display: none !important;
+  }
+
+  .source-text,
+  .logo {
+    display: none !important;
+  }
+}
+</style>
+
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="title-container" class="container title-container">
+    <div class="title-text" id="title-text">AI World Chips Leaderboard</div>
+  </div>
+  <div id="container1" class="container viz-container">
+    <div id="viz"></div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text" id="source-text">
+      Source:
+      <a href="https://aiworld.eu" target="_blank">
+        AI World
+      </a>
+    </div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <button class="refresh-button" id="refresh-button" type="button" aria-label="Refresh data">
+      <span aria-hidden="true">&#x21bb;</span>
+    </button>
+    <a href="https://aiworld.eu/" id="logo-link" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+    </a>
+  </div>
+</div>
+
+<script>
+const SHOW_SOURCE_CONTAINER = 1;
+const SHOW_LOGO_CONTAINER = 1;
+
+const data = [];
+const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1tqfTR95FY0UKkKFebiVrBxU0PdOzR0Hx-B1FTcuxVxg/gviz/tq?tqx=out:json';
+
+const VIZ_CONTAINER_ID = 'viz';
+const TITLE_CONTAINER_ID = 'title-container';
+const REFRESH_BUTTON_ID = 'refresh-button';
+
+const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
+const titleContainer = document.getElementById(TITLE_CONTAINER_ID);
+const vizGrid = document.querySelector('.viz-grid');
+const container1 = document.getElementById('container1');
+const container3 = document.getElementById('container3');
+const container4 = document.getElementById('container4');
+const refreshButton = document.getElementById(REFRESH_BUTTON_ID);
+const bodyElement = document.body;
+
+let titleVisible = true;
+let debugMode = false;
+let sheetState = {
+  status: 'loading',
+  message: 'Loading data...'
+};
+
+const setRefreshButtonState = function(isLoading) {
+  if (!refreshButton) {
+    return;
+  }
+  refreshButton.disabled = Boolean(isLoading);
+  refreshButton.setAttribute('aria-busy', String(Boolean(isLoading)));
+};
+
+const setDebugMode = function(enabled) {
+  debugMode = Boolean(enabled);
+  if (bodyElement) {
+    bodyElement.classList.toggle('debug-mode', debugMode);
+  }
+};
+
+const layoutVizGrid = function() {
+  if (!vizGrid || !container1) {
+    return;
+  }
+
+  const metaVisible = Boolean(SHOW_SOURCE_CONTAINER || SHOW_LOGO_CONTAINER);
+
+  if (vizGrid) {
+    vizGrid.classList.toggle('title-hidden', !titleVisible);
+    vizGrid.classList.toggle('meta-hidden', !metaVisible);
+  }
+
+  if (titleContainer) {
+    titleContainer.classList.toggle('is-hidden', !titleVisible);
+    titleContainer.setAttribute('aria-hidden', String(!titleVisible));
+  }
+
+  if (container1) {
+    container1.style.gridRow = '2';
+  }
+
+  if (metaVisible) {
+    if (container3) {
+      if (SHOW_SOURCE_CONTAINER) {
+        container3.style.display = 'flex';
+        container3.style.gridRow = '3';
+        container3.style.gridColumn = SHOW_LOGO_CONTAINER ? '1' : '1 / span 2';
+      } else {
+        container3.style.display = 'none';
+      }
+    }
+
+    if (container4) {
+      if (SHOW_LOGO_CONTAINER) {
+        container4.style.display = 'flex';
+        container4.style.gridRow = '3';
+        container4.style.gridColumn = SHOW_SOURCE_CONTAINER ? '2' : '1 / span 2';
+      } else {
+        container4.style.display = 'none';
+      }
+    }
+  } else {
+    if (container3) container3.style.display = 'none';
+    if (container4) container4.style.display = 'none';
+  }
+};
+ 
+setDebugMode(false);
+layoutVizGrid();
+setRefreshButtonState(false);
+
+const clearVizContainer = function() {
+  if (!vizContainer) {
+    return;
+  }
+  while (vizContainer.firstChild) {
+    vizContainer.removeChild(vizContainer.firstChild);
+  }
+};
+
+const showVizMessage = function(message) {
+  if (!vizContainer) {
+    return;
+  }
+  const placeholder = document.createElement('div');
+  placeholder.className = 'viz-placeholder';
+  placeholder.textContent = message;
+  vizContainer.appendChild(placeholder);
+};
+
+const renderVisualization = function(currentData, width, height) {
+  if (!vizContainer) {
+    return;
+  }
+
+  clearVizContainer();
+
+  if (sheetState.status !== 'ready') {
+    showVizMessage(sheetState.message || 'Loading data...');
+    return;
+  }
+
+  if (!currentData || !currentData.length) {
+    showVizMessage('No data available.');
+    return;
+  }
+
+  const numericData = currentData.filter(function(item) {
+    return typeof item.value === 'number' && !Number.isNaN(item.value);
+  });
+
+  if (!numericData.length) {
+    showVizMessage('No numeric values available to chart.');
+    return;
+  }
+
+  const margin = { top: 24, right: 32, bottom: 24, left: 64 };
+  const chartWidth = Math.max(width - margin.left - margin.right, 0);
+  const chartHeight = Math.max(height - margin.top - margin.bottom, 0);
+
+  if (!chartWidth || !chartHeight) {
+    showVizMessage('Not enough space to render the chart.');
+    return;
+  }
+
+  const svg = d3.select(vizContainer)
+    .append('svg')
+    .attr('width', width)
+    .attr('height', height);
+
+  const chartArea = svg.append('g')
+    .attr('transform', `translate(${margin.left}, ${margin.top})`);
+
+  const groups = Array.from(new Set(numericData.map(function(item) {
+    return item.group || 'Ungrouped';
+  })));
+
+  const names = Array.from(new Set(numericData.map(function(item) {
+    return item.name || item.id;
+  })));
+
+  const x0 = d3.scaleBand()
+    .domain(groups)
+    .range([0, chartWidth])
+    .paddingInner(0.2)
+    .paddingOuter(0.05);
+
+  const x1 = d3.scaleBand()
+    .domain(names)
+    .range([0, Math.max(x0.bandwidth(), 0)])
+    .padding(0.08);
+
+  const y = d3.scaleLinear()
+    .domain([0, d3.max(numericData, function(d) { return d.value; }) || 0])
+    .nice()
+    .range([chartHeight, 0]);
+
+  const gridLines = d3.axisLeft(y)
+    .tickSize(-chartWidth)
+    .tickFormat('');
+
+  const gridGroup = chartArea.append('g')
+    .attr('class', 'grid-lines')
+    .call(gridLines);
+
+  gridGroup.selectAll('line')
+    .attr('stroke', 'rgba(0, 0, 0, 0.1)')
+    .attr('stroke-dasharray', '2,4');
+  gridGroup.select('.domain').remove();
+
+  const xAxis = d3.axisBottom(x0);
+  const yAxis = d3.axisLeft(y)
+    .ticks(Math.max(3, Math.min(8, Math.floor(chartHeight / 40))))
+    .tickFormat(d3.format('~s'));
+
+  const xAxisGroup = chartArea.append('g')
+    .attr('class', 'x-axis')
+    .attr('transform', `translate(0, ${chartHeight})`)
+    .call(xAxis);
+
+  xAxisGroup.selectAll('text')
+    .attr('fill', '#111111')
+    .style('font-size', '12px');
+
+  const yAxisGroup = chartArea.append('g')
+    .attr('class', 'y-axis')
+    .call(yAxis);
+
+  yAxisGroup.selectAll('text')
+    .attr('fill', '#111111')
+    .style('font-size', '12px');
+
+  chartArea.selectAll('.x-axis path, .x-axis line, .y-axis path, .y-axis line')
+    .attr('stroke', 'rgba(0, 0, 0, 0.3)');
+
+  const defaultColors = d3.schemeTableau10 || ['#4a90e2', '#e74c3c', '#f39c12', '#16a085', '#8e44ad', '#2c3e50', '#1abc9c', '#d35400', '#7f8c8d', '#9b59b6'];
+  const colorScale = d3.scaleOrdinal()
+    .domain(names)
+    .range(defaultColors);
+
+  const formatValue = d3.format(',');
+
+  const getBarColor = function(entry) {
+    const customColor = entry.color && String(entry.color).trim();
+    return customColor || colorScale(entry.name || entry.id);
+  };
+
+  const isColorDark = function(colorValue) {
+    if (!colorValue) {
+      return false;
+    }
+    const parsed = d3.color(colorValue);
+    if (!parsed) {
+      return false;
+    }
+    const luminance = (0.299 * parsed.r + 0.587 * parsed.g + 0.114 * parsed.b) / 255;
+    return luminance < 0.55;
+  };
+
+  const nestedData = d3.nest()
+    .key(function(item) { return item.group || 'Ungrouped'; })
+    .entries(numericData);
+
+  const groupSelection = chartArea.selectAll('.group')
+    .data(nestedData)
+    .enter()
+    .append('g')
+    .attr('class', 'group')
+    .attr('transform', function(d) {
+      return `translate(${x0(d.key)}, 0)`;
+    });
+
+  const barWidth = Math.max(x1.bandwidth(), 1);
+
+  const bars = groupSelection.selectAll('.bar')
+    .data(function(d) { return d.values; })
+    .enter()
+    .append('g')
+    .attr('class', 'bar')
+    .attr('transform', function(d) {
+      const key = d.name || d.id;
+      const xPosition = x1(key);
+      const safeX = typeof xPosition === 'number' && Number.isFinite(xPosition) ? xPosition : 0;
+      return `translate(${safeX}, 0)`;
+    });
+
+  const rects = bars.append('rect')
+    .attr('x', 0)
+    .attr('y', function(d) { return y(d.value); })
+    .attr('width', barWidth)
+    .attr('height', function(d) { return chartHeight - y(d.value); })
+    .attr('fill', function(d) {
+      return getBarColor(d);
+    })
+    .attr('opacity', 0.95);
+
+  rects.append('title')
+    .text(function(d) {
+      const groupLabel = d.group || 'Ungrouped';
+      const nameLabel = d.name || d.id;
+      return `${groupLabel} • ${nameLabel}: ${formatValue(d.value)}`;
+    });
+
+  const getLabelFontSize = function(widthValue) {
+    const base = Math.max(widthValue * 0.45, 9);
+    return Math.min(base, 22);
+  };
+
+  bars.append('text')
+    .attr('x', barWidth / 2)
+    .attr('y', function(d) {
+      const barHeight = chartHeight - y(d.value);
+      const offset = Math.max(Math.min(barHeight * 0.25, 18), 6);
+      return y(d.value) + offset;
+    })
+    .attr('text-anchor', 'middle')
+    .attr('dominant-baseline', 'middle')
+    .attr('font-weight', '600')
+    .attr('font-size', function() {
+      return `${getLabelFontSize(barWidth)}px`;
+    })
+    .attr('fill', function(d) {
+      const barColor = getBarColor(d);
+      return isColorDark(barColor) ? '#ffffff' : '#111111';
+    })
+    .text(function(d) {
+      return formatValue(d.value);
+    })
+    .style('pointer-events', 'none');
+};
+
+const renderVisualizationForContainer = function() {
+  if (!vizContainer) {
+    return;
+  }
+  const rect = vizContainer.getBoundingClientRect();
+  const width = rect.width;
+  const height = rect.height;
+
+  if (!width || !height) {
+    return;
+  }
+
+  renderVisualization(data, width, height);
+};
+
+let resizeTimer;
+
+window.addEventListener('resize', function() {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(renderVisualizationForContainer, 120);
+});
+
+if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+  const resizeObserver = new ResizeObserver(function() {
+    renderVisualizationForContainer();
+  });
+  resizeObserver.observe(vizContainer);
+}
+
+document.addEventListener('keydown', function(event) {
+  if (!event.key || event.metaKey || event.ctrlKey || event.altKey) {
+    return;
+  }
+  if (event.target && (['INPUT', 'TEXTAREA'].includes(event.target.tagName) || event.target.isContentEditable)) {
+    return;
+  }
+  const key = event.key.toLowerCase();
+  if (key === 't') {
+    titleVisible = !titleVisible;
+    layoutVizGrid();
+    renderVisualizationForContainer();
+  } else if (key === 'd') {
+    setDebugMode(!debugMode);
+  }
+});
+
+const getCellValue = function(cells, index) {
+  if (typeof index !== 'number' || !cells || !cells[index]) {
+    return null;
+  }
+  const cell = cells[index];
+  return cell && typeof cell.v !== 'undefined' && cell.v !== null ? cell.v : null;
+};
+
+const parseSheetTable = function(table) {
+  if (!table) {
+    return [];
+  }
+
+  const columnIndex = {};
+  (table.cols || []).forEach(function(col, idx) {
+    if (col && col.label) {
+      columnIndex[col.label.trim().toLowerCase()] = idx;
+    }
+  });
+
+  return (table.rows || []).map(function(row) {
+    const cells = row.c || [];
+    const rawId = getCellValue(cells, columnIndex.id);
+    const rawName = getCellValue(cells, columnIndex.name);
+    const rawGroup = getCellValue(cells, columnIndex.group);
+    const rawColor = getCellValue(cells, columnIndex.color);
+    const rawValue = getCellValue(cells, columnIndex.value);
+
+    const numericValue = typeof rawValue === 'number' ? rawValue : parseFloat(rawValue);
+
+    if (!rawId || Number.isNaN(numericValue)) {
+      return null;
+    }
+
+    return {
+      id: String(rawId),
+      name: rawName ? String(rawName) : String(rawId),
+      value: numericValue,
+      color: rawColor ? String(rawColor) : null,
+      group: rawGroup ? String(rawGroup) : 'Ungrouped'
+    };
+  }).filter(Boolean);
+};
+
+const parseGoogleSheetResponse = function(text) {
+  const jsonString = text.replace(/^[^\(]+\(/, '').replace(/\);?\s*$/, '');
+  return JSON.parse(jsonString);
+};
+
+const loadDataFromSheet = async function() {
+  try {
+    sheetState = { status: 'loading', message: 'Loading data...' };
+    renderVisualizationForContainer();
+    setRefreshButtonState(true);
+
+    const response = await fetch(GOOGLE_SHEET_URL);
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+
+    const text = await response.text();
+    const parsedResponse = parseGoogleSheetResponse(text);
+    const parsedRows = parseSheetTable(parsedResponse && parsedResponse.table);
+
+    data.splice(0, data.length, ...parsedRows);
+    sheetState = { status: 'ready', message: '' };
+    renderVisualizationForContainer();
+  } catch (error) {
+    console.error('Error loading sheet data', error);
+    sheetState = {
+      status: 'error',
+      message: 'Unable to load data from the Google Sheet.'
+    };
+    renderVisualizationForContainer();
+  } finally {
+    setRefreshButtonState(false);
+  }
+};
+
+if (refreshButton) {
+  refreshButton.addEventListener('click', function() {
+    loadDataFromSheet();
+  });
+}
+
+renderVisualizationForContainer();
+loadDataFromSheet();
+</script>
+</body>
+</html>
