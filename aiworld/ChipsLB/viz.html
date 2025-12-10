@@ -131,6 +131,8 @@ body {
   align-items: center;
   justify-content: flex-start;
   padding: 0 20px;
+  gap: clamp(12px, 2vw, 28px);
+  flex-wrap: wrap;
   overflow: hidden;
   min-width: 0;
   position: relative;
@@ -303,6 +305,66 @@ body {
   color: #0b57d0;
 }
 
+.dataset-selector {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.selector-button {
+  border: 1px solid #d0d0d0;
+  background: #ffffff;
+  color: #0e1c36;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 120px;
+  text-align: left;
+}
+
+.selector-button:focus-visible {
+  outline: 2px solid #0b57d0;
+  outline-offset: 2px;
+}
+
+.selector-options {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  display: none;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  min-width: 100%;
+  z-index: 1500;
+}
+
+.dataset-selector.open .selector-options {
+  display: flex;
+}
+
+.selector-option {
+  background: none;
+  border: none;
+  padding: 8px 14px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0e1c36;
+  cursor: pointer;
+}
+
+.selector-option:hover,
+.selector-option:focus {
+  background: rgba(39, 86, 211, 0.08);
+}
+
 body.debug-mode #title-container {
   background: #0f1e41;
   color: #ffffff;
@@ -401,6 +463,12 @@ body.debug-mode .source-text a:visited {
         AI World
       </a>
     </div>
+    <div class="dataset-selector" id="dataset-selector">
+      <button type="button" class="selector-button" id="dataset-selector-button" aria-haspopup="listbox" aria-expanded="false">
+        Default
+      </button>
+      <ul class="selector-options" id="dataset-options" role="listbox"></ul>
+    </div>
   </div>
   <div id="container4" class="container logo-container">
     <button class="refresh-button" id="refresh-button" type="button" aria-label="Refresh data">
@@ -418,12 +486,20 @@ const SHOW_LOGO_CONTAINER = 1;
 const SHOW_LEGEND_CONTAINER = 1;
 
 const data = [];
-const GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1tqfTR95FY0UKkKFebiVrBxU0PdOzR0Hx-B1FTcuxVxg/gviz/tq?tqx=out:json';
+const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/1tqfTR95FY0UKkKFebiVrBxU0PdOzR0Hx-B1FTcuxVxg/gviz/tq?tqx=out:json';
+
+const DATASETS = [
+  { id: 'default', label: 'Default', sheet: null },
+  { id: 'epoch', label: 'Epoch', sheet: 'epoch' }
+];
 
 const VIZ_CONTAINER_ID = 'viz';
 const TITLE_CONTAINER_ID = 'title-container';
 const REFRESH_BUTTON_ID = 'refresh-button';
 const LEGEND_CONTENT_ID = 'legend-content';
+const DATASET_SELECTOR_ID = 'dataset-selector';
+const DATASET_BUTTON_ID = 'dataset-selector-button';
+const DATASET_OPTIONS_ID = 'dataset-options';
 
 const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
 const titleContainer = document.getElementById(TITLE_CONTAINER_ID);
@@ -434,6 +510,9 @@ const container3 = document.getElementById('container3');
 const container4 = document.getElementById('container4');
 const refreshButton = document.getElementById(REFRESH_BUTTON_ID);
 const legendContent = document.getElementById(LEGEND_CONTENT_ID);
+const datasetSelector = document.getElementById(DATASET_SELECTOR_ID);
+const datasetSelectorButton = document.getElementById(DATASET_BUTTON_ID);
+const datasetOptionsList = document.getElementById(DATASET_OPTIONS_ID);
 const bodyElement = document.body;
 
 const tooltipElement = document.createElement('div');
@@ -443,8 +522,6 @@ tooltipElement.setAttribute('aria-live', 'polite');
 document.body.appendChild(tooltipElement);
 
 // Parse URL parameters
-let colorScaleForLegend = null;
-
 const urlParams = new URLSearchParams(window.location.search);
 const titleParam = urlParams.get('title');
 const refreshParam = urlParams.get('refresh');
@@ -456,6 +533,9 @@ let sheetState = {
   status: 'loading',
   message: 'Loading data...'
 };
+let activeDatasetId = DATASETS[0].id;
+let datasetMenuOpen = false;
+const datasetCache = {};
 
 const setRefreshButtonState = function(isLoading) {
   if (!refreshButton) {
@@ -486,6 +566,105 @@ const moveTooltip = function(event) {
   tooltipElement.style.left = `${event.clientX}px`;
   tooltipElement.style.top = `${event.clientY - 12}px`;
 };
+
+const getDatasetById = function(datasetId) {
+  return DATASETS.find(function(item) {
+    return item.id === datasetId;
+  }) || DATASETS[0];
+};
+
+const setDatasetButtonLabel = function(dataset) {
+  if (!datasetSelectorButton || !dataset) {
+    return;
+  }
+  datasetSelectorButton.textContent = dataset.label;
+};
+
+const closeDatasetMenu = function() {
+  if (!datasetSelector) {
+    return;
+  }
+  datasetSelector.classList.remove('open');
+  datasetMenuOpen = false;
+  if (datasetSelectorButton) {
+    datasetSelectorButton.setAttribute('aria-expanded', 'false');
+  }
+};
+
+const openDatasetMenu = function() {
+  if (!datasetSelector) {
+    return;
+  }
+  datasetSelector.classList.add('open');
+  datasetMenuOpen = true;
+  if (datasetSelectorButton) {
+    datasetSelectorButton.setAttribute('aria-expanded', 'true');
+  }
+};
+
+const toggleDatasetMenu = function() {
+  if (datasetMenuOpen) {
+    closeDatasetMenu();
+  } else {
+    openDatasetMenu();
+  }
+};
+
+const onDatasetOptionClick = function(datasetId) {
+  closeDatasetMenu();
+  if (datasetId === activeDatasetId) {
+    return;
+  }
+  activeDatasetId = datasetId;
+  setDatasetButtonLabel(getDatasetById(datasetId));
+  loadDataForDataset(datasetId);
+};
+
+const buildDatasetOptions = function() {
+  if (!datasetOptionsList) {
+    return;
+  }
+  datasetOptionsList.innerHTML = '';
+  DATASETS.forEach(function(dataset) {
+    const item = document.createElement('li');
+    const optionButton = document.createElement('button');
+    optionButton.type = 'button';
+    optionButton.className = 'selector-option';
+    optionButton.textContent = dataset.label;
+    optionButton.setAttribute('role', 'option');
+    optionButton.addEventListener('click', function() {
+      onDatasetOptionClick(dataset.id);
+    });
+    item.appendChild(optionButton);
+    datasetOptionsList.appendChild(item);
+  });
+};
+
+const initializeDatasetSelector = function() {
+  if (!datasetSelectorButton || !datasetOptionsList) {
+    return;
+  }
+  setDatasetButtonLabel(getDatasetById(activeDatasetId));
+  buildDatasetOptions();
+  datasetSelectorButton.addEventListener('click', function() {
+    toggleDatasetMenu();
+  });
+};
+
+document.addEventListener('click', function(event) {
+  if (!datasetSelector || !datasetMenuOpen) {
+    return;
+  }
+  if (!datasetSelector.contains(event.target)) {
+    closeDatasetMenu();
+  }
+});
+
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape' && datasetMenuOpen) {
+    closeDatasetMenu();
+  }
+});
 
 const setDebugMode = function(enabled) {
   debugMode = Boolean(enabled);
@@ -729,7 +908,6 @@ const renderVisualization = function(currentData, width, height) {
   const colorScale = d3.scaleOrdinal()
     .domain(identifiers)
     .range(defaultColors);
-  colorScaleForLegend = colorScale;
 
   const formatValue = d3.format(',');
 
@@ -738,19 +916,7 @@ const renderVisualization = function(currentData, width, height) {
     return customColor || colorScale(entry.id);
   };
 
-  const isColorDark = function(colorValue) {
-    if (!colorValue) {
-      return false;
-    }
-    const parsed = d3.color(colorValue);
-    if (!parsed) {
-      return false;
-    }
-    const luminance = (0.299 * parsed.r + 0.587 * parsed.g + 0.114 * parsed.b) / 255;
-    return luminance < 0.55;
-  };
-
-  const nestedData = d3.nest()
+const nestedData = d3.nest()
     .key(function(item) { return item.group || 'Ungrouped'; })
     .entries(numericData);
 
@@ -948,22 +1114,35 @@ const parseGoogleSheetResponse = function(text) {
   return JSON.parse(jsonString);
 };
 
-const loadDataFromSheet = async function() {
+const buildSheetUrl = function(dataset) {
+  if (dataset && dataset.sheet) {
+    return `${GOOGLE_SHEET_BASE_URL}&sheet=${encodeURIComponent(dataset.sheet)}`;
+  }
+  return GOOGLE_SHEET_BASE_URL;
+};
+
+async function loadDataForDataset(datasetId, options = {}) {
+  const dataset = getDatasetById(datasetId);
+  const forceReload = Boolean(options.force);
   try {
     sheetState = { status: 'loading', message: 'Loading data...' };
     renderVisualizationForContainer();
     setRefreshButtonState(true);
 
-    const response = await fetch(GOOGLE_SHEET_URL);
-    if (!response.ok) {
-      throw new Error('Network response was not ok');
+    let cachedRows = datasetCache[dataset.id];
+    if (!cachedRows || forceReload) {
+      const response = await fetch(buildSheetUrl(dataset));
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const text = await response.text();
+      const parsedResponse = parseGoogleSheetResponse(text);
+      cachedRows = parseSheetTable(parsedResponse && parsedResponse.table);
+      datasetCache[dataset.id] = cachedRows;
     }
 
-    const text = await response.text();
-    const parsedResponse = parseGoogleSheetResponse(text);
-    const parsedRows = parseSheetTable(parsedResponse && parsedResponse.table);
-
-    data.splice(0, data.length, ...parsedRows);
+    data.splice(0, data.length, ...(cachedRows || []));
     sheetState = { status: 'ready', message: '' };
     renderVisualizationForContainer();
   } catch (error) {
@@ -976,16 +1155,17 @@ const loadDataFromSheet = async function() {
   } finally {
     setRefreshButtonState(false);
   }
-};
+}
 
 if (refreshButton) {
   refreshButton.addEventListener('click', function() {
-    loadDataFromSheet();
+    loadDataForDataset(activeDatasetId, { force: true });
   });
 }
 
+initializeDatasetSelector();
 renderVisualizationForContainer();
-loadDataFromSheet();
+loadDataForDataset(activeDatasetId);
 </script>
 </body>
 </html>
