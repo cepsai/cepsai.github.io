@@ -604,6 +604,8 @@
     const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/1tqfTR95FY0UKkKFebiVrBxU0PdOzR0Hx-B1FTcuxVxg/gviz/tq?tqx=out:json';
 
     const DATASETS = [
+      { id: 'default', label: 'Default', sheet: null, grouped: true, legendKey: 'id', tooltipField: 'display' },
+      { id: 'epoch', label: 'Epoch', sheet: 'epoch', grouped: false, legendKey: 'parent' },
       { id: 'energy_efficiency', label: 'Energy efficiency', type: 'csv', url: 'ml_hardware.csv', grouped: false, legendKey: 'Manufacturer', xAxisLabelKey: 'id' },
       { id: 'total_processing_performance', label: 'Total processing performance', type: 'csv', url: 'ml_hardware.csv', grouped: false, legendKey: 'Manufacturer', xAxisLabelKey: 'id' },
       { id: 'price_performance', label: 'Price-performance', type: 'csv', url: 'ml_hardware.csv', grouped: false, legendKey: 'Manufacturer', xAxisLabelKey: 'id' },
@@ -1208,11 +1210,8 @@
       const innerBandWidth = Math.max(x0.bandwidth(), 0);
       const groupInnerScales = {};
       nestedData.forEach(function (groupEntry) {
-        const domain = Array.from(new Set(groupEntry.values.map(function (valueEntry) {
-          return valueEntry.id;
-        })));
         groupInnerScales[groupEntry.key] = d3.scaleBand()
-          .domain(domain)
+          .domain(d3.range(groupEntry.values.length))
           .range([0, innerBandWidth])
           .padding(0.12);
       });
@@ -1242,8 +1241,8 @@
 
       const bars = groupSelection.selectAll('.bar')
         .data(function (groupEntry) {
-          return groupEntry.values.map(function (valueEntry) {
-            return Object.assign({}, valueEntry, { __groupKey: groupEntry.key });
+          return groupEntry.values.map(function (valueEntry, index) {
+            return Object.assign({}, valueEntry, { __groupKey: groupEntry.key, __groupIndex: index });
           });
         })
         .enter()
@@ -1251,7 +1250,7 @@
         .attr('class', 'bar')
         .attr('transform', function (d) {
           const scale = getGroupScale(d.__groupKey || d.group || 'Ungrouped');
-          const xPosition = scale(d.id);
+          const xPosition = scale(d.__groupIndex);
           const safeX = typeof xPosition === 'number' && Number.isFinite(xPosition) ? xPosition : 0;
           return `translate(${safeX}, 0)`;
         });
@@ -1512,6 +1511,7 @@
               .map(d => {
                 let val = 0;
                 if (dataset.id === 'energy_efficiency') {
+                  const activeDatasetId = 'default';
                   val = parseFloat((d['Energy efficiency'] || '').replace(/,/g, ''));
                 } else if (dataset.id === 'total_processing_performance') {
                   val = parseFloat((d['Total processing performance (bit-OP/s)'] || '').replace(/,/g, ''));
