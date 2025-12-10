@@ -591,6 +591,7 @@
     let datasetMenuOpen = false;
     const datasetCache = {};
     let activeDatasetConfig = DATASETS[0];
+    const hiddenLegendKeys = new Set();
 
     const setRefreshButtonState = function (isLoading) {
       if (!refreshButton) {
@@ -824,6 +825,21 @@
         const legendItem = document.createElement('div');
         legendItem.className = 'legend-item';
 
+        legendItem.style.cursor = 'pointer';
+        if (hiddenLegendKeys.has(key)) {
+          legendItem.style.opacity = '0.5';
+          legendItem.style.textDecoration = 'line-through';
+        }
+
+        legendItem.addEventListener('click', function () {
+          if (hiddenLegendKeys.has(key)) {
+            hiddenLegendKeys.delete(key);
+          } else {
+            hiddenLegendKeys.add(key);
+          }
+          renderVisualizationForContainer();
+        });
+
         const swatch = document.createElement('span');
         swatch.className = 'legend-swatch';
         const fillColor = entry.color && String(entry.color).trim();
@@ -907,6 +923,17 @@
         return entry.id;
       };
       const legendKeys = Array.from(new Set(numericData.map(legendKeyForEntry)));
+
+      const visibleData = numericData.filter(function (d) {
+        return !hiddenLegendKeys.has(legendKeyForEntry(d));
+      });
+
+      if (!visibleData.length) {
+        showVizMessage('All data hidden by legend selection.');
+        renderLegendContent(numericData, null, legendKeyForEntry); // Render legend with all keys for toggling
+        return;
+      }
+
       const getTooltipContent = function (entry) {
         if (useDisplayTooltip && entry && entry.display) {
           return entry.display;
@@ -920,7 +947,7 @@
 
       if (!chartWidth || !chartHeight) {
         showVizMessage('Not enough space to render the chart.');
-        renderLegendContent([], null);
+        renderLegendContent(numericData, null, legendKeyForEntry);
         return;
       }
 
@@ -933,10 +960,12 @@
         .attr('transform', `translate(${margin.left}, ${margin.top})`);
 
       const groups = useGrouping
-        ? Array.from(new Set(numericData.map(function (item) {
+        ? Array.from(new Set(visibleData.map(function (item) {
           return item.group || 'Ungrouped';
         })))
-        : identifiers;
+        : Array.from(new Set(visibleData.map(function (item) {
+          return item.id;
+        })));
 
       const x0 = d3.scaleBand()
         .domain(groups)
@@ -945,7 +974,7 @@
         .paddingOuter(0.05);
 
       const y = d3.scaleLinear()
-        .domain([0, d3.max(numericData, function (d) { return d.value; }) || 0])
+        .domain([0, d3.max(visibleData, function (d) { return d.value; }) || 0])
         .nice()
         .range([chartHeight, 0]);
 
@@ -1003,11 +1032,11 @@
       const nestedData = useGrouping
         ? d3.nest()
           .key(function (item) { return item.group || 'Ungrouped'; })
-          .entries(numericData)
+          .entries(visibleData)
         : groups.map(function (id) {
           return {
             key: id,
-            values: numericData.filter(function (entry) {
+            values: visibleData.filter(function (entry) {
               return entry.id === id;
             })
           };
@@ -1227,6 +1256,7 @@
 
         let cachedRows = datasetCache[dataset.id];
         if (!cachedRows || forceReload) {
+          hiddenLegendKeys.clear();
           const response = await fetch(buildSheetUrl(dataset));
           if (!response.ok) {
             throw new Error('Network response was not ok');
