@@ -1,1200 +1,1268 @@
 <!doctype html>
 <html>
+
 <head>
-<meta charset="utf-8">
-<style type="text/css">
-.knitr .inline { background-color: #F7F7F7; border: solid 1px #B0B0B0; }
-.error { font-weight: bold; color: #FF0000; }
-.warning { font-weight: bold; }
-.message { font-style: italic; }
-.source, .output, .warning, .error, .message { padding: 0 1em; border: solid 1px #F7F7F7; }
-.source { background-color: #F5F5F5; }
-.rimage .left { text-align: left; }
-.rimage .right { text-align: right; }
-.rimage .center { text-align: center; }
+  <meta charset="utf-8">
+  <style type="text/css">
+    .knitr .inline {
+      background-color: #F7F7F7;
+      border: solid 1px #B0B0B0;
+    }
 
-body {
-  margin: 0;
-  overflow: hidden;
-  height: 100vh;
-  font-family: Arial, sans-serif;
-  background: #ffffff;
-  color: #111111;
-}
+    .error {
+      font-weight: bold;
+      color: #FF0000;
+    }
 
-.viz-grid {
-  --title-row-size: auto;
-  --legend-row-size: auto;
-  --meta-row-size: auto;
-  --col-gap: clamp(8px, 1vh, 20px);
-  --vertical-spacing: clamp(8px, 1vh, 20px);
-  display: grid;
-  grid-template-rows: var(--title-row-size) var(--legend-row-size) minmax(0, 1fr) var(--meta-row-size);
-  grid-template-columns: 1fr 1fr;
-  height: 100vh;
-  width: 100vw;
-  box-sizing: border-box;
-  padding: clamp(8px, 2vh, 18px);
-  row-gap: 0;
-  column-gap: var(--col-gap);
-  transition: grid-template-rows 0.45s ease;
-}
+    .warning {
+      font-weight: bold;
+    }
 
-.container {
-  background: #ffffff;
-  border-radius: 0;
-  border: none;
-  transition: background-color 0.35s ease, opacity 0.35s ease, max-height 0.35s ease, padding 0.35s ease;
-}
+    .message {
+      font-style: italic;
+    }
 
-.viz-grid.title-hidden {
-  --title-row-size: 0fr;
-}
+    .source,
+    .output,
+    .warning,
+    .error,
+    .message {
+      padding: 0 1em;
+      border: solid 1px #F7F7F7;
+    }
 
-.viz-grid.legend-hidden {
-  --legend-row-size: 0fr;
-}
+    .source {
+      background-color: #F5F5F5;
+    }
 
-.viz-grid.meta-hidden {
-  --meta-row-size: 0fr;
-}
+    .rimage .left {
+      text-align: left;
+    }
 
-#title-container {
-  grid-row: 1;
-  grid-column: 1 / span 2;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: clamp(8px, 1.5vw, 28px);
-  background: #ffffff;
-  color: #0e1c36;
-  position: relative;
-  min-height: 0;
-  overflow: hidden;
-  gap: clamp(8px, 1vw, 24px);
-  flex-wrap: wrap;
-  max-height: 320px;
-  opacity: 1;
-  transform: translateY(0);
-  transition: transform 0.35s ease, opacity 0.35s ease, max-height 0.35s ease, padding 0.35s ease;
-}
+    .rimage .right {
+      text-align: right;
+    }
 
-#title-container.is-hidden {
-  opacity: 0;
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  pointer-events: none;
-  transform: translateY(-12px);
-}
+    .rimage .center {
+      text-align: center;
+    }
 
-.title-text {
-  font-size: clamp(22px, 3vw, 48px);
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: capitalize;
-}
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #ffffff;
+      color: #111111;
+    }
 
-.title-hint {
-  font-size: clamp(10px, 1.4vw, 16px);
-  font-weight: 500;
-  color: rgba(14, 28, 54, 0.65);
-  text-transform: uppercase;
-}
+    .viz-grid {
+      --title-row-size: auto;
+      --legend-row-size: minmax(auto, 80px);
+      --meta-row-size: auto;
+      --col-gap: clamp(8px, 1vh, 20px);
+      --vertical-spacing: clamp(8px, 1vh, 20px);
+      display: grid;
+      grid-template-rows: var(--title-row-size) var(--legend-row-size) minmax(0, 1fr) var(--meta-row-size);
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding: clamp(8px, 2vh, 18px);
+      row-gap: 0;
+      column-gap: var(--col-gap);
+      transition: grid-template-rows 0.45s ease;
+    }
 
-#container1 {
-  grid-row: 3;
-  grid-column: 1 / span 2;
-  overflow: hidden;
-  min-height: 0;
-  position: relative;
-  margin-top: var(--vertical-spacing);
-}
+    .container {
+      background: #ffffff;
+      border-radius: 0;
+      border: none;
+      transition: background-color 0.35s ease, opacity 0.35s ease, max-height 0.35s ease, padding 0.35s ease;
+    }
 
-#container1::before {
-  content: "Viz";
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  font-size: 18px;
-  font-weight: bold;
-  color: #0e1c36;
-  z-index: 1000;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
+    .viz-grid.title-hidden {
+      --title-row-size: 0fr;
+    }
 
-#container3 {
-  grid-row: 4;
-  grid-column: 1;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding: 0 20px;
-  gap: clamp(12px, 2vw, 28px);
-  flex-wrap: wrap;
-  overflow: visible;
-  min-width: 0;
-  position: relative;
-  margin-top: var(--vertical-spacing);
-}
+    .viz-grid.legend-hidden {
+      --legend-row-size: 0fr;
+    }
 
-#container3::before {
-  content: "Source";
-  position: absolute;
-  top: 50%;
-  left: 10px;
-  transform: translateY(-50%);
-  font-size: 16px;
-  font-weight: bold;
-  color: #0e1c36;
-  z-index: 1000;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
+    .viz-grid.meta-hidden {
+      --meta-row-size: 0fr;
+    }
 
-#container4 {
-  grid-row: 4;
-  grid-column: 2;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 0 20px;
-  overflow: hidden;
-  min-width: 0;
-  position: relative;
-  margin-top: var(--vertical-spacing);
-}
+    #title-container {
+      grid-row: 1;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: clamp(8px, 1.5vw, 28px);
+      background: #ffffff;
+      color: #0e1c36;
+      position: relative;
+      min-height: 0;
+      overflow: hidden;
+      gap: clamp(8px, 1vw, 24px);
+      flex-wrap: wrap;
+      max-height: 320px;
+      opacity: 1;
+      transform: translateY(0);
+      transition: transform 0.35s ease, opacity 0.35s ease, max-height 0.35s ease, padding 0.35s ease;
+    }
 
-.viz-grid.title-hidden #container1,
-.viz-grid.legend-hidden #container1 {
-  margin-top: 0;
-}
+    #title-container.is-hidden {
+      opacity: 0;
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      pointer-events: none;
+      transform: translateY(-12px);
+    }
 
-#container2 {
-  grid-row: 2;
-  grid-column: 1 / span 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(8px, 1.5vw, 22px);
-  overflow: hidden;
-  min-width: 0;
-  position: relative;
-}
+    .title-text {
+      font-size: clamp(22px, 3vw, 48px);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: capitalize;
+    }
 
-.legend-content {
-  display: flex;
-  flex-wrap: wrap;
-  gap: clamp(8px, 1vw, 18px);
-  width: 100%;
-  justify-content: center;
-}
+    .title-hint {
+      font-size: clamp(10px, 1.4vw, 16px);
+      font-weight: 500;
+      color: rgba(14, 28, 54, 0.65);
+      text-transform: uppercase;
+    }
 
-.legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: clamp(10px, 1.6vw, 15px);
-  font-weight: 600;
-  color: #0e1c36;
-  white-space: nowrap;
-}
+    #container1 {
+      grid-row: 3;
+      grid-column: 1 / span 2;
+      overflow: hidden;
+      min-height: 0;
+      position: relative;
+      margin-top: var(--vertical-spacing);
+    }
 
-.legend-swatch {
-  width: clamp(12px, 1.2vw, 16px);
-  height: clamp(12px, 1.2vw, 16px);
-  border-radius: 3px;
-  flex-shrink: 0;
-}
+    #container1::before {
+      content: "Viz";
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 18px;
+      font-weight: bold;
+      color: #0e1c36;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
 
-#container4::before {
-  content: "Logo";
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  transform: translateY(-50%);
-  font-size: 16px;
-  font-weight: bold;
-  color: #0e1c36;
-  z-index: 1000;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
+    #container3 {
+      grid-row: 4;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 20px;
+      gap: clamp(12px, 2vw, 28px);
+      flex-wrap: wrap;
+      overflow: visible;
+      min-width: 0;
+      position: relative;
+      margin-top: var(--vertical-spacing);
+    }
 
-#container4 a {
-  height: 100%;
-  display: flex;
-  align-items: center;
-}
+    #container3::before {
+      content: "Source";
+      position: absolute;
+      top: 50%;
+      left: 10px;
+      transform: translateY(-50%);
+      font-size: 16px;
+      font-weight: bold;
+      color: #0e1c36;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
 
-.refresh-button {
-  border: 1px solid #2756d3;
-  background: #2756d3;
-  color: #ffffff;
-  border-radius: 4px;
-  padding: clamp(6px, 1vh, 10px);
-  margin-right: clamp(8px, 1vw, 16px);
-  font-size: clamp(14px, 2vw, 20px);
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  min-width: clamp(30px, 4vw, 42px);
-  min-height: clamp(30px, 4vw, 42px);
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
+    #container4 {
+      grid-row: 4;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+      position: relative;
+      margin-top: var(--vertical-spacing);
+    }
 
-.refresh-button:focus-visible {
-  outline: 2px solid #122c6c;
-  outline-offset: 2px;
-}
+    .viz-grid.title-hidden #container1,
+    .viz-grid.legend-hidden #container1 {
+      margin-top: 0;
+    }
 
-.refresh-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+    #container2 {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(8px, 1.5vw, 22px);
+      overflow: hidden;
+      min-width: 0;
+      position: relative;
+      max-height: 80px;
+    }
 
-#viz {
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  min-width: 0;
-}
+    .legend-content {
+      display: flex;
+      flex-wrap: wrap;
+      gap: clamp(8px, 1vw, 18px);
+      width: 100%;
+      justify-content: center;
+    }
 
-.viz-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: clamp(14px, 2vw, 20px);
-  font-weight: 600;
-  color: rgba(0, 0, 0, 0.65);
-}
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: clamp(10px, 1.6vw, 15px);
+      font-weight: 600;
+      color: #0e1c36;
+      white-space: nowrap;
+    }
 
-.logo {
-  height: 100%;
-  width: auto;
-  max-height: 100%;
-  max-width: 100%;
-  pointer-events: auto;
-  object-fit: contain;
-}
+    .legend-swatch {
+      width: clamp(12px, 1.2vw, 16px);
+      height: clamp(12px, 1.2vw, 16px);
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
 
-.source-text {
-  font-size: clamp(10px, 1.6vw, 16px);
-  font-weight: 600;
-  color: rgba(20, 20, 20, 0.9);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-  font-style: normal;
-}
+    #container4::before {
+      content: "Logo";
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      font-size: 16px;
+      font-weight: bold;
+      color: #0e1c36;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
 
-.source-text a {
-  color: #0b57d0;
-  text-decoration: underline;
-  cursor: pointer;
-  font-style: normal;
-}
+    #container4 a {
+      height: 100%;
+      display: flex;
+      align-items: center;
+    }
 
-.source-text a:visited {
-  color: #0b57d0;
-}
+    .refresh-button {
+      border: 1px solid #2756d3;
+      background: #2756d3;
+      color: #ffffff;
+      border-radius: 4px;
+      padding: clamp(6px, 1vh, 10px);
+      margin-right: clamp(8px, 1vw, 16px);
+      font-size: clamp(14px, 2vw, 20px);
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      min-width: clamp(30px, 4vw, 42px);
+      min-height: clamp(30px, 4vw, 42px);
+      transition: transform 0.2s ease, opacity 0.2s ease;
+    }
 
-.dataset-selector {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
+    .refresh-button:focus-visible {
+      outline: 2px solid #122c6c;
+      outline-offset: 2px;
+    }
 
-.selector-button {
-  border: 1px solid #d0d0d0;
-  background: #ffffff;
-  color: #0e1c36;
-  border-radius: 4px;
-  padding: 6px 14px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  min-width: 120px;
-  text-align: left;
-}
+    .refresh-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
 
-.selector-button:focus-visible {
-  outline: 2px solid #0b57d0;
-  outline-offset: 2px;
-}
+    #viz {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+    }
 
-.selector-options {
-  list-style: none;
-  margin: 0;
-  padding: 4px 0;
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  display: none;
-  flex-direction: column;
-  background: #ffffff;
-  border: 1px solid #d0d0d0;
-  border-radius: 4px;
-  min-width: 100%;
-  z-index: 1500;
-}
+    .viz-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(14px, 2vw, 20px);
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.65);
+    }
 
-.dataset-selector.open .selector-options {
-  display: flex;
-}
+    .logo {
+      height: 100%;
+      width: auto;
+      max-height: 100%;
+      max-width: 100%;
+      pointer-events: auto;
+      object-fit: contain;
+    }
 
-.selector-option {
-  background: none;
-  border: none;
-  padding: 8px 14px;
-  text-align: left;
-  font-size: 14px;
-  font-weight: 600;
-  color: #0e1c36;
-  cursor: pointer;
-}
+    .source-text {
+      font-size: clamp(10px, 1.6vw, 16px);
+      font-weight: 600;
+      color: rgba(20, 20, 20, 0.9);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      font-style: normal;
+    }
 
-.selector-option:hover,
-.selector-option:focus {
-  background: rgba(39, 86, 211, 0.08);
-}
+    .source-text a {
+      color: #0b57d0;
+      text-decoration: underline;
+      cursor: pointer;
+      font-style: normal;
+    }
 
-body.debug-mode #title-container {
-  background: #0f1e41;
-  color: #ffffff;
-}
+    .source-text a:visited {
+      color: #0b57d0;
+    }
 
-body.debug-mode #container1 {
-  background: #4a90e2;
-}
+    .dataset-selector {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
 
-body.debug-mode #container3 {
-  background: #f39c12;
-}
+    .selector-button {
+      border: 1px solid #d0d0d0;
+      background: #ffffff;
+      color: #0e1c36;
+      border-radius: 4px;
+      padding: 6px 14px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      min-width: 120px;
+      text-align: left;
+    }
 
-body.debug-mode #container4 {
-  background: #27ae60;
-}
+    .selector-button:focus-visible {
+      outline: 2px solid #0b57d0;
+      outline-offset: 2px;
+    }
 
-body.debug-mode #container2 {
-  background: #d35400;
-}
+    .selector-options {
+      list-style: none;
+      margin: 0;
+      padding: 4px 0;
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 0;
+      display: none;
+      flex-direction: column;
+      background: #ffffff;
+      border: 1px solid #d0d0d0;
+      border-radius: 4px;
+      min-width: 100%;
+      z-index: 1500;
+    }
 
-body.debug-mode #title-container::before,
-body.debug-mode #container2::before,
-body.debug-mode #container1::before,
-body.debug-mode #container3::before,
-body.debug-mode #container4::before {
-  opacity: 1;
-  color: #ffffff;
-}
+    .dataset-selector.open .selector-options {
+      display: flex;
+    }
 
-body.debug-mode #title-container::before {
-  content: "Title";
-}
+    .selector-option {
+      background: none;
+      border: none;
+      padding: 8px 14px;
+      text-align: left;
+      font-size: 14px;
+      font-weight: 600;
+      color: #0e1c36;
+      cursor: pointer;
+    }
 
-body.debug-mode #container2::before {
-  content: "Legend";
-  top: 10px;
-  left: 10px;
-}
+    .selector-option:hover,
+    .selector-option:focus {
+      background: rgba(39, 86, 211, 0.08);
+    }
 
-body.debug-mode .source-text {
-  color: #1e1e1e;
-}
+    body.debug-mode #title-container {
+      background: #0f1e41;
+      color: #ffffff;
+    }
 
-body.debug-mode .source-text a,
-body.debug-mode .source-text a:visited {
-  color: #0b2d6d;
-}
+    body.debug-mode #container1 {
+      background: #4a90e2;
+    }
+
+    body.debug-mode #container3 {
+      background: #f39c12;
+    }
+
+    body.debug-mode #container4 {
+      background: #27ae60;
+    }
+
+    body.debug-mode #container2 {
+      background: #d35400;
+    }
+
+    body.debug-mode #title-container::before,
+    body.debug-mode #container2::before,
+    body.debug-mode #container1::before,
+    body.debug-mode #container3::before,
+    body.debug-mode #container4::before {
+      opacity: 1;
+      color: #ffffff;
+    }
+
+    body.debug-mode #title-container::before {
+      content: "Title";
+    }
+
+    body.debug-mode #container2::before {
+      content: "Legend";
+      top: 10px;
+      left: 10px;
+    }
+
+    body.debug-mode .source-text {
+      color: #1e1e1e;
+    }
+
+    body.debug-mode .source-text a,
+    body.debug-mode .source-text a:visited {
+      color: #0b2d6d;
+    }
 
 
-@media (max-height: 500px) {
-  .viz-grid {
-    grid-template-rows: 1fr;
-    grid-template-columns: 1fr;
-  }
+    @media (max-height: 500px) {
+      .viz-grid {
+        grid-template-rows: 1fr;
+        grid-template-columns: 1fr;
+      }
 
-  #container1 {
-    grid-row: 1;
-    grid-column: 1;
-    margin-top: 0;
-  }
+      #container1 {
+        grid-row: 1;
+        grid-column: 1;
+        margin-top: 0;
+      }
 
-  #title-container,
-  #container2,
-  #container3,
-  #container4 {
-    display: none !important;
-  }
+      #title-container,
+      #container2,
+      #container3,
+      #container4 {
+        display: none !important;
+      }
 
-  .source-text,
-  .legend-content,
-  .logo {
-    display: none !important;
-  }
-}
-</style>
+      .source-text,
+      .legend-content,
+      .logo {
+        display: none !important;
+      }
+    }
 
-<script src="https://d3js.org/d3.v5.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+    .viz-tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: rgba(14, 28, 54, 0.9);
+      color: #ffffff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      max-width: clamp(160px, 32vw, 320px);
+      white-space: pre-line;
+      opacity: 0;
+      transform: translate(-50%, -8px);
+      transition: opacity 0.15s ease;
+      z-index: 2000;
+    }
+  </style>
+
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
 </head>
+
 <body>
-<div class="viz-grid">
-  <div id="title-container" class="container title-container">
-    <div class="title-text" id="title-text">AI Chips Leaderboard</div>
-  </div>
-  <div id="container2" class="container legend-container">
-    <div class="legend-content" id="legend-content"></div>
-  </div>
-  <div id="container1" class="container viz-container">
-    <div id="viz"></div>
-  </div>
-  <div id="container3" class="container source-container">
-    <div class="source-text" id="source-text">
-      Source:
-      <a href="https://aiworld.eu" target="_blank">
-        AI World
+  <div class="viz-grid">
+    <div id="title-container" class="container title-container">
+      <div class="title-text" id="title-text">AI Chips Leaderboard</div>
+    </div>
+    <div id="container2" class="container legend-container">
+      <div class="legend-content" id="legend-content"></div>
+    </div>
+    <div id="container1" class="container viz-container">
+      <div id="viz"></div>
+    </div>
+    <div id="container3" class="container source-container">
+      <div class="source-text" id="source-text">
+        Source:
+        <a href="https://aiworld.eu" target="_blank">
+          AI World
+        </a>
+      </div>
+      <div class="dataset-selector" id="dataset-selector">
+        <button type="button" class="selector-button" id="dataset-selector-button" aria-haspopup="listbox"
+          aria-expanded="false">
+          Default
+        </button>
+        <ul class="selector-options" id="dataset-options" role="listbox"></ul>
+      </div>
+    </div>
+    <div id="container4" class="container logo-container">
+      <button class="refresh-button" id="refresh-button" type="button" aria-label="Refresh data">
+        <span aria-hidden="true">&#x21bb;</span>
+      </button>
+      <a href="https://aiworld.eu/" id="logo-link" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" />
       </a>
     </div>
-    <div class="dataset-selector" id="dataset-selector">
-      <button type="button" class="selector-button" id="dataset-selector-button" aria-haspopup="listbox" aria-expanded="false">
-        Default
-      </button>
-      <ul class="selector-options" id="dataset-options" role="listbox"></ul>
-    </div>
   </div>
-  <div id="container4" class="container logo-container">
-    <button class="refresh-button" id="refresh-button" type="button" aria-label="Refresh data">
-      <span aria-hidden="true">&#x21bb;</span>
-    </button>
-    <a href="https://aiworld.eu/" id="logo-link" target="_blank" rel="noopener">
-      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
-    </a>
-  </div>
-</div>
 
-<script>
-const SHOW_SOURCE_CONTAINER = 1;
-const SHOW_LOGO_CONTAINER = 1;
-const SHOW_LEGEND_CONTAINER = 1;
-
-const data = [];
-const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/1tqfTR95FY0UKkKFebiVrBxU0PdOzR0Hx-B1FTcuxVxg/gviz/tq?tqx=out:json';
-
-const DATASETS = [
-  { id: 'default', label: 'Default', sheet: null, grouped: true },
-  { id: 'epoch', label: 'Epoch', sheet: 'epoch', grouped: false }
-];
-
-const VIZ_CONTAINER_ID = 'viz';
-const TITLE_CONTAINER_ID = 'title-container';
-const REFRESH_BUTTON_ID = 'refresh-button';
-const LEGEND_CONTENT_ID = 'legend-content';
-const DATASET_SELECTOR_ID = 'dataset-selector';
-const DATASET_BUTTON_ID = 'dataset-selector-button';
-const DATASET_OPTIONS_ID = 'dataset-options';
-
-const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
-const titleContainer = document.getElementById(TITLE_CONTAINER_ID);
-const vizGrid = document.querySelector('.viz-grid');
-const container1 = document.getElementById('container1');
-const container2 = document.getElementById('container2');
-const container3 = document.getElementById('container3');
-const container4 = document.getElementById('container4');
-const refreshButton = document.getElementById(REFRESH_BUTTON_ID);
-const legendContent = document.getElementById(LEGEND_CONTENT_ID);
-const datasetSelector = document.getElementById(DATASET_SELECTOR_ID);
-const datasetSelectorButton = document.getElementById(DATASET_BUTTON_ID);
-const datasetOptionsList = document.getElementById(DATASET_OPTIONS_ID);
-const bodyElement = document.body;
-
-const tooltipElement = document.createElement('div');
-tooltipElement.className = 'viz-tooltip';
-tooltipElement.setAttribute('role', 'status');
-tooltipElement.setAttribute('aria-live', 'polite');
-document.body.appendChild(tooltipElement);
-
-// Parse URL parameters
-const urlParams = new URLSearchParams(window.location.search);
-const titleParam = urlParams.get('title');
-const refreshParam = urlParams.get('refresh');
-
-let titleVisible = titleParam === '0' ? false : true; // default true, hide if ?title=0
-let showRefreshButton = refreshParam === '1' ? true : false; // default false, show if ?refresh=1
-let debugMode = false;
-let sheetState = {
-  status: 'loading',
-  message: 'Loading data...'
-};
-let activeDatasetId = DATASETS[0].id;
-let datasetMenuOpen = false;
-const datasetCache = {};
-
-const setRefreshButtonState = function(isLoading) {
-  if (!refreshButton) {
-    return;
-  }
-  refreshButton.disabled = Boolean(isLoading);
-  refreshButton.setAttribute('aria-busy', String(Boolean(isLoading)));
-};
-
-const showTooltip = function(content) {
-  if (!tooltipElement) {
-    return;
-  }
-  tooltipElement.textContent = content || '';
-  tooltipElement.style.opacity = content ? '1' : '0';
-};
-
-const hideTooltip = function() {
-  if (tooltipElement) {
-    tooltipElement.style.opacity = '0';
-  }
-};
-
-const moveTooltip = function(event) {
-  if (!tooltipElement || !event) {
-    return;
-  }
-  tooltipElement.style.left = `${event.clientX}px`;
-  tooltipElement.style.top = `${event.clientY - 12}px`;
-};
-
-const getDatasetById = function(datasetId) {
-  return DATASETS.find(function(item) {
-    return item.id === datasetId;
-  }) || DATASETS[0];
-};
-
-const setDatasetButtonLabel = function(dataset) {
-  if (!datasetSelectorButton || !dataset) {
-    return;
-  }
-  datasetSelectorButton.textContent = dataset.label;
-};
-
-const closeDatasetMenu = function() {
-  if (!datasetSelector) {
-    return;
-  }
-  datasetSelector.classList.remove('open');
-  datasetMenuOpen = false;
-  if (datasetSelectorButton) {
-    datasetSelectorButton.setAttribute('aria-expanded', 'false');
-  }
-};
-
-const openDatasetMenu = function() {
-  if (!datasetSelector) {
-    return;
-  }
-  datasetSelector.classList.add('open');
-  datasetMenuOpen = true;
-  if (datasetSelectorButton) {
-    datasetSelectorButton.setAttribute('aria-expanded', 'true');
-  }
-};
-
-const toggleDatasetMenu = function() {
-  if (datasetMenuOpen) {
-    closeDatasetMenu();
-  } else {
-    openDatasetMenu();
-  }
-};
-
-const onDatasetOptionClick = function(datasetId) {
-  closeDatasetMenu();
-  if (datasetId === activeDatasetId) {
-    return;
-  }
-  activeDatasetId = datasetId;
-  setDatasetButtonLabel(getDatasetById(datasetId));
-  loadDataForDataset(datasetId);
-};
-
-const buildDatasetOptions = function() {
-  if (!datasetOptionsList) {
-    return;
-  }
-  datasetOptionsList.innerHTML = '';
-  DATASETS.forEach(function(dataset) {
-    const item = document.createElement('li');
-    const optionButton = document.createElement('button');
-    optionButton.type = 'button';
-    optionButton.className = 'selector-option';
-    optionButton.textContent = dataset.label;
-    optionButton.setAttribute('role', 'option');
-    optionButton.addEventListener('click', function() {
-      onDatasetOptionClick(dataset.id);
-    });
-    item.appendChild(optionButton);
-    datasetOptionsList.appendChild(item);
-  });
-};
-
-const initializeDatasetSelector = function() {
-  if (!datasetSelectorButton || !datasetOptionsList) {
-    return;
-  }
-  setDatasetButtonLabel(getDatasetById(activeDatasetId));
-  buildDatasetOptions();
-  datasetSelectorButton.addEventListener('click', function() {
-    toggleDatasetMenu();
-  });
-};
-
-document.addEventListener('click', function(event) {
-  if (!datasetSelector || !datasetMenuOpen) {
-    return;
-  }
-  if (!datasetSelector.contains(event.target)) {
-    closeDatasetMenu();
-  }
-});
-
-document.addEventListener('keydown', function(event) {
-  if (event.key === 'Escape' && datasetMenuOpen) {
-    closeDatasetMenu();
-  }
-});
-
-const setDebugMode = function(enabled) {
-  debugMode = Boolean(enabled);
-  if (bodyElement) {
-    bodyElement.classList.toggle('debug-mode', debugMode);
-  }
-};
-
-const layoutVizGrid = function() {
-  if (!vizGrid || !container1) {
-    return;
-  }
-
-  const legendVisible = Boolean(SHOW_LEGEND_CONTAINER && legendContent && legendContent.childElementCount);
-  const metaVisible = Boolean(SHOW_SOURCE_CONTAINER || SHOW_LOGO_CONTAINER);
-
-  if (vizGrid) {
-    vizGrid.classList.toggle('title-hidden', !titleVisible);
-    vizGrid.classList.toggle('legend-hidden', !legendVisible);
-    vizGrid.classList.toggle('meta-hidden', !metaVisible);
-  }
-
-  if (titleContainer) {
-    titleContainer.classList.toggle('is-hidden', !titleVisible);
-    titleContainer.setAttribute('aria-hidden', String(!titleVisible));
-    titleContainer.style.display = titleVisible ? 'flex' : 'none';
-    titleContainer.style.gridRow = '1';
-  }
-
-  if (refreshButton) {
-    refreshButton.style.display = showRefreshButton ? 'inline-flex' : 'none';
-  }
-
-  if (container2) {
-    if (legendVisible) {
-      container2.style.display = 'flex';
-      container2.style.gridRow = '2';
-    } else {
-      container2.style.display = 'none';
-    }
-  }
-
-  if (container1) {
-    container1.style.gridRow = '3';
-  }
-
-  if (metaVisible) {
-    if (container3) {
-      if (SHOW_SOURCE_CONTAINER) {
-        container3.style.display = 'flex';
-        container3.style.gridRow = '4';
-        container3.style.gridColumn = SHOW_LOGO_CONTAINER ? '1' : '1 / span 2';
-      } else {
-        container3.style.display = 'none';
-      }
-    }
-
-    if (container4) {
-      if (SHOW_LOGO_CONTAINER) {
-        container4.style.display = 'flex';
-        container4.style.gridRow = '4';
-        container4.style.gridColumn = SHOW_SOURCE_CONTAINER ? '2' : '1 / span 2';
-      } else {
-        container4.style.display = 'none';
-      }
-    }
-  } else {
-    if (container3) container3.style.display = 'none';
-    if (container4) container4.style.display = 'none';
-  }
-};
-
-setDebugMode(false);
-layoutVizGrid();
-setRefreshButtonState(false);
-
-const renderLegendContent = function(dataset, colorScale) {
-  if (!legendContent) {
-    layoutVizGrid();
-    return;
-  }
-
-  legendContent.innerHTML = '';
-
-  if (!SHOW_LEGEND_CONTAINER || !dataset || !dataset.length) {
-    layoutVizGrid();
-    return;
-  }
-
-  const seen = new Set();
-  dataset.forEach(function(entry) {
-    if (!entry || !entry.id || seen.has(entry.id)) {
-      return;
-    }
-    seen.add(entry.id);
-    const legendItem = document.createElement('div');
-    legendItem.className = 'legend-item';
-
-    const swatch = document.createElement('span');
-    swatch.className = 'legend-swatch';
-    const fillColor = entry.color && String(entry.color).trim();
-    const computedColor = fillColor || (colorScale ? colorScale(entry.id) : '#666');
-    swatch.style.background = computedColor;
-
-    const label = document.createElement('span');
-    label.textContent = entry.id;
-
-    legendItem.appendChild(swatch);
-    legendItem.appendChild(label);
-    legendContent.appendChild(legendItem);
-  });
-
-  layoutVizGrid();
-};
-
-const clearVizContainer = function() {
-  if (!vizContainer) {
-    return;
-  }
-  while (vizContainer.firstChild) {
-    vizContainer.removeChild(vizContainer.firstChild);
-  }
-};
-
-const showVizMessage = function(message) {
-  if (!vizContainer) {
-    return;
-  }
-  const placeholder = document.createElement('div');
-  placeholder.className = 'viz-placeholder';
-  placeholder.textContent = message;
-  vizContainer.appendChild(placeholder);
-};
-
-const renderVisualization = function(currentData, width, height) {
-  if (!vizContainer) {
-    return;
-  }
-
-  clearVizContainer();
-  hideTooltip();
-
-  if (sheetState.status !== 'ready') {
-    showVizMessage(sheetState.message || 'Loading data...');
-    renderLegendContent([], null);
-    return;
-  }
-
-  if (!currentData || !currentData.length) {
-    showVizMessage('No data available.');
-    renderLegendContent([], null);
-    return;
-  }
-
-  const numericData = currentData.filter(function(item) {
-    return typeof item.value === 'number' && !Number.isNaN(item.value);
-  });
-
-  if (!numericData.length) {
-    showVizMessage('No numeric values available to chart.');
-    renderLegendContent([], null);
-    return;
-  }
-
-  const datasetConfig = getDatasetById(activeDatasetId);
-  const useGrouping = !datasetConfig || datasetConfig.grouped !== false;
-  const identifiers = Array.from(new Set(numericData.map(function(item) {
-    return item.id;
-  })));
-
-  const margin = { top: 24, right: 32, bottom: 24, left: 64 };
-  const chartWidth = Math.max(width - margin.left - margin.right, 0);
-  const chartHeight = Math.max(height - margin.top - margin.bottom, 0);
-
-  if (!chartWidth || !chartHeight) {
-    showVizMessage('Not enough space to render the chart.');
-    renderLegendContent([], null);
-    return;
-  }
-
-  const svg = d3.select(vizContainer)
-    .append('svg')
-    .attr('width', width)
-    .attr('height', height);
-
-  const chartArea = svg.append('g')
-    .attr('transform', `translate(${margin.left}, ${margin.top})`);
-
-  const groups = useGrouping
-    ? Array.from(new Set(numericData.map(function(item) {
-        return item.group || 'Ungrouped';
-      })))
-    : identifiers;
-
-  const x0 = d3.scaleBand()
-    .domain(groups)
-    .range([0, chartWidth])
-    .paddingInner(0.2)
-    .paddingOuter(0.05);
-
-  const y = d3.scaleLinear()
-    .domain([0, d3.max(numericData, function(d) { return d.value; }) || 0])
-    .nice()
-    .range([chartHeight, 0]);
-
-  const gridLines = d3.axisLeft(y)
-    .tickSize(-chartWidth)
-    .tickFormat('');
-
-  const gridGroup = chartArea.append('g')
-    .attr('class', 'grid-lines')
-    .call(gridLines);
-
-  gridGroup.selectAll('line')
-    .attr('stroke', 'rgba(0, 0, 0, 0.1)')
-    .attr('stroke-dasharray', '2,4');
-  gridGroup.select('.domain').remove();
-
-  const xAxis = d3.axisBottom(x0);
-  const yAxis = d3.axisLeft(y)
-    .ticks(Math.max(3, Math.min(8, Math.floor(chartHeight / 40))))
-    .tickFormat(d3.format('~s'));
-
-  const xAxisGroup = chartArea.append('g')
-    .attr('class', 'x-axis')
-    .attr('transform', `translate(0, ${chartHeight})`)
-    .call(xAxis);
-
-  xAxisGroup.selectAll('text')
-    .attr('fill', '#111111')
-    .style('font-size', '12px');
-
-  const yAxisGroup = chartArea.append('g')
-    .attr('class', 'y-axis')
-    .call(yAxis);
-
-  yAxisGroup.selectAll('text')
-    .attr('fill', '#111111')
-    .style('font-size', '12px');
-
-  chartArea.selectAll('.x-axis path, .x-axis line, .y-axis path, .y-axis line')
-    .attr('stroke', 'rgba(0, 0, 0, 0.3)');
-
-  const defaultColors = d3.schemeTableau10 || ['#4a90e2', '#e74c3c', '#f39c12', '#16a085', '#8e44ad', '#2c3e50', '#1abc9c', '#d35400', '#7f8c8d', '#9b59b6'];
-  const colorScale = d3.scaleOrdinal()
-    .domain(identifiers)
-    .range(defaultColors);
-
-  const formatValue = d3.format(',');
-
-  const getBarColor = function(entry) {
-    const customColor = entry.color && String(entry.color).trim();
-    return customColor || colorScale(entry.id);
-  };
-
-  const nestedData = useGrouping
-    ? d3.nest()
-        .key(function(item) { return item.group || 'Ungrouped'; })
-        .entries(numericData)
-    : groups.map(function(id) {
-        return {
-          key: id,
-          values: numericData.filter(function(entry) {
-            return entry.id === id;
-          })
-        };
-      });
-
-  const innerBandWidth = Math.max(x0.bandwidth(), 0);
-  const groupInnerScales = {};
-  nestedData.forEach(function(groupEntry) {
-    const domain = Array.from(new Set(groupEntry.values.map(function(valueEntry) {
-      return valueEntry.id;
-    })));
-    groupInnerScales[groupEntry.key] = d3.scaleBand()
-      .domain(domain)
-      .range([0, innerBandWidth])
-      .padding(0.12);
-  });
-
-  const fallbackInnerScale = d3.scaleBand()
-    .domain(['value'])
-    .range([0, innerBandWidth])
-    .padding(0.12);
-
-  const getGroupScale = function(groupKey) {
-    return groupInnerScales[groupKey] || fallbackInnerScale;
-  };
-
-  const barWidthFor = function(entry) {
-    const scale = getGroupScale(entry.__groupKey || entry.group || 'Ungrouped');
-    return Math.max(scale.bandwidth(), 1);
-  };
-
-  const groupSelection = chartArea.selectAll('.group')
-    .data(nestedData)
-    .enter()
-    .append('g')
-    .attr('class', 'group')
-    .attr('transform', function(d) {
-      return `translate(${x0(d.key)}, 0)`;
-    });
-
-  const bars = groupSelection.selectAll('.bar')
-    .data(function(groupEntry) {
-      return groupEntry.values.map(function(valueEntry) {
-        return Object.assign({}, valueEntry, { __groupKey: groupEntry.key });
-      });
-    })
-    .enter()
-    .append('g')
-    .attr('class', 'bar')
-    .attr('transform', function(d) {
-      const scale = getGroupScale(d.__groupKey || d.group || 'Ungrouped');
-      const xPosition = scale(d.id);
-      const safeX = typeof xPosition === 'number' && Number.isFinite(xPosition) ? xPosition : 0;
-      return `translate(${safeX}, 0)`;
-    });
-
-  const rects = bars.append('rect')
-    .attr('x', 0)
-    .attr('y', function(d) { return y(d.value); })
-    .attr('width', function(d) { return barWidthFor(d); })
-    .attr('height', function(d) { return chartHeight - y(d.value); })
-    .attr('fill', function(d) {
-      return getBarColor(d);
-    })
-    .attr('opacity', 0.95);
-
-  rects
-    .on('mouseenter', function(d) {
-      showTooltip(d.display || d.id);
-      moveTooltip(d3.event);
-    })
-    .on('mousemove', function() {
-      moveTooltip(d3.event);
-    })
-    .on('mouseleave', function() {
-      hideTooltip();
-    });
-
-  const getLabelFontSize = function(widthValue) {
-    const base = Math.max(widthValue * 0.45, 9);
-    return Math.min(base, 22);
-  };
-
-  bars.append('text')
-    .attr('x', function(d) { return barWidthFor(d) / 2; })
-    .attr('y', function(d) {
-      const topY = y(d.value);
-      return Math.max(topY - 6, 6);
-    })
-    .attr('text-anchor', 'middle')
-    .attr('dominant-baseline', 'baseline')
-    .attr('font-weight', '600')
-    .attr('font-size', function(d) {
-      return `${getLabelFontSize(barWidthFor(d))}px`;
-    })
-    .attr('fill', '#111111')
-    .text(function(d) {
-      return formatValue(d.value);
-    })
-    .style('pointer-events', 'none');
-
-  renderLegendContent(numericData, colorScale);
-};
-
-const renderVisualizationForContainer = function() {
-  if (!vizContainer) {
-    return;
-  }
-  const rect = vizContainer.getBoundingClientRect();
-  const width = rect.width;
-  const height = rect.height;
-
-  if (!width || !height) {
-    return;
-  }
-
-  renderVisualization(data, width, height);
-};
-
-let resizeTimer;
-
-window.addEventListener('resize', function() {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(renderVisualizationForContainer, 120);
-});
-
-if (typeof ResizeObserver !== 'undefined' && vizContainer) {
-  const resizeObserver = new ResizeObserver(function() {
-    renderVisualizationForContainer();
-  });
-  resizeObserver.observe(vizContainer);
-}
-
-document.addEventListener('keydown', function(event) {
-  if (!event.key || event.metaKey || event.ctrlKey || event.altKey) {
-    return;
-  }
-  if (event.target && (['INPUT', 'TEXTAREA'].includes(event.target.tagName) || event.target.isContentEditable)) {
-    return;
-  }
-  const key = event.key.toLowerCase();
-  if (key === 't') {
-    titleVisible = !titleVisible;
-    layoutVizGrid();
-    renderVisualizationForContainer();
-  } else if (key === 'd') {
-    setDebugMode(!debugMode);
-  }
-});
-
-const getCellValue = function(cells, index) {
-  if (typeof index !== 'number' || !cells || !cells[index]) {
-    return null;
-  }
-  const cell = cells[index];
-  return cell && typeof cell.v !== 'undefined' && cell.v !== null ? cell.v : null;
-};
-
-const parseSheetTable = function(table) {
-  if (!table) {
-    return [];
-  }
-
-  const columnIndex = {};
-  (table.cols || []).forEach(function(col, idx) {
-    if (col && col.label) {
-      columnIndex[col.label.trim().toLowerCase()] = idx;
-    }
-  });
-
-  return (table.rows || []).map(function(row) {
-    const cells = row.c || [];
-    const rawId = getCellValue(cells, columnIndex.id);
-    const rawDisplay = getCellValue(cells, columnIndex.display);
-    const rawGroup = getCellValue(cells, columnIndex.group);
-    const rawColor = getCellValue(cells, columnIndex.color);
-    const rawValue = getCellValue(cells, columnIndex.value);
-
-    const numericValue = typeof rawValue === 'number' ? rawValue : parseFloat(rawValue);
-
-    if (!rawId || Number.isNaN(numericValue)) {
-      return null;
-    }
-
-    return {
-      id: String(rawId),
-      value: numericValue,
-      color: rawColor ? String(rawColor) : null,
-      group: rawGroup ? String(rawGroup) : 'Ungrouped',
-      display: rawDisplay ? String(rawDisplay) : String(rawId)
+  <script>
+    const SHOW_SOURCE_CONTAINER = 1;
+    const SHOW_LOGO_CONTAINER = 1;
+    const SHOW_LEGEND_CONTAINER = 1;
+
+    const data = [];
+    const GOOGLE_SHEET_BASE_URL = 'https://docs.google.com/spreadsheets/d/1tqfTR95FY0UKkKFebiVrBxU0PdOzR0Hx-B1FTcuxVxg/gviz/tq?tqx=out:json';
+
+    const DATASETS = [
+      { id: 'default', label: 'Default', sheet: null, grouped: true, legendKey: 'id', tooltipField: 'display' },
+      { id: 'epoch', label: 'Epoch', sheet: 'epoch', grouped: false, legendKey: 'parent' }
+    ];
+
+    const VIZ_CONTAINER_ID = 'viz';
+    const TITLE_CONTAINER_ID = 'title-container';
+    const REFRESH_BUTTON_ID = 'refresh-button';
+    const LEGEND_CONTENT_ID = 'legend-content';
+    const DATASET_SELECTOR_ID = 'dataset-selector';
+    const DATASET_BUTTON_ID = 'dataset-selector-button';
+    const DATASET_OPTIONS_ID = 'dataset-options';
+
+    const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
+    const titleContainer = document.getElementById(TITLE_CONTAINER_ID);
+    const vizGrid = document.querySelector('.viz-grid');
+    const container1 = document.getElementById('container1');
+    const container2 = document.getElementById('container2');
+    const container3 = document.getElementById('container3');
+    const container4 = document.getElementById('container4');
+    const refreshButton = document.getElementById(REFRESH_BUTTON_ID);
+    const legendContent = document.getElementById(LEGEND_CONTENT_ID);
+    const datasetSelector = document.getElementById(DATASET_SELECTOR_ID);
+    const datasetSelectorButton = document.getElementById(DATASET_BUTTON_ID);
+    const datasetOptionsList = document.getElementById(DATASET_OPTIONS_ID);
+    const bodyElement = document.body;
+
+    const tooltipElement = document.createElement('div');
+    tooltipElement.className = 'viz-tooltip';
+    tooltipElement.setAttribute('role', 'status');
+    tooltipElement.setAttribute('aria-live', 'polite');
+    document.body.appendChild(tooltipElement);
+
+    // Parse URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const titleParam = urlParams.get('title');
+    const refreshParam = urlParams.get('refresh');
+
+    let titleVisible = titleParam === '0' ? false : true; // default true, hide if ?title=0
+    let showRefreshButton = refreshParam === '1' ? true : false; // default false, show if ?refresh=1
+    let debugMode = false;
+    let sheetState = {
+      status: 'loading',
+      message: 'Loading data...'
     };
-  }).filter(Boolean);
-};
+    let activeDatasetId = DATASETS[0].id;
+    let datasetMenuOpen = false;
+    const datasetCache = {};
+    let activeDatasetConfig = DATASETS[0];
 
-const parseGoogleSheetResponse = function(text) {
-  const jsonString = text.replace(/^[^\(]+\(/, '').replace(/\);?\s*$/, '');
-  return JSON.parse(jsonString);
-};
+    const setRefreshButtonState = function (isLoading) {
+      if (!refreshButton) {
+        return;
+      }
+      refreshButton.disabled = Boolean(isLoading);
+      refreshButton.setAttribute('aria-busy', String(Boolean(isLoading)));
+    };
 
-const buildSheetUrl = function(dataset) {
-  if (dataset && dataset.sheet) {
-    return `${GOOGLE_SHEET_BASE_URL}&sheet=${encodeURIComponent(dataset.sheet)}`;
-  }
-  return GOOGLE_SHEET_BASE_URL;
-};
+    const showTooltip = function (content) {
+      if (!tooltipElement) {
+        return;
+      }
+      tooltipElement.textContent = content || '';
+      tooltipElement.style.opacity = content ? '1' : '0';
+    };
 
-async function loadDataForDataset(datasetId, options = {}) {
-  const dataset = getDatasetById(datasetId);
-  const forceReload = Boolean(options.force);
-  try {
-    sheetState = { status: 'loading', message: 'Loading data...' };
-    renderVisualizationForContainer();
-    setRefreshButtonState(true);
+    const hideTooltip = function () {
+      if (tooltipElement) {
+        tooltipElement.style.opacity = '0';
+      }
+    };
 
-    let cachedRows = datasetCache[dataset.id];
-    if (!cachedRows || forceReload) {
-      const response = await fetch(buildSheetUrl(dataset));
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
+    const moveTooltip = function (event) {
+      if (!tooltipElement || !event) {
+        return;
+      }
+      tooltipElement.style.left = `${event.clientX}px`;
+      tooltipElement.style.top = `${event.clientY - 12}px`;
+    };
+
+    const getDatasetById = function (datasetId) {
+      return DATASETS.find(function (item) {
+        return item.id === datasetId;
+      }) || DATASETS[0];
+    };
+
+    const setDatasetButtonLabel = function (dataset) {
+      if (!datasetSelectorButton || !dataset) {
+        return;
+      }
+      datasetSelectorButton.textContent = dataset.label;
+    };
+
+    const closeDatasetMenu = function () {
+      if (!datasetSelector) {
+        return;
+      }
+      datasetSelector.classList.remove('open');
+      datasetMenuOpen = false;
+      if (datasetSelectorButton) {
+        datasetSelectorButton.setAttribute('aria-expanded', 'false');
+      }
+    };
+
+    const openDatasetMenu = function () {
+      if (!datasetSelector) {
+        return;
+      }
+      datasetSelector.classList.add('open');
+      datasetMenuOpen = true;
+      if (datasetSelectorButton) {
+        datasetSelectorButton.setAttribute('aria-expanded', 'true');
+      }
+    };
+
+    const toggleDatasetMenu = function () {
+      if (datasetMenuOpen) {
+        closeDatasetMenu();
+      } else {
+        openDatasetMenu();
+      }
+    };
+
+    const onDatasetOptionClick = function (datasetId) {
+      closeDatasetMenu();
+      if (datasetId === activeDatasetId) {
+        return;
+      }
+      activeDatasetId = datasetId;
+      const dataset = getDatasetById(datasetId);
+      activeDatasetConfig = dataset;
+      setDatasetButtonLabel(dataset);
+      loadDataForDataset(datasetId);
+    };
+
+    const buildDatasetOptions = function () {
+      if (!datasetOptionsList) {
+        return;
+      }
+      datasetOptionsList.innerHTML = '';
+      DATASETS.forEach(function (dataset) {
+        const item = document.createElement('li');
+        const optionButton = document.createElement('button');
+        optionButton.type = 'button';
+        optionButton.className = 'selector-option';
+        optionButton.textContent = dataset.label;
+        optionButton.setAttribute('role', 'option');
+        optionButton.addEventListener('click', function () {
+          onDatasetOptionClick(dataset.id);
+        });
+        item.appendChild(optionButton);
+        datasetOptionsList.appendChild(item);
+      });
+    };
+
+    const initializeDatasetSelector = function () {
+      if (!datasetSelectorButton || !datasetOptionsList) {
+        return;
+      }
+      setDatasetButtonLabel(getDatasetById(activeDatasetId));
+      buildDatasetOptions();
+      datasetSelectorButton.addEventListener('click', function () {
+        toggleDatasetMenu();
+      });
+    };
+
+    document.addEventListener('click', function (event) {
+      if (!datasetSelector || !datasetMenuOpen) {
+        return;
+      }
+      if (!datasetSelector.contains(event.target)) {
+        closeDatasetMenu();
+      }
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && datasetMenuOpen) {
+        closeDatasetMenu();
+      }
+    });
+
+    const setDebugMode = function (enabled) {
+      debugMode = Boolean(enabled);
+      if (bodyElement) {
+        bodyElement.classList.toggle('debug-mode', debugMode);
+      }
+    };
+
+    const layoutVizGrid = function () {
+      if (!vizGrid || !container1) {
+        return;
       }
 
-      const text = await response.text();
-      const parsedResponse = parseGoogleSheetResponse(text);
-      cachedRows = parseSheetTable(parsedResponse && parsedResponse.table);
-      datasetCache[dataset.id] = cachedRows;
-    }
+      const legendVisible = Boolean(SHOW_LEGEND_CONTAINER && legendContent && legendContent.childElementCount);
+      const metaVisible = Boolean(SHOW_SOURCE_CONTAINER || SHOW_LOGO_CONTAINER);
 
-    data.splice(0, data.length, ...(cachedRows || []));
-    sheetState = { status: 'ready', message: '' };
-    renderVisualizationForContainer();
-  } catch (error) {
-    console.error('Error loading sheet data', error);
-    sheetState = {
-      status: 'error',
-      message: 'Unable to load data from the Google Sheet.'
+      if (vizGrid) {
+        vizGrid.classList.toggle('title-hidden', !titleVisible);
+        vizGrid.classList.toggle('legend-hidden', !legendVisible);
+        vizGrid.classList.toggle('meta-hidden', !metaVisible);
+      }
+
+      if (titleContainer) {
+        titleContainer.classList.toggle('is-hidden', !titleVisible);
+        titleContainer.setAttribute('aria-hidden', String(!titleVisible));
+        titleContainer.style.display = titleVisible ? 'flex' : 'none';
+        titleContainer.style.gridRow = '1';
+      }
+
+      if (refreshButton) {
+        refreshButton.style.display = showRefreshButton ? 'inline-flex' : 'none';
+      }
+
+      if (container2) {
+        if (legendVisible) {
+          container2.style.display = 'flex';
+          container2.style.gridRow = '2';
+        } else {
+          container2.style.display = 'none';
+        }
+      }
+
+      if (container1) {
+        container1.style.gridRow = '3';
+      }
+
+      if (metaVisible) {
+        if (container3) {
+          if (SHOW_SOURCE_CONTAINER) {
+            container3.style.display = 'flex';
+            container3.style.gridRow = '4';
+            container3.style.gridColumn = SHOW_LOGO_CONTAINER ? '1' : '1 / span 2';
+          } else {
+            container3.style.display = 'none';
+          }
+        }
+
+        if (container4) {
+          if (SHOW_LOGO_CONTAINER) {
+            container4.style.display = 'flex';
+            container4.style.gridRow = '4';
+            container4.style.gridColumn = SHOW_SOURCE_CONTAINER ? '2' : '1 / span 2';
+          } else {
+            container4.style.display = 'none';
+          }
+        }
+      } else {
+        if (container3) container3.style.display = 'none';
+        if (container4) container4.style.display = 'none';
+      }
     };
-    renderVisualizationForContainer();
-  } finally {
+
+    setDebugMode(false);
+    layoutVizGrid();
     setRefreshButtonState(false);
-  }
-}
 
-if (refreshButton) {
-  refreshButton.addEventListener('click', function() {
-    loadDataForDataset(activeDatasetId, { force: true });
-  });
-}
+    const renderLegendContent = function (dataset, colorScale, keyResolver) {
+      if (!legendContent) {
+        layoutVizGrid();
+        return;
+      }
 
-initializeDatasetSelector();
-renderVisualizationForContainer();
-loadDataForDataset(activeDatasetId);
-</script>
+      legendContent.innerHTML = '';
+
+      if (!SHOW_LEGEND_CONTAINER || !dataset || !dataset.length) {
+        layoutVizGrid();
+        return;
+      }
+
+      const seen = new Set();
+      dataset.forEach(function (entry) {
+        if (!entry) {
+          return;
+        }
+        const key = keyResolver ? keyResolver(entry) : entry.id;
+        if (!key || seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+        const legendItem = document.createElement('div');
+        legendItem.className = 'legend-item';
+
+        const swatch = document.createElement('span');
+        swatch.className = 'legend-swatch';
+        const fillColor = entry.color && String(entry.color).trim();
+        const computedColor = fillColor || (colorScale ? colorScale(key) : '#666');
+        swatch.style.background = computedColor;
+
+        const label = document.createElement('span');
+        label.textContent = key;
+
+        legendItem.appendChild(swatch);
+        legendItem.appendChild(label);
+        legendContent.appendChild(legendItem);
+      });
+
+      layoutVizGrid();
+    };
+
+    const clearVizContainer = function () {
+      if (!vizContainer) {
+        return;
+      }
+      while (vizContainer.firstChild) {
+        vizContainer.removeChild(vizContainer.firstChild);
+      }
+    };
+
+    const showVizMessage = function (message) {
+      if (!vizContainer) {
+        return;
+      }
+      const placeholder = document.createElement('div');
+      placeholder.className = 'viz-placeholder';
+      placeholder.textContent = message;
+      vizContainer.appendChild(placeholder);
+    };
+
+    const renderVisualization = function (currentData, width, height) {
+      if (!vizContainer) {
+        return;
+      }
+
+      clearVizContainer();
+      hideTooltip();
+
+      if (sheetState.status !== 'ready') {
+        showVizMessage(sheetState.message || 'Loading data...');
+        renderLegendContent([], null);
+        return;
+      }
+
+      if (!currentData || !currentData.length) {
+        showVizMessage('No data available.');
+        renderLegendContent([], null);
+        return;
+      }
+
+      const numericData = currentData.filter(function (item) {
+        return typeof item.value === 'number' && !Number.isNaN(item.value);
+      });
+
+      if (!numericData.length) {
+        showVizMessage('No numeric values available to chart.');
+        renderLegendContent([], null);
+        return;
+      }
+
+      const datasetConfig = activeDatasetConfig || getDatasetById(activeDatasetId);
+      const useGrouping = !datasetConfig || datasetConfig.grouped !== false;
+      const useParentLegend = Boolean(datasetConfig && datasetConfig.legendKey === 'parent');
+      const useDisplayTooltip = Boolean(datasetConfig && datasetConfig.tooltipField === 'display');
+      const identifiers = Array.from(new Set(numericData.map(function (item) {
+        return item.id;
+      })));
+      const legendKeyForEntry = function (entry) {
+        if (!entry) {
+          return '';
+        }
+        if (useParentLegend && entry.parent) {
+          return String(entry.parent);
+        }
+        return entry.id;
+      };
+      const legendKeys = Array.from(new Set(numericData.map(legendKeyForEntry)));
+      const getTooltipContent = function (entry) {
+        if (useDisplayTooltip && entry && entry.display) {
+          return entry.display;
+        }
+        return entry && entry.id ? entry.id : '';
+      };
+
+      const margin = { top: 24, right: 32, bottom: 40, left: 64 };
+      const chartWidth = Math.max(width - margin.left - margin.right, 0);
+      const chartHeight = Math.max(height - margin.top - margin.bottom, 0);
+
+      if (!chartWidth || !chartHeight) {
+        showVizMessage('Not enough space to render the chart.');
+        renderLegendContent([], null);
+        return;
+      }
+
+      const svg = d3.select(vizContainer)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+      const chartArea = svg.append('g')
+        .attr('transform', `translate(${margin.left}, ${margin.top})`);
+
+      const groups = useGrouping
+        ? Array.from(new Set(numericData.map(function (item) {
+          return item.group || 'Ungrouped';
+        })))
+        : identifiers;
+
+      const x0 = d3.scaleBand()
+        .domain(groups)
+        .range([0, chartWidth])
+        .paddingInner(0.2)
+        .paddingOuter(0.05);
+
+      const y = d3.scaleLinear()
+        .domain([0, d3.max(numericData, function (d) { return d.value; }) || 0])
+        .nice()
+        .range([chartHeight, 0]);
+
+      const gridLines = d3.axisLeft(y)
+        .tickSize(-chartWidth)
+        .tickFormat('');
+
+      const gridGroup = chartArea.append('g')
+        .attr('class', 'grid-lines')
+        .call(gridLines);
+
+      gridGroup.selectAll('line')
+        .attr('stroke', 'rgba(0, 0, 0, 0.1)')
+        .attr('stroke-dasharray', '2,4');
+      gridGroup.select('.domain').remove();
+
+      const xAxis = d3.axisBottom(x0);
+      const yAxis = d3.axisLeft(y)
+        .ticks(Math.max(3, Math.min(8, Math.floor(chartHeight / 40))))
+        .tickFormat(d3.format('~s'));
+
+      const xAxisGroup = chartArea.append('g')
+        .attr('class', 'x-axis')
+        .attr('transform', `translate(0, ${chartHeight})`)
+        .call(xAxis);
+
+      xAxisGroup.selectAll('text')
+        .attr('fill', '#111111')
+        .style('font-size', '12px');
+
+      const yAxisGroup = chartArea.append('g')
+        .attr('class', 'y-axis')
+        .call(yAxis);
+
+      yAxisGroup.selectAll('text')
+        .attr('fill', '#111111')
+        .style('font-size', '12px');
+
+      chartArea.selectAll('.x-axis path, .x-axis line, .y-axis path, .y-axis line')
+        .attr('stroke', 'rgba(0, 0, 0, 0.3)');
+
+      const defaultColors = d3.schemeTableau10 || ['#4a90e2', '#e74c3c', '#f39c12', '#16a085', '#8e44ad', '#2c3e50', '#1abc9c', '#d35400', '#7f8c8d', '#9b59b6'];
+      const colorScale = d3.scaleOrdinal()
+        .domain(legendKeys)
+        .range(defaultColors);
+
+      const formatValue = d3.format(',');
+
+      const getBarColor = function (entry) {
+        const customColor = entry.color && String(entry.color).trim();
+        const legendKey = legendKeyForEntry(entry);
+        return customColor || colorScale(legendKey);
+      };
+
+      const nestedData = useGrouping
+        ? d3.nest()
+          .key(function (item) { return item.group || 'Ungrouped'; })
+          .entries(numericData)
+        : groups.map(function (id) {
+          return {
+            key: id,
+            values: numericData.filter(function (entry) {
+              return entry.id === id;
+            })
+          };
+        });
+
+      const innerBandWidth = Math.max(x0.bandwidth(), 0);
+      const groupInnerScales = {};
+      nestedData.forEach(function (groupEntry) {
+        const domain = Array.from(new Set(groupEntry.values.map(function (valueEntry) {
+          return valueEntry.id;
+        })));
+        groupInnerScales[groupEntry.key] = d3.scaleBand()
+          .domain(domain)
+          .range([0, innerBandWidth])
+          .padding(0.12);
+      });
+
+      const fallbackInnerScale = d3.scaleBand()
+        .domain(['value'])
+        .range([0, innerBandWidth])
+        .padding(0.12);
+
+      const getGroupScale = function (groupKey) {
+        return groupInnerScales[groupKey] || fallbackInnerScale;
+      };
+
+      const barWidthFor = function (entry) {
+        const scale = getGroupScale(entry.__groupKey || entry.group || 'Ungrouped');
+        return Math.max(scale.bandwidth(), 1);
+      };
+
+      const groupSelection = chartArea.selectAll('.group')
+        .data(nestedData)
+        .enter()
+        .append('g')
+        .attr('class', 'group')
+        .attr('transform', function (d) {
+          return `translate(${x0(d.key)}, 0)`;
+        });
+
+      const bars = groupSelection.selectAll('.bar')
+        .data(function (groupEntry) {
+          return groupEntry.values.map(function (valueEntry) {
+            return Object.assign({}, valueEntry, { __groupKey: groupEntry.key });
+          });
+        })
+        .enter()
+        .append('g')
+        .attr('class', 'bar')
+        .attr('transform', function (d) {
+          const scale = getGroupScale(d.__groupKey || d.group || 'Ungrouped');
+          const xPosition = scale(d.id);
+          const safeX = typeof xPosition === 'number' && Number.isFinite(xPosition) ? xPosition : 0;
+          return `translate(${safeX}, 0)`;
+        });
+
+      const rects = bars.append('rect')
+        .attr('x', 0)
+        .attr('y', function (d) { return y(d.value); })
+        .attr('width', function (d) { return barWidthFor(d); })
+        .attr('height', function (d) { return chartHeight - y(d.value); })
+        .attr('fill', function (d) {
+          return getBarColor(d);
+        })
+        .attr('opacity', 0.95);
+
+      rects
+        .on('mouseenter', function (d) {
+          showTooltip(getTooltipContent(d));
+          moveTooltip(d3.event);
+        })
+        .on('mousemove', function () {
+          moveTooltip(d3.event);
+        })
+        .on('mouseleave', function () {
+          hideTooltip();
+        });
+
+      const getLabelFontSize = function (widthValue) {
+        const base = Math.max(widthValue * 0.45, 9);
+        return Math.min(base, 22);
+      };
+
+      bars.append('text')
+        .attr('x', function (d) { return barWidthFor(d) / 2; })
+        .attr('y', function (d) {
+          const topY = y(d.value);
+          return Math.max(topY - 6, 6);
+        })
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'baseline')
+        .attr('font-weight', '600')
+        .attr('font-size', function (d) {
+          return `${getLabelFontSize(barWidthFor(d))}px`;
+        })
+        .attr('fill', '#111111')
+        .text(function (d) {
+          return formatValue(d.value);
+        })
+        .style('pointer-events', 'none');
+
+      renderLegendContent(numericData, colorScale, legendKeyForEntry);
+    };
+
+    const renderVisualizationForContainer = function () {
+      if (!vizContainer) {
+        return;
+      }
+      const rect = vizContainer.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+
+      if (!width || !height) {
+        return;
+      }
+
+      renderVisualization(data, width, height);
+    };
+
+    let resizeTimer;
+
+    window.addEventListener('resize', function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(renderVisualizationForContainer, 120);
+    });
+
+    if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+      const resizeObserver = new ResizeObserver(function () {
+        renderVisualizationForContainer();
+      });
+      resizeObserver.observe(vizContainer);
+    }
+
+    document.addEventListener('keydown', function (event) {
+      if (!event.key || event.metaKey || event.ctrlKey || event.altKey) {
+        return;
+      }
+      if (event.target && (['INPUT', 'TEXTAREA'].includes(event.target.tagName) || event.target.isContentEditable)) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      if (key === 't') {
+        titleVisible = !titleVisible;
+        layoutVizGrid();
+        renderVisualizationForContainer();
+      } else if (key === 'd') {
+        setDebugMode(!debugMode);
+      }
+    });
+
+    const getCellValue = function (cells, index) {
+      if (typeof index !== 'number' || !cells || !cells[index]) {
+        return null;
+      }
+      const cell = cells[index];
+      return cell && typeof cell.v !== 'undefined' && cell.v !== null ? cell.v : null;
+    };
+
+    const parseSheetTable = function (table) {
+      if (!table) {
+        return [];
+      }
+
+      const columnIndex = {};
+      (table.cols || []).forEach(function (col, idx) {
+        if (col && col.label) {
+          columnIndex[col.label.trim().toLowerCase()] = idx;
+        }
+      });
+
+      return (table.rows || []).map(function (row) {
+        const cells = row.c || [];
+        const rawId = getCellValue(cells, columnIndex.id);
+        const rawDisplay = getCellValue(cells, columnIndex.display);
+        const rawParent = getCellValue(cells, columnIndex.parent);
+        const rawGroup = getCellValue(cells, columnIndex.group);
+        const rawColor = getCellValue(cells, columnIndex.color);
+        const rawValue = getCellValue(cells, columnIndex.value);
+
+        const numericValue = typeof rawValue === 'number' ? rawValue : parseFloat(rawValue);
+
+        if (!rawId || Number.isNaN(numericValue)) {
+          return null;
+        }
+
+        return {
+          id: String(rawId),
+          value: numericValue,
+          color: rawColor ? String(rawColor) : null,
+          group: rawGroup ? String(rawGroup) : 'Ungrouped',
+          parent: rawParent ? String(rawParent) : null,
+          display: rawDisplay ? String(rawDisplay) : String(rawId)
+        };
+      }).filter(Boolean);
+    };
+
+    const parseGoogleSheetResponse = function (text) {
+      const jsonString = text.replace(/^[^\(]+\(/, '').replace(/\);?\s*$/, '');
+      return JSON.parse(jsonString);
+    };
+
+    const buildSheetUrl = function (dataset) {
+      if (dataset && dataset.sheet) {
+        return `${GOOGLE_SHEET_BASE_URL}&sheet=${encodeURIComponent(dataset.sheet)}`;
+      }
+      return GOOGLE_SHEET_BASE_URL;
+    };
+
+    async function loadDataForDataset(datasetId, options = {}) {
+      const dataset = getDatasetById(datasetId);
+      activeDatasetConfig = dataset;
+      const forceReload = Boolean(options.force);
+      try {
+        sheetState = { status: 'loading', message: 'Loading data...' };
+        renderVisualizationForContainer();
+        setRefreshButtonState(true);
+
+        let cachedRows = datasetCache[dataset.id];
+        if (!cachedRows || forceReload) {
+          const response = await fetch(buildSheetUrl(dataset));
+          if (!response.ok) {
+            throw new Error('Network response was not ok');
+          }
+
+          const text = await response.text();
+          const parsedResponse = parseGoogleSheetResponse(text);
+          cachedRows = parseSheetTable(parsedResponse && parsedResponse.table);
+          datasetCache[dataset.id] = cachedRows;
+        }
+
+        data.splice(0, data.length, ...(cachedRows || []));
+        sheetState = { status: 'ready', message: '' };
+        renderVisualizationForContainer();
+      } catch (error) {
+        console.error('Error loading sheet data', error);
+        sheetState = {
+          status: 'error',
+          message: 'Unable to load data from the Google Sheet.'
+        };
+        renderVisualizationForContainer();
+      } finally {
+        setRefreshButtonState(false);
+      }
+    }
+
+    if (refreshButton) {
+      refreshButton.addEventListener('click', function () {
+        loadDataForDataset(activeDatasetId, { force: true });
+      });
+    }
+
+    initializeDatasetSelector();
+    renderVisualizationForContainer();
+    loadDataForDataset(activeDatasetId);
+  </script>
 </body>
+
 </html>
-.viz-tooltip {
-  position: fixed;
-  pointer-events: none;
-  background: rgba(14, 28, 54, 0.9);
-  color: #ffffff;
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  max-width: clamp(160px, 32vw, 320px);
-  white-space: pre-line;
-  opacity: 0;
-  transform: translate(-50%, -8px);
-  transition: opacity 0.15s ease;
-  z-index: 2000;
-}
