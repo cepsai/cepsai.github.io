@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="utf-8">
-  <title>AI Task Rankings — Bump Chart</title>
+  <title>Bump Chart</title>
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
     body {
@@ -56,7 +56,7 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      font-size: clamp(10px, 1.6vw, 16px);
+      font-size: clamp(8px, 1.6vw, 16px);
     }
 
     #container3 {
@@ -173,7 +173,7 @@
       border-radius: clamp(6px, 1vw, 12px);
       max-width: 100%;
       max-height: 100%;
-      font-size: clamp(0.75rem, 1.4vw, 1rem);
+      font-size: clamp(0.625rem, 1.4vw, 1rem);
     }
 
     .legend-item {
@@ -205,7 +205,7 @@
     }
 
     .series-label {
-      font-size: clamp(9px, 1vw, 14px);
+      font-size: clamp(7px, 1vw, 14px);
       font-weight: 400;
       fill: #111;
       pointer-events: auto;
@@ -214,7 +214,7 @@
 
     #viz.density-top25 .series-label,
     #viz.density-top50 .series-label {
-      font-size: clamp(7px, 0.85vw, 11px);
+      font-size: clamp(5px, 0.85vw, 11px);
     }
 
     .series-line {
@@ -245,7 +245,7 @@
     }
 
     .source-text {
-      font-size: clamp(10px, 1.6vw, 16px);
+      font-size: clamp(8px, 1.6vw, 16px);
       font-weight: 600;
       color: #333;
       white-space: nowrap;
@@ -282,7 +282,7 @@
     }
 
     .tick text {
-      font-size: clamp(12px, 1.2vw, 18px);
+      font-size: clamp(8px, 1.2vw, 18px);
       font-weight: 600;
     }
 
@@ -302,6 +302,24 @@
       #container3,
       #container4 {
         display: none !important;
+      }
+
+      #viz {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+      }
+
+      .axis--y,
+      .axis--x {
+        display: none;
+      }
+
+      .grid-lines {
+        display: none;
+      }
+
+      .series-label {
+        display: none;
       }
     }
   </style>
@@ -338,6 +356,10 @@
         <button type="button" class="selector-button" data-mode="top25">Top 25</button>
         <button type="button" class="selector-button" data-mode="top50">Top 50</button>
       </div>
+      <a href="https://huggingface.co/" target="_blank" rel="noopener">
+        <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="Hugging Face logo" />
+      </a>
+      ×
       <a href="https://aiworld.eu/" target="_blank" rel="noopener">
         <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" />
       </a>
@@ -364,7 +386,6 @@
     let selectedParent = null;
     let parentIndexMap = new Map();
 
-    // URL query parameter handling
     function getQueryParams() {
       const params = new URLSearchParams(window.location.search);
       return {
@@ -375,8 +396,6 @@
 
     function updateURL(params = {}) {
       const url = new URL(window.location);
-
-      // Update top parameter
       if (params.top !== undefined) {
         if (params.top && params.top !== DEFAULT_LIMIT_MODE) {
           url.searchParams.set('top', params.top);
@@ -385,7 +404,6 @@
         }
       }
 
-      // Update parent parameter
       if (params.parent !== undefined) {
         if (params.parent !== null && params.parent !== '') {
           url.searchParams.set('parent', params.parent);
@@ -419,12 +437,12 @@
 
     function getAxisFontSize() {
       if (currentLimitMode === 'top25') {
-        return 'clamp(10px, 1vw, 14px)';
+        return 'clamp(7px, 1vw, 14px)';
       }
       if (currentLimitMode === 'top50') {
-        return 'clamp(9px, 0.9vw, 12px)';
+        return 'clamp(6px, 0.9vw, 12px)';
       }
-      return 'clamp(12px, 1.2vw, 18px)';
+      return 'clamp(8px, 1.2vw, 18px)';
     }
 
     function getLineWidth() {
@@ -668,7 +686,10 @@
       const containerHeight = vizContainer ? vizContainer.clientHeight : 520;
       const width = containerWidth || 800;
       const height = (containerHeight > 0 ? containerHeight : 520);
-      const margin = { top: 32, right: 16, bottom: 48, left: 56 };
+      const isSmallHeight = window.innerHeight < 500;
+      const margin = isSmallHeight
+        ? { top: 8, right: 8, bottom: 8, left: 8 }
+        : { top: 32, right: 16, bottom: 48, left: 56 };
 
       svg.attr('viewBox', `0 0 ${width} ${height}`)
         .attr('width', width)
@@ -935,7 +956,6 @@
         selectedLabel = null;
         selectedParent = null;
 
-        // Initialize from URL query parameters
         const queryParams = getQueryParams();
         if (queryParams.top && LIMIT_MODES[queryParams.top]) {
           currentLimitMode = queryParams.top;
@@ -944,7 +964,6 @@
         updateSelectorButtons();
         updateVisualization();
 
-        // Apply parent selection from URL after visualization is built
         if (queryParams.parent !== null && queryParams.parent !== '') {
           const parentName = getParentByIndex(queryParams.parent);
           if (parentName) {
