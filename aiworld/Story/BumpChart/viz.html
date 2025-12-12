@@ -1,0 +1,939 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>AI Task Rankings — Bump Chart</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #ffffff;
+      color: #111;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+      height: 100vh;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 17fr 2fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding-bottom: clamp(8px, 2vh, 18px);
+    }
+
+    #container1 {
+      grid-row: 1;
+      grid-column: 1 / span 2;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+      column-gap: 0;
+    }
+
+    #container1 .chart-wrapper {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+      margin-left: 0;
+    }
+
+    #container1 .chart-wrapper-inner {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+    }
+
+    #container2 {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      font-size: clamp(10px, 1.6vw, 16px);
+    }
+
+    #container3 {
+      grid-row: 3;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #container4 {
+      grid-row: 3;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #container4 a {
+      height: 100%;
+      display: flex;
+      align-items: center;
+    }
+
+    .selector-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(4px, 1vw, 10px);
+      padding: 4px;
+      border-radius: 999px;
+      border: 1px solid rgba(17, 24, 39, 0.15);
+      background: #f8fafc;
+      margin-right: clamp(12px, 2vw, 20px);
+    }
+
+    .selector-button {
+      border: none;
+      background: transparent;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: clamp(10px, 1.6vw, 14px);
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    .selector-button.active {
+      background: #0f172a;
+      color: #fff;
+    }
+
+    #viz {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: clamp(8px, 1vw, 12px) clamp(12px, 2vw, 24px) 0 clamp(12px, 2vw, 24px);
+      box-sizing: border-box;
+    }
+
+    .chart-body {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    #chart {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #tooltip {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #d9d9df;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      transition: opacity 0.12s ease;
+    }
+
+    .custom-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(6px, 1vw, 14px);
+      background: rgba(255, 255, 255, 1);
+      padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+      border-radius: clamp(6px, 1vw, 12px);
+      max-width: 100%;
+      max-height: 100%;
+      font-size: clamp(0.75rem, 1.4vw, 1rem);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: clamp(4px, 1vw, 8px);
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+      font-weight: 600;
+      color: #333;
+      font-size: inherit;
+      padding: 2px 6px;
+    }
+
+    .legend-item.dim {
+      opacity: 0.35;
+    }
+
+    .legend-item:focus-visible {
+      outline: 2px solid rgba(0, 0, 0, 0.5);
+      outline-offset: 2px;
+    }
+
+    .legend-square {
+      width: clamp(8px, 0.9vw, 12px);
+      height: clamp(8px, 0.9vw, 12px);
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .series-label {
+      font-size: clamp(9px, 1vw, 14px);
+      font-weight: 400;
+      fill: #111;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+    #viz.density-top25 .series-label,
+    #viz.density-top50 .series-label {
+      font-size: clamp(7px, 0.85vw, 11px);
+    }
+
+    .series-line {
+      fill: none;
+      stroke-width: var(--lineWidth, 3.4);
+      opacity: 0.9;
+      transition: opacity 0.2s ease, stroke-width 0.2s ease;
+      cursor: pointer;
+    }
+
+    .series-point {
+      stroke: #fff;
+      stroke-width: 1.5;
+      cursor: pointer;
+      transition: r 0.2s ease;
+    }
+
+    .series.dim .series-line,
+    .series.dim .series-point,
+    .series.dim .series-label {
+      opacity: 0.15;
+    }
+
+    .series.highlighted .series-line {
+      stroke-width: calc(var(--lineWidth, 3.4) * 1.3);
+      opacity: 1;
+      filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.2));
+    }
+
+    .source-text {
+      font-size: clamp(10px, 1.6vw, 16px);
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      font-style: normal;
+    }
+
+    .source-text a {
+      color: #2756d3;
+      text-decoration: underline;
+      cursor: pointer;
+      font-style: normal;
+    }
+
+    .source-text a:visited {
+      color: #2756d3;
+    }
+
+    .logo {
+      height: 100%;
+      width: auto;
+      max-height: 100%;
+      max-width: 100%;
+      pointer-events: auto;
+      object-fit: contain;
+    }
+
+    .axis path,
+    .axis line {
+      stroke: #cfd2d7;
+    }
+
+    .tick text {
+      font-size: clamp(12px, 1.2vw, 18px);
+      font-weight: 600;
+    }
+
+    @media (max-height: 500px) {
+      .viz-grid {
+        grid-template-rows: 1fr;
+        grid-template-columns: 1fr;
+        padding-bottom: 0;
+      }
+
+      #container1 {
+        grid-row: 1;
+        grid-column: 1;
+      }
+
+      #container2,
+      #container3,
+      #container4 {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="viz-grid">
+    <div id="container1">
+      <div class="chart-wrapper">
+        <div class="chart-wrapper-inner">
+          <div id="viz">
+            <div class="chart-body">
+              <svg id="chart" role="img" aria-label="AI task ranking bump chart"></svg>
+              <div id="tooltip"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="container2">
+      <div id="legend" class="custom-legend"></div>
+    </div>
+    <div id="container3">
+      <div class="source-text">
+        Source:
+        <a href="https://huggingface.co/" target="_blank" rel="noopener">
+          Hugging Face
+        </a>
+      </div>
+    </div>
+    <div id="container4">
+      <div class="selector-group" role="group" aria-label="Select number of labels">
+        <button type="button" class="selector-button active" data-mode="top10">Top 10</button>
+        <button type="button" class="selector-button" data-mode="top25">Top 25</button>
+        <button type="button" class="selector-button" data-mode="top50">Top 50</button>
+      </div>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" />
+      </a>
+    </div>
+  </div>
+  <script>
+    const DATA_URL = 'data.csv';
+    const LIMIT_MODES = {
+      top10: 10,
+      top25: 25,
+      top50: 50
+    };
+    const DEFAULT_LIMIT_MODE = 'top10';
+
+    const svg = d3.select('#chart');
+    const tooltip = d3.select('#tooltip');
+    const legendContainer = d3.select('#legend');
+    const vizContainer = document.getElementById('viz');
+    const selectorButtons = Array.from(document.querySelectorAll('.selector-button'));
+    let preparedData = null;
+    let rawRows = [];
+    let currentLimitMode = DEFAULT_LIMIT_MODE;
+    let selectedLabel = null;
+    let selectedParent = null;
+
+    function sanitizeColumn(value) {
+      if (value === undefined || value === null) return null;
+      const trimmed = String(value).trim();
+      return trimmed || null;
+    }
+
+    function getCurrentLimit() {
+      const limit = LIMIT_MODES[currentLimitMode];
+      return Number.isFinite(limit) ? limit : Infinity;
+    }
+
+    function getAxisFontSize() {
+      if (currentLimitMode === 'top25') {
+        return 'clamp(10px, 1vw, 14px)';
+      }
+      if (currentLimitMode === 'top50') {
+        return 'clamp(9px, 0.9vw, 12px)';
+      }
+      return 'clamp(12px, 1.2vw, 18px)';
+    }
+
+    function getLineWidth() {
+      if (currentLimitMode === 'top25') {
+        return 2.6;
+      }
+      if (currentLimitMode === 'top50') {
+        return 2.2;
+      }
+      return 3.4;
+    }
+
+    function getPointRadius() {
+      if (currentLimitMode === 'top25') {
+        return 5.2;
+      }
+      if (currentLimitMode === 'top50') {
+        return 4.3;
+      }
+      return 7;
+    }
+
+    function updateVizDensityClass() {
+      if (!vizContainer) return;
+      vizContainer.classList.remove('density-top10', 'density-top25', 'density-top50');
+      const modeClass = currentLimitMode ? `density-${currentLimitMode}` : null;
+      if (modeClass) {
+        vizContainer.classList.add(modeClass);
+      }
+    }
+
+    function updateSelectorButtons() {
+      selectorButtons.forEach(button => {
+        const mode = button.getAttribute('data-mode');
+        button.classList.toggle('active', mode === currentLimitMode);
+      });
+    }
+
+    function buildColorPalette() {
+      const paletteSources = [
+        d3.schemeTableau10,
+        d3.schemeSet3,
+        d3.schemeSet2,
+        d3.schemeSet1,
+        d3.schemePaired,
+        d3.schemeAccent,
+        d3.schemeCategory10
+      ];
+      const merged = [];
+      paletteSources.forEach(source => {
+        if (!Array.isArray(source)) return;
+        if (source.every(item => typeof item === 'string')) {
+          merged.push(...source);
+        } else {
+          source.forEach(entry => {
+            if (Array.isArray(entry)) merged.push(...entry);
+          });
+        }
+      });
+      if (!merged.length) {
+        merged.push('#2756d3', '#22c55e', '#f97316', '#eab308', '#a855f7', '#0ea5e9');
+      }
+      return merged;
+    }
+
+    function prepareBumpData(rows, limit = Infinity) {
+      const parsed = rows
+        .map(row => {
+          const yearRaw = sanitizeColumn(row.year);
+          const label = sanitizeColumn(row.label);
+          const parent = sanitizeColumn(row.parent);
+          const value = row.count ? +row.count : NaN;
+          const color = sanitizeColumn(row.color);
+          const yearValue = yearRaw ? +yearRaw : NaN;
+          return {
+            year: yearRaw,
+            yearValue: Number.isFinite(yearValue) ? yearValue : null,
+            label,
+            parent,
+            value: Number.isFinite(value) ? value : null,
+            color
+          };
+        })
+        .filter(d => d.year && d.label && Number.isFinite(d.yearValue) && Number.isFinite(d.value));
+
+      if (!parsed.length) {
+        return null;
+      }
+
+      const yearValues = Array.from(new Set(parsed.map(d => d.yearValue))).sort((a, b) => a - b);
+      const yearLabelMap = new Map();
+      parsed.forEach(row => {
+        if (!yearLabelMap.has(row.yearValue)) {
+          yearLabelMap.set(row.yearValue, row.year);
+        }
+      });
+
+      const labelColorCandidates = new Map();
+      const labelParentMap = new Map();
+      const labelYearMap = new Map();
+
+      parsed.forEach(row => {
+        if (!row.label) {
+          return;
+        }
+        if (!labelColorCandidates.has(row.label) && row.color) {
+          labelColorCandidates.set(row.label, row.color);
+        }
+        if (row.parent && !labelParentMap.has(row.label)) {
+          labelParentMap.set(row.label, row.parent);
+        }
+        if (!labelYearMap.has(row.label)) {
+          labelYearMap.set(row.label, new Map());
+        }
+        const yearMap = labelYearMap.get(row.label);
+        yearMap.set(row.yearValue, (yearMap.get(row.yearValue) || 0) + row.value);
+      });
+
+      const latestYear = d3.max(yearValues);
+      const labelMetrics = Array.from(labelYearMap.entries()).map(([label, yearMap]) => {
+        const latestValue = yearMap.get(latestYear) || 0;
+        const total = Array.from(yearMap.values()).reduce((sum, v) => sum + v, 0);
+        return { label, latestValue, total };
+      });
+
+      labelMetrics.sort((a, b) => {
+        if (b.latestValue === a.latestValue) {
+          if (b.total === a.total) {
+            return a.label.localeCompare(b.label);
+          }
+          return b.total - a.total;
+        }
+        return b.latestValue - a.latestValue;
+      });
+
+      const limitCount = Number.isFinite(limit) ? limit : labelMetrics.length;
+      const topLabels = labelMetrics.slice(0, limitCount);
+      const palette = buildColorPalette();
+      const colorScale = d3.scaleOrdinal()
+        .domain(topLabels.map(d => d.label))
+        .range(palette);
+
+      const rankingByYear = new Map();
+      yearValues.forEach(yearValue => {
+        const ranking = topLabels.map(d => {
+          const count = (labelYearMap.get(d.label)?.get(yearValue)) || 0;
+          return {
+            label: d.label,
+            value: count
+          };
+        }).sort((a, b) => {
+          if (b.value === a.value) {
+            return a.label.localeCompare(b.label);
+          }
+          return b.value - a.value;
+        });
+        ranking.forEach((entry, index) => {
+          entry.rank = index + 1;
+        });
+        rankingByYear.set(yearValue, new Map(ranking.map(entry => [entry.label, entry.rank])));
+      });
+
+      const series = topLabels.map(item => {
+        const labelName = item.label;
+        const color = labelColorCandidates.get(labelName) || colorScale(labelName);
+        const parentName = labelParentMap.get(labelName) || null;
+        const values = yearValues.map(yearValue => ({
+          label: labelName,
+          parent: parentName,
+          yearValue,
+          year: yearLabelMap.get(yearValue) || String(yearValue),
+          value: (labelYearMap.get(labelName)?.get(yearValue)) || 0,
+          rank: rankingByYear.get(yearValue)?.get(labelName) ?? topLabels.length
+        }));
+        return { label: labelName, parent: parentName, color, values };
+      });
+
+      return {
+        series,
+        years: yearValues,
+        yearLabels: yearValues.map(yearValue => yearLabelMap.get(yearValue) || String(yearValue)),
+        maxRank: topLabels.length
+      };
+    }
+
+    function buildLegend(series) {
+      legendContainer.selectAll('*').remove();
+      const groups = d3.group(series, d => d.parent || 'Uncategorized');
+      const entries = Array.from(groups.entries()).map(([parent, groupSeries]) => ({
+        parent,
+        color: groupSeries[0]?.color || '#94a3b8',
+        labels: groupSeries.map(s => s.label)
+      }));
+
+      const legendItems = legendContainer.selectAll('.legend-item')
+        .data(entries, d => d.parent);
+
+      const legendEnter = legendItems.enter()
+        .append('div')
+        .attr('class', 'legend-item')
+        .attr('tabindex', 0)
+        .on('mouseenter', (_, d) => handleLegendHover(d.parent))
+        .on('mouseleave', handleLegendMouseLeave)
+        .on('focus', (_, d) => handleLegendHover(d.parent))
+        .on('blur', handleLegendMouseLeave)
+        .on('click', (event, d) => {
+          event.preventDefault();
+          toggleParentSelection(d.parent);
+        })
+        .on('keydown', (event, d) => {
+          if (event.key !== 'Enter' && event.key !== ' ') {
+            return;
+          }
+          event.preventDefault();
+          toggleParentSelection(d.parent);
+        });
+
+      legendEnter.append('div')
+        .attr('class', 'legend-square')
+        .style('background', d => d.color);
+
+      legendEnter.append('div')
+        .text(d => d.parent);
+
+      legendItems.exit().remove();
+    }
+
+    function drawChart(data) {
+      if (!data || !data.series.length) {
+        svg.selectAll('*').remove();
+        return;
+      }
+
+      const containerWidth = vizContainer ? vizContainer.clientWidth : 800;
+      const containerHeight = vizContainer ? vizContainer.clientHeight : 520;
+      const width = containerWidth || 800;
+      const height = (containerHeight > 0 ? containerHeight : 520);
+      const margin = { top: 32, right: 16, bottom: 48, left: 56 };
+
+      svg.attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('width', width)
+        .attr('height', height);
+
+      svg.selectAll('*').remove();
+
+      const xScale = d3.scalePoint()
+        .domain(data.yearLabels)
+        .range([margin.left, width - margin.right])
+        .padding(0.5);
+
+      const yScale = d3.scaleLinear()
+        .domain([data.maxRank + 0.5, 0.5])
+        .range([height - margin.bottom, margin.top]);
+
+      const lineGenerator = d3.line()
+        .x(d => xScale(d.year))
+        .y(d => yScale(d.rank))
+        .curve(d3.curveMonotoneX);
+
+      const yAxis = d3.axisLeft(yScale)
+        .ticks(data.maxRank)
+        .tickFormat(d => `Rank ${d}`);
+
+      const axisFontSize = getAxisFontSize();
+      const lineWidth = getLineWidth();
+      const pointRadius = getPointRadius();
+      const lineWidthPx = `${lineWidth}px`;
+
+      svg.append('g')
+        .attr('class', 'axis axis--y')
+        .attr('transform', `translate(${margin.left},0)`)
+        .call(d3.axisLeft(yScale)
+          .ticks(data.maxRank)
+          .tickFormat(d => d))
+        .selectAll('text')
+        .style('font-size', axisFontSize)
+        .style('font-weight', 600);
+
+      svg.append('g')
+        .attr('class', 'axis axis--x')
+        .attr('transform', `translate(0,${height - margin.bottom})`)
+        .call(d3.axisBottom(xScale))
+        .selectAll('text')
+        .style('font-weight', 700)
+        .style('font-size', axisFontSize);
+
+      svg.append('g')
+        .attr('class', 'grid-lines')
+        .selectAll('line')
+        .data(d3.range(1, data.maxRank + 1))
+        .enter()
+        .append('line')
+        .attr('x1', margin.left)
+        .attr('x2', width - margin.right)
+        .attr('y1', d => yScale(d))
+        .attr('y2', d => yScale(d))
+        .attr('stroke', 'rgba(15, 23, 42, 0.08)')
+        .attr('stroke-dasharray', '4,4');
+
+      const seriesGroup = svg.append('g')
+        .attr('class', 'series-group')
+        .selectAll('.series')
+        .data(data.series, d => d.label)
+        .enter()
+        .append('g')
+        .attr('class', 'series')
+        .attr('data-label', d => d.label);
+
+      seriesGroup.append('path')
+        .attr('class', 'series-line')
+        .attr('stroke', d => d.color)
+        .attr('d', d => lineGenerator(d.values))
+        .style('--lineWidth', lineWidthPx)
+        .on('mouseenter', (_, d) => handleLabelHover(d.label))
+        .on('mouseleave', handleLabelMouseLeave)
+        .on('click', (event, d) => {
+          event.stopPropagation();
+          toggleLabelSelection(d.label);
+        });
+
+      seriesGroup.selectAll('.series-point')
+        .data(d => d.values.map(value => ({ ...value, color: d.color })))
+        .enter()
+        .append('circle')
+        .attr('class', 'series-point')
+        .attr('r', pointRadius)
+        .attr('cx', d => xScale(d.year))
+        .attr('cy', d => yScale(d.rank))
+        .attr('fill', d => d.color)
+        .on('mouseenter', (event, d) => {
+          handleLabelHover(d.label);
+          tooltip
+            .style('opacity', 1)
+            .html(() => {
+              const parentLine = d.parent ? `Category: ${d.parent}<br/>` : '';
+              return `<strong>${d.label}</strong><br/>${parentLine}Year: ${d.year}<br/>Rank: ${d.rank}<br/>Models/Spaces: ${d3.format(',.0f')(d.value)}`;
+            });
+          moveTooltip(event);
+        })
+        .on('mousemove', moveTooltip)
+        .on('mouseleave', () => {
+          tooltip.style('opacity', 0);
+          handleLabelMouseLeave();
+        })
+        .on('click', (event, d) => {
+          event.stopPropagation();
+          toggleLabelSelection(d.label);
+        });
+
+      const firstYearLabel = data.yearLabels[0];
+      const lastYearLabel = data.yearLabels[data.yearLabels.length - 1];
+      const firstX = (xScale(firstYearLabel) || margin.left) - 12;
+      const lastX = (xScale(lastYearLabel) || (width - margin.right)) + 12;
+
+      const startLabels = seriesGroup.append('text')
+        .attr('class', 'series-label series-label-start')
+        .attr('x', firstX)
+        .attr('y', d => yScale(d.values[0].rank))
+        .attr('text-anchor', 'end')
+        .attr('dy', '0.35em')
+        .attr('fill', d => d.color)
+        .text(d => d.label);
+
+      const endLabels = seriesGroup.append('text')
+        .attr('class', 'series-label series-label-end')
+        .attr('x', lastX)
+        .attr('y', d => yScale(d.values[d.values.length - 1].rank))
+        .attr('text-anchor', 'start')
+        .attr('dy', '0.35em')
+        .attr('fill', d => d.color)
+        .text(d => d.label);
+
+      function attachLabelInteractions(selection) {
+        selection
+          .attr('role', 'button')
+          .attr('tabindex', 0)
+          .attr('data-label', d => d.label)
+          .style('pointer-events', 'auto')
+          .style('cursor', 'pointer')
+          .on('mouseenter', (_, d) => handleLabelHover(d.label))
+          .on('mouseleave', handleLabelMouseLeave)
+          .on('click', (event, d) => {
+            event.stopPropagation();
+            toggleLabelSelection(d.label);
+          })
+          .on('keydown', (event, d) => {
+            if (event.key !== 'Enter' && event.key !== ' ') {
+              return;
+            }
+            event.preventDefault();
+            toggleLabelSelection(d.label);
+          });
+      }
+
+      attachLabelInteractions(startLabels);
+      attachLabelInteractions(endLabels);
+
+      applyCurrentHighlight();
+    }
+
+    function moveTooltip(event) {
+      const tooltipNode = tooltip.node();
+      if (!tooltipNode) return;
+      const { pageX, pageY } = event;
+      const tooltipWidth = tooltipNode.offsetWidth || 160;
+      const offset = 16;
+      const left = (pageX + tooltipWidth + offset > window.innerWidth)
+        ? pageX - tooltipWidth - offset
+        : pageX + offset;
+      tooltip
+        .style('left', `${left}px`)
+        .style('top', `${pageY - 24}px`);
+    }
+
+    function highlightSeries(labelName) {
+      const seriesSelection = svg.selectAll('.series');
+      if (!labelName) {
+        seriesSelection.classed('highlighted', false).classed('dim', false);
+        legendContainer.selectAll('.legend-item').classed('dim', false);
+        return;
+      }
+      seriesSelection
+        .classed('highlighted', d => d.label === labelName)
+        .classed('dim', d => d.label !== labelName);
+      legendContainer.selectAll('.legend-item')
+        .classed('dim', d => d.labels && !d.labels.includes(labelName));
+    }
+
+    function applyCurrentHighlight() {
+      if (selectedLabel) {
+        highlightSeries(selectedLabel);
+        return;
+      }
+      if (selectedParent) {
+        highlightParentSeries(selectedParent);
+        return;
+      }
+      highlightSeries(null);
+    }
+
+    function toggleLabelSelection(labelName) {
+      if (!labelName) return;
+      if (selectedLabel === labelName) {
+        selectedLabel = null;
+        applyCurrentHighlight();
+      } else {
+        selectedLabel = labelName;
+        selectedParent = null;
+        highlightSeries(labelName);
+      }
+    }
+
+    function handleLabelHover(labelName) {
+      if (!labelName) return;
+      if ((selectedLabel && selectedLabel !== labelName) || selectedParent) {
+        return;
+      }
+      highlightSeries(labelName);
+    }
+
+    function handleLabelMouseLeave() {
+      applyCurrentHighlight();
+    }
+
+    function highlightParentSeries(parentName) {
+      const seriesSelection = svg.selectAll('.series');
+      seriesSelection
+        .classed('highlighted', d => (d.parent || 'Uncategorized') === parentName)
+        .classed('dim', d => (d.parent || 'Uncategorized') !== parentName);
+      legendContainer.selectAll('.legend-item')
+        .classed('dim', d => d.parent !== parentName);
+    }
+
+    function toggleParentSelection(parentName) {
+      if (!parentName) return;
+      if (selectedParent === parentName) {
+        selectedParent = null;
+      } else {
+        selectedParent = parentName;
+        selectedLabel = null;
+      }
+      applyCurrentHighlight();
+    }
+
+    function handleLegendHover(parentName) {
+      if (!parentName || selectedLabel || selectedParent) {
+        return;
+      }
+      highlightParentSeries(parentName);
+    }
+
+    function handleLegendMouseLeave() {
+      applyCurrentHighlight();
+    }
+
+    function loadData() {
+      d3.csv(DATA_URL).then(rows => {
+        rawRows = rows;
+        selectedLabel = null;
+        selectedParent = null;
+        updateSelectorButtons();
+        updateVisualization();
+      }).catch(err => {
+        console.error('Failed to load CSV', err);
+        svg.selectAll('*').remove();
+        legendContainer.text('Unable to load data');
+      });
+    }
+
+    function updateVisualization() {
+      if (!rawRows.length) {
+        svg.selectAll('*').remove();
+        legendContainer.text('No data available');
+        return;
+      }
+      preparedData = prepareBumpData(rawRows, getCurrentLimit());
+      if (!preparedData || !preparedData.series.length) {
+        console.error('Unable to prepare bump chart data');
+        svg.selectAll('*').remove();
+        legendContainer.text('No data available');
+        return;
+      }
+      if (selectedLabel && !preparedData.series.some(series => series.label === selectedLabel)) {
+        selectedLabel = null;
+      }
+      if (selectedParent) {
+        const hasParent = preparedData.series.some(series => {
+          const normalizedParent = series.parent || 'Uncategorized';
+          return normalizedParent === selectedParent;
+        });
+        if (!hasParent) {
+          selectedParent = null;
+        }
+      }
+      updateVizDensityClass();
+      buildLegend(preparedData.series);
+      drawChart(preparedData);
+    }
+
+    selectorButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const mode = button.getAttribute('data-mode');
+        if (!mode || mode === currentLimitMode) {
+          return;
+        }
+        currentLimitMode = mode;
+        selectedLabel = null;
+        selectedParent = null;
+        updateSelectorButtons();
+        updateVisualization();
+      });
+    });
+
+    window.addEventListener('resize', () => {
+      if (preparedData) {
+        drawChart(preparedData);
+      }
+    });
+
+    loadData();
+  </script>
+</body>
+
+</html>
