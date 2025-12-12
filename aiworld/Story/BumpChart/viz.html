@@ -353,6 +353,49 @@
     let currentLimitMode = DEFAULT_LIMIT_MODE;
     let selectedLabel = null;
     let selectedParent = null;
+    let parentIndexMap = new Map();
+
+    // URL query parameter handling
+    function getQueryParams() {
+      const params = new URLSearchParams(window.location.search);
+      return {
+        top: params.get('top'),
+        parent: params.get('parent')
+      };
+    }
+
+    function updateURL(params = {}) {
+      const url = new URL(window.location);
+
+      // Update top parameter
+      if (params.top !== undefined) {
+        if (params.top && params.top !== DEFAULT_LIMIT_MODE) {
+          url.searchParams.set('top', params.top);
+        } else {
+          url.searchParams.delete('top');
+        }
+      }
+
+      // Update parent parameter
+      if (params.parent !== undefined) {
+        if (params.parent !== null && params.parent !== '') {
+          url.searchParams.set('parent', params.parent);
+        } else {
+          url.searchParams.delete('parent');
+        }
+      }
+
+      window.history.replaceState({}, '', url);
+    }
+
+    function getParentIndex(parentName) {
+      return Array.from(parentIndexMap.entries())
+        .find(([key, value]) => value === parentName)?.[0] ?? null;
+    }
+
+    function getParentByIndex(index) {
+      return parentIndexMap.get(parseInt(index)) ?? null;
+    }
 
     function sanitizeColumn(value) {
       if (value === undefined || value === null) return null;
@@ -566,6 +609,12 @@
         color: groupSeries[0]?.color || '#94a3b8',
         labels: groupSeries.map(s => s.label)
       }));
+
+      // Update parent index map
+      parentIndexMap.clear();
+      entries.forEach((entry, index) => {
+        parentIndexMap.set(index, entry.parent);
+      });
 
       const legendItems = legendContainer.selectAll('.legend-item')
         .data(entries, d => d.parent);
@@ -850,9 +899,12 @@
       if (!parentName) return;
       if (selectedParent === parentName) {
         selectedParent = null;
+        updateURL({ parent: null });
       } else {
         selectedParent = parentName;
         selectedLabel = null;
+        const parentIndex = getParentIndex(parentName);
+        updateURL({ parent: parentIndex !== null ? String(parentIndex) : null });
       }
       applyCurrentHighlight();
     }
@@ -873,8 +925,24 @@
         rawRows = rows;
         selectedLabel = null;
         selectedParent = null;
+
+        // Initialize from URL query parameters
+        const queryParams = getQueryParams();
+        if (queryParams.top && LIMIT_MODES[queryParams.top]) {
+          currentLimitMode = queryParams.top;
+        }
+
         updateSelectorButtons();
         updateVisualization();
+
+        // Apply parent selection from URL after visualization is built
+        if (queryParams.parent !== null && queryParams.parent !== '') {
+          const parentName = getParentByIndex(queryParams.parent);
+          if (parentName) {
+            selectedParent = parentName;
+            applyCurrentHighlight();
+          }
+        }
       }).catch(err => {
         console.error('Failed to load CSV', err);
         svg.selectAll('*').remove();
@@ -921,6 +989,7 @@
         currentLimitMode = mode;
         selectedLabel = null;
         selectedParent = null;
+        updateURL({ top: mode, parent: null });
         updateSelectorButtons();
         updateVisualization();
       });
