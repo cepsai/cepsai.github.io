@@ -1,0 +1,1299 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <style type="text/css">
+    .knitr .inline {
+      background-color: #F7F7F7;
+      border: solid 1px #B0B0B0;
+    }
+
+    .error {
+      font-weight: bold;
+      color: #FF0000;
+    }
+
+    .warning {
+      font-weight: bold;
+    }
+
+    .message {
+      font-style: italic;
+    }
+
+    .source,
+    .output,
+    .warning,
+    .error,
+    .message {
+      padding: 0 1em;
+      border: solid 1px #F7F7F7;
+    }
+
+    .source {
+      background-color: #F5F5F5;
+    }
+
+    .rimage .left {
+      text-align: left;
+    }
+
+    .rimage .right {
+      text-align: right;
+    }
+
+    .rimage .center {
+      text-align: center;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      background-color: white;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 16fr 1fr 2fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding-bottom: clamp(8px, 2vh, 18px);
+    }
+
+    #container1 {
+      grid-row: 1;
+      grid-column: 1 / span 2;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #container5 {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px;
+      overflow: hidden;
+    }
+
+    #container2 {
+      grid-row: 3;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #container3 {
+      grid-row: 4;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #container4 {
+      grid-row: 4;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: clamp(8px, 1.5vw, 16px);
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #container4 a {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    #viz {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    .custom-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(4px, 1vw, 10px);
+      padding: clamp(2px, 0.5vh, 4px) clamp(4px, 0.8vw, 8px);
+      overflow: auto;
+      max-width: 100%;
+      max-height: 100%;
+      font-size: clamp(8px, 1.3vw, 13px);
+      font-weight: 600;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+      font-weight: 600;
+      color: #333;
+      position: relative;
+    }
+
+    .legend-item.inactive {
+      opacity: 0.35;
+    }
+
+    .legend-square {
+      width: clamp(10px, 1.2vw, 14px);
+      height: clamp(10px, 1.2vw, 14px);
+      border-radius: 4px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset;
+    }
+
+    .legend-item:focus-visible {
+      outline: 2px solid rgba(0, 0, 0, 0.5);
+      outline-offset: 2px;
+    }
+
+    .logo {
+      height: 100%;
+      width: auto;
+      max-height: 100%;
+      max-width: 100%;
+      pointer-events: auto;
+      object-fit: contain;
+    }
+
+    .source-text {
+      font-size: clamp(10px, 1.6vw, 16px);
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      font-style: normal;
+    }
+
+    .source-text a {
+      color: #2756d3;
+      text-decoration: underline;
+      cursor: pointer;
+      font-style: normal;
+    }
+
+    .source-text a:visited {
+      color: #2756d3;
+    }
+
+    .footnote-text {
+      font-size: clamp(10px, 1.6vw, 16px);
+      font-style: italic;
+      color: #333;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .selector-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: clamp(2px, 0.5vw, 6px);
+      padding: clamp(2px, 0.4vw, 4px);
+      border-radius: 6px;
+      border: 1px solid rgba(17, 24, 39, 0.15);
+      background: #f8fafc;
+      max-width: 100%;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+
+    .selector-button {
+      border: none;
+      background: transparent;
+      padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+      border-radius: 6px;
+      font-size: clamp(9px, 1.4vw, 13px);
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+      white-space: nowrap;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+
+    .selector-button.active {
+      background: #2756d3;
+      color: #fff;
+    }
+
+    .selector-label {
+      font-size: clamp(8px, 1.2vw, 12px);
+      font-weight: 600;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-right: clamp(2px, 0.4vw, 6px);
+      white-space: nowrap;
+    }
+
+
+    @media (max-height: 500px) {
+      .viz-grid {
+        grid-template-rows: 1fr;
+        grid-template-columns: 1fr;
+      }
+
+      #container1 {
+        grid-row: 1;
+        grid-column: 1;
+      }
+
+      #container2,
+      #container3,
+      #container4,
+      #container5 {
+        display: none !important;
+      }
+
+      .custom-legend,
+      .source-text,
+      .logo,
+      .footnote-text,
+      .selector-group,
+      .selector-label {
+        display: none !important;
+      }
+    }
+  </style>
+
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+
+<body>
+  <div class="viz-grid">
+    <div id="container1" class="container viz-container">
+      <div id="viz"></div>
+    </div>
+    <div id="container5" class="container footnote-container">
+      <div class="footnote-text" id="footnote-text">
+        This is a footnote example
+      </div>
+    </div>
+    <div id="container2" class="container legend-container">
+      <div class="custom-legend" id="legend"></div>
+    </div>
+    <div id="container3" class="container source-container">
+      <div class="source-text" id="source-text">
+    Source: <a href="https://aiworld.eu" target="_blank" rel="noopener noreferrer">AI World</a>
+  </div>
+    </div>
+    <div id="container4" class="container logo-container">
+      <div class="selector-group range-selector" aria-label="Top selection">
+        <button class="selector-button range-button" data-filter="10">Top 10</button>
+        <button class="selector-button range-button active" data-filter="50">Top 50</button>
+        <button class="selector-button range-button" data-filter="all">All</button>
+      </div>
+      <div class="selector-group filter-selector" aria-label="Filter dimension">
+        <button class="selector-button filter-button active" data-dimension="models">Models</button>
+        <button class="selector-button filter-button" data-dimension="organizations">Developers</button>
+        <button class="selector-button filter-button" data-dimension="countries">Countries</button>
+      </div>
+      <a href="https://aiworld.eu/" id="logo-link" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" />
+      </a>
+    </div>
+  </div>
+
+  <script>
+    const SHOW_CONTAINER_2 = 1;
+    const SHOW_CONTAINER_3 = 1;
+    const SHOW_CONTAINER_4 = 1;
+    const SHOW_CONTAINER_5 = 0;
+
+    const VIZ_CONTAINER_ID = 'viz';
+    const SOURCE_CONTAINER_ID = 'source-text';
+    const LOGO_CONTAINER_ID = 'logo-link';
+    const FOOTNOTE_CONTAINER_ID = 'footnote-text';
+
+    const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
+    const sourceContainer = document.getElementById(SOURCE_CONTAINER_ID);
+    const logoContainer = document.getElementById(LOGO_CONTAINER_ID);
+    const footnoteContainer = document.getElementById(FOOTNOTE_CONTAINER_ID);
+
+    (function applyContainerVisibility() {
+      const vizGrid = document.querySelector('.viz-grid');
+      const container1 = document.getElementById('container1');
+      const container2 = document.getElementById('container2');
+      const container3 = document.getElementById('container3');
+      const container4 = document.getElementById('container4');
+      const container5 = document.getElementById('container5');
+
+      if (!SHOW_CONTAINER_2) {
+        container2.style.display = 'none';
+      }
+      if (!SHOW_CONTAINER_3) {
+        container3.style.display = 'none';
+      }
+      if (!SHOW_CONTAINER_4) {
+        container4.style.display = 'none';
+      }
+      if (!SHOW_CONTAINER_5) {
+        container5.style.display = 'none';
+      }
+
+      const row2Visible = SHOW_CONTAINER_5;
+      const row3Visible = SHOW_CONTAINER_2;
+      const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+      let gridRows = [];
+      let currentRow = 1;
+
+      const container1Height = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 2 : 0) - (row4Visible ? 1 : 0);
+      gridRows.push(`${container1Height}fr`);
+
+      if (row2Visible) {
+        gridRows.push('1fr');
+        currentRow++;
+        container5.style.gridRow = currentRow.toString();
+      }
+
+      if (row3Visible) {
+        gridRows.push('2fr');
+        currentRow++;
+        container2.style.gridRow = currentRow.toString();
+      }
+
+      if (row4Visible) {
+        gridRows.push('1fr');
+        currentRow++;
+        if (SHOW_CONTAINER_3) container3.style.gridRow = currentRow.toString();
+        if (SHOW_CONTAINER_4) container4.style.gridRow = currentRow.toString();
+      }
+
+      vizGrid.style.gridTemplateRows = gridRows.join(' ');
+      container1.style.gridRow = '1';
+
+      if (row4Visible) {
+        if (SHOW_CONTAINER_3 && !SHOW_CONTAINER_4) {
+          container3.style.gridColumn = '1 / span 2';
+        } else if (!SHOW_CONTAINER_3 && SHOW_CONTAINER_4) {
+          container4.style.gridColumn = '1 / span 2';
+        }
+      }
+    })();
+
+    const PLOT_TYPE = "treemap";
+    const CSV_PATH = "models_colors.csv";
+    let originalData = [];
+    let fullData = [];
+    let currentData = [];
+    let currentFilter = '50';
+    let currentDimension = 'models';
+    const TREEMAP_BORDER_RADIUS = 0;
+    const TREEMAP_SHOW_VALUES = 0;
+    const BAR_BORDER_RADIUS = 4;
+    const BAR_USE_GRADIENT = 1;
+    const BAR_VALUE_POSITION = "inside";
+    const BAR_ORIENTATION = "horizontal";
+    const BAR_COLOR_BY_GROUP = 0;
+    const PALETTE_MODE = "none";
+
+    function toNumericValue(value) {
+      var num = (typeof value === "number") ? value : +value;
+      return isNaN(num) ? 0 : num;
+    }
+
+    function cloneDatum(d) {
+      if (!d) return null;
+      return {
+        id: d.id || d.name,
+        name: d.name,
+        value: toNumericValue(d.value),
+        parent1: d.parent1,
+        parent2: d.parent2,
+        parent: d.parent,
+        color: d.color || null,
+        orgColor: d.orgColor || null,
+        countryColor: d.countryColor || null
+      };
+    }
+
+    function aggregateModels(data) {
+      return (data || []).map(cloneDatum).filter(function (d) { return d && d.name; });
+    }
+
+    function aggregateByDeveloper(data) {
+      var totals = {};
+      (data || []).forEach(function (item) {
+        if (!item) return;
+        var developer = item.parent1 || "Other";
+        var country = item.parent2 || item.parent || "Other";
+        var key = developer || "Other";
+        if (!totals[key]) {
+          totals[key] = {
+            id: key,
+            name: key,
+            value: 0,
+            parent1: key,
+            parent2: country || "Other",
+            parent: country || "Other",
+            color: item.color || null,
+            orgColor: item.orgColor || null,
+            countryColor: item.countryColor || null
+          };
+        }
+        totals[key].value += toNumericValue(item.value);
+        if (!totals[key].orgColor && item.orgColor) totals[key].orgColor = item.orgColor;
+        if (!totals[key].countryColor && item.countryColor) totals[key].countryColor = item.countryColor;
+        if (!totals[key].color && item.color) totals[key].color = item.color;
+      });
+      return Object.keys(totals).map(function (k) { return totals[k]; });
+    }
+
+    function aggregateByCountry(data) {
+      var totals = {};
+      (data || []).forEach(function (item) {
+        if (!item) return;
+        var country = item.parent2 || item.parent || "Other";
+        var key = country || "Other";
+        if (!totals[key]) {
+          totals[key] = {
+            id: country || "Other",
+            name: country || "Other",
+            value: 0,
+            parent1: country || "Other",
+            parent2: country || "Other",
+            parent: country || "Other",
+            color: item.color || null,
+            orgColor: item.orgColor || null,
+            countryColor: item.countryColor || null
+          };
+        }
+        totals[key].value += toNumericValue(item.value);
+        if (!totals[key].countryColor && item.countryColor) totals[key].countryColor = item.countryColor;
+        if (!totals[key].color && item.color) totals[key].color = item.color;
+        if (!totals[key].orgColor && item.orgColor) totals[key].orgColor = item.orgColor;
+      });
+      return Object.keys(totals).map(function (k) { return totals[k]; });
+    }
+
+    function resolveOrgColor(entry) {
+      if (!entry) return null;
+      return entry.orgColor || entry.org_color || entry.color || null;
+    }
+
+    function resolveCountryColor(entry) {
+      if (!entry) return null;
+      return entry.countryColor || entry.country_color || entry.color || null;
+    }
+
+    function assignDimensionColors(data, dimensionKey) {
+      var dim = dimensionKey || "models";
+      return (data || []).map(function (item) {
+        var clone = Object.assign({}, item);
+        var orgColor = resolveOrgColor(item);
+        var countryColor = resolveCountryColor(item);
+        if (dim === "models") {
+          clone.color = countryColor || orgColor || clone.color || null;
+        } else {
+          clone.color = countryColor || orgColor || clone.color || null;
+        }
+        clone.orgColor = orgColor || clone.orgColor || null;
+        clone.countryColor = countryColor || clone.countryColor || null;
+        return clone;
+      });
+    }
+
+    function getTreemapNodeColor(d) {
+      var dim = currentDimension || "models";
+      var preferredColor;
+      if (dim === "models") {
+        preferredColor = d.countryColor || d.color || d.orgColor;
+      } else {
+        preferredColor = d.countryColor || d.color || d.orgColor;
+      }
+      if (preferredColor) return preferredColor;
+      var fallbackKey = d.parent || d.parent2 || d.id || d.name;
+      return getGroupColor(fallbackKey);
+    }
+
+    const DIMENSION_SETTINGS = {
+      models: {
+        key: "models",
+        label: "Models",
+        aggregator: aggregateModels,
+        groupBy: ["parent", "parent1", "name"],
+        tooltipLabel: "Model"
+      },
+      organizations: {
+        key: "organizations",
+        label: "Developers",
+        aggregator: aggregateByDeveloper,
+        groupBy: ["parent", "name"],
+        tooltipLabel: "Developer"
+      },
+      countries: {
+        key: "countries",
+        label: "Country",
+        aggregator: aggregateByCountry,
+        groupBy: ["parent", "name"],
+        tooltipLabel: "Country"
+      }
+    };
+
+    function getDimensionConfig(key) {
+      return DIMENSION_SETTINGS[key] || DIMENSION_SETTINGS.models;
+    }
+
+    function getGroupByKeys() {
+      var cfg = getDimensionConfig(currentDimension);
+      if (cfg && Array.isArray(cfg.groupBy) && cfg.groupBy.length) {
+        return cfg.groupBy;
+      }
+      return ["parent1", "parent", "name"];
+    }
+
+    function buildDimensionData(source, dimensionKey) {
+      var cfg = getDimensionConfig(dimensionKey);
+      var aggregator = cfg && typeof cfg.aggregator === "function" ? cfg.aggregator : aggregateModels;
+      return aggregator(Array.isArray(source) ? source : []);
+    }
+
+    function buildTooltipBody(d) {
+      var cfg = getDimensionConfig(currentDimension);
+      var label = cfg && cfg.tooltipLabel ? cfg.tooltipLabel : "Item";
+      var entityName = d.name || d.id || "N/A";
+      var developerName = d.parent1 || "Other";
+      var countryName = d.parent || d.parent2 || "Other";
+      var formatComma = d3.format(",");
+      var lines = [
+        "<strong>" + label + ":</strong> " + entityName
+      ];
+      if (currentDimension === "models") {
+        lines.push("<strong>Developer:</strong> " + developerName);
+        lines.push("<strong>Country:</strong> " + countryName);
+      } else if (currentDimension === "developers") {
+        lines.push("<strong>Country:</strong> " + countryName);
+      }
+      lines.push("<strong>Total Value:</strong> " + formatComma(toNumericValue(d.value)));
+      return lines.join("<br>");
+    }
+
+    function formatCsvRow(row) {
+      var rawName = row["Name"] || row["name"] || row["Model"] || row["model"] || row["id"] || "";
+      var name = String(rawName).trim();
+      if (!name) return null;
+
+      var valueRaw = row["Total Value"] || row["TotalValue"] || row["total_value"] || row["value"] || row["Value"] || row["count"] || row["size"];
+      if (typeof valueRaw === "string") {
+        valueRaw = valueRaw.replace(/,/g, "");
+      }
+      var parsedValue = valueRaw != null ? +valueRaw : 0;
+      var value = isNaN(parsedValue) ? 0 : parsedValue;
+
+      var parent1 = row["parent1"] || row["Parent1"] || row["parent_1"] || row["developer"] || row["owner"] || "";
+      var parent2 = row["parent2"] || row["Parent2"] || row["parent_2"] || row["country"] || row["region"] || row["parent"] || "";
+
+      parent1 = parent1 ? String(parent1).trim() : "";
+      parent2 = parent2 ? String(parent2).trim() : "";
+
+      var fallbackParent1 = parent1 || "Other";
+      var fallbackParent2 = parent2 || fallbackParent1;
+
+      var orgColor = row["org_color"] || row["Org_color"] || row["orgColor"] || row["OrgColor"] || row["org colour"] || row["Org Colour"] || row["color"] || row["Color"] || null;
+      var countryColor = row["country_color"] || row["Country_color"] || row["countryColor"] || row["CountryColor"] || row["country colour"] || row["Country Colour"] || row["color_code"] || row["color"] || row["Color"] || null;
+
+      var normalizeColorValue = function (c) {
+        if (!c) return null;
+        return String(c).trim();
+      };
+
+      orgColor = normalizeColorValue(orgColor);
+      countryColor = normalizeColorValue(countryColor);
+
+      var baseColor = orgColor || countryColor || row["color_code"] || row["color"] || row["Color"] || null;
+      baseColor = normalizeColorValue(baseColor);
+
+      return {
+        id: name,
+        name: name,
+        value: value,
+        parent1: fallbackParent1,
+        parent2: fallbackParent2,
+        parent: fallbackParent2,
+        color: baseColor,
+        orgColor: orgColor,
+        countryColor: countryColor
+      };
+    }
+
+    function loadCsvData() {
+      d3.csv(CSV_PATH).then(function (data) {
+        originalData = data.map(formatCsvRow).filter(function (d) { return d !== null; });
+        fullData = originalData.slice();
+        applyFilter(currentFilter);
+      }).catch(function (error) {
+        console.error("Failed to load CSV data", error);
+        if (vizContainer) {
+          vizContainer.innerHTML = '<div style="padding:20px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;color:#b91c1c;">Unable to load data.</div>';
+        }
+      });
+    }
+
+    function applyFilter(filter) {
+      currentFilter = filter;
+      if (!fullData.length) {
+        currentData = [];
+        return;
+      }
+      var aggregated = buildDimensionData(fullData, currentDimension).slice();
+      aggregated.sort(function (a, b) {
+        return (toNumericValue(b.value) - toNumericValue(a.value));
+      });
+      if (filter !== 'all') {
+        var limit = parseInt(filter, 10);
+        if (!isNaN(limit)) {
+          aggregated = aggregated.slice(0, Math.max(0, limit));
+        }
+      }
+      aggregated = assignDimensionColors(aggregated, currentDimension);
+      currentData = aggregated;
+      initializeGroups();
+      legendInitialized = false;
+      renderVisualizationForContainer();
+    }
+
+    function normalizeData(arr) {
+      return arr.map(function (d) {
+        var parent1 = d.parent1 || d.domain || d.category || d.type || d.class || d.group || "Other";
+        var parent2 = d.parent2 || d.parent || d.group || parent1 || "Other";
+        var name = d.name || d.id || d.label || d.title;
+        var id = d.id || name;
+        var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+        var color = d.color != null ? d.color : null;
+        var orgColor = d.orgColor || d.org_color || null;
+        var countryColor = d.countryColor || d.country_color || null;
+        return {
+          parent1: parent1 || "Other",
+          parent2: parent2 || parent1 || "Other",
+          parent: parent2 || parent1 || "Other",
+          name: name,
+          id: id || name,
+          value: value,
+          color: color,
+          orgColor: orgColor,
+          countryColor: countryColor
+        };
+      }).filter(function (d) { return d.name; });
+    }
+
+    let treemapData = normalizeData(currentData);
+    let groups = Array.from(new Set(treemapData.map(function (d) { return d.parent; })));
+    let inferredColors = {};
+    let groupColors = {};
+    let activeGroups = new Set(groups);
+
+    const fallbackPalette = ["#1F77B4", "#FF7F0E", "#2CA02C", "#9467BD", "#D62728", "#17BECF", "#8C564B", "#E377C2", "#7F7F7F", "#BCBD22"];
+
+    function initializeGroups() {
+      treemapData = normalizeData(currentData);
+      groups = Array.from(new Set(treemapData.map(function (d) { return d.parent; })));
+
+      inferredColors = {};
+      groups.forEach(function (g) {
+        var item = currentData.find(function (x) {
+          var p = x.parent || x.group || x.domain || x.category || x.type || x.class;
+          return p === g;
+        });
+        if (item) {
+          inferredColors[g] = resolveCountryColor(item) || resolveOrgColor(item) || item.color || null;
+        } else {
+          inferredColors[g] = null;
+        }
+      });
+
+      groupColors = {};
+      groups.forEach(function (g, i) {
+        var baseColor;
+        if (inferredColors[g]) baseColor = inferredColors[g];
+        else if (PALETTE_MODE === "aiw") baseColor = "#2756d3";
+        else if (PALETTE_MODE === "ceps") baseColor = "#207164";
+        else baseColor = fallbackPalette[i % fallbackPalette.length];
+        groupColors[g] = baseColor;
+      });
+
+      activeGroups = new Set(groups);
+    }
+
+    function getGroupColor(parent) {
+      var c = groupColors[parent];
+      if (!c && (PALETTE_MODE === "aiw" || PALETTE_MODE === "ceps")) {
+        return PALETTE_MODE === "aiw" ? "#2756d3" : "#207164";
+      }
+      return c || "#666666";
+    }
+
+    let legendInitialized = false;
+
+    function getLegendElement() {
+      var legend = document.getElementById("legend");
+      if (legend) return legend;
+      var legendContainer = document.getElementById("container2");
+      if (!legendContainer) return null;
+      legend = document.createElement("div");
+      legend.id = "legend";
+      legend.className = "custom-legend";
+      legendContainer.appendChild(legend);
+      return legend;
+    }
+
+    function buildLegend() {
+      if (legendInitialized) return;
+      var legend = getLegendElement();
+      if (!legend) return;
+      legend.innerHTML = "";
+      groups.forEach(function (g) {
+        var item = document.createElement("div");
+        item.className = "legend-item active";
+        item.setAttribute("data-group", g);
+        item.setAttribute("role", "button");
+        item.setAttribute("tabindex", "0");
+        item.setAttribute("aria-pressed", "true");
+
+        var square = document.createElement("div");
+        square.className = "legend-square";
+        square.style.backgroundColor = getGroupColor(g);
+        square.style.borderRadius = TREEMAP_BORDER_RADIUS + "px";
+
+        var label = document.createElement("span");
+        label.textContent = g;
+
+        item.appendChild(square);
+        item.appendChild(label);
+
+        var toggleGroup = function () {
+          if (activeGroups.has(g)) {
+            activeGroups.delete(g);
+          } else {
+            activeGroups.add(g);
+          }
+          updateVisualization();
+        };
+
+        item.addEventListener("click", toggleGroup);
+        item.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            toggleGroup();
+          }
+        });
+
+        legend.appendChild(item);
+      });
+      legendInitialized = true;
+    }
+
+    function updateLegendStyles() {
+      var legend = document.getElementById("legend");
+      if (!legend) return;
+      var items = legend.querySelectorAll(".legend-item");
+      items.forEach(function (item) {
+        var grp = item.getAttribute("data-group");
+        var isActive = activeGroups.has(grp);
+        item.classList.toggle("inactive", !isActive);
+        item.classList.toggle("active", isActive);
+        item.setAttribute("aria-pressed", isActive ? "true" : "false");
+      });
+    }
+
+    let treemapInstance = null;
+    let barSvg = null;
+    let barTooltip = null;
+
+    function ensureTreemapInstance(width, height) {
+      if (!vizContainer) return null;
+      if (!treemapInstance) {
+        treemapInstance = new d3plus.Treemap()
+          .select("#" + VIZ_CONTAINER_ID)
+          .data(treemapData)
+          .groupBy(getGroupByKeys())
+          .tooltipConfig({
+            title: function (d) { return d.name; },
+            body: function (d) {
+              return buildTooltipBody(d);
+            }
+          })
+          .sum("value")
+          .layoutPadding(2)
+          .legend(false)
+          .color(function (d) {
+            if (d.depth === 0) {
+              return "transparent";
+            }
+            if (d.depth === 1) {
+              return "#f8fafc";
+            }
+            return getTreemapNodeColor(d);
+          })
+          .shapeConfig({
+            rx: TREEMAP_BORDER_RADIUS,
+            ry: TREEMAP_BORDER_RADIUS,
+            stroke: function (d) {
+              if (d.depth === 1) return "#f1f5f9";
+              if (d.depth === 2) return "#ffffff";
+              if (d.depth === 0) return "transparent";
+              return "transparent";
+            },
+            strokeWidth: function (d) {
+              if (d.depth === 1) return 2;
+              if (d.depth === 2) return 1.2;
+              return 0;
+            }
+          })
+          .config({
+            label: function (d) {
+              if (!TREEMAP_SHOW_VALUES) return d.name;
+              var value = (d && typeof d.value === "number") ? d.value : (d && d.value != null ? +d.value : 0);
+              return d.name + " (" + value + ")";
+            }
+          });
+      }
+
+      if (treemapInstance && typeof treemapInstance.groupBy === "function") {
+        treemapInstance.groupBy(getGroupByKeys());
+      }
+
+      if (typeof treemapInstance.width === "function" && width) {
+        treemapInstance.width(width);
+      }
+      if (typeof treemapInstance.height === "function" && height) {
+        treemapInstance.height(height);
+      }
+
+      return treemapInstance;
+    }
+
+    function renderBarChart(width, height) {
+      if (!vizContainer) return;
+
+      while (vizContainer.firstChild) {
+        vizContainer.removeChild(vizContainer.firstChild);
+      }
+
+      if (!Array.isArray(treemapData) || treemapData.length === 0) {
+        const empty = document.createElement("div");
+        empty.style.display = "flex";
+        empty.style.alignItems = "center";
+        empty.style.justifyContent = "center";
+        empty.style.height = "100%";
+        empty.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif";
+        empty.style.color = "#666";
+        empty.textContent = "No data available";
+        vizContainer.appendChild(empty);
+        barSvg = null;
+        return;
+      }
+
+      const isVertical = BAR_ORIENTATION === "vertical";
+
+      const margin = isVertical
+        ? {
+          top: 16,
+          right: Math.max(40, width * 0.06),
+          bottom: Math.max(36, height * 0.16),
+          left: Math.max(40, width * 0.06)
+        }
+        : {
+          top: 16,
+          right: Math.max(40, width * 0.08),
+          bottom: 28,
+          left: Math.max(80, width * 0.22)
+        };
+
+      const innerWidth = Math.max(40, width - margin.left - margin.right);
+      const innerHeight = Math.max(40, height - margin.top - margin.bottom);
+
+      const svg = d3.select(vizContainer)
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("viewBox", "0 0 " + width + " " + height)
+        .style("width", "100%")
+        .style("height", "100%");
+
+      barSvg = svg;
+
+      const g = svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      var data = treemapData.slice();
+
+      var groupedByName = {};
+      data.forEach(function (d) {
+        var key = d.name || "";
+        if (!key) return;
+        if (!groupedByName[key]) {
+          groupedByName[key] = {
+            name: d.name,
+            parent: d.parent,
+            value: (typeof d.value === "number" ? d.value : +d.value || 0),
+            color: d.color
+          };
+        }
+      });
+
+      data = Object.keys(groupedByName).map(function (k) { return groupedByName[k]; });
+
+      data.sort(function (a, b) {
+        var av = typeof a.value === "number" ? a.value : +a.value || 0;
+        var bv = typeof b.value === "number" ? b.value : +b.value || 0;
+        return d3.descending(av, bv);
+      });
+
+      const maxValue = d3.max(data, function (d) {
+        return typeof d.value === "number" ? d.value : +d.value || 0;
+      }) || 0;
+
+      let x, y;
+
+      if (isVertical) {
+        x = d3.scaleBand()
+          .domain(data.map(function (d) { return d.name; }))
+          .rangeRound([0, innerWidth])
+          .padding(0);
+
+        y = d3.scaleLinear()
+          .domain([0, maxValue * 1.05 || 1])
+          .nice()
+          .range([innerHeight, 0]);
+      } else {
+        y = d3.scaleBand()
+          .domain(data.map(function (d) { return d.name; }))
+          .rangeRound([0, innerHeight])
+          .padding(0);
+
+        x = d3.scaleLinear()
+          .domain([0, maxValue * 1.05 || 1])
+          .nice()
+          .range([0, innerWidth]);
+      }
+
+      const bg = g.append("g")
+        .attr("fill", "none");
+
+      if (isVertical) {
+        bg.selectAll("rect.col-bg")
+          .data(data)
+          .enter()
+          .append("rect")
+          .attr("class", "col-bg")
+          .attr("x", function (d) { return x(d.name); })
+          .attr("y", 0)
+          .attr("width", x.bandwidth())
+          .attr("height", innerHeight)
+          .attr("fill", function (_d, i) { return i % 2 ? "#f5f5f5" : "#ffffff"; })
+          .attr("pointer-events", "none");
+      } else {
+        bg.selectAll("rect.row-bg")
+          .data(data)
+          .enter()
+          .append("rect")
+          .attr("class", "row-bg")
+          .attr("x", -margin.left)
+          .attr("y", function (d) { return y(d.name); })
+          .attr("width", innerWidth + margin.left + margin.right)
+          .attr("height", y.bandwidth())
+          .attr("fill", function (_d, i) { return i % 2 ? "#f5f5f5" : "#ffffff"; })
+          .attr("pointer-events", "none");
+      }
+
+      const axisFont = Math.max(9, Math.min(13, innerHeight / Math.max(6, data.length) * 0.6));
+
+      if (isVertical) {
+        g.append("g")
+          .attr("class", "axis axis--y")
+          .call(d3.axisLeft(y))
+          .selectAll("text")
+          .style("font-size", axisFont + "px")
+          .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif");
+
+        g.append("g")
+          .attr("class", "axis axis--x")
+          .attr("transform", "translate(0," + innerHeight + ")")
+          .call(d3.axisBottom(x))
+          .selectAll("text")
+          .style("font-size", axisFont + "px")
+          .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif");
+      } else {
+        g.append("g")
+          .attr("class", "axis axis--y")
+          .call(d3.axisLeft(y))
+          .selectAll("text")
+          .style("font-size", axisFont + "px")
+          .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif");
+
+        g.append("g")
+          .attr("class", "axis axis--x")
+          .attr("transform", "translate(0," + innerHeight + ")")
+          .call(d3.axisBottom(x).ticks(4))
+          .selectAll("text")
+          .style("font-size", axisFont + "px")
+          .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif");
+      }
+
+      const defs = svg.append("defs");
+      const grad = defs.append("linearGradient")
+        .attr("id", "barGradient")
+        .attr("gradientUnits", "objectBoundingBox");
+
+      if (isVertical) {
+        grad.attr("x1", "0%")
+          .attr("y1", "100%")
+          .attr("x2", "0%")
+          .attr("y2", "0%");
+      } else {
+        grad.attr("x1", "0%")
+          .attr("y1", "0%")
+          .attr("x2", "100%")
+          .attr("y2", "0%");
+      }
+
+      grad.append("stop")
+        .attr("offset", "0%")
+        .attr("stop-color", "#cfe8ff");
+
+      grad.append("stop")
+        .attr("offset", "100%")
+        .attr("stop-color", "#1f78ff");
+
+      if (!barTooltip) {
+        barTooltip = document.createElement("div");
+        barTooltip.style.position = "fixed";
+        barTooltip.style.pointerEvents = "none";
+        barTooltip.style.zIndex = "9999";
+        barTooltip.style.background = "white";
+        barTooltip.style.borderRadius = "8px";
+        barTooltip.style.boxShadow = "0 8px 18px rgba(15,23,42,0.22)";
+        barTooltip.style.padding = "8px 10px";
+        barTooltip.style.fontSize = "12px";
+        barTooltip.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif";
+        barTooltip.style.color = "#111827";
+        barTooltip.style.opacity = "0";
+        barTooltip.style.transition = "opacity 0.12s ease-out, transform 0.12s ease-out";
+        barTooltip.style.transform = "translateY(0)";
+        document.body.appendChild(barTooltip);
+      }
+
+      const barGroup = g.append("g")
+        .attr("class", "bars");
+
+      const barThickness = isVertical
+        ? Math.max(10, x.bandwidth() * 0.6)
+        : Math.max(10, y.bandwidth() * 0.8);
+
+      const bars = barGroup.selectAll("rect.bar")
+        .data(data)
+        .enter()
+        .append("rect")
+        .attr("class", "bar")
+        .attr("rx", BAR_BORDER_RADIUS)
+        .attr("ry", BAR_BORDER_RADIUS)
+        .attr("fill", function (d) {
+          if (d.color) return d.color;
+          if (BAR_COLOR_BY_GROUP) {
+            return getGroupColor(d.parent);
+          }
+          if (PALETTE_MODE === "aiw") return "#2756d3";
+          if (PALETTE_MODE === "ceps") return "#207164";
+          if (BAR_USE_GRADIENT) {
+            return "url(#barGradient)";
+          }
+          return "#1f78ff";
+        })
+        .attr("opacity", 0.95);
+
+      if (isVertical) {
+        const xOffset = (x.bandwidth() - barThickness) / 2;
+        bars
+          .attr("x", function (d) { return x(d.name) + xOffset; })
+          .attr("width", barThickness)
+          .attr("y", innerHeight)
+          .attr("height", 0)
+          .transition()
+          .duration(700)
+          .attr("y", function (d) {
+            var v = typeof d.value === "number" ? d.value : +d.value || 0;
+            return y(v);
+          })
+          .attr("height", function (d) {
+            var v = typeof d.value === "number" ? d.value : +d.value || 0;
+            return Math.max(4, innerHeight - y(v));
+          });
+      } else {
+        bars
+          .attr("x", 0)
+          .attr("y", function (d) { return y(d.name) + (y.bandwidth() - barThickness) / 2; })
+          .attr("height", barThickness)
+          .attr("width", 0)
+          .transition()
+          .duration(700)
+          .attr("width", function (d) { return x(d.value || 0); });
+      }
+
+      const formatValue = d3.format(".1f");
+      if (BAR_VALUE_POSITION !== "none") {
+        barGroup.selectAll("text.value-label")
+          .data(data)
+          .enter()
+          .append("text")
+          .attr("class", "value-label")
+          .attr("x", function (d) {
+            if (isVertical) {
+              return x(d.name) + x.bandwidth() / 2;
+            }
+            var base = x(d.value || 0);
+            if (BAR_VALUE_POSITION === "outside") return base + 6;
+            return base - 6;
+          })
+          .attr("y", function (d) {
+            if (isVertical) {
+              var v = typeof d.value === "number" ? d.value : +d.value || 0;
+              var topY = y(v);
+              var barH = Math.max(4, innerHeight - topY);
+              if (BAR_VALUE_POSITION === "outside") return topY - 6;
+              var maxOffset = 14; // px
+              var offset = Math.min(maxOffset, barH / 2);
+              return topY + offset;
+            }
+            return y(d.name) + (y.bandwidth() * 0.8) / 2 + 4;
+          })
+          .attr("text-anchor", function () {
+            if (isVertical) return "middle";
+            return BAR_VALUE_POSITION === "outside" ? "start" : "end";
+          })
+          .attr("fill", BAR_VALUE_POSITION === "inside" ? "#ffffff" : "#111827")
+          .style("font-size", Math.max(9, axisFont) + "px")
+          .style("font-weight", "600")
+          .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif")
+          .text(function (d) {
+            var v = typeof d.value === "number" ? d.value : +d.value || 0;
+            return formatValue(v);
+          });
+      }
+
+      bars.on("mousemove", function (event, d) {
+        if (!barTooltip) return;
+        var name = d.name || "";
+        var v = typeof d.value === "number" ? d.value : +d.value || 0;
+        barTooltip.innerHTML = "<strong>" + name + "</strong><br/>Value: " + formatValue(v);
+        barTooltip.style.left = (event.clientX + 14) + "px";
+        barTooltip.style.top = (event.clientY - 24) + "px";
+        barTooltip.style.opacity = "1";
+        barTooltip.style.transform = "translateY(-2px)";
+      });
+
+      bars.on("mouseleave", function () {
+        if (!barTooltip) return;
+        barTooltip.style.opacity = "0";
+        barTooltip.style.transform = "translateY(0)";
+      });
+    }
+
+    function updateVisualization(width, height) {
+      treemapData = normalizeData(currentData).filter(function (d) {
+        return activeGroups.has(d.parent);
+      });
+
+      if (PLOT_TYPE === "treemap") {
+        var instance = ensureTreemapInstance(width, height);
+        if (!instance) return;
+        instance.groupBy(getGroupByKeys()).data(treemapData).render();
+      } else if (PLOT_TYPE === "bar") {
+        renderBarChart(width, height);
+      }
+
+      updateLegendStyles();
+    }
+
+    const renderVisualization = function (currentData, width, height) {
+      buildLegend();
+      updateVisualization(width, height);
+    };
+
+    const renderVisualizationForContainer = function () {
+      if (!vizContainer) {
+        return
+      }
+      const rect = vizContainer.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+      renderVisualization(null, width, height);
+    };
+
+    let resizeTimer;
+
+    window.addEventListener('resize', function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(renderVisualizationForContainer, 120);
+    });
+
+    if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+      const resizeObserver = new ResizeObserver(function () {
+        renderVisualizationForContainer();
+      });
+      resizeObserver.observe(vizContainer);
+    }
+
+    document.querySelectorAll('.range-button').forEach(function(button) {
+      button.addEventListener('click', function() {
+        var filter = this.getAttribute('data-filter');
+        document.querySelectorAll('.range-button').forEach(function(btn) {
+          btn.classList.remove('active');
+        });
+        this.classList.add('active');
+        applyFilter(filter);
+      });
+    });
+
+    document.querySelectorAll('.filter-button').forEach(function(button) {
+      button.addEventListener('click', function() {
+        var dimension = this.getAttribute('data-dimension');
+        if (!dimension) {
+          return;
+        }
+        document.querySelectorAll('.filter-button').forEach(function(btn) {
+          btn.classList.remove('active');
+        });
+        this.classList.add('active');
+        currentDimension = dimension;
+        applyFilter(currentFilter);
+      });
+    });
+
+    loadCsvData();
+  </script>
+</body>
+
+</html>
