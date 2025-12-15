@@ -417,12 +417,14 @@
     let selectedLabel = null;
     let selectedParent = null;
     let parentIndexMap = new Map();
+    let isFullScreen = false;
 
     function getQueryParams() {
       const params = new URLSearchParams(window.location.search);
       return {
         top: params.get('top'),
-        parent: params.get('parent')
+        parent: params.get('parent'),
+        fullScreen: params.get('fullScreen')
       };
     }
 
@@ -478,23 +480,27 @@
     }
 
     function getLineWidth() {
+      let baseWidth;
       if (currentLimitMode === 'top25') {
-        return 2.6;
+        baseWidth = 2.6;
+      } else if (currentLimitMode === 'top50') {
+        baseWidth = 2.2;
+      } else {
+        baseWidth = 3.4;
       }
-      if (currentLimitMode === 'top50') {
-        return 2.2;
-      }
-      return 3.4;
+      return isFullScreen ? baseWidth * 1.5 : baseWidth;
     }
 
     function getPointRadius() {
+      let baseRadius;
       if (currentLimitMode === 'top25') {
-        return 5.2;
+        baseRadius = 5.2;
+      } else if (currentLimitMode === 'top50') {
+        baseRadius = 4.3;
+      } else {
+        baseRadius = 7;
       }
-      if (currentLimitMode === 'top50') {
-        return 4.3;
-      }
-      return 7;
+      return isFullScreen ? baseRadius * 1.5 : baseRadius;
     }
 
     function updateVizDensityClass() {
@@ -991,6 +997,31 @@
       applyCurrentHighlight();
     }
 
+    function applyFullScreenMode() {
+      const vizGrid = document.querySelector('.viz-grid');
+      const container3 = document.getElementById('container3');
+      const container4 = document.getElementById('container4');
+      const container5 = document.getElementById('container5');
+
+      if (isFullScreen) {
+        // Hide footnote, source, and logo containers
+        if (container3) container3.style.display = 'none';
+        if (container4) container4.style.display = 'none';
+        if (container5) container5.style.display = 'none';
+
+        // Adjust grid to give more space to viz
+        if (vizGrid) {
+          vizGrid.style.gridTemplateRows = '1fr auto';
+        }
+      } else {
+        // Restore default display
+        if (container3) container3.style.display = '';
+        if (container4) container4.style.display = '';
+        if (container5) container5.style.display = '';
+        if (vizGrid) vizGrid.style.gridTemplateRows = '';
+      }
+    }
+
     function loadData() {
       d3.csv(DATA_URL).then(rows => {
         rawRows = rows;
@@ -1001,6 +1032,10 @@
         if (queryParams.top && LIMIT_MODES[queryParams.top]) {
           currentLimitMode = queryParams.top;
         }
+
+        // Check fullScreen parameter (default is 0)
+        isFullScreen = queryParams.fullScreen === '1';
+        applyFullScreenMode();
 
         updateSelectorButtons();
         updateVisualization();
