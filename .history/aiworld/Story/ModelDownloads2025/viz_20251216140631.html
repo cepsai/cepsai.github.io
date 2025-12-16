@@ -315,12 +315,12 @@
       <div class="selector-group range-selector" aria-label="Top selection">
         <button class="selector-button range-button" data-filter="10">Top 10</button>
         <button class="selector-button range-button active" data-filter="50">Top 50</button>
-        <button class="selector-button range-button" data-filter="all">Top 100</button>
+        <button class="selector-button range-button" data-filter="all">All</button>
       </div>
       <div class="selector-group filter-selector" aria-label="Filter dimension">
         <button class="selector-button filter-button active" data-dimension="models">Models</button>
         <button class="selector-button filter-button" data-dimension="organizations">Developers</button>
-        <button class="selector-button filter-button" data-dimension="countries">Regions</button>
+        <button class="selector-button filter-button" data-dimension="countries">Countries</button>
       </div>
         <a href="https://huggingface.co/" target="_blank" rel="noopener">
         <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="Hugging Face logo" />
@@ -671,51 +671,24 @@
         }
       });
     }
-    function getModelLimit(filter) {
-  // You label this button "Top 100" but use data-filter="all"
-  // so treat "all" as 100 (or fall back to full length if smaller).
-  if (filter === "all") return 100;
-  var n = parseInt(filter, 10);
-  return isNaN(n) ? 100 : n;
-}
 
     function applyFilter(filter) {
       currentFilter = filter;
-
       if (!fullData.length) {
         currentData = [];
         return;
       }
-
-      // 1) Always start from models, sorted by value
-      var models = aggregateModels(fullData).slice();
-      models.sort(function (a, b) {
-        return toNumericValue(b.value) - toNumericValue(a.value);
-      });
-
-      // 2) Take the Top N models first (Top 10 / 50 / 100)
-      var limit = getModelLimit(filter);
-      var topModels = models.slice(0, Math.min(limit, models.length));
-
-      // 3) Now build the view for the selected dimension FROM topModels
-      var aggregated;
-      if (currentDimension === "models") {
-        aggregated = topModels;
-      } else if (currentDimension === "organizations") {
-        aggregated = aggregateByDeveloper(topModels);
-      } else if (currentDimension === "countries") {
-        aggregated = aggregateByCountry(topModels);
-      } else {
-        aggregated = topModels;
-      }
-
-      // 4) Sort for display (do NOT slice again — that would reintroduce the bug)
+      var aggregated = buildDimensionData(fullData, currentDimension).slice();
       aggregated.sort(function (a, b) {
-        return toNumericValue(b.value) - toNumericValue(a.value);
+        return (toNumericValue(b.value) - toNumericValue(a.value));
       });
-
+      if (filter !== 'all') {
+        var limit = parseInt(filter, 10);
+        if (!isNaN(limit)) {
+          aggregated = aggregated.slice(0, Math.max(0, limit));
+        }
+      }
       aggregated = assignDimensionColors(aggregated, currentDimension);
-
       currentData = aggregated;
       initializeGroups();
       legendInitialized = false;

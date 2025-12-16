@@ -1,0 +1,643 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #fff;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 16fr 1fr 2fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding-bottom: clamp(8px, 2vh, 18px);
+    }
+
+    #container1 {
+      grid-row: 1;
+      grid-column: 1 / span 2;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #container5 {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px;
+      overflow: hidden;
+    }
+
+    #container2 {
+      grid-row: 3;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #container3 {
+      grid-row: 4;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #container4 {
+      grid-row: 4;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #container4 a {
+      height: 100%;
+      display: flex;
+      align-items: center;
+    }
+
+    #viz {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    .logo {
+      height: 100%;
+      width: auto;
+      max-height: 100%;
+      max-width: 100%;
+      pointer-events: auto;
+      object-fit: contain;
+    }
+
+    .source-text {
+      font-size: clamp(10px, 1.6vw, 16px);
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      font-style: normal;
+    }
+
+    .source-text a {
+      color: #2756d3;
+      text-decoration: underline;
+      cursor: pointer;
+      font-style: normal;
+    }
+
+    .source-text a:visited {
+      color: #2756d3;
+    }
+
+    .footnote-text {
+      font-size: clamp(10px, 1.6vw, 16px);
+      font-style: italic;
+      color: #333;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    @media (max-height: 500px) {
+      .viz-grid {
+        grid-template-rows: 1fr;
+        grid-template-columns: 1fr;
+      }
+
+      #container1 {
+        grid-row: 1;
+        grid-column: 1;
+      }
+
+      #container2,
+      #container3,
+      #container4,
+      #container5 {
+        display: none !important;
+      }
+
+      .source-text,
+      .logo,
+      .footnote-text {
+        display: none !important;
+      }
+    }
+  </style>
+
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+
+<body>
+  <div class="viz-grid">
+    <div id="container1" class="container viz-container">
+      <div id="viz"></div>
+    </div>
+
+    <div id="container5" class="container footnote-container">
+      <div class="footnote-text" id="footnote-text">This is a footnote example</div>
+    </div>
+
+    <div id="container2" class="container legend-container"></div>
+
+    <div id="container3" class="container source-container">
+      <div class="source-text" id="source-text">
+        Source: <a href="https://huggingface.co/spaces/AIEnergyScore/Leaderboard" target="_blank"
+          rel="noopener noreferrer">AI Energy Score Leaderboard</a>
+      </div>
+    </div>
+
+    <div id="container4" class="container logo-container">
+      <a href="https://aiworld.eu/" id="logo-link" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" />
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // === layout switches ===
+    const SHOW_CONTAINER_2 = 0;
+    const SHOW_CONTAINER_3 = 1;
+    const SHOW_CONTAINER_4 = 1;
+    const SHOW_CONTAINER_5 = 0;
+
+    const vizContainer = document.getElementById("viz");
+
+    (function applyContainerVisibility() {
+      const vizGrid = document.querySelector(".viz-grid");
+      const container1 = document.getElementById("container1");
+      const container2 = document.getElementById("container2");
+      const container3 = document.getElementById("container3");
+      const container4 = document.getElementById("container4");
+      const container5 = document.getElementById("container5");
+
+      if (!SHOW_CONTAINER_2) container2.style.display = "none";
+      if (!SHOW_CONTAINER_3) container3.style.display = "none";
+      if (!SHOW_CONTAINER_4) container4.style.display = "none";
+      if (!SHOW_CONTAINER_5) container5.style.display = "none";
+
+      const row2Visible = SHOW_CONTAINER_5;
+      const row3Visible = SHOW_CONTAINER_2;
+      const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+      let gridRows = [];
+      let currentRow = 1;
+
+      const container1Height = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 2 : 0) - (row4Visible ? 1 : 0);
+      gridRows.push(`${container1Height}fr`);
+
+      if (row2Visible) { gridRows.push("1fr"); currentRow++; container5.style.gridRow = currentRow.toString(); }
+      if (row3Visible) { gridRows.push("2fr"); currentRow++; container2.style.gridRow = currentRow.toString(); }
+      if (row4Visible) {
+        gridRows.push("1fr");
+        currentRow++;
+        if (SHOW_CONTAINER_3) container3.style.gridRow = currentRow.toString();
+        if (SHOW_CONTAINER_4) container4.style.gridRow = currentRow.toString();
+      }
+
+      vizGrid.style.gridTemplateRows = gridRows.join(" ");
+      container1.style.gridRow = "1";
+
+      if (row4Visible) {
+        if (SHOW_CONTAINER_3 && !SHOW_CONTAINER_4) container3.style.gridColumn = "1 / span 2";
+        else if (!SHOW_CONTAINER_3 && SHOW_CONTAINER_4) container4.style.gridColumn = "1 / span 2";
+      }
+    })();
+
+    // === styling ===
+    const BAR_BORDER_RADIUS = 4;
+    const BAR_USE_GRADIENT = 1;
+    const LOW_GRAD_START = "#cfe8ff";
+    const LOW_GRAD_END = "#1f78ff";
+    const DELTA_GRAD_START = "#ffe2c2";
+    const DELTA_GRAD_END = "#ff7f0e";
+
+    // === DATA (your extremes table) ===
+    // IMPORTANT: add `class` for text_generation + reasoning (A/B/C). Others can stay null.
+    const rawRows = [
+      { model: "google/pix2struct-base", total_gpu_energy: 0.04574709, extreme: "lowest", source_csv: "image_captioning", class: null },
+      { model: "Salesforce/blip2-flan-t5-xxl", total_gpu_energy: 0.179930966, extreme: "highest", source_csv: "image_captioning", class: null },
+
+      { model: "facebook/wav2vec2-base-960h", total_gpu_energy: 0.000619699, extreme: "lowest", source_csv: "asr", class: null },
+      { model: "openai/whisper-large-v3", total_gpu_energy: 0.086679066, extreme: "highest", source_csv: "asr", class: null },
+
+      { model: "Mitsua/mitsua-diffusion-one", total_gpu_energy: 0.186811914, extreme: "lowest", source_csv: "image_generation", class: null },
+      { model: "stabilityai/stable-diffusion-xl-base-1.0", total_gpu_energy: 1.639845472, extreme: "highest", source_csv: "image_generation", class: null },
+
+      { model: "avsolatorio/GIST-all-MiniLM-L6-v2", total_gpu_energy: 0.000106329, extreme: "lowest", source_csv: "sentence_similarity", class: null },
+      { model: "Salesforce/SFR-Embedding-Mistral", total_gpu_energy: 0.005220944, extreme: "highest", source_csv: "sentence_similarity", class: null },
+
+      { model: "lvwerra/distilbert-imdb", total_gpu_energy: 0.000216022, extreme: "lowest", source_csv: "text_classification", class: null },
+      { model: "google-t5/t5-11b", total_gpu_energy: 0.027787079, extreme: "highest", source_csv: "text_classification", class: null },
+
+      { model: "microsoft/resnet-18", total_gpu_energy: 0.000299115, extreme: "lowest", source_csv: "image_classification", class: null },
+      { model: "deepmind/vision-perceiver-conv", total_gpu_energy: 0.002641366, extreme: "highest", source_csv: "image_classification", class: null },
+
+      { model: "KipperDev/bart_summarizer_model", total_gpu_energy: 0.000784852, extreme: "lowest", source_csv: "summarization", class: null },
+      { model: "google-t5/t5-11b", total_gpu_energy: 0.034807171, extreme: "highest", source_csv: "summarization", class: null },
+
+      { model: "hustvl/yolos-tiny", total_gpu_energy: 0.001004166, extreme: "lowest", source_csv: "object_detection", class: null },
+      { model: "hustvl/yolos-base", total_gpu_energy: 0.007980927, extreme: "highest", source_csv: "object_detection", class: null },
+
+      { model: "mrm8488/bert-tiny-finetuned-squadv2", total_gpu_energy: 0.0000554, extreme: "lowest", source_csv: "question_answering", class: null },
+      { model: "google-t5/t5-11b", total_gpu_energy: 0.178130109, extreme: "highest", source_csv: "question_answering", class: null },
+
+      // text_generation (A/B/C)
+      { model: "distilbert/distilgpt2", total_gpu_energy: 0.001313, extreme: "lowest", source_csv: "text_generation", class: "A" },
+      { model: "ibm-granite/granite-4.0-h-tiny", total_gpu_energy: 0.08182, extreme: "highest", source_csv: "text_generation", class: "A" },
+
+      { model: "Qwen/Qwen3-30B-A3B", total_gpu_energy: 0.03738, extreme: "lowest", source_csv: "text_generation", class: "B" },
+      { model: "mistralai/Mixtral-8x7B-v0.1", total_gpu_energy: 0.61539, extreme: "highest", source_csv: "text_generation", class: "B" },
+
+      { model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", total_gpu_energy: 0.03664, extreme: "lowest", source_csv: "text_generation", class: "C" },
+      { model: "CohereForAI/c4ai-command-r-plus", total_gpu_energy: 3.426382, extreme: "highest", source_csv: "text_generation", class: "C" },
+
+      // reasoning (A/B/C)
+      { model: "Qwen/Qwen3-0.6B", total_gpu_energy: 0.54699, extreme: "lowest", source_csv: "reasoning", class: "A" },
+      { model: "HuggingFaceTB/SmolLM3-3B", total_gpu_energy: 12.79122, extreme: "highest", source_csv: "reasoning", class: "A" },
+
+      { model: "openai/gpt-oss-20b low", total_gpu_energy: 1.13559, extreme: "lowest", source_csv: "reasoning", class: "B" },
+      { model: "LGAI-EXAONE/EXAONE-4.0-32B", total_gpu_energy: 18.99236, extreme: "highest", source_csv: "reasoning", class: "B" },
+
+      { model: "Qwen/Qwen3-Next-80B-A3B-Instruct", total_gpu_energy: 0.26673, extreme: "lowest", source_csv: "reasoning", class: "C" },
+      { model: "openai/gpt-oss-120b high", total_gpu_energy: 8.50362, extreme: "highest", source_csv: "reasoning", class: "C" },
+    ];
+
+    // --- split text_generation + reasoning into A/B/C subcategories (from `class`) ---
+    const SPLIT_CATS = new Set(["text_generation", "reasoning"]);
+    const VALID_CLASSES = new Set(["A", "B", "C"]);
+
+    function withClassInCategory(rows) {
+      return rows.map(r => {
+        const cat = (r.source_csv || "unknown").trim();
+        const cls = (r.class == null ? "" : String(r.class).trim().toUpperCase());
+        if (SPLIT_CATS.has(cat) && VALID_CLASSES.has(cls)) {
+          return { ...r, source_csv: `${cat}_${cls}` }; // e.g. text_generation_A
+        }
+        return r;
+      });
+    }
+
+    function prettyCategory(name) {
+      // text_generation_A -> Text generation (A)
+      const m = String(name).match(/^(text_generation|reasoning)_([ABC])$/);
+      if (!m) return name;
+      const base = (m[1] === "text_generation") ? "Text generation" : "Reasoning";
+      return `${base} (${m[2]})`;
+    }
+
+    function aggregateByCategory(rows) {
+      // per (source_csv): lowest=min(lowest), highest=max(highest)
+      const agg = {}; // key -> {name, low, lowModel, high, highModel}
+      rows.forEach(r => {
+        const cat = r.source_csv || "unknown";
+        const v = +r.total_gpu_energy || 0;
+        const extreme = (r.extreme || "").toLowerCase();
+
+        if (!agg[cat]) agg[cat] = { name: cat, low: null, lowModel: null, high: null, highModel: null };
+
+        if (extreme === "lowest") {
+          if (agg[cat].low === null || v < agg[cat].low) { agg[cat].low = v; agg[cat].lowModel = r.model; }
+        } else if (extreme === "highest") {
+          if (agg[cat].high === null || v > agg[cat].high) { agg[cat].high = v; agg[cat].highModel = r.model; }
+        }
+      });
+
+      return Object.keys(agg).map(k => {
+        const d = agg[k];
+        const low = (d.low == null ? 0 : d.low);
+        const high = (d.high == null ? 0 : d.high);
+        const safeHigh = Math.max(high, low);
+        return {
+          name: d.name,
+          low,
+          high: safeHigh,
+          delta: Math.max(0, safeHigh - low),
+          lowModel: d.lowModel,
+          highModel: d.highModel
+        };
+      });
+    }
+
+    let barTooltip = null;
+    let barRevealTimeout = null;
+
+    function renderStackedHorizontalBars(width, height) {
+      if (!vizContainer) return;
+
+      if (barRevealTimeout) { clearTimeout(barRevealTimeout); barRevealTimeout = null; }
+      while (vizContainer.firstChild) vizContainer.removeChild(vizContainer.firstChild);
+
+      // Apply class split before aggregating
+      const expanded = withClassInCategory(rawRows);
+      const rows = aggregateByCategory(expanded);
+
+      if (!rows.length) {
+        const empty = document.createElement("div");
+        empty.style.display = "flex";
+        empty.style.alignItems = "center";
+        empty.style.justifyContent = "center";
+        empty.style.height = "100%";
+        empty.style.color = "#666";
+        empty.textContent = "No data available";
+        vizContainer.appendChild(empty);
+        return;
+      }
+
+      // Sort SMALLEST first by total/high
+      const sortedAsc = rows.slice().sort((a, b) => d3.ascending(a.high, b.high));
+
+      const margin = { top: 16, right: Math.max(90, width * 0.14), bottom: 34, left: Math.max(190, width * 0.30) };
+      const innerWidth = Math.max(40, width - margin.left - margin.right);
+      const innerHeight = Math.max(40, height - margin.top - margin.bottom);
+
+      const svg = d3.select(vizContainer).append("svg")
+        .attr("width", width).attr("height", height)
+        .attr("viewBox", `0 0 ${width} ${height}`)
+        .style("width", "100%").style("height", "100%");
+
+      const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+      // gradients
+      const defs = svg.append("defs");
+
+      const gradLow = defs.append("linearGradient")
+        .attr("id", "barGradientLow")
+        .attr("gradientUnits", "objectBoundingBox")
+        .attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%");
+      gradLow.append("stop").attr("offset", "0%").attr("stop-color", LOW_GRAD_START);
+      gradLow.append("stop").attr("offset", "100%").attr("stop-color", LOW_GRAD_END);
+
+      const gradDelta = defs.append("linearGradient")
+        .attr("id", "barGradientDelta")
+        .attr("gradientUnits", "objectBoundingBox")
+        .attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%");
+      gradDelta.append("stop").attr("offset", "0%").attr("stop-color", DELTA_GRAD_START);
+      gradDelta.append("stop").attr("offset", "100%").attr("stop-color", DELTA_GRAD_END);
+
+      // tooltip
+      if (!barTooltip) {
+        barTooltip = document.createElement("div");
+        barTooltip.style.position = "fixed";
+        barTooltip.style.pointerEvents = "none";
+        barTooltip.style.zIndex = "9999";
+        barTooltip.style.background = "white";
+        barTooltip.style.borderRadius = "8px";
+        barTooltip.style.boxShadow = "0 8px 18px rgba(15,23,42,0.22)";
+        barTooltip.style.padding = "8px 10px";
+        barTooltip.style.fontSize = "12px";
+        barTooltip.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif";
+        barTooltip.style.color = "#111827";
+        barTooltip.style.opacity = "0";
+        barTooltip.style.transition = "opacity 0.12s ease-out, transform 0.12s ease-out";
+        barTooltip.style.transform = "translateY(0)";
+        document.body.appendChild(barTooltip);
+      }
+
+      const x = d3.scaleLinear().domain([0, 1]).nice().range([0, innerWidth]);
+      const y = d3.scaleBand().domain([]).rangeRound([0, innerHeight]).paddingInner(0.18).paddingOuter(0.22);
+
+      const backgroundGroup = g.append("g").attr("class", "bar-backgrounds");
+      const barGroup = g.append("g").attr("class", "bars");
+      const valueLabelGroup = g.append("g").attr("class", "value-labels");
+
+      const yAxisGroup = g.append("g").attr("class", "axis axis--y");
+      const xAxisGroup = g.append("g").attr("class", "axis axis--x").attr("transform", `translate(0,${innerHeight})`);
+
+      const xAxisLabelPadding = 22;
+      const xAxisLabel = g.append("text")
+        .attr("x", innerWidth / 2)
+        .attr("y", innerHeight + xAxisLabelPadding)
+        .attr("text-anchor", "middle")
+        .style("font-weight", "600")
+        .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif")
+        .style("fill", "#111827")
+        .text("Total GPU energy");
+
+      const formatValue = d3.format(".6f");
+      const axisFontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif";
+
+      function showTooltip(event, d) {
+        const pct = d.low > 0 ? ((d.high / d.low - 1) * 100) : null;
+        const pctStr = (pct == null || !isFinite(pct)) ? "—" : (Math.round(pct) + "%");
+
+        barTooltip.innerHTML =
+          "<strong>" + prettyCategory(d.name) + "</strong>" +
+          "<br/><span style='font-weight:600'>Lowest:</span> " + formatValue(d.low) +
+          (d.lowModel ? "<br/><span style='color:#374151'>Model:</span> " + d.lowModel : "") +
+          "<br/><span style='font-weight:600'>Highest:</span> " + formatValue(d.high) +
+          (d.highModel ? "<br/><span style='color:#374151'>Model:</span> " + d.highModel : "") +
+          "<br/><span style='font-weight:600'>Δ:</span> " + formatValue(d.delta) + " (" + pctStr + ")";
+
+        barTooltip.style.left = (event.clientX + 14) + "px";
+        barTooltip.style.top = (event.clientY - 24) + "px";
+        barTooltip.style.opacity = "1";
+        barTooltip.style.transform = "translateY(-2px)";
+      }
+      function hideTooltip() {
+        barTooltip.style.opacity = "0";
+        barTooltip.style.transform = "translateY(0)";
+      }
+
+      function renderFrame(visibleNames, nameToRow) {
+        const visibleRows = visibleNames.map(n => nameToRow[n]).filter(Boolean);
+
+        const maxHigh = d3.max(visibleRows, d => d.high) || 0;
+        x.domain([0, maxHigh * 1.05 || 1]).nice();
+        y.domain(visibleNames);
+
+        const axisFont = Math.max(9, Math.min(13, innerHeight / Math.max(6, visibleNames.length) * 0.6));
+
+        // Row backgrounds
+        const rowBackgrounds = backgroundGroup.selectAll("rect.row-bg")
+          .data(visibleNames, d => d);
+
+        rowBackgrounds.exit().transition().duration(300).attr("height", 0).attr("opacity", 0).remove();
+
+        const rowEnter = rowBackgrounds.enter()
+          .append("rect")
+          .attr("class", "row-bg")
+          .attr("x", -margin.left)
+          .attr("y", innerHeight / 2)
+          .attr("width", innerWidth + margin.left + margin.right)
+          .attr("height", 0)
+          .attr("fill", "#ffffff")
+          .attr("pointer-events", "none");
+
+        rowEnter.merge(rowBackgrounds)
+          .transition().duration(450)
+          .attr("y", name => y(name))
+          .attr("height", y.bandwidth())
+          .attr("fill", (_name, i) => i % 2 ? "#f5f5f5" : "#ffffff");
+
+        // Axes
+        yAxisGroup.transition().duration(450)
+          .call(d3.axisLeft(y).tickFormat(prettyCategory))
+          .selectAll("text")
+          .style("font-size", axisFont + "px")
+          .style("font-family", axisFontFamily);
+
+        xAxisGroup.transition().duration(450)
+          .call(d3.axisBottom(x).ticks(4))
+          .selectAll("text")
+          .style("font-size", axisFont + "px")
+          .style("font-family", axisFontFamily);
+
+        xAxisLabel.style("font-size", (axisFont + 2) + "px");
+
+        const barThickness = Math.max(10, y.bandwidth() * 0.78);
+        const yOffset = (y.bandwidth() - barThickness) / 2;
+
+        // LOW segment
+        const lowBars = barGroup.selectAll("rect.bar-low")
+          .data(visibleRows, d => d.name);
+
+        lowBars.exit().transition().duration(300).attr("width", 0).style("opacity", 0).remove();
+
+        const lowEnterBars = lowBars.enter()
+          .append("rect")
+          .attr("class", "bar-low")
+          .attr("rx", BAR_BORDER_RADIUS)
+          .attr("ry", BAR_BORDER_RADIUS)
+          .attr("fill", BAR_USE_GRADIENT ? "url(#barGradientLow)" : LOW_GRAD_END)
+          .attr("opacity", 0.95)
+          .attr("x", 0)
+          .attr("y", d => y(d.name) + yOffset)
+          .attr("height", barThickness)
+          .attr("width", 0);
+
+        lowEnterBars.merge(lowBars)
+          .on("mousemove", (event, d) => showTooltip(event, d))
+          .on("mouseleave", hideTooltip)
+          .transition().duration(600)
+          .attr("y", d => y(d.name) + yOffset)
+          .attr("height", barThickness)
+          .attr("width", d => x(d.low));
+
+        // DELTA segment stacked to the right
+        const deltaBars = barGroup.selectAll("rect.bar-delta")
+          .data(visibleRows, d => d.name);
+
+        deltaBars.exit().transition().duration(300).attr("width", 0).style("opacity", 0).remove();
+
+        const deltaEnterBars = deltaBars.enter()
+          .append("rect")
+          .attr("class", "bar-delta")
+          .attr("rx", BAR_BORDER_RADIUS)
+          .attr("ry", BAR_BORDER_RADIUS)
+          .attr("fill", BAR_USE_GRADIENT ? "url(#barGradientDelta)" : DELTA_GRAD_END)
+          .attr("opacity", 0.95)
+          .attr("x", 0)
+          .attr("y", d => y(d.name) + yOffset)
+          .attr("height", barThickness)
+          .attr("width", 0);
+
+        deltaEnterBars.merge(deltaBars)
+          .on("mousemove", (event, d) => showTooltip(event, d))
+          .on("mouseleave", hideTooltip)
+          .transition().duration(600)
+          .attr("y", d => y(d.name) + yOffset)
+          .attr("height", barThickness)
+          .attr("x", d => x(d.low))
+          .attr("width", d => Math.max(0, x(d.high) - x(d.low)));
+
+        // Total/high label at end
+        const labels = valueLabelGroup.selectAll("text.value-label")
+          .data(visibleRows, d => d.name);
+
+        labels.exit().transition().duration(250).style("opacity", 0).remove();
+
+        const labelsEnter = labels.enter()
+          .append("text")
+          .attr("class", "value-label")
+          .attr("x", 0)
+          .attr("y", innerHeight / 2)
+          .attr("fill", "#111827")
+          .attr("text-anchor", "start")
+          .style("font-weight", "600")
+          .style("font-family", axisFontFamily)
+          .style("opacity", 0);
+
+        labelsEnter.merge(labels)
+          .attr("x", d => x(d.high) + 6)
+          .attr("y", d => y(d.name) + yOffset + barThickness / 2 + 4)
+          .style("font-size", Math.max(9, axisFont) + "px")
+          .text(d => formatValue(d.high))
+          .transition().duration(450)
+          .style("opacity", 1);
+      }
+
+      // Reveal: smallest first; add new (bigger) on top by unshift
+      const nameToRow = {};
+      sortedAsc.forEach(d => { nameToRow[d.name] = d; });
+      const nameOrderAsc = sortedAsc.map(d => d.name);
+
+      const visibleNames = [];
+      let i = 0;
+      const revealDelay = 750;
+
+      const revealNext = function () {
+        barRevealTimeout = null;
+        if (i >= nameOrderAsc.length) return;
+
+        visibleNames.unshift(nameOrderAsc[i]); // new (bigger later) goes above
+        i += 1;
+
+        renderFrame(visibleNames, nameToRow);
+
+        if (i < nameOrderAsc.length) {
+          barRevealTimeout = setTimeout(revealNext, revealDelay);
+        }
+      };
+
+      revealNext();
+    }
+
+    function render() {
+      if (!vizContainer) return;
+      const rect = vizContainer.getBoundingClientRect();
+      renderStackedHorizontalBars(rect.width, rect.height);
+    }
+
+    let resizeTimer;
+    window.addEventListener("resize", function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(render, 120);
+    });
+
+    if (typeof ResizeObserver !== "undefined" && vizContainer) {
+      const ro = new ResizeObserver(render);
+      ro.observe(vizContainer);
+    }
+
+    render();
+  </script>
+</body>
+
+</html>
