@@ -68,7 +68,7 @@
     #container1 {
       grid-row: 1;
       grid-column: 1 / span 2;
-      overflow: hidden;
+      overflow: visible;
       min-height: 0;
     }
 
@@ -89,6 +89,7 @@
       align-items: center;
       justify-content: center;
       overflow: hidden;
+      padding-top: 10px;
     }
 
     #container3 {
@@ -108,10 +109,10 @@
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      padding: 0 20px;
+      padding: 0 clamp(8px, 2vw, 20px);
       overflow: hidden;
       min-width: 0;
-      gap: 20px;
+      gap: clamp(8px, 2vw, 20px);
     }
 
     #container4 a {
@@ -214,7 +215,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       gap: clamp(2px, 0.5vw, 6px);
       padding: clamp(2px, 0.4vw, 4px);
       border-radius: 6px;
@@ -223,14 +224,15 @@
       max-width: 100%;
       flex-shrink: 1;
       min-width: 0;
+      overflow: hidden;
     }
 
     .selector-button {
       border: none;
       background: transparent;
-      padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+      padding: clamp(4px, 0.8vh, 8px) clamp(6px, 1.2vw, 14px);
       border-radius: 6px;
-      font-size: clamp(9px, 1.4vw, 13px);
+      font-size: clamp(8px, 1.2vw, 13px);
       font-weight: 600;
       color: #475569;
       cursor: pointer;
@@ -238,6 +240,8 @@
       white-space: nowrap;
       flex-shrink: 1;
       min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .selector-button.active {
@@ -806,6 +810,9 @@
 
       const isVertical = BAR_ORIENTATION === "vertical";
 
+      // Detect compact mode
+      const isCompactMode = window.matchMedia('(max-height: 500px)').matches;
+
       const margin = isVertical
         ? {
           top: 16,
@@ -814,10 +821,10 @@
           left: Math.max(40, width * 0.06)
         }
         : {
-          top: 16,
+          top: isCompactMode ? 8 : 16,
           right: Math.max(40, width * 0.08),
-          bottom: 28,
-          left: Math.min(160, Math.max(100, width * 0.12))
+          bottom: isCompactMode ? 20 : 50,
+          left: isCompactMode ? Math.max(80, width * 0.08) : Math.min(160, Math.max(100, width * 0.12))
         };
 
       const innerWidth = Math.max(40, width - margin.left - margin.right);
@@ -917,8 +924,6 @@
           .attr("pointer-events", "none");
       }
 
-      // Detect compact mode
-      const isCompactMode = window.matchMedia('(max-height: 500px)').matches;
       const fontSizeMultiplier = isCompactMode ? 0.75 : 1;
 
       const axisFont = Math.max(8, Math.min(13, innerHeight / Math.max(6, data.length) * 0.6)) * fontSizeMultiplier;
@@ -955,21 +960,25 @@
           .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif");
       }
 
-      // Add x-axis label
-      const xAxisLabelText = currentView === "change"
-        ? "% of increase from 2024 to 2025"
-        : "Model Number";
+      // Add x-axis label (not in compact mode)
+      if (!isCompactMode) {
+        const xAxisLabelText = currentView === "change"
+          ? "% of increase from 2024 to 2025"
+          : "Model Number";
 
-      g.append("text")
-        .attr("class", "axis-label")
-        .attr("text-anchor", "middle")
-        .attr("x", innerWidth / 2)
-        .attr("y", innerHeight + margin.bottom - 4)
-        .style("font-size", Math.max(9, axisFont * 1.1) + "px")
-        .style("font-weight", "600")
-        .style("fill", "#333")
-        .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif")
-        .text(xAxisLabelText);
+        const labelSpacing = Math.max(22, axisFont * 2.5);
+
+        g.append("text")
+          .attr("class", "axis-label")
+          .attr("text-anchor", "middle")
+          .attr("x", innerWidth / 2)
+          .attr("y", innerHeight + labelSpacing)
+          .style("font-size", Math.max(9, axisFont * 1.1) + "px")
+          .style("font-weight", "600")
+          .style("fill", "#333")
+          .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif")
+          .text(xAxisLabelText);
+      }
 
       const defs = svg.append("defs");
       const grad = defs.append("linearGradient")
