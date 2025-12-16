@@ -734,12 +734,12 @@
         .attr("transform", "translate(0," + innerHeight + ")");
 
       let xAxisLabel = null;
-      const xAxisLabelPadding = 8;
+      const xAxisLabelPadding = 18;
       if (!isVertical) {
         xAxisLabel = g.append("text")
           .attr("class", "axis-label")
           .attr("x", innerWidth / 2)
-          .attr("y", innerHeight + margin.bottom - 4 + xAxisLabelPadding)
+          .attr("y", innerHeight + xAxisLabelPadding)
           .attr("text-anchor", "middle")
           .style("font-weight", "600")
           .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif")
@@ -1067,8 +1067,6 @@
               .style("opacity", 0);
 
             labelsEnter.merge(labels)
-              .transition()
-              .duration(600)
               .attr("x", function (d) {
                 var base = x(getNumericValue(d));
                 return BAR_VALUE_POSITION === "outside" ? base + 6 : base - 6;
@@ -1081,6 +1079,19 @@
               .style("font-size", Math.max(9, axisFont) + "px")
               .text(function (d) {
                 return formatValue(getNumericValue(d));
+              })
+              .transition()
+              .delay(function (d) {
+                if (finalBarName && d && d.name === finalBarName) {
+                  return getAnimationDuration(d);
+                }
+                return 0;
+              })
+              .duration(function (d) {
+                if (finalBarName && d && d.name === finalBarName) {
+                  return 800;
+                }
+                return 600;
               })
               .style("opacity", 1);
           }
