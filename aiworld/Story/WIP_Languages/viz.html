@@ -257,14 +257,22 @@
 
 
     @media (max-height: 500px) {
+      body {
+        padding: 0;
+      }
+
       .viz-grid {
         grid-template-rows: 1fr;
         grid-template-columns: 1fr;
+        height: 100vh;
+        padding: 0;
       }
 
       #container1 {
         grid-row: 1;
         grid-column: 1;
+        height: 100vh;
+        padding: 0;
       }
 
       #container2,
@@ -305,8 +313,8 @@
     <div id="container4" class="container logo-container">
       <div class="selector-group">
         <button class="selector-button" data-view="2024">2024</button>
-        <button class="selector-button active" data-view="2025">2025</button>
-        <button class="selector-button" data-view="change">% Change</button>
+        <button class="selector-button" data-view="2025">2025</button>
+        <button class="selector-button active" data-view="change">% Change</button>
       </div>
       <a href="https://aiworld.eu/" id="logo-link" target="_blank" rel="noopener">
         <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" />
@@ -564,7 +572,7 @@
   }
 ];
 
-    let currentView = "2025";
+    let currentView = "change";
 
     function getOriginalData() {
       return languageData.map(function(d) {
@@ -621,7 +629,7 @@
       "Romance": "#E74C3C",
       "Slavic": "#9B59B6",
       "Asian": "#F39C12",
-      "Other": "#95A5A6"
+      "Other": "#27AE60"
     };
 
     const fallbackPalette = ["#1F77B4", "#FF7F0E", "#2CA02C", "#9467BD", "#D62728", "#17BECF", "#8C564B", "#E377C2", "#7F7F7F", "#BCBD22"];
@@ -809,7 +817,7 @@
           top: 16,
           right: Math.max(40, width * 0.08),
           bottom: 28,
-          left: Math.max(80, width * 0.22)
+          left: Math.min(160, Math.max(100, width * 0.12))
         };
 
       const innerWidth = Math.max(40, width - margin.left - margin.right);
@@ -909,7 +917,11 @@
           .attr("pointer-events", "none");
       }
 
-      const axisFont = Math.max(9, Math.min(13, innerHeight / Math.max(6, data.length) * 0.6));
+      // Detect compact mode
+      const isCompactMode = window.matchMedia('(max-height: 500px)').matches;
+      const fontSizeMultiplier = isCompactMode ? 0.75 : 1;
+
+      const axisFont = Math.max(8, Math.min(13, innerHeight / Math.max(6, data.length) * 0.6)) * fontSizeMultiplier;
 
       if (isVertical) {
         g.append("g")
@@ -1102,7 +1114,7 @@
             return BAR_VALUE_POSITION === "outside" ? "start" : "end";
           })
           .attr("fill", BAR_VALUE_POSITION === "inside" ? "#ffffff" : "#111827")
-          .style("font-size", Math.max(9, axisFont) + "px")
+          .style("font-size", Math.max(8, axisFont) + "px")
           .style("font-weight", "600")
           .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif")
           .text(function (d) {
