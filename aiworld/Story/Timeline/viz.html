@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Open-source AI Timeline 2025</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* Reset and Grid Layout */
+    html, body { height: 100%; margin: 0; overflow: hidden; background: #ffffff; font-family: 'Lato', sans-serif; }
+    
+    .viz-grid { 
+      display: grid; 
+      /* Grid breakdown: 1. Chart (flexible) 2. Footer (fixed) */
+      grid-template-rows: 1fr 60px; 
+      height: 100vh; 
+      width: 100vw; 
+      box-sizing: border-box; 
+    }
+    
+    /* Container for the SVG */
+    #chart-area { 
+      grid-row: 1; 
+      position: relative; 
+      width: 100%; 
+      height: 100%; 
+      overflow: hidden; /* Prevents chart from pushing footer down */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    svg { width: 100%; height: 100%; display: block; }
+    
+    /* Locked Footer - based on screenshot 4 */
+    .footer-row { 
+      grid-row: 2; 
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between; 
+      padding: 0 24px;
+      border-top: 1px solid #e5e7eb;
+      background: #fff;
+      z-index: 10;
+    }
+
+    /* Action buttons - based on screenshot 3 */
+    .btn-group { display: flex; gap: 8px; align-items: center; }
+    .btn-pill { 
+      padding: 6px 16px; 
+      border: 1px solid #cfd2d7; 
+      border-radius: 10px; 
+      background: #fff; 
+      font-weight: 700; 
+      color: #26344f; 
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn-pill:hover { background: #f9fafb; border-color: #2563eb; }
+    .btn-active { background: #2563eb; color: white; border-color: #2563eb; }
+
+    .source-text { font-size: 13px; font-weight: 600; color: #333; }
+    .source-text a { color: #2756d3; text-decoration: underline; text-underline-offset: 2px; }
+
+    /* Logo handling - based on screenshot 4 */
+    .logo-container { display: flex; align-items: center; gap: 10px; height: 28px; }
+    .logo { height: 100%; width: auto; object-fit: contain; }
+    .separator { color: #9ca3af; font-weight: 300; }
+
+    #tooltip { 
+      position: absolute; background: #fff; border: 1px solid #d9d9df; 
+      padding: 8px; font-size: 12px; opacity: 0; pointer-events: none; 
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-radius: 8px; z-index: 100;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 700px) {
+      .source-text { display: none; }
+      .footer-row { justify-content: center; gap: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="viz-grid">
+    <div id="chart-area">
+      <svg id="timeline-svg"></svg>
+      <div id="tooltip"></div>
+    </div>
+
+    <div class="footer-row">
+      <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank">HuggingFace</a></div>
+
+      <div class="btn-group">
+        <button id="btnPlay" class="btn-pill btn-active">Play</button>
+        <button id="btnReset" class="btn-pill">Reset</button>
+        <button id="btnDownload" class="btn-pill">Download PNG</button>
+      </div>
+
+      <div class="logo-container">
+        <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="HF">
+        <span class="separator">×</span>
+        <img src="logo.svg" class="logo" alt="AI World">
+      </div>
+    </div>
+  </div>
+
+<script>
+/**
+ * DATA ARRAY - 2025 AI PILESTONES
+ * Replace with your own content as needed.
+ */
+const DATA = [
+    { date: "2025-01-20", event: "DeepSeek chatbot", org: "DeepSeek", color: "#1F77B4" },
+    { date: "2025-01-29", event: "Qwen2.5 Max", org: "Alibaba", color: "#FF6A00" },
+    { date: "2025-03-12", event: "Gemma 3", org: "Google", color: "#4285F4" },
+    { date: "2025-03-24", event: "DeepSeek V3", org: "DeepSeek", color: "#1F77B4" },
+    { date: "2025-03-24", event: "Qwen2.5 VL", org: "Alibaba", color: "#FF6A00" },
+    { date: "2025-03-26", event: "Qwen Omni", org: "Alibaba", color: "#FF6A00" },
+    { date: "2025-03-31", event: "OpenAI signal", org: "OpenAI", color: "#000000" },
+    { date: "2025-04-05", event: "Llama 4", org: "Meta", color: "#0866FF" },
+    { date: "2025-04-28", event: "Qwen3 family", org: "Alibaba", color: "#FF6A00" },
+    { date: "2025-04-30", event: "Phi-4 reasoning", org: "Microsoft", color: "#737373" },
+    { date: "2025-05-19", event: "Edge Phi-4", org: "Microsoft", color: "#737373" },
+    { date: "2025-05-28", event: "DeepSeek R1", org: "DeepSeek", color: "#1F77B4" },
+    { date: "2025-07-11", event: "Kimi K2", org: "Moonshot AI", color: "#6A1B9A" },
+    { date: "2025-07-23", event: "Qwen3 Coder", org: "Alibaba", color: "#FF6A00" },
+    { date: "2025-08-05", event: "GPT-OSS models", org: "OpenAI", color: "#000000" },
+    { date: "2025-08-21", event: "DeepSeek V3.1", org: "DeepSeek", color: "#1F77B4" },
+    { date: "2025-09-05", event: "Qwen3 Max", org: "Alibaba", color: "#FF6A00" },
+    { date: "2025-09-10", event: "Qwen3 Next", org: "Alibaba", color: "#FF6A00" },
+    { date: "2025-09-22", event: "Qwen3 Omni", org: "Alibaba", color: "#FF6A00" },
+    { date: "2025-11-06", event: "Kimi Thinking", org: "Moonshot AI", color: "#6A1B9A" },
+    { date: "2025-12-01", event: "DeepSeek V3.2", org: "DeepSeek", color: "#1F77B4" },
+    { date: "2025-12-02", event: "Mistral 3", org: "Mistral AI", color: "#E0002A" },
+    { date: "2025-12-15", event: "Nemotron 3", org: "NVIDIA", color: "#76B900" }
+];
+
+// Initial State (Start at end for static view, set to 0 for auto-play)
+let state = { k: DATA.length, timer: null, playing: false };
+const svg = d3.select("#timeline-svg");
+const chartArea = document.getElementById("chart-area");
+
+/**
+ * RENDERING ENGINE
+ * Redraws the timeline based on state.k (number of visible events)
+ */
+function render() {
+  const rect = chartArea.getBoundingClientRect();
+  const width = rect.width;
+  const height = rect.height;
+  const margin = { left: 60, right: 60, top: 100, bottom: 100 };
+
+  svg.attr("width", width).attr("height", height).selectAll("*").remove();
+
+  const parseTime = d3.utcParse("%Y-%m-%d");
+  const data = DATA.map(d => ({ ...d, dateObj: parseTime(d.date) })).sort((a,b) => a.dateObj - b.dateObj);
+  const visibleData = data.slice(0, state.k);
+
+  const x = d3.scaleUtc()
+    .domain(d3.extent(data, d => d.dateObj))
+    .range([margin.left, width - margin.right]);
+
+  // Main chronological axis
+  svg.append("line")
+    .attr("x1", margin.left)
+    .attr("x2", width - margin.right)
+    .attr("y1", height / 2)
+    .attr("y2", height / 2)
+    .attr("stroke", "#e5e7eb")
+    .attr("stroke-width", 2);
+
+  visibleData.forEach((d, i) => {
+    // Alternate sides: Top (even index), Bottom (odd index)
+    const isUp = i % 2 === 0;
+    let tickLen = 50;
+    
+    // REQUIREMENT: Prevent label overlap by staggering tick heights
+    // We check the previous 3 items to see if they are geographically too close
+    for (let j = i - 1; j >= Math.max(0, i-3); j--) {
+        const diffX = Math.abs(x(d.dateObj) - x(data[j].dateObj));
+        // If closer than 80px, push this tick further away
+        if (diffX < 80) tickLen += 45; 
+    }
+
+    const yCoord = isUp ? (height / 2) - tickLen : (height / 2) + tickLen;
+
+    // Connective Tick Line
+    svg.append("line")
+      .attr("x1", x(d.dateObj))
+      .attr("x2", x(d.dateObj))
+      .attr("y1", height / 2)
+      .attr("y2", yCoord)
+      .attr("stroke", "#d1d5db")
+      .attr("stroke-dasharray", "3,3");
+
+    // Event Dot
+    svg.append("circle")
+      .attr("cx", x(d.dateObj))
+      .attr("cy", height / 2)
+      .attr("r", 5)
+      .attr("fill", d.color)
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 2);
+
+    // Event Name Label
+    svg.append("text")
+      .attr("x", x(d.dateObj))
+      .attr("y", isUp ? yCoord - 12 : yCoord + 22)
+      .attr("text-anchor", "middle")
+      .attr("fill", d.color)
+      .attr("font-size", "12px")
+      .attr("font-weight", "700")
+      .text(d.event);
+
+    // Organization Sub-label
+    svg.append("text")
+      .attr("x", x(d.dateObj))
+      .attr("y", isUp ? yCoord - 28 : yCoord + 38)
+      .attr("text-anchor", "middle")
+      .attr("fill", "#9ca3af")
+      .attr("font-size", "10px")
+      .text(d.org);
+
+    // Date Axis Label
+    svg.append("text")
+      .attr("x", x(d.dateObj))
+      .attr("y", isUp ? (height / 2) + 20 : (height / 2) - 10)
+      .attr("text-anchor", "middle")
+      .attr("font-size", "11px")
+      .attr("font-weight", "600")
+      .attr("fill", "#4b5563")
+      .text(d3.utcFormat("%b %d")(d.dateObj));
+  });
+}
+
+/**
+ * PLAYBACK CONTROL
+ */
+document.getElementById("btnPlay").onclick = () => {
+  if(state.playing) {
+    clearInterval(state.timer);
+    state.playing = false;
+    document.getElementById("btnPlay").textContent = "Play";
+    document.getElementById("btnPlay").classList.add("btn-active");
+  } else {
+    if(state.k >= DATA.length) state.k = 0; // Restart if at end
+    state.playing = true;
+    document.getElementById("btnPlay").textContent = "Pause";
+    document.getElementById("btnPlay").classList.remove("btn-active");
+    state.timer = setInterval(() => {
+      if(state.k < DATA.length) {
+        state.k++;
+        render();
+      } else {
+        clearInterval(state.timer);
+        state.playing = false;
+        document.getElementById("btnPlay").textContent = "Play";
+        document.getElementById("btnPlay").classList.add("btn-active");
+      }
+    }, 600); // REVEAL SPEED (ms)
+  }
+};
+
+document.getElementById("btnReset").onclick = () => {
+    state.k = 0;
+    render();
+};
+
+// Automatic resize handling
+window.addEventListener("resize", render);
+
+// Final initial render
+render();
+</script>
+</body>
+</html>
