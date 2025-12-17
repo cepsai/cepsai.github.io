@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Timeline 2025</title>
+  
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    html, body { 
+      height: 100%; margin: 0; padding: 0; 
+      overflow: hidden; background: #ffffff; 
+      font-family: 'Lato', sans-serif;
+    }
+    
+    .viz-grid { 
+      display: grid; 
+      grid-template-rows: 1fr auto; 
+      height: 100vh; width: 100vw; 
+      background: #ffffff;
+    }
+    
+    #chart-container { 
+      grid-row: 1; 
+      position: relative; 
+      width: 100%; height: 100%; 
+      overflow: hidden; 
+      min-height: 200px;
+    }
+
+    svg { width: 100%; height: 100%; display: block; }
+    
+    .control-bar { 
+      grid-row: 2; 
+      display: flex; align-items: center; justify-content: space-between;
+      padding: clamp(8px, 1.5vh, 16px) clamp(12px, 2vw, 24px);
+      background: #ffffff; min-height: 56px; z-index: 10;
+    }
+
+    .source-text { 
+      font-size: clamp(10px, 1.6vw, 16px); 
+      font-weight: 600; 
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .source-text a { 
+      color: #2756d3; 
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .logo-container { 
+      display: flex; 
+      align-items: center; 
+      gap: clamp(4px, 1vw, 8px);
+      flex-shrink: 0;
+    }
+    .logo { 
+      height: clamp(18px, 3vh, 28px); 
+      width: auto; 
+      object-fit: contain;
+      max-width: clamp(80px, 15vw, 200px);
+    }
+    .sep { 
+      color: #9ca3af; 
+      margin: 0 clamp(2px, 0.5vw, 4px);
+      font-size: clamp(14px, 2vw, 20px);
+    }
+
+    @media (max-width: 600px) {
+      .control-bar { 
+        padding: 10px 16px;
+        gap: 8px;
+      }
+      .source-text { font-size: 11px; }
+      .logo { height: 20px; }
+      .sep { font-size: 16px; }
+    }
+    
+    #error-log {
+        display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(255,255,255,0.95); color: red; z-index: 9999; padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="error-log"></div>
+
+  <div class="viz-grid">
+    <div id="chart-container">
+      <svg id="timeline-svg"></svg>
+    </div>
+
+    <div class="control-bar">
+      <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank">HuggingFace</a></div>
+      <div class="logo-container">
+        <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="HF">
+        <span class="sep">×</span>
+        <img src="logo.svg" class="logo" alt="AI World">
+      </div>
+    </div>
+  </div>
+
+<script>
+window.onerror = function(msg) {
+    const el = document.getElementById('error-log');
+    el.style.display = 'block'; el.innerHTML = "Error: " + msg;
+};
+
+try {
+    if (typeof d3 === 'undefined') throw new Error("D3 not loaded.");
+
+    const SETTINGS = { 
+      minimalThreshold: 550, 
+      animationSpeed: 500,
+      animationDelay: 4000
+    };
+    
+    const DATA = [
+      { date: "2025-01-08", event: "Phi-4", org: "Microsoft", color: "#737373", description: "14B parameter model with strong reasoning" },
+      { date: "2025-01-20", event: "DeepSeek R1", org: "DeepSeek", color: "#003366", priority: true, description: "Open reasoning model rivaling top performers" },
+      { date: "2025-03-12", event: "Gemma 3", org: "Google", color: "#4285F4", description: "Lightweight models for edge deployment" },
+      { date: "2025-03-17", event: "Mistral Small 3.1", org: "Mistral AI", color: "#E0002A", description: "Efficient model for production use" },
+      { date: "2025-03-25", event: "Qwen Omni 7B", org: "Alibaba", color: "#FF6A00", description: "Multimodal model with vision and audio" },
+      { date: "2025-04-05", event: "Llama 4", org: "Meta", color: "#0866FF", priority: true, description: "Next generation open foundation model" },
+      { date: "2025-04-28", event: "Qwen3 family", org: "Alibaba", color: "#FF6A00", description: "Suite of models from 0.5B to 70B" },
+      { date: "2025-05-07", event: "Mistral Medium 3", org: "Mistral AI", color: "#E0002A", description: "Balanced performance and efficiency" },
+      { date: "2025-05-13", event: "AM Thinking v1", org: "A-M-Team", color: "#8C8CFF", description: "Chain-of-thought reasoning model" },
+      { date: "2025-07-11", event: "Kimi K2", org: "Moonshot AI", color: "#6A1B9A", description: "Long context window specialist" },
+      { date: "2025-07-28", event: "GLM-4.5", org: "Zhipu", color: "#00A3A3", description: "Bilingual model with strong coding" },
+      { date: "2025-08-05", event: "OpenAI GPT-OSS", org: "OpenAI", color: "#000000", priority: true, description: "First open-source release from OpenAI" },
+      { date: "2025-08-21", event: "DeepSeek V3.1", org: "DeepSeek", color: "#003366", description: "Enhanced reasoning and math capabilities" },
+      { date: "2025-09-02", event: "Apertus LLM", org: "Switzerland", color: "#D52B1E", description: "European sovereign AI model" },
+      { date: "2025-09-05", event: "Qwen3 Max", org: "Alibaba", color: "#FF6A00", priority: true, description: "Flagship model competing with GPT-4" },
+      { date: "2025-10-23", event: "LTX-2 video", org: "Lightricks", color: "#FFB000", description: "Text-to-video generation model" },
+      { date: "2025-10-27", event: "MiniMax M2", org: "MiniMax", color: "#FF2D55", description: "Multimodal with strong image understanding" },
+      { date: "2025-10-30", event: "Pelican-VL 1.0", org: "Research", color: "#666666", description: "Vision-language model for research" },
+      { date: "2025-12-01", event: "DeepSeek V3.2", org: "DeepSeek", color: "#003366", description: "State-of-the-art open model" },
+      { date: "2025-12-02", event: "Mistral 3 family", org: "Mistral AI", color: "#E0002A", description: "Complete refresh of model lineup" },
+      { date: "2025-12-10", event: "Devstral 2", org: "Mistral AI", color: "#E0002A", description: "Specialized coding assistant model" },
+      { date: "2025-12-15", event: "Nemotron 3", org: "NVIDIA", color: "#76B900", priority: true, description: "Optimized for NVIDIA hardware" },
+    ];
+
+    let state = { k: 0, timer: null, playing: false };
+    const svg = d3.select("#timeline-svg");
+    const container = document.getElementById("chart-container");
+
+    function render() {
+      const rect = container.getBoundingClientRect();
+      const width = rect.width > 0 ? rect.width : window.innerWidth;
+      const height = rect.height > 0 ? rect.height : (window.innerHeight - 60);
+
+      const isMinimal = width < SETTINGS.minimalThreshold;
+      
+      const fontSizeVal = Math.max(9, Math.min(12, width / 60)); 
+      const fontSize = fontSizeVal + "px";
+      const fontOrgSize = (fontSizeVal - 2) + "px";
+
+      const margin = isMinimal 
+        ? { left: 30, right: 30, top: 50, bottom: 50 }
+        : { left: 80, right: 80, top: 80, bottom: 80 };
+
+      svg.attr("width", width).attr("height", height).selectAll("*").remove();
+
+      const parseTime = d3.utcParse("%Y-%m-%d");
+      const data = DATA.map(d => ({ ...d, dateObj: parseTime(d.date) })).sort((a,b) => a.dateObj - b.dateObj);
+      const visibleData = data.slice(0, state.k);
+
+      // Time scale for positioning along the curve
+      const timeExtent = d3.extent(data, d => d.dateObj);
+      const timeScale = d3.scaleTime()
+        .domain(timeExtent)
+        .range([0, 1]); // Normalize to 0-1
+
+      // Exponential curve function
+      // t goes from 0 to 1 (representing Jan to Dec)
+      // Curve goes from bottom-left to top-right
+      function getCurvePoint(t) {
+        // Exponential growth: y = e^(k*t) - 1, normalized
+        const k = 2.5; // Controls curve steepness
+        const normalizedY = (Math.exp(k * t) - 1) / (Math.exp(k) - 1);
+        
+        const x = margin.left + t * (width - margin.left - margin.right);
+        const y = (height - margin.bottom) - normalizedY * (height - margin.top - margin.bottom);
+        
+        return { x, y };
+      }
+
+      // Draw the exponential curve
+      if (visibleData.length > 0) {
+        const curvePoints = [];
+        const steps = 100;
+        const lastT = timeScale(visibleData[visibleData.length - 1].dateObj);
+        
+        for (let i = 0; i <= steps; i++) {
+          const t = (i / steps) * lastT;
+          const point = getCurvePoint(t);
+          curvePoints.push(point);
+        }
+        
+        const lineGenerator = d3.line()
+          .x(d => d.x)
+          .y(d => d.y)
+          .curve(d3.curveNatural);
+        
+        svg.append("path")
+          .attr("d", lineGenerator(curvePoints))
+          .attr("stroke", "#000000")
+          .attr("stroke-width", 2.5)
+          .attr("fill", "none");
+      }
+
+      // Add month labels along the curve
+      const monthStarts = [];
+      for (let month = 0; month < 12; month++) {
+        const date = new Date(2025, month, 1);
+        if (date >= timeExtent[0] && date <= timeExtent[1]) {
+          monthStarts.push({ date, month });
+        }
+      }
+
+      monthStarts.forEach(({ date, month }) => {
+        const t = timeScale(date);
+        const point = getCurvePoint(t);
+        const monthName = d3.utcFormat("%b")(date);
+        
+        // Position labels based on curve position
+        const isEarlyInYear = t < 0.5;
+        
+        svg.append("text")
+          .attr("x", isEarlyInYear ? point.x - 8 : point.x + 8)
+          .attr("y", point.y)
+          .attr("text-anchor", isEarlyInYear ? "end" : "start")
+          .attr("dy", "0.35em")
+          .attr("font-size", "11px")
+          .attr("fill", "#9ca3af")
+          .attr("font-weight", "600")
+          .text(monthName);
+      });
+
+      // Plot events
+      visibleData.forEach((d, i) => {
+        const t = timeScale(d.dateObj);
+        const point = getCurvePoint(t);
+        
+        const showLabel = !isMinimal || d.priority;
+        
+        // Alternate left and right positioning
+        const isLeft = i % 2 === 0;
+        const labelOffset = isMinimal ? 35 : 55;
+        const horizontalOffset = isMinimal ? 60 : 90;
+        
+        let labelX, labelY, textAnchor, descX, descAnchor;
+        
+        if (isLeft) {
+          // Labels to the left
+          labelX = point.x - horizontalOffset;
+          labelY = point.y;
+          textAnchor = "end";
+          descX = point.x - horizontalOffset;
+          descAnchor = "end";
+        } else {
+          // Labels to the right
+          labelX = point.x + horizontalOffset;
+          labelY = point.y;
+          textAnchor = "start";
+          descX = point.x + horizontalOffset;
+          descAnchor = "start";
+        }
+
+        if (showLabel) {
+          // Tick Line
+          svg.append("line")
+            .attr("x1", point.x)
+            .attr("x2", labelX)
+            .attr("y1", point.y)
+            .attr("y2", labelY)
+            .attr("stroke", "#d1d5db")
+            .attr("stroke-dasharray", "3,3");
+            
+          // Event Label
+          svg.append("text")
+            .attr("x", labelX)
+            .attr("y", labelY)
+            .attr("text-anchor", textAnchor)
+            .attr("fill", d.color)
+            .attr("font-size", fontSize)
+            .attr("font-weight", "700")
+            .attr("dy", "0.35em")
+            .text(d.event);
+          
+          // Org Label
+          if (!isMinimal) {
+            svg.append("text")
+              .attr("x", labelX)
+              .attr("y", labelY - 12)
+              .attr("text-anchor", textAnchor)
+              .attr("fill", "#9ca3af")
+              .attr("font-size", fontOrgSize)
+              .attr("dy", "0.35em")
+              .text(d.org);
+          }
+        }
+
+        // Dot on curve
+        svg.append("circle")
+          .attr("cx", point.x)
+          .attr("cy", point.y)
+          .attr("r", isMinimal ? 4 : 6)
+          .attr("fill", d.color)
+          .attr("stroke", "#ffffff")
+          .attr("stroke-width", 2);
+        
+        // Description text - only show for the last visible item, positioned next to the point
+        if (i === visibleData.length - 1 && d.description) {
+          const descFontSize = Math.max(10, Math.min(13, width / 60));
+          
+          svg.append("text")
+            .attr("class", "description-text")
+            .attr("x", descX)
+            .attr("y", labelY + 15)
+            .attr("text-anchor", descAnchor)
+            .attr("fill", "#6b7280")
+            .attr("font-size", descFontSize + "px")
+            .attr("font-style", "italic")
+            .attr("dy", "0.35em")
+            .text(d.description);
+        }
+      });
+    }
+
+    // Auto-play animation
+    function startAnimation() {
+      if (state.timer) return;
+      
+      state.playing = true;
+      state.timer = setInterval(() => {
+        if (state.k < DATA.length) {
+          state.k++;
+          render();
+        } else {
+          // Reset after delay
+          clearInterval(state.timer);
+          state.timer = null;
+          setTimeout(() => {
+            state.k = 0;
+            render();
+            startAnimation();
+          }, SETTINGS.animationDelay);
+        }
+      }, SETTINGS.animationSpeed);
+    }
+
+    const observer = new ResizeObserver(() => { render(); });
+    observer.observe(container);
+
+    render();
+    startAnimation();
+
+} catch (e) {
+    document.getElementById('error-log').style.display = 'block';
+    document.getElementById('error-log').innerHTML = "CRITICAL ERROR: " + e.message;
+}
+</script>
+</body>
+</html>
