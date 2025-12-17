@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Timeline 2025</title>
+  
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    html, body { 
+      height: 100%; margin: 0; padding: 0; 
+      overflow: hidden; background: #ffffff; 
+      font-family: 'Lato', sans-serif;
+    }
+    
+    .viz-grid { 
+      display: grid; 
+      grid-template-rows: 1fr auto; 
+      height: 100vh; width: 100vw; 
+      background: #ffffff;
+    }
+    
+    #chart-container { 
+      grid-row: 1; 
+      position: relative; 
+      width: 100%; height: 100%; 
+      overflow: hidden; 
+      min-height: 200px;
+    }
+
+    svg { width: 100%; height: 100%; display: block; }
+.control-bar { 
+      grid-row: 2; 
+      display: flex; align-items: center; justify-content: space-between;
+      padding: clamp(8px, 1.5vh, 16px) clamp(12px, 2vw, 24px);
+      background: #ffffff; min-height: 56px; z-index: 10;
+    }
+
+    .source-text { 
+      font-size: clamp(10px, 1.6vw, 16px); 
+      font-weight: 600; 
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .source-text a { 
+      color: #2756d3; 
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .logo-container { 
+      display: flex; 
+      align-items: center; 
+      gap: clamp(4px, 1vw, 8px);
+      flex-shrink: 0;
+    }
+    .logo { 
+      height: clamp(18px, 3vh, 28px); 
+      width: auto; 
+      object-fit: contain;
+      max-width: clamp(80px, 15vw, 200px);
+    }
+    .sep { 
+      color: #9ca3af; 
+      margin: 0 clamp(2px, 0.5vw, 4px);
+      font-size: clamp(14px, 2vw, 20px);
+    }
+
+    @media (max-width: 600px) {
+      .control-bar { 
+        padding: 10px 16px;
+        gap: 8px;
+      }
+      .source-text { font-size: 11px; }
+      .logo { height: 20px; }
+      .sep { font-size: 16px; }
+    }
+
+/* .control-bar { 
+      grid-row: 2; 
+      display: flex; align-items: center; justify-content: space-between;
+      padding: clamp(8px, 1.5vh, 16px) clamp(12px, 2vw, 24px);
+      background: #ffffff; min-height: 56px; z-index: 10;
+    }
+
+    .source-text { 
+      font-size: clamp(10px, 1.6vw, 16px); 
+      font-weight: 600; 
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .source-text a { 
+      color: #2756d3; 
+      text-decoration: underline;
+      cursor: pointer;
+    }
+    .logo-container { 
+      display: flex; 
+      align-items: center; 
+      gap: clamp(4px, 1vw, 8px);
+      flex-shrink: 0;
+    }
+    .logo { 
+      height: clamp(18px, 3vh, 28px); 
+      width: auto; 
+      object-fit: contain;
+      max-width: clamp(80px, 15vw, 200px);
+    }
+    .sep { 
+      color: #9ca3af; 
+      margin: 0 clamp(2px, 0.5vw, 4px);
+      font-size: clamp(14px, 2vw, 20px);
+    }
+
+    @media (max-width: 600px) {
+        .control-bar { 
+            padding: 10px 16px;
+            gap: 8px;
+        }
+        .source-text { font-size: 11px; }
+        .logo { height: 20px; }
+        .sep { font-size: 16px; }
+        }
+     */
+    
+    #error-log {
+        display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(255,255,255,0.95); color: red; z-index: 9999; padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="error-log"></div>
+
+  <div class="viz-grid">
+    <div id="chart-container">
+      <svg id="timeline-svg"></svg>
+    </div>
+
+    <div class="control-bar">
+      <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank">HuggingFace</a></div>
+      <div class="logo-container">
+        <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="HF">
+        <span class="sep">×</span>
+        <img src="logo.svg" class="logo" alt="AI World">
+      </div>
+    </div>
+  </div>
+
+<script>
+window.onerror = function(msg) {
+    const el = document.getElementById('error-log');
+    el.style.display = 'block'; el.innerHTML = "Error: " + msg;
+};
+
+try {
+    if (typeof d3 === 'undefined') throw new Error("D3 not loaded.");
+
+    const SETTINGS = { 
+      minimalThreshold: 550, 
+      animationSpeed: 500,
+      animationDelay: 4000
+    };
+    
+    const DATA = [
+      { date: "2025-01-08", event: "Phi-4", org: "Microsoft", color: "#737373" },
+      { date: "2025-01-20", event: "DeepSeek R1", org: "DeepSeek", color: "#003366", priority: true },
+      { date: "2025-03-12", event: "Gemma 3", org: "Google", color: "#4285F4" },
+      { date: "2025-04-05", event: "Llama 4", org: "Meta", color: "#0866FF", priority: true },
+      { date: "2025-04-28", event: "Qwen3 family", org: "Alibaba", color: "#FF6A00" },
+      { date: "2025-05-07", event: "Mistral Medium 3", org: "Mistral AI", color: "#E0002A" },
+      { date: "2025-07-11", event: "Kimi K2", org: "Moonshot AI", color: "#6A1B9A" },
+      { date: "2025-07-28", event: "GLM-4.5", org: "Zhipu", color: "#00A3A3" },
+      { date: "2025-08-05", event: "OpenAI GPT-OSS", org: "OpenAI", color: "#000000", priority: true },
+      { date: "2025-08-21", event: "DeepSeek V3.1", org: "DeepSeek", color: "#003366" },
+      { date: "2025-09-02", event: "Apertus LLM", org: "Switzerland", color: "#D52B1E" },
+      { date: "2025-11-20", event: "Olmo3", org: "AllenAI", color: "#D52B1E" },
+      { date: "2025-12-01", event: "DeepSeek V3.2", org: "DeepSeek", color: "#003366" },
+      { date: "2025-12-10", event: "Devstral 2", org: "Mistral AI", color: "#E0002A" },
+      { date: "2025-12-15", event: "Nemotron 3", org: "NVIDIA", color: "#76B900", priority: true }
+    ];
+
+    let state = { k: 0, timer: null, playing: false };
+    const svg = d3.select("#timeline-svg");
+    const container = document.getElementById("chart-container");
+
+    function render() {
+      const rect = container.getBoundingClientRect();
+      const width = rect.width > 0 ? rect.width : window.innerWidth;
+      const height = rect.height > 0 ? rect.height : (window.innerHeight - 60);
+
+      const isMinimal = width < SETTINGS.minimalThreshold;
+      
+      const fontSizeVal = Math.max(9, Math.min(12, width / 60)); 
+      const fontSize = fontSizeVal + "px";
+      const fontOrgSize = (fontSizeVal - 2) + "px";
+      
+      const labelCollisionBuffer = isMinimal ? 40 : 85; 
+
+      const margin = isMinimal 
+        ? { left: 20, right: 20, top: 40, bottom: 40 }
+        : { left: 60, right: 60, top: 100, bottom: 100 };
+
+      svg.attr("width", width).attr("height", height).selectAll("*").remove();
+
+      const parseTime = d3.utcParse("%Y-%m-%d");
+      const data = DATA.map(d => ({ ...d, dateObj: parseTime(d.date) })).sort((a,b) => a.dateObj - b.dateObj);
+      const visibleData = data.slice(0, state.k);
+
+      const x = d3.scaleUtc()
+        .domain(d3.extent(data, d => d.dateObj))
+        .range([margin.left, width - margin.right]);
+
+      // Draw Center Axis
+      svg.append("line")
+        .attr("x1", margin.left).attr("x2", width - margin.right)
+        .attr("y1", height / 2).attr("y2", height / 2)
+        .attr("stroke", "#000000").attr("stroke-width", 2);
+
+      // Track positions for collision detection
+      const tiersUp = [-999, -999, -999, -999]; 
+      const tiersDown = [-999, -999, -999, -999];
+      const tickHeights = [30, 70, 110, 150];
+      
+      // Track date labels shown for each cluster
+      const dateLabelsShown = new Map();
+
+      visibleData.forEach((d, i) => {
+        const cx = x(d.dateObj);
+        const isUp = i % 2 === 0;
+        
+        const showLabel = !isMinimal || d.priority;
+
+        let chosenTier = 0;
+        let tickLen = tickHeights[0];
+
+        if (showLabel) {
+            const lanes = isUp ? tiersUp : tiersDown;
+            
+            let foundLane = -1;
+            for (let t = 0; t < lanes.length; t++) {
+                if (cx - lanes[t] > labelCollisionBuffer) {
+                    foundLane = t;
+                    break;
+                }
+            }
+
+            chosenTier = foundLane === -1 ? 2 : foundLane;
+            lanes[chosenTier] = cx;
+            tickLen = tickHeights[chosenTier];
+        }
+
+        const y = isUp ? (height / 2) - tickLen : (height / 2) + tickLen;
+        const dotY = height / 2;
+
+        if (showLabel) {
+            // Tick Line
+            svg.append("line")
+              .attr("x1", cx).attr("x2", cx)
+              .attr("y1", dotY).attr("y2", y)
+              .attr("stroke", "#d1d5db").attr("stroke-dasharray", "3,3");
+              
+            // Event Label
+            svg.append("text")
+              .attr("x", cx)
+              .attr("y", isUp ? y - 10 : y + 18)
+              .attr("text-anchor", "middle")
+              .attr("fill", d.color)
+              .attr("font-size", fontSize)
+              .attr("font-weight", "700")
+              .text(d.event);
+            
+            // Org Label (Only if not minimal)
+            if (!isMinimal) {
+                svg.append("text")
+                  .attr("x", cx)
+                  .attr("y", isUp ? y - 22 : y + 30)
+                  .attr("text-anchor", "middle")
+                  .attr("fill", "#9ca3af")
+                  .attr("font-size", fontOrgSize)
+                  .text(d.org);
+            }
+            
+            // Date on Axis - Only show one per cluster in minimal mode
+            if (!isMinimal) {
+                svg.append("text")
+                  .attr("x", cx)
+                  .attr("y", isUp ? dotY + 15 : dotY - 7)
+                  .attr("text-anchor", "middle")
+                  .attr("font-size", "10px")
+                  .attr("fill", "#6b7280")
+                  .text(d3.utcFormat("%b %d")(d.dateObj));
+            } else {
+                // In minimal mode, only show date if no date was shown nearby
+                const clusterKey = Math.floor(cx / labelCollisionBuffer);
+                if (!dateLabelsShown.has(clusterKey)) {
+                    svg.append("text")
+                      .attr("x", cx)
+                      .attr("y", dotY + 15)
+                      .attr("text-anchor", "middle")
+                      .attr("font-size", "9px")
+                      .attr("fill", "#6b7280")
+                      .text(d3.utcFormat("%b %d")(d.dateObj));
+                    dateLabelsShown.set(clusterKey, true);
+                }
+            }
+        }
+
+        // Dot
+        svg.append("circle")
+          .attr("cx", cx).attr("cy", dotY)
+          .attr("r", isMinimal ? 3 : 5)
+          .attr("fill", d.color).attr("stroke", "#ffffff").attr("stroke-width", 2);
+      });
+    }
+
+    // Auto-play animation
+    function startAnimation() {
+      if (state.timer) return;
+      
+      state.playing = true;
+      state.timer = setInterval(() => {
+        if (state.k < DATA.length) {
+          state.k++;
+          render();
+        } else {
+          // Reset after delay
+          clearInterval(state.timer);
+          state.timer = null;
+          setTimeout(() => {
+            state.k = 0;
+            render();
+            startAnimation();
+          }, SETTINGS.animationDelay);
+        }
+      }, SETTINGS.animationSpeed);
+    }
+
+    const observer = new ResizeObserver(() => { render(); });
+    observer.observe(container);
+
+    render();
+    startAnimation();
+
+} catch (e) {
+    document.getElementById('error-log').style.display = 'block';
+    document.getElementById('error-log').innerHTML = "CRITICAL ERROR: " + e.message;
+}
+</script>
+</body>
+</html>
+
+
