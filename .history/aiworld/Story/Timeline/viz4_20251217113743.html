@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Timeline 2025</title>
+  
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* Ensure the page takes up space */
+    html, body { 
+      height: 100%; 
+      margin: 0; 
+      padding: 0; 
+      overflow: hidden; 
+      background: #ffffff; 
+      font-family: 'Lato', sans-serif;
+    }
+    
+    .viz-grid { 
+      display: grid; 
+      grid-template-rows: 1fr auto; 
+      height: 100vh; 
+      width: 100vw; 
+      background: #ffffff;
+    }
+    
+    #chart-container { 
+      grid-row: 1; 
+      position: relative; 
+      width: 100%; 
+      height: 100%; 
+      overflow: hidden; 
+      min-height: 200px; /* Force minimum height */
+    }
+
+    svg { width: 100%; height: 100%; display: block; }
+    
+    .control-bar { 
+      grid-row: 2; 
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-top: 1px solid #e5e7eb;
+      background: #ffffff;
+      min-height: 56px;
+      z-index: 10;
+    }
+
+    /* Styles for UI elements */
+    .source-text { font-size: 13px; font-weight: 600; color: #333; }
+    .source-text a { color: #2756d3; text-decoration: underline; }
+    .btn-group { display: flex; gap: 10px; }
+    .btn-pill { 
+      padding: 6px 16px; border: 1px solid #d1d5db; border-radius: 8px; 
+      background: #fff; font-weight: 700; color: #374151; cursor: pointer; font-size: 13px; 
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .btn-pill:hover { background: #f3f4f6; }
+    .btn-active { background: #2563eb !important; color: #fff !important; border-color: #2563eb !important; }
+    .logo-container { display: flex; align-items: center; gap: 8px; }
+    .logo { height: 24px; width: auto; object-fit: contain; }
+    .sep { color: #d1d5db; margin: 0 2px; }
+
+    @media (max-width: 600px) {
+      .source-text, .logo-container { display: none; }
+      .control-bar { justify-content: center; }
+    }
+
+    /* Error message styling */
+    #error-log {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(255,255,255,0.95); color: red; z-index: 9999;
+        display: none; padding: 20px; font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="error-log"></div>
+
+  <div class="viz-grid">
+    <div id="chart-container">
+      <svg id="timeline-svg"></svg>
+    </div>
+
+    <div class="control-bar">
+      <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank">HuggingFace</a></div>
+      <div class="btn-group">
+        <button id="btnPlay" class="btn-pill btn-active">Play</button>
+        <button id="btnReset" class="btn-pill">Reset</button>
+        <button id="btnDownload" class="btn-pill">Download PNG</button>
+      </div>
+      <div class="logo-container">
+        <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="HF">
+        <span class="sep">×</span>
+        <img src="logo.svg" class="logo" alt="AI World">
+      </div>
+    </div>
+  </div>
+
+<script>
+// Global Error Handler
+window.onerror = function(message, source, lineno, colno, error) {
+    const el = document.getElementById('error-log');
+    el.style.display = 'block';
+    el.innerHTML += `<strong>Error:</strong> ${message} <br>Line: ${lineno}<br><br>`;
+};
+
+try {
+    // 1. CHECK IF D3 LOADED
+    if (typeof d3 === 'undefined') {
+        throw new Error("D3.js library failed to load. Please check your internet connection or Content Security Policy.");
+    }
+
+    const SETTINGS = { minimalThreshold: 550, revealSpeed: 500 };
+    const DATA = [
+      { date: "2025-01-08", event: "Phi-4", org: "Microsoft", color: "#737373" },
+      { date: "2025-01-20", event: "DeepSeek R1", org: "DeepSeek", color: "#003366", priority: true },
+      { date: "2025-03-12", event: "Gemma 3", org: "Google", color: "#4285F4" },
+      { date: "2025-03-17", event: "Mistral Small 3.1", org: "Mistral AI", color: "#E0002A" },
+      { date: "2025-03-25", event: "Qwen Omni 7B", org: "Alibaba", color: "#FF6A00" },
+      { date: "2025-04-05", event: "Llama 4", org: "Meta", color: "#0866FF", priority: true },
+      { date: "2025-04-28", event: "Qwen3 family", org: "Alibaba", color: "#FF6A00" },
+      { date: "2025-05-07", event: "Mistral Medium 3", org: "Mistral AI", color: "#E0002A" },
+      { date: "2025-05-13", event: "AM Thinking v1", org: "A-M-Team", color: "#8C8CFF" },
+      { date: "2025-07-11", event: "Kimi K2", org: "Moonshot AI", color: "#6A1B9A" },
+      { date: "2025-07-28", event: "GLM-4.5", org: "Zhipu", color: "#00A3A3" },
+      { date: "2025-08-05", event: "OpenAI GPT-OSS", org: "OpenAI", color: "#000000", priority: true },
+      { date: "2025-08-21", event: "DeepSeek V3.1", org: "DeepSeek", color: "#003366" },
+      { date: "2025-09-02", event: "Apertus LLM", org: "Switzerland", color: "#D52B1E" },
+      { date: "2025-09-05", event: "Qwen3 Max", org: "Alibaba", color: "#FF6A00", priority: true },
+      { date: "2025-10-23", event: "LTX-2 video", org: "Lightricks", color: "#FFB000" },
+      { date: "2025-10-27", event: "MiniMax M2", org: "MiniMax", color: "#FF2D55" },
+      { date: "2025-10-30", event: "Pelican-VL 1.0", org: "Research", color: "#666666" },
+      { date: "2025-12-01", event: "DeepSeek V3.2", org: "DeepSeek", color: "#003366" },
+      { date: "2025-12-02", event: "Mistral 3 family", org: "Mistral AI", color: "#E0002A" },
+      { date: "2025-12-10", event: "Devstral 2", org: "Mistral AI", color: "#E0002A" },
+      { date: "2025-12-15", event: "Nemotron 3", org: "NVIDIA", color: "#76B900", priority: true },
+    ];
+
+    let state = { k: DATA.length, timer: null, playing: false };
+    const svg = d3.select("#timeline-svg");
+    const container = document.getElementById("chart-container");
+
+    function render() {
+      // 2. SAFE DIMENSIONS (Fallback if 0)
+      const rect = container.getBoundingClientRect();
+      const width = rect.width > 0 ? rect.width : window.innerWidth;
+      const height = rect.height > 0 ? rect.height : (window.innerHeight - 60);
+
+      const isMinimal = width < SETTINGS.minimalThreshold;
+      const margin = isMinimal 
+        ? { left: 40, right: 40, top: 40, bottom: 40 }
+        : { left: 70, right: 70, top: 100, bottom: 100 };
+
+      svg.attr("width", width).attr("height", height).selectAll("*").remove();
+
+      const parseTime = d3.utcParse("%Y-%m-%d");
+      const data = DATA.map(d => ({ ...d, dateObj: parseTime(d.date) })).sort((a,b) => a.dateObj - b.dateObj);
+      const visibleData = data.slice(0, state.k);
+
+      const x = d3.scaleUtc()
+        .domain(d3.extent(data, d => d.dateObj))
+        .range([margin.left, width - margin.right]);
+
+      svg.append("line")
+        .attr("x1", margin.left).attr("x2", width - margin.right)
+        .attr("y1", height / 2).attr("y2", height / 2)
+        .attr("stroke", "#e5e7eb").attr("stroke-width", 2);
+
+      visibleData.forEach((d, i) => {
+        const isUp = i % 2 === 0;
+        let tickLen = 50;
+
+        if (!isMinimal) {
+            for (let j = i - 1; j >= Math.max(0, i-4); j--) {
+                const dx = Math.abs(x(d.dateObj) - x(data[j].dateObj));
+                if (dx < 80) tickLen += 45; 
+            }
+        }
+
+        const y = isUp ? (height / 2) - tickLen : (height / 2) + tickLen;
+        const dotY = height / 2;
+        const showLabel = !isMinimal || d.priority;
+
+        if (showLabel) {
+            svg.append("line")
+              .attr("x1", x(d.dateObj)).attr("x2", x(d.dateObj))
+              .attr("y1", dotY).attr("y2", y)
+              .attr("stroke", "#d1d5db").attr("stroke-dasharray", "3,3");
+              
+            svg.append("text")
+              .attr("x", x(d.dateObj)).attr("y", isUp ? y - 12 : y + 20)
+              .attr("text-anchor", "middle").attr("fill", d.color)
+              .attr("font-size", isMinimal ? "11px" : "12px").attr("font-weight", "700")
+              .text(d.event);
+            
+            if (!isMinimal) {
+                svg.append("text")
+                  .attr("x", x(d.dateObj)).attr("y", isUp ? y - 26 : y + 34)
+                  .attr("text-anchor", "middle").attr("fill", "#9ca3af")
+                  .attr("font-size", "10px")
+                  .text(d.org);
+            }
+        }
+
+        svg.append("circle")
+          .attr("cx", x(d.dateObj)).attr("cy", dotY).attr("r", isMinimal ? 4 : 5)
+          .attr("fill", d.color).attr("stroke", "#ffffff").attr("stroke-width", 2);
+
+        if (!isMinimal) {
+            svg.append("text")
+              .attr("x", x(d.dateObj)).attr("y", isUp ? dotY + 20 : dotY - 10)
+              .attr("text-anchor", "middle").attr("font-size", "11px").attr("fill", "#6b7280")
+              .text(d3.utcFormat("%b %d")(d.dateObj));
+        }
+      });
+    }
+
+    document.getElementById("btnPlay").onclick = function() {
+      if(state.playing) {
+        clearInterval(state.timer);
+        state.playing = false;
+        this.textContent = "Play";
+        this.classList.add("btn-active");
+      } else {
+        if(state.k >= DATA.length) state.k = 0;
+        state.playing = true;
+        this.textContent = "Pause";
+        this.classList.remove("btn-active");
+        state.timer = setInterval(() => {
+          if(state.k < DATA.length) { state.k++; render(); }
+          else { clearInterval(state.timer); state.playing = false; this.textContent = "Play"; this.classList.add("btn-active"); }
+        }, SETTINGS.revealSpeed);
+      }
+    };
+
+    document.getElementById("btnReset").onclick = () => {
+        state.k = 0; render();
+        clearInterval(state.timer); state.playing = false;
+        const btn = document.getElementById("btnPlay"); btn.textContent = "Play"; btn.classList.add("btn-active");
+    };
+
+    document.getElementById("btnDownload").onclick = () => {
+        const svgEl = document.getElementById("timeline-svg");
+        const serializer = new XMLSerializer();
+        const source = serializer.serializeToString(svgEl);
+        const canvas = document.createElement("canvas");
+        const rect = svgEl.getBoundingClientRect();
+        canvas.width = rect.width * 2; canvas.height = rect.height * 2;
+        const ctx = canvas.getContext("2d");
+        const img = new Image();
+        img.onload = () => {
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.scale(2, 2); ctx.drawImage(img, 0, 0);
+            const a = document.createElement("a");
+            a.download = "timeline.png"; a.href = canvas.toDataURL("image/png"); a.click();
+        };
+        img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(source);
+    };
+
+    const observer = new ResizeObserver(() => { render(); });
+    observer.observe(container);
+
+    // Initial Render
+    render();
+
+} catch (e) {
+    document.getElementById('error-log').style.display = 'block';
+    document.getElementById('error-log').innerHTML = "CRITICAL ERROR: " + e.message;
+}
+</script>
+</body>
+</html>
