@@ -57,8 +57,8 @@
 
     .viz-grid {
       display: grid;
-      grid-template-rows: 16fr 1fr 2fr 1fr;
-      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 16fr 1fr 2fr minmax(40px, 1fr);
+      grid-template-columns: 1fr auto;
       height: 100vh;
       width: 100vw;
       box-sizing: border-box;
@@ -78,7 +78,7 @@
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      padding: 0 20px;
+      padding: 0 clamp(8px, 2vw, 20px);
       overflow: hidden;
     }
 
@@ -97,7 +97,7 @@
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      padding: 0 20px;
+      padding: 0 clamp(8px, 2vw, 20px);
       overflow: hidden;
       min-width: 0;
     }
@@ -108,11 +108,11 @@
       display: flex;
       align-items: center;
       justify-content: flex-end;
-      flex-wrap: wrap;
-      gap: clamp(8px, 1.5vw, 16px);
-      padding: 0 20px;
-      overflow: hidden;
-      min-width: 0;
+      flex-wrap: nowrap;
+      gap: clamp(2px, 1.5vw, 16px);
+      padding: 0 clamp(4px, 2vw, 20px);
+      overflow: visible;
+      white-space: nowrap;
     }
 
     #container4 a {
@@ -177,6 +177,7 @@
       width: auto;
       max-height: 100%;
       max-width: 100%;
+      min-height: 24px;
       pointer-events: auto;
       object-fit: contain;
     }
@@ -203,6 +204,24 @@
       color: #2756d3;
     }
 
+    .source-full {
+      display: inline;
+    }
+
+    .source-compact {
+      display: none;
+    }
+
+    @media (max-width: 900px) {
+      .source-full {
+        display: none;
+      }
+
+      .source-compact {
+        display: inline;
+      }
+    }
+
     .footnote-text {
       font-size: clamp(10px, 1.6vw, 16px);
       font-style: italic;
@@ -218,30 +237,32 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-wrap: wrap;
-      gap: clamp(2px, 0.5vw, 6px);
-      padding: clamp(2px, 0.4vw, 4px);
-      border-radius: 6px;
+      flex-wrap: nowrap;
+      gap: clamp(0.5px, 0.5vw, 6px);
+      padding: clamp(0.5px, 0.4vw, 4px);
+      border-radius: 4px;
       border: 1px solid rgba(17, 24, 39, 0.15);
       background: #f8fafc;
       max-width: 100%;
-      flex-shrink: 1;
-      min-width: 0;
+      flex-shrink: 2;
+      min-width: fit-content;
     }
 
     .selector-button {
       border: none;
       background: transparent;
-      padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+      padding: clamp(3px, 0.8vh, 8px) clamp(6px, 1.5vw, 14px);
       border-radius: 6px;
-      font-size: clamp(9px, 1.4vw, 13px);
+      font-size: clamp(8px, 1.4vw, 13px);
       font-weight: 600;
       color: #475569;
       cursor: pointer;
       transition: background 0.2s ease, color 0.2s ease;
       white-space: nowrap;
       flex-shrink: 1;
-      min-width: 0;
+      min-width: fit-content;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .selector-button.active {
@@ -250,40 +271,47 @@
     }
 
     .selector-label {
-      font-size: clamp(8px, 1.2vw, 12px);
+      font-size: clamp(7px, 1.2vw, 12px);
       font-weight: 600;
       color: #0f172a;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      margin-right: clamp(2px, 0.4vw, 6px);
+      margin-right: clamp(1px, 0.4vw, 6px);
       white-space: nowrap;
     }
 
 
-    @media (max-height: 500px) {
+    @media (max-height: 350px) {
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
       .viz-grid {
         grid-template-rows: 1fr;
         grid-template-columns: 1fr;
+        padding: 0;
+        margin: 0;
+        height: 100vh;
+        gap: 0;
       }
 
       #container1 {
         grid-row: 1;
         grid-column: 1;
+        padding: 0;
+        margin: 0;
+        height: 100vh;
+      }
+
+      #viz {
+        height: 100vh;
       }
 
       #container2,
       #container3,
       #container4,
       #container5 {
-        display: none !important;
-      }
-
-      .custom-legend,
-      .source-text,
-      .logo,
-      .footnote-text,
-      .selector-group,
-      .selector-label {
         display: none !important;
       }
     }
@@ -308,8 +336,9 @@
     </div>
     <div id="container3" class="container source-container">
       <div class="source-text" id="source-text">
-    Source: <a href="https://huggingface.co/spaces/economies-open-ai/open-model-evolution" target="_blank" rel="noopener noreferrer">Hugging Face Open Model Leaderboard</a>
-  </div>
+        <span class="source-full">Source: <a href="https://huggingface.co/spaces/economies-open-ai/open-model-evolution" target="_blank" rel="noopener noreferrer">Hugging Face Open Model Leaderboard</a></span>
+        <span class="source-compact"><a href="https://huggingface.co/spaces/economies-open-ai/open-model-evolution" target="_blank" rel="noopener noreferrer">Source</a></span>
+      </div>
     </div>
     <div id="container4" class="container logo-container">
       <div class="selector-group range-selector" aria-label="Top selection">
@@ -322,16 +351,13 @@
         <button class="selector-button filter-button" data-dimension="organizations">Developers</button>
         <button class="selector-button filter-button" data-dimension="countries">Regions</button>
       </div>
-        <a href="https://huggingface.co/" target="_blank" rel="noopener">
+      <a href="https://huggingface.co/" target="_blank" rel="noopener">
         <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="Hugging Face logo" />
       </a>
-      ×
+      <span style="font-size: clamp(14px, 2vw, 20px); color: #333; font-weight: 300; padding: 0 clamp(4px, 0.5vw, 8px);">×</span>
       <a href="https://aiworld.eu/" target="_blank" rel="noopener">
         <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" />
       </a>
-      <!-- <a href="https://aiworld.eu/" id="logo-link" target="_blank" rel="noopener">
-        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" />
-      </a> -->
     </div>
   </div>
 
@@ -341,15 +367,7 @@
     const SHOW_CONTAINER_4 = 1;
     const SHOW_CONTAINER_5 = 0;
 
-    const VIZ_CONTAINER_ID = 'viz';
-    const SOURCE_CONTAINER_ID = 'source-text';
-    const LOGO_CONTAINER_ID = 'logo-link';
-    const FOOTNOTE_CONTAINER_ID = 'footnote-text';
-
-    const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
-    const sourceContainer = document.getElementById(SOURCE_CONTAINER_ID);
-    const logoContainer = document.getElementById(LOGO_CONTAINER_ID);
-    const footnoteContainer = document.getElementById(FOOTNOTE_CONTAINER_ID);
+    const vizContainer = document.getElementById('viz');
 
     (function applyContainerVisibility() {
       const vizGrid = document.querySelector('.viz-grid');
@@ -395,7 +413,7 @@
       }
 
       if (row4Visible) {
-        gridRows.push('1fr');
+        gridRows.push('minmax(40px, 1fr)');
         currentRow++;
         if (SHOW_CONTAINER_3) container3.style.gridRow = currentRow.toString();
         if (SHOW_CONTAINER_4) container4.style.gridRow = currentRow.toString();
@@ -414,7 +432,6 @@
     })();
 
     const PLOT_TYPE = "treemap";
-    // const CSV_PATH = "models_colors.csv";
     const CSV_PATH = "model_colors2.csv";
     let originalData = [];
     let fullData = [];
@@ -661,23 +678,31 @@
 
     function loadCsvData() {
       d3.csv(CSV_PATH).then(function (data) {
+        console.log('CSV loaded, rows:', data.length);
         originalData = data.map(formatCsvRow).filter(function (d) { return d !== null; });
+        console.log('Formatted data, rows:', originalData.length);
+        if (originalData.length === 0) {
+          console.warn('No valid data after formatting');
+          if (vizContainer) {
+            vizContainer.innerHTML = '<div style="padding:20px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;color:#b91c1c;">No valid data found in CSV.</div>';
+          }
+          return;
+        }
         fullData = originalData.slice();
         applyFilter(currentFilter);
       }).catch(function (error) {
-        console.error("Failed to load CSV data", error);
+        console.error("Failed to load CSV data:", error);
+        console.error("CSV path:", CSV_PATH);
         if (vizContainer) {
-          vizContainer.innerHTML = '<div style="padding:20px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;color:#b91c1c;">Unable to load data.</div>';
+          vizContainer.innerHTML = '<div style="padding:20px;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif;color:#b91c1c;">Unable to load data. Please ensure this page is served via HTTP/HTTPS (not file://) and that ' + CSV_PATH + ' exists.</div>';
         }
       });
     }
     function getModelLimit(filter) {
-  // You label this button "Top 100" but use data-filter="all"
-  // so treat "all" as 100 (or fall back to full length if smaller).
-  if (filter === "all") return 100;
-  var n = parseInt(filter, 10);
-  return isNaN(n) ? 100 : n;
-}
+      if (filter === "all") return 100;
+      var n = parseInt(filter, 10);
+      return isNaN(n) ? 100 : n;
+    }
 
     function applyFilter(filter) {
       currentFilter = filter;
@@ -687,17 +712,14 @@
         return;
       }
 
-      // 1) Always start from models, sorted by value
       var models = aggregateModels(fullData).slice();
       models.sort(function (a, b) {
         return toNumericValue(b.value) - toNumericValue(a.value);
       });
 
-      // 2) Take the Top N models first (Top 10 / 50 / 100)
       var limit = getModelLimit(filter);
       var topModels = models.slice(0, Math.min(limit, models.length));
 
-      // 3) Now build the view for the selected dimension FROM topModels
       var aggregated;
       if (currentDimension === "models") {
         aggregated = topModels;
@@ -709,7 +731,6 @@
         aggregated = topModels;
       }
 
-      // 4) Sort for display (do NOT slice again — that would reintroduce the bug)
       aggregated.sort(function (a, b) {
         return toNumericValue(b.value) - toNumericValue(a.value);
       });
@@ -873,7 +894,7 @@
       if (!vizContainer) return null;
       if (!treemapInstance) {
         treemapInstance = new d3plus.Treemap()
-          .select("#" + VIZ_CONTAINER_ID)
+          .select("#viz")
           .data(treemapData)
           .groupBy(getGroupByKeys())
           .tooltipConfig({
@@ -1220,7 +1241,7 @@
               var topY = y(v);
               var barH = Math.max(4, innerHeight - topY);
               if (BAR_VALUE_POSITION === "outside") return topY - 6;
-              var maxOffset = 14; // px
+              var maxOffset = 14;
               var offset = Math.min(maxOffset, barH / 2);
               return topY + offset;
             }
