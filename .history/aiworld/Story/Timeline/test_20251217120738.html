@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Open-source AI timeline (2025)</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#ffffff;
+      --fg:#111827;
+      --muted:#6b7280;
+      --card:#f9fafb;
+      --border:#e5e7eb;
+      --accent: #2563eb;
+    }
+    body{
+      margin:0;
+      font-family: 'Lato', sans-serif;
+      background:var(--bg);
+      color:var(--fg);
+    }
+    .wrap{max-width:1200px; margin:0 auto; padding:20px;}
+    header{margin-bottom: 20px;}
+    h1{margin:0; font-size:24px; font-weight:700;}
+    .sub{margin-top:8px; color:var(--muted); font-size:14px;}
+    .panel{
+      margin-bottom:20px;
+      padding:15px;
+      background:var(--card);
+      border:1px solid var(--border);
+      border-radius:12px;
+      display:flex;
+      gap:20px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .panel label{font-size:12px; font-weight:600; color:var(--muted); display:flex; flex-direction:column; gap:4px;}
+    .panel input[type="range"]{width:120px; cursor: pointer;}
+    .panel button{
+      border:1px solid var(--border);
+      background:#fff;
+      border-radius:8px;
+      padding:8px 16px;
+      cursor:pointer;
+      font-weight:600;
+      transition: all 0.2s;
+    }
+    .panel button:hover{ background: #f3f4f6; }
+    #chart{
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:#fff;
+      min-height: 200px;
+      width: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Open-source AI: pivotal moments in 2025</h1>
+      <div class="sub">Chronological reveal of the year's major releases.</div>
+    </header>
+
+    <div class="panel" id="controls">
+      <button id="btnPlay" style="background: var(--accent); color: white; border: none;">Play</button>
+      <button id="btnReset">Reset</button>
+
+      <label>Speed (ms) <input id="speed" type="range" min="100" max="1500" step="50" value="450" /></label>
+      <label>Height <input id="height" type="range" min="300" max="600" step="10" value="450" /></label>
+      <label>Font size <input id="fontSize" type="range" min="10" max="18" step="1" value="12" /></label>
+      <label>Base Tick <input id="tickHeight" type="range" min="20" max="100" step="5" value="40" /></label>
+      <label>Wrap <input id="wrapLen" type="range" min="10" max="35" step="1" value="20" /></label>
+      <label>Margins <input id="sideMargins" type="range" min="20" max="150" step="5" value="80" /></label>
+    </div>
+
+    <div id="chart"></div>
+  </div>
+
+  <script type="module">
+    import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+    import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
+
+    const DATA = [
+      { date: "2025-01-20", event: "DeepSeek chatbot launches (R1-based)", org: "DeepSeek" },
+      { date: "2025-01-29", event: "Qwen2.5-Max announced", org: "Alibaba" },
+      { date: "2025-03-12", event: "Gemma 3 released (open weights)", org: "Google" },
+      { date: "2025-03-24", event: "DeepSeek-V3-0324 released (MIT)", org: "DeepSeek" },
+      { date: "2025-03-24", event: "Qwen2.5-VL-32B released (Apache 2.0)", org: "Alibaba" },
+      { date: "2025-03-26", event: "Qwen2.5-Omni-7B released (multimodal)", org: "Alibaba" },
+      { date: "2025-03-31", event: "OpenAI signals open-weight release", org: "OpenAI" },
+      { date: "2025-04-05", event: "Llama 4 Scout & Maverick announced", org: "Meta" },
+      { date: "2025-04-28", event: "Qwen3 family released (Apache 2.0)", org: "Alibaba" },
+      { date: "2025-04-30", event: "Phi-4-reasoning released (MIT)", org: "Microsoft" },
+      { date: "2025-05-19", event: "Edge adds on-device Phi-4 APIs", org: "Microsoft" },
+      { date: "2025-05-28", event: "DeepSeek-R1-0528 released (MIT)", org: "DeepSeek" },
+      { date: "2025-07-11", event: "Kimi K2 open-source model", org: "Moonshot AI" },
+      { date: "2025-07-23", event: "Qwen3-Coder launched", org: "Alibaba" },
+      { date: "2025-08-05", event: "gpt-oss-120b & 20b released", org: "OpenAI" },
+      { date: "2025-08-21", event: "DeepSeek V3.1 released (MIT)", org: "DeepSeek" },
+      { date: "2025-09-05", event: "Qwen3-Max launched", org: "Alibaba" },
+      { date: "2025-09-10", event: "Qwen3-Next (new architecture)", org: "Alibaba" },
+      { date: "2025-09-22", event: "Qwen3-Omni (real-time multimodal)", org: "Alibaba" },
+      { date: "2025-11-06", event: "Kimi K2 Thinking released", org: "Moonshot AI" },
+      { date: "2025-12-01", event: "DeepSeek-V3.2 released", org: "DeepSeek" },
+      { date: "2025-12-02", event: "Mistral 3 announced (Apache 2.0)", org: "Mistral AI" },
+      { date: "2025-12-15", event: "Nvidia launches Nemotron 3", org: "NVIDIA" }
+    ];
+
+    const state = { k: 0, timer: null, playing: false };
+    const elChart = document.getElementById("chart");
+    const inputs = ['speed', 'height', 'fontSize', 'tickHeight', 'wrapLen', 'sideMargins'].map(id => document.getElementById(id));
+
+    function wrapText(text, limit) {
+      const words = text.split(" ");
+      let lines = [], currentLine = "";
+      words.forEach(w => {
+        if ((currentLine + w).length > limit) { lines.push(currentLine); currentLine = w; }
+        else currentLine += (currentLine ? " " : "") + w;
+      });
+      lines.push(currentLine);
+      return { text: lines.join("\n"), lines: lines.length };
+    }
+
+    function getPreparedData() {
+      const wLimit = +document.getElementById("wrapLen").value;
+      const sorted = DATA.map(d => ({ ...d, dateObj: d3.utcParse("%Y-%m-%d")(d.date) }))
+                          .sort((a, b) => a.dateObj - b.dateObj);
+      
+      // Dynamic spacing logic
+      return sorted.map((d, i) => {
+        const wrapped = wrapText(`${d.event} (${d.org})`, wLimit);
+        // If the date is very close to the previous date, increase height offset
+        let tier = 1;
+        if (i > 0) {
+          const diffDays = (d.dateObj - sorted[i-1].dateObj) / (1000 * 60 * 60 * 24);
+          if (diffDays < 7) tier = 1.8; // Middle tier
+          if (diffDays < 3) tier = 2.6; // High tier
+        }
+        return { ...d, ...wrapped, tier };
+      });
+    }
+
+    function render() {
+      const H = +document.getElementById("height").value;
+      const T = +document.getElementById("tickHeight").value;
+      const FS = +document.getElementById("fontSize").value;
+      const SM = +document.getElementById("sideMargins").value;
+      
+      const all = getPreparedData();
+      const currentData = all.slice(0, state.k);
+
+      const plot = Plot.plot({
+        width: elChart.clientWidth,
+        height: H,
+        marginLeft: SM, marginRight: SM,
+        x: { type: "utc", axis: null, domain: [all[0].dateObj, all[all.length-1].dateObj] },
+        y: { axis: null, domain: [-H/2, H/2] },
+        marks: [
+          Plot.ruleY([0], { stroke: "#ccc" }),
+          // Timeline Dots
+          Plot.dot(currentData, { x: "dateObj", y: 0, r: 4, fill: "var(--accent)" }),
+          // Dynamic Ticks
+          Plot.ruleX(currentData, {
+            x: "dateObj",
+            y1: 0,
+            y2: (d, i) => (i % 2 === 0 ? T * d.tier : -T * d.tier),
+            stroke: "#999"
+          }),
+          // Event Labels
+          Plot.text(currentData, {
+            x: "dateObj",
+            y: (d, i) => (i % 2 === 0 ? (T * d.tier) + 10 : (-T * d.tier) - 10),
+            text: "text",
+            lineHeight: 1.1,
+            fontSize: FS,
+            verticalAnchor: (d, i) => i % 2 === 0 ? "top" : "bottom"
+          }),
+          // Date Labels
+          Plot.text(currentData, {
+            x: "dateObj",
+            y: (d, i) => i % 2 === 0 ? -15 : 15,
+            text: d => d3.utcFormat("%b %d")(d.dateObj),
+            fontSize: FS - 2,
+            fill: "#666"
+          })
+        ]
+      });
+      elChart.replaceChildren(plot);
+    }
+
+    function play() {
+      if (state.k >= DATA.length) state.k = 0;
+      state.playing = true;
+      document.getElementById("btnPlay").textContent = "Pause";
+      state.timer = setInterval(() => {
+        state.k++;
+        render();
+        if (state.k >= DATA.length) {
+          clearInterval(state.timer);
+          state.playing = false;
+          document.getElementById("btnPlay").textContent = "Play";
+        }
+      }, +document.getElementById("speed").value);
+    }
+
+    document.getElementById("btnPlay").onclick = () => {
+      if (state.playing) { clearInterval(state.timer); state.playing = false; document.getElementById("btnPlay").textContent = "Play"; }
+      else play();
+    };
+    document.getElementById("btnReset").onclick = () => { clearInterval(state.timer); state.k = 0; state.playing = false; render(); };
+    inputs.forEach(el => el.oninput = render);
+    window.onresize = render;
+
+    // Initial Start
+    render();
+  </script>
+</body>
+</html>
