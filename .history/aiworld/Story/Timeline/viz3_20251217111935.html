@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Timeline 2025</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; background: #ffffff; font-family: 'Lato', sans-serif; }
+    
+    .viz-grid { 
+      display: grid; 
+      grid-template-rows: 1fr auto; 
+      height: 100vh; 
+      width: 100vw; 
+      background: #ffffff;
+    }
+    
+    #chart-container { 
+      grid-row: 1; 
+      position: relative; 
+      width: 100%; 
+      height: 100%; 
+      overflow: hidden; 
+    }
+
+    svg { width: 100%; height: 100%; display: block; }
+    
+    /* Control Bar Container */
+    .control-bar { 
+      grid-row: 2; 
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 24px;
+      border-top: 1px solid #e5e7eb;
+      background: #ffffff;
+      min-height: 50px;
+    }
+
+    /* Button Styles from image_bdb2bf.png and image_bd331b.png */
+    .btn-group { display: flex; gap: 8px; }
+    .btn-pill { 
+      padding: 6px 16px; 
+      border: 1px solid #cfd2d7; 
+      border-radius: 10px; 
+      background: #ffffff; 
+      font-weight: 700; 
+      color: #26344f; 
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s ease;
+    }
+    /* Play button blue style from image_bd331b.png */
+    .btn-play { background: #3b82f6; color: #ffffff; border-color: #3b82f6; }
+    .btn-play:hover { background: #2563eb; }
+
+    /* Source & Logos from image_bdb5a4.png */
+    .source-text { font-size: 13px; font-weight: 600; color: #333; }
+    .source-text a { color: #2756d3; text-decoration: underline; }
+    
+    .logo-container { display: flex; align-items: center; gap: 8px; height: 28px; }
+    .logo { height: 100%; width: auto; object-fit: contain; }
+
+    /* Hide elements on small screens via CSS for UI stability */
+    @media (max-width: 500px) {
+      .source-text { display: none; }
+      .control-bar { justify-content: center; padding: 10px; }
+      .logo-container { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="viz-grid">
+    <div id="chart-container">
+      <svg id="timeline-svg"></svg>
+    </div>
+
+    <div class="control-bar">
+      <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank">HuggingFace</a></div>
+
+      <div class="btn-group">
+        <button id="btnPlay" class="btn-pill btn-play">Play</button>
+        <button id="btnReset" class="btn-pill">Reset</button>
+      </div>
+
+      <div class="logo-container">
+        <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="HF">
+        <span style="color:#ccc">×</span>
+        <img src="https://aiworld.eu/logo.svg" class="logo" alt="AI World">
+      </div>
+    </div>
+  </div>
+
+<script>
+const SETTINGS = {
+  minimalThreshold: 500, // Width in px to trigger minimal mode
+  revealSpeed: 500
+};
+
+const DATA = [
+    { date: "2025-01-20", event: "DeepSeek chatbot", org: "DeepSeek", color: "#1F77B4", priority: true },
+    { date: "2025-03-12", event: "Gemma 3", org: "Google", color: "#4285F4" },
+    { date: "2025-04-05", event: "Llama 4", org: "Meta", color: "#0866FF" },
+    { date: "2025-05-28", event: "DeepSeek R1", org: "DeepSeek", color: "#1F77B4" },
+    { date: "2025-09-10", event: "Qwen3 Next", org: "Alibaba", color: "#FF6A00", priority: true },
+    { date: "2025-12-02", event: "Mistral 3", org: "Mistral AI", color: "#E0002A" }
+];
+
+let state = { k: DATA.length, timer: null, playing: false };
+const svg = d3.select("#timeline-svg");
+const container = document.getElementById("chart-container");
+
+function render() {
+  const rect = container.getBoundingClientRect();
+  const width = rect.width;
+  const height = rect.height;
+  const isMinimal = width < SETTINGS.minimalThreshold; // Minimal mode check
+  
+  const margin = isMinimal 
+    ? { left: 30, right: 30, top: 40, bottom: 40 } 
+    : { left: 80, right: 80, top: 100, bottom: 100 };
+
+  svg.attr("width", width).attr("height", height).selectAll("*").remove();
+
+  const parseTime = d3.utcParse("%Y-%m-%d");
+  const data = DATA.map(d => ({ ...d, dateObj: parseTime(d.date) })).sort((a,b) => a.dateObj - b.dateObj);
+  const visibleData = data.slice(0, state.k);
+
+  const x = d3.scaleUtc()
+    .domain(d3.extent(data, d => d.dateObj))
+    .range([margin.left, width - margin.right]);
+
+  // Main Horizontal Axis
+  svg.append("line")
+    .attr("x1", margin.left).attr("x2", width - margin.right)
+    .attr("y1", height / 2).attr("y2", height / 2)
+    .attr("stroke", "#e5e7eb").attr("stroke-width", 2);
+
+  visibleData.forEach((d, i) => {
+    // In minimal mode, only show dots for "priority" items to reduce clutter
+    if (isMinimal && !d.priority && visibleData.length > 2) return;
+
+    const isUp = i % 2 === 0;
+    const y = isUp ? (height / 2) - 50 : (height / 2) + 50;
+
+    // Tick lines - Hidden in minimal mode
+    if (!isMinimal) {
+      svg.append("line")
+        .attr("x1", x(d.dateObj)).attr("x2", x(d.dateObj))
+        .attr("y1", height / 2).attr("y2", y)
+        .attr("stroke", "#d1d5db").attr("stroke-dasharray", "3,3");
+    }
+
+    // Nodes (Dots)
+    svg.append("circle")
+      .attr("cx", x(d.dateObj)).attr("cy", height / 2).attr("r", isMinimal ? 4 : 6)
+      .attr("fill", d.color).attr("stroke", "#fff").attr("stroke-width", 2);
+
+    // Labels - Only 2 key labels in minimal mode
+    if (!isMinimal || d.priority) {
+      svg.append("text")
+        .attr("x", x(d.dateObj))
+        .attr("y", isUp ? y - 10 : y + 20)
+        .attr("text-anchor", "middle")
+        .attr("fill", d.color)
+        .attr("font-size", isMinimal ? "11px" : "13px")
+        .attr("font-weight", "700")
+        .text(d.event);
+    }
+
+    // Dates - Hidden in minimal mode
+    if (!isMinimal) {
+      svg.append("text")
+        .attr("x", x(d.dateObj))
+        .attr("y", isUp ? (height / 2) + 20 : (height / 2) - 10)
+        .attr("text-anchor", "middle")
+        .attr("font-size", "11px").attr("fill", "#6b7280")
+        .text(d3.utcFormat("%b %d")(d.dateObj));
+    }
+  });
+}
+
+// Button Logic
+document.getElementById("btnPlay").onclick = function() {
+  if(state.playing) {
+    clearInterval(state.timer);
+    state.playing = false;
+    this.textContent = "Play";
+  } else {
+    if(state.k >= DATA.length) state.k = 0;
+    state.playing = true;
+    this.textContent = "Pause";
+    state.timer = setInterval(() => {
+      if(state.k < DATA.length) { state.k++; render(); }
+      else { clearInterval(state.timer); state.playing = false; this.textContent = "Play"; }
+    }, SETTINGS.revealSpeed);
+  }
+};
+
+document.getElementById("btnReset").onclick = () => { state.k = 0; render(); };
+
+// Responsive Resize Observer
+const observer = new ResizeObserver(() => render());
+observer.observe(container);
+
+render();
+</script>
+</body>
+</html>
