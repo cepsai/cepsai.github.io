@@ -261,107 +261,102 @@ try {
         return { x, y };
       }
     }
-    function render() {
-  const rect = container.getBoundingClientRect();
-  const width = rect.width;
-  const height = rect.height;
+   function render() {
+    const rect = container.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
 
-  // 1. Responsive Scaling Constants
-  const isSmall = width < 700;
-  const isTiny = width < 450;
-  
-  const margin = { 
-    left: isSmall ? 40 : 100, 
-    right: isSmall ? 60 : 120, 
-    top: isSmall ? 100 : 140, 
-    bottom: isSmall ? 60 : 80 
-  };
-
-  // DYNAMIC FONT CALCULATION
-  // width * 0.05 means the font is 5% of the container width
-  // Math.max(16, ...) ensures it never gets smaller than 16px
-  // Math.min(..., 34) ensures it never gets larger than 34px
-  const messageFontSize = Math.max(16, Math.min(width * 0.05, 10)) + "px";
-  
-  const labelFontSize = isSmall ? (isTiny ? "9px" : "11px") : "13px";
-  const orgFontSize = isSmall ? (isTiny ? "7px" : "9px") : "11px";
-
-  svg.attr("width", width).attr("height", height).selectAll("*").remove();
-
-  const parseTime = d3.utcParse("%Y-%m-%d");
-  const data = DATA.map(d => ({ ...d, dateObj: parseTime(d.date) })).sort((a,b) => a.dateObj - b.dateObj);
-  const visibleData = data.slice(0, state.k);
-  const timeScale = d3.scaleTime().domain(d3.extent(data, d => d.dateObj)).range([0, 1]);
-
-  // 2. Main Timeline Path
-  if (visibleData.length > 0) {
-    const pathData = [];
-    const lastT = timeScale(visibleData[visibleData.length - 1].dateObj);
-    for (let i = 0; i <= 80; i++) {
-      pathData.push(getPoint((i/80) * lastT, width, height, margin, state.isStraight));
-    }
-    const lineGen = d3.line().x(d => d.x).y(d => d.y).curve(d3.curveBasis);
-    svg.append("path").attr("d", lineGen(pathData)).attr("stroke", "#111").attr("stroke-width", 2.5).attr("fill", "none");
-  }
-
-  // 3. Month Markers
-  const months = d3.utcMonth.range(data[0].dateObj, data[data.length-1].dateObj, 2);
-  months.forEach(m => {
-    const p = getPoint(timeScale(m), width, height, margin, state.isStraight);
-    svg.append("text")
-      .attr("x", p.x).attr("y", p.y + (isSmall ? 25 : 40))
-      .attr("text-anchor", "middle").attr("font-weight", "800").attr("fill", "#000")
-      .attr("font-size", isSmall ? "11px" : "14px").text(d3.utcFormat("%b")(m));
-  });
-
-  // 4. Events & Labels
-  visibleData.forEach((d, i) => {
-    const p = getPoint(timeScale(d.dateObj), width, height, margin, state.isStraight);
-    const isAlternate = i % 2 === 0;
+    // 1. Responsive Scaling Constants
+    const isSmall = width < 700;
+    const isTiny = width < 450;
     
-    // Manual Position logic
-    const defaultDx = (isAlternate ? -1 : 1) * (isSmall ? 45 : 70);
-    const labelX = p.x + (d.dx !== undefined ? d.dx * (isSmall ? 1.5 : 3) : defaultDx);
-    const labelY = p.y + (d.dy !== undefined ? d.dy * (isSmall ? 1.5 : 3) : 0);
-    const anchor = labelX < p.x ? "end" : "start";
+    const margin = { 
+        left: isSmall ? 40 : 100, 
+        right: isSmall ? 60 : 120, 
+        top: isSmall ? 100 : 140, 
+        bottom: isSmall ? 60 : 80 
+    };
 
-    // Connector
-    svg.append("line")
-      .attr("x1", p.x).attr("y1", p.y).attr("x2", labelX - (anchor === "end" ? -5 : 5)).attr("y2", labelY)
-      .attr("stroke", "#e5e7eb").attr("stroke-width", 1).attr("stroke-dasharray", "3,2");
+    // Dynamically scale the large message font based on width
+    // This ensures it never overflows the "smaller box"
+    const messageFontSize = Math.max(12, Math.min(width * 0.04, 34)) + "px";
+    const labelFontSize = isSmall ? (isTiny ? "9px" : "11px") : "13px";
+    const orgFontSize = isSmall ? (isTiny ? "7px" : "9px") : "11px";
 
-    const labelGroup = svg.append("g");
-    labelGroup.append("text")
-      .attr("x", labelX).attr("y", labelY)
-      .attr("text-anchor", anchor).attr("fill", d.color).attr("font-weight", "700")
-      .attr("font-size", labelFontSize).text(d.event);
+    svg.attr("width", width).attr("height", height).selectAll("*").remove();
 
-    if (d.org) {
-      labelGroup.append("text")
-        .attr("x", labelX).attr("y", labelY - (isSmall ? 10 : 14))
-        .attr("text-anchor", anchor).attr("fill", "#6b7280").attr("font-weight", "500")
-        .attr("font-size", orgFontSize).text(d.org);
+    const parseTime = d3.utcParse("%Y-%m-%d");
+    const data = DATA.map(d => ({ ...d, dateObj: parseTime(d.date) })).sort((a,b) => a.dateObj - b.dateObj);
+    const visibleData = data.slice(0, state.k);
+    const timeScale = d3.scaleTime().domain(d3.extent(data, d => d.dateObj)).range([0, 1]);
+
+    // 2. Main Timeline Path
+    if (visibleData.length > 0) {
+        const pathData = [];
+        const lastT = timeScale(visibleData[visibleData.length - 1].dateObj);
+        for (let i = 0; i <= 80; i++) {
+        pathData.push(getPoint((i/80) * lastT, width, height, margin, state.isStraight));
+        }
+        const lineGen = d3.line().x(d => d.x).y(d => d.y).curve(d3.curveBasis);
+        svg.append("path").attr("d", lineGen(pathData)).attr("stroke", "#111").attr("stroke-width", 2.5).attr("fill", "none");
     }
 
-    svg.append("circle")
-      .attr("cx", p.x).attr("cy", p.y).attr("r", isSmall ? 3.5 : 5)
-      .attr("fill", d.color).attr("stroke", "#fff").attr("stroke-width", 2);
+    // 3. Month Markers
+    const months = d3.utcMonth.range(data[0].dateObj, data[data.length-1].dateObj, 2);
+    months.forEach(m => {
+        const p = getPoint(timeScale(m), width, height, margin, state.isStraight);
+        svg.append("text")
+        .attr("x", p.x).attr("y", p.y + (isSmall ? 25 : 40))
+        .attr("text-anchor", "middle").attr("font-weight", "800").attr("fill", "#000")
+        .attr("font-size", isSmall ? "11px" : "14px").text(d3.utcFormat("%b")(m));
+    });
 
-    // 5. Centered Dynamic Text Message
-    // This part now uses the messageFontSize variable calculated at the top
-    if (i === visibleData.length - 1 && d.description) {
-      svg.append("text")
-        .attr("x", width / 2)
-        .attr("y", margin.top / 2)
-        .attr("text-anchor", "middle")
-        .attr("font-size", messageFontSize) 
-        .attr("font-weight", "700")
-        .attr("fill", "#111")
-        .text(d.description);
+    // 4. Events & Labels (with manual dx/dy overrides)
+    visibleData.forEach((d, i) => {
+        const p = getPoint(timeScale(d.dateObj), width, height, margin, state.isStraight);
+        const isAlternate = i % 2 === 0;
+        
+        // Calculate position using manual dx/dy or defaults
+        const defaultDx = (isAlternate ? -1 : 1) * (isSmall ? 45 : 70);
+        const labelX = p.x + (d.dx !== undefined ? d.dx * (isSmall ? 1.5 : 3) : defaultDx);
+        const labelY = p.y + (d.dy !== undefined ? d.dy * (isSmall ? 1.5 : 3) : 0);
+        const anchor = labelX < p.x ? "end" : "start";
+
+        // Connector Line
+        svg.append("line")
+        .attr("x1", p.x).attr("y1", p.y).attr("x2", labelX - (anchor === "end" ? -5 : 5)).attr("y2", labelY)
+        .attr("stroke", "#e5e7eb").attr("stroke-width", 1).attr("stroke-dasharray", "3,2");
+
+        const labelGroup = svg.append("g");
+        labelGroup.append("text")
+        .attr("x", labelX).attr("y", labelY)
+        .attr("text-anchor", anchor).attr("fill", d.color).attr("font-weight", "700")
+        .attr("font-size", labelFontSize).text(d.event);
+
+        if (d.org) {
+        labelGroup.append("text")
+            .attr("x", labelX).attr("y", labelY - (isSmall ? 10 : 14))
+            .attr("text-anchor", anchor).attr("fill", "#6b7280").attr("font-weight", "500")
+            .attr("font-size", orgFontSize).text(d.org);
+        }
+
+        svg.append("circle")
+        .attr("cx", p.x).attr("cy", p.y).attr("r", isSmall ? 3.5 : 5)
+        .attr("fill", d.color).attr("stroke", "#fff").attr("stroke-width", 2);
+
+        // 5. Centered Dynamic Text Message
+        if (i === visibleData.length - 1 && d.description) {
+        svg.append("text")
+            .attr("x", width / 2)
+            .attr("y", margin.top / 2)
+            .attr("text-anchor", "middle")
+            .attr("font-size", messageFontSize) // Responsive font size
+            .attr("font-weight", "700")
+            .attr("fill", "#111")
+            .text(d.description);
+        }
+    });
     }
-  });
-}
-   
 
     function replayAnimation() {
       if(state.timer) clearInterval(state.timer);
