@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Datasets per year</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+:root{--bg:#ffffff;--axis:#cfcfcf;--grid:#e9e9e9;--text:#6b6b6b;--text-strong:#333333;--muted:#9aa0a6;}
+html,body{height:100%;}
+body{margin:0;overflow:hidden;background:var(--bg);font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;color:var(--text);height:100vh;}
+.viz-grid{display:grid;grid-template-rows:17fr 2fr 1fr;grid-template-columns:1fr 1fr;height:100vh;width:100vw;box-sizing:border-box;padding-bottom:clamp(8px,2vh,18px);}
+#container1{grid-row:1;grid-column:1 / span 2;display:flex;overflow:hidden;min-height:0;min-width:0;}
+#container2{grid-row:2;grid-column:1 / span 2;display:flex;align-items:center;justify-content:center;overflow:hidden;font-size:clamp(10px,1.6vw,16px);}
+#container3{grid-row:3;grid-column:1;display:flex;align-items:center;justify-content:flex-start;padding:0 20px;overflow:hidden;min-width:0;}
+#container4{grid-row:3;grid-column:2;display:flex;align-items:center;justify-content:flex-end;padding:0 20px;overflow:hidden;min-width:0;}
+#container4 a{height:100%;display:flex;align-items:center;}
+#viz{position:relative;width:100%;height:100%;min-width:0;min-height:0;}
+#chart{display:block;width:100%;height:100%;}
+#tooltip{position:absolute;background:#ffffff;border:1px solid #e5e5e5;border-radius:8px;padding:6px 8px;font-size:12px;pointer-events:none;opacity:0;box-shadow:0 10px 24px rgba(0,0,0,.1);transition:opacity .12s ease;}
+.custom-legend{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:clamp(6px,1.5vw,14px);background:rgba(255,255,255,0.9);padding:clamp(6px,1.2vh,10px) clamp(10px,2vw,16px);border-radius:clamp(6px,1.2vw,12px);box-shadow:0 2px 8px rgba(0,0,0,0.1);overflow:auto;max-width:100%;max-height:100%;font-size:1em;}
+.legend-item{display:flex;align-items:center;gap:6px;cursor:pointer;transition:opacity .2s ease;font-weight:600;color:#333;font-size:1em;}
+.legend-item.dim{opacity:.35;}
+.legend-item:focus-visible{outline:2px solid rgba(0,0,0,0.45);outline-offset:2px;}
+.legend-square{width:clamp(10px,1.2vw,14px);height:clamp(10px,1.2vw,14px);border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,0.15) inset;}
+.legend-block{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center;margin:0 8px;}
+.legend-title{font-weight:700;color:var(--text-strong);font-size:12px;margin-right:4px;}
+.source-text{font-size:clamp(10px,1.6vw,16px);font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-style:normal;}
+.source-text a{color:#2756d3;text-decoration:underline;cursor:pointer;font-style:normal;}
+.source-text a:visited{color:#2756d3;}
+.logo{height:100%;width:auto;max-height:100%;max-width:100%;pointer-events:auto;object-fit:contain;}
+.axis path.domain{stroke:var(--axis);}
+.axis .tick line{stroke:var(--grid);}
+.axis .tick text{fill:var(--text);font-size:12px;font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;}
+.axis-title{font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;}
+text.bar-total{paint-order:stroke fill;stroke:#ffffff;stroke-width:3px;}
+@media (max-height:500px){
+  .viz-grid{grid-template-rows:1fr;grid-template-columns:1fr;padding-bottom:0;}
+  #container1{grid-row:1;grid-column:1;}
+  #container2,#container3,#container4{display:none !important;}
+}
+</style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1" class="container chart-container">
+    <div id="viz">
+      <svg id="chart"></svg>
+      <div id="tooltip"></div>
+    </div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div class="legend-block" id="legend-block-ids">
+      <div class="legend-title">ID of the task</div>
+      <div class="custom-legend" id="legend-ids"></div>
+    </div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text">Source: task_years.json</div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+    </a>
+  </div>
+</div>
+<script>
+const DATA_URL = "task_years.json";
+const TOP_IDS = 12;
+const paletteBase = [
+  "#355070","#6d597a","#b56576","#e56b6f","#eaac8b",
+  "#006d77","#83c5be","#ffddd2","#e29578","#457b9d",
+  "#1d3557","#f4a261","#2a9d8f","#e63946","#8d99ae",
+  "#ef476f","#ffd166","#06d6a0","#118ab2","#073b4c"
+];
+let baseData = [];
+let allKeys = [];
+let activeKeys = [];
+let totalsByYear = new Map();
+let colorScale;
+const svg = d3.select("#chart");
+const tooltip = d3.select("#tooltip");
+function buildPalette(n){
+  const pool = paletteBase.slice();
+  while(pool.length < n){
+    pool.push(d3.interpolateRainbow(pool.length / n));
+  }
+  return pool.slice(0, n);
+}
+function formatNumber(v){
+  return (v || 0).toLocaleString("en-US");
+}
+function prepare(raw){
+  const per = raw?.per_task_year || [];
+  if(!per.length){
+    console.warn("No data in task_years.json");
+    return;
+  }
+  const years = Array.from(new Set(per.map(d=>d.year))).sort((a,b)=>a-b);
+  const totalsById = d3.rollup(per, v=>d3.sum(v, d=>+d.datasets_year || 0), d=>d.id);
+  const sortedIds = Array.from(totalsById.entries()).sort((a,b)=>d3.descending(a[1], b[1]));
+  const topIds = sortedIds.slice(0, TOP_IDS).map(d=>d[0]);
+  const topSet = new Set(topIds);
+  const byYear = d3.rollup(per, v=>{
+    const o = {};
+    v.forEach(d=>{
+      const val = +d.datasets_year || 0;
+      if(topSet.has(d.id)){
+        o[d.id] = (o[d.id] || 0) + val;
+      }else{
+        o.Other = (o.Other || 0) + val;
+      }
+    });
+    return o;
+  }, d=>d.year);
+  baseData = years.map(year=>{
+    const rec = byYear.get(year) || {};
+    const row = {year};
+    topIds.forEach(id=> row[id] = rec[id] || 0);
+    if(rec.Other) row.Other = rec.Other;
+    return row;
+  });
+  allKeys = topIds.slice();
+  if(baseData.some(r=>r.Other > 0)) allKeys.push("Other");
+  activeKeys = allKeys.slice();
+  totalsByYear = new Map(baseData.map(r => [r.year, d3.sum(allKeys, k=> r[k] || 0)]));
+  colorScale = d3.scaleOrdinal().domain(allKeys).range(buildPalette(allKeys.length));
+  buildLegend();
+  render();
+}
+function buildLegend(){
+  const legend = d3.select("#legend-ids");
+  const activeSet = new Set(activeKeys);
+  const items = legend.selectAll(".legend-item").data(allKeys, d=>d);
+  const enter = items.enter().append("div")
+    .attr("class","legend-item")
+    .attr("role","button")
+    .attr("tabindex",0)
+    .on("click", (_,d)=> toggleKey(d))
+    .on("keydown", (event,d)=>{ if(event.key==="Enter"||event.key===" "){ event.preventDefault(); toggleKey(d);} });
+  enter.append("span").attr("class","legend-square");
+  enter.append("span").attr("class","legend-label");
+  items.merge(enter)
+    .classed("dim", d=> !activeSet.has(d))
+    .select(".legend-square")
+    .style("background-color", d=> colorScale(d));
+  items.merge(enter)
+    .select(".legend-label")
+    .text(d=>d);
+  items.exit().remove();
+}
+function toggleKey(key){
+  const set = new Set(activeKeys);
+  if(set.has(key)){
+    if(set.size === 1) return;
+    set.delete(key);
+  }else{
+    set.add(key);
+  }
+  activeKeys = allKeys.filter(k=> set.has(k));
+  buildLegend();
+  render();
+}
+function render(){
+  if(!baseData.length) return;
+  const container = document.getElementById("viz");
+  const fullW = Math.max(320, container.clientWidth || 0);
+  const fullH = Math.max(320, container.clientHeight || 0);
+  const margin = {top: 24, right: 32, bottom: 64, left: 86};
+  const width = Math.max(260, fullW - margin.left - margin.right);
+  const height = Math.max(240, fullH - margin.top - margin.bottom);
+  svg.attr("width", fullW).attr("height", fullH);
+  const gRoot = svg.selectAll("g.root").data([null]).join("g").attr("class","root").attr("transform",`translate(${margin.left},${margin.top})`);
+  const y = d3.scaleBand().domain(baseData.map(d=>d.year)).range([0, height]).padding(0.35);
+  const xMax = d3.max(baseData.map(d=> d3.sum(activeKeys, k=> d[k] || 0))) || 1;
+  const x = d3.scaleLinear().domain([0, xMax]).nice().range([0, width]);
+  const stackGen = d3.stack().keys(activeKeys).value((d,key)=> d[key] || 0);
+  const series = stackGen(baseData);
+  const plot = gRoot.selectAll("g.plot").data([null]).join("g").attr("class","plot");
+  const layers = plot.selectAll("g.layer").data(series, d=>d.key);
+  layers.exit().remove();
+  const layersEnter = layers.enter().append("g").attr("class","layer");
+  const layersMerged = layersEnter.merge(layers).attr("fill", d=> colorScale(d.key));
+  layersMerged.each(function(layer){
+    const rects = d3.select(this).selectAll("rect").data(
+      layer.filter(v=> (v[1]-v[0])>0).map(v=> ({key: layer.key, year: v.data.year, v})),
+      d=> `${d.key}-${d.year}`
+    );
+    rects.exit().remove();
+    rects.enter().append("rect")
+      .attr("x", d=> x(d.v[0]))
+      .attr("width", 0)
+      .attr("y", d=> y(d.year))
+      .attr("height", y.bandwidth())
+      .on("mousemove", (event,d)=> showTooltip(event,d))
+      .on("mouseleave", hideTooltip)
+      .merge(rects)
+      .attr("x", d=> x(d.v[0]))
+      .attr("width", d=> x(d.v[1]) - x(d.v[0]))
+      .attr("y", d=> y(d.year))
+      .attr("height", y.bandwidth());
+  });
+  const xAxis = gRoot.selectAll("g.x-axis").data([null]).join("g").attr("class","axis x-axis").attr("transform",`translate(0,${height})`);
+  xAxis.call(d3.axisBottom(x).ticks(6).tickFormat(d3.format(",d")).tickSizeOuter(0));
+  xAxis.selectAll("text.axis-title").data([null]).join("text")
+    .attr("class","axis-title")
+    .attr("x", width/2)
+    .attr("y", 44)
+    .style("fill","var(--text-strong)")
+    .style("font-weight",700)
+    .style("font-size","14px")
+    .text("Datasets per year (stacked por id)");
+  const yAxis = gRoot.selectAll("g.y-axis").data([null]).join("g").attr("class","axis y-axis");
+  yAxis.call(d3.axisLeft(y).tickSizeOuter(0));
+  yAxis.selectAll("text.axis-title").data([null]).join("text")
+    .attr("class","axis-title")
+    .attr("x", -52)
+    .attr("y", -16)
+    .style("fill","var(--text-strong)")
+    .style("font-weight",700)
+    .style("font-size","14px")
+    .text("Year");
+  plot.selectAll("text.bar-total").data(baseData, d=>d.year)
+    .join("text")
+    .attr("class","bar-total")
+    .attr("text-anchor","start")
+    .style("font-size","11px")
+    .style("font-weight","700")
+    .style("fill","var(--text-strong)")
+    .attr("x", d=> x(d3.sum(activeKeys, k=> d[k] || 0)) + 6)
+    .attr("y", d=> y(d.year) + y.bandwidth()/2 + 4)
+    .text(d=> formatNumber(d3.sum(activeKeys, k=> d[k] || 0)));
+}
+function showTooltip(event, d){
+  const yearTotal = totalsByYear.get(d.year) || 0;
+  const value = d.v[1] - d.v[0];
+  const share = yearTotal ? (value / yearTotal * 100) : 0;
+  const [cx, cy] = d3.pointer(event, document.getElementById("viz"));
+  tooltip
+    .style("opacity",1)
+    .style("left", `${cx + 14}px`)
+    .style("top", `${cy + 14}px`)
+    .html(`<div><strong>${d.key}</strong> - ${d.year}</div><div>Datasets: ${formatNumber(value)}</div><div>Participacion anual: ${share.toFixed(1)}%</div>`);
+}
+function hideTooltip(){ tooltip.style("opacity",0); }
+d3.json(DATA_URL).then(prepare);
+window.addEventListener("resize", render);
+if (typeof ResizeObserver !== "undefined"){
+  const vizEl=document.getElementById("viz");
+  if(vizEl){
+    new ResizeObserver(render).observe(vizEl);
+  }
+}
+</script>
+</body>
+</html>
