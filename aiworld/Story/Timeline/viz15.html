@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AI Timeline 2025</title>
+  
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
+
+  <style>
+    html, body { 
+      height: 100%; margin: 0; padding: 0; 
+      overflow: hidden; background: #ffffff; 
+      font-family: 'Lato', sans-serif;
+    }
+    
+    .viz-grid { 
+      display: grid; 
+      grid-template-rows: 1fr auto; 
+      height: 100vh; width: 100vw; 
+      background: #ffffff;
+    }
+    
+    #chart-container { 
+      grid-row: 1; 
+      position: relative; 
+      width: 100%; height: 100%; 
+      overflow: hidden;
+    }
+
+    svg { width: 100%; height: 100%; display: block; }
+
+    .control-bar { 
+      grid-row: 2; 
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 24px;
+      background: #fcfcfc; border-top: 1px solid #eee; z-index: 10;
+      gap: 20px;
+    }
+
+    /* Segmented Control Style Container */
+    .btn-group { 
+      display: flex; 
+      background: #f3f4f6; 
+      padding: 4px; 
+      border-radius: 8px; 
+      border: 1px solid #e5e7eb;
+    }
+    
+    /* Segmented Control Buttons */
+    .btn-group button {
+      padding: 6px 16px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      font-family: inherit;
+      color: #4b5563;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-group button:hover { 
+      background: rgba(0,0,0,0.05); 
+      color: #111; 
+    }
+
+    /* Active State (Blue) */
+    .btn-group button.active {
+      background: #2563eb;
+      color: #ffffff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .source-text { font-size: 15px; font-weight: 700; color: #111; margin-right: auto; }
+    .source-text a { color: #2563eb; text-decoration: underline; text-underline-offset: 3px; }
+    
+    .logo-container { display: flex; align-items: center; gap: 12px; }
+    .logo { height: 28px; width: auto; }
+    .sep { color: #9ca3af; font-size: 20px; font-weight: 300; margin: 0 2px; }
+    
+    /* Control Bar - Matching the provided code style */
+    /* .control-bar { 
+      grid-row: 2; 
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 24px;
+      background: #fcfcfc; border-top: 1px solid #eee; z-index: 10;
+    }
+
+    .btn-group { display: flex; gap: 10px; }
+    
+    button {
+      padding: 8px 16px;
+      border: 1px solid #333;
+      background: white;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+      font-family: inherit;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    button:hover { background: #000; color: #fff; }
+
+    .source-text { font-size: 15px; font-weight: 700; color: #111; }
+    .source-text a { color: #2756d3; text-decoration: underline; text-underline-offset: 3px; }
+    
+    .logo-container { display: flex; align-items: center; gap: 10px; }
+    .logo { height: 26px; width: auto; }
+    .sep { color: #9ca3af; font-size: 18px; margin: 0 4px; } */
+
+    #error-log {
+        display: none; position: absolute; top: 0; left: 0; width: 100%; 
+        background: rgba(255,255,255,0.95); color: red; z-index: 9999; padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="error-log"></div>
+
+  <div class="viz-grid">
+    <div id="chart-container">
+      <svg id="timeline-svg"></svg>
+    </div>
+
+    <div class="control-bar">
+      <div class="source-text">Source: <a href="https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard" target="_blank">Hugging Face Open Model Leaderboard</a></div>
+
+      <div class="btn-group">
+        <button onclick="replayAnimation()" id="btn-replay">↺ Replay</button>
+        <button id="btn-toggle" onclick="toggleView()" class="active">Curved View</button>
+      </div>
+      
+      <div class="logo-container">
+        <span style="font-size: 24px;">🤗</span> 
+        <span class="sep">×</span>
+        <img src="logo.svg" class="logo" alt="AI World" onerror="this.style.display='none'; this.previousElementSibling.style.display='none';"> 
+      </div>
+    </div>
+    <!-- <div class="control-bar">
+      <div class="btn-group">
+        <button onclick="replayAnimation()">↺ Replay</button>
+        <button id="toggle-view" onclick="toggleView()">View Straight Timeline</button>
+      </div>
+      
+      <div class="logo-container">d
+        <div class="source-text">Source: <a href="https://huggingface.co/spaces/open-llm-leaderboard/open_llm_leaderboard" target="_blank">Hugging Face Open Model Leaderboard</a></div>
+        <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="HF">
+        <span class="sep">×</span>
+        <img src="logo.svg" class="logo" alt="AI World" onerror="this.style.display='none'"> 
+        </div>
+    </div> -->
+  </div>
+
+<script>
+try {
+    // Populated descriptions for every model to ensure the message changes
+   const DATA = [
+      { date: "2025-01-08", event: "Phi-4", org: "Microsoft", color: "#737373",description: "test", dx: -5, dy: -10 },
+      { date: "2025-01-20", event: "DeepSeek R1", org: "DeepSeek", color: "#003366", dx: 0, dy: -10 },
+      { date: "2025-03-12", event: "Gemma 3", org: "Google", color: "#4285F4", dx: -10, dy: -10 },
+      { date: "2025-04-05", event: "Llama 4", org: "Meta", color: "#0866FF", dx: 10, dy: 20 },
+      { date: "2025-04-28", event: "Qwen3 family", org: "Alibaba", color: "#FF6A00", dx: -20, dy: -10 },
+      { date: "2025-05-07", event: "Mistral Medium 3", org: "Mistral AI", color: "#E0002A", dx: 10, dy: 25 },
+      { date: "2025-07-11", event: "Kimi K2", org: "Moonshot AI", color: "#6A1B9A", dx: 15, dy: 10 },
+      { date: "2025-07-28", event: "GLM-4.5", org: "Zhipu", color: "#00A3A3", dx: -30, dy: -5 },
+      { date: "2025-08-05", event: "OpenAI GPT-OSS", org: "OpenAI", color: "#000000", dx: 20, dy: 20 },
+      { date: "2025-08-21", event: "DeepSeek V3.1", org: "DeepSeek", color: "#003366", dx: -25, dy: -15 },
+      { date: "2025-09-02", event: "Apertus LLM", org: "Switzerland", color: "#D52B1E", dx: 25, dy: 15 },
+      { date: "2025-10-27", event: "MiniMax M2", org: "MiniMax", color: "#FF2D55", dx: -25, dy: -15 },
+      { date: "2025-11-20", event: "Olmo3", org: "AllenAI", color: "#D52B1E", dx: 25, dy: 15  },
+      { date: "2025-12-01", event: "DeepSeek V3.2", org: "DeepSeek", color: "#003366", dx: -30, dy: -10 },
+      { date: "2025-12-11", event: "Molmo2", org: "AllenAI", color: "#D52B1E",dx: 5, dy: 10  },
+      { date: "2025-12-15", event: "Nemotron 3", org: "NVIDIA", color: "#76B900",description: "Welcome to the state of open source", dx: -20, dy: 0  },
+    ];
+    let state = { k: 0, timer: null, isStraight: false };
+    const svg = d3.select("#timeline-svg");
+    const container = document.getElementById("chart-container");
+
+    // Math for positioning
+    function getPoint(t, width, height, margin, isStraight) {
+      const x = margin.left + t * (width - margin.left - margin.right);
+      if (isStraight) {
+        return { x, y: height / 2 + 50 }; // Lower down to leave room for top labels
+      } else {
+        const k = 2.5; // Curvature factor
+        const normalizedY = (Math.exp(k * t) - 1) / (Math.exp(k) - 1);
+        const y = (height - margin.bottom) - normalizedY * (height - margin.top - margin.bottom);
+        return { x, y };
+      }
+    }
+
+    function render() {
+      const rect = container.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+      
+      // Responsive margins
+      const margin = { left: 80, right: 100, top: 120, bottom: 80 };
+
+      svg.attr("width", width).attr("height", height).selectAll("*").remove();
+
+      const parseTime = d3.utcParse("%Y-%m-%d");
+      const data = DATA.map(d => ({ ...d, dateObj: parseTime(d.date) })).sort((a,b) => a.dateObj - b.dateObj);
+      const visibleData = data.slice(0, state.k);
+      
+      // Scale
+      const timeScale = d3.scaleTime()
+        .domain(d3.extent(data, d => d.dateObj))
+        .range([0, 1]);
+
+      // 1. Draw The Line (Curve or Straight)
+      if (visibleData.length > 0) {
+        const pathData = [];
+        const lastT = timeScale(visibleData[visibleData.length - 1].dateObj);
+        const steps = 60;
+        
+        for (let i = 0; i <= steps; i++) {
+          pathData.push(getPoint((i/steps) * lastT, width, height, margin, state.isStraight));
+        }
+        
+        const lineGen = d3.line()
+            .x(d => d.x)
+            .y(d => d.y)
+            .curve(state.isStraight ? d3.curveLinear : d3.curveBasis); // Basis makes it smoother
+            
+        svg.append("path")
+          .attr("d", lineGen(pathData))
+          .attr("stroke", "#111")
+          .attr("stroke-width", 2.5)
+          .attr("fill", "none")
+          .attr("stroke-linecap", "round");
+      }
+
+      // 2. Draw Months
+      const months = d3.utcMonth.range(data[0].dateObj, data[data.length-1].dateObj, 2); // Every 2 months
+      months.forEach(m => {
+        const p = getPoint(timeScale(m), width, height, margin, state.isStraight);
+        // Move months away from line (down)
+        const yOffset = 40; 
+        
+        svg.append("text")
+          .attr("x", p.x)
+          .attr("y", p.y + yOffset)
+          .attr("text-anchor", "middle")
+          .attr("font-weight", "800")
+          .attr("fill", "#000") // Black bold letters
+          .attr("font-size", "14px")
+          .text(d3.utcFormat("%b")(m));
+      });
+
+      // 3. Draw Events
+      // 3. Draw Events
+      visibleData.forEach((d, i) => {
+        const p = getPoint(timeScale(d.dateObj), width, height, margin, state.isStraight);
+        
+        // Default Logic (used if no manual dx/dy is provided)
+        const isAlternate = i % 2 === 0;
+        let defaultDx = 0;
+        let defaultDy = 0;
+        const dist = 40; 
+
+        if (state.isStraight) {
+            // Straight: Alternate Up/Down
+            defaultDx = 0;
+            defaultDy = (isAlternate ? -1 : 1) * (dist + 20);
+        } else {
+            // Curve: Alternate Left/Right
+            defaultDx = (isAlternate ? -1 : 1) * (dist + 40);
+            defaultDy = 0;
+        }
+
+        // Apply Manual Overrides (d.dx / d.dy) if they exist, otherwise use default
+        // We add the manual offset TO the calculated point
+        const labelX = p.x + (d.dx !== undefined ? d.dx * 3 : defaultDx); // *3 for sensitivity
+        const labelY = p.y + (d.dy !== undefined ? d.dy * 3 : defaultDy);
+        
+        // Determine text anchor based on final position relative to dot
+        let anchor = "middle";
+        if (!state.isStraight) {
+             anchor = labelX < p.x ? "end" : "start";
+        }
+
+        // Connector Line
+        svg.append("line")
+            .attr("x1", p.x)
+            .attr("y1", p.y)
+            .attr("x2", labelX - (anchor === "end" ? -5 : (anchor === "start" ? 5 : 0)))
+            .attr("y2", labelY + (state.isStraight ? (labelY > p.y ? -12 : 5) : 0)) 
+            .attr("stroke", "#e5e7eb")
+            .attr("stroke-width", 1.5)
+            .attr("stroke-dasharray", "3,3");
+
+        // Label Group
+        const labelGroup = svg.append("g");
+
+        labelGroup.append("text")
+          .attr("x", labelX)
+          .attr("y", labelY)
+          .attr("text-anchor", anchor)
+          .attr("fill", d.color)
+          .attr("font-weight", "700")
+          .attr("font-size", "13px")
+          .text(d.event);
+
+        if (d.org) {
+            labelGroup.append("text")
+              .attr("x", labelX)
+              .attr("y", labelY - 14)
+              .attr("text-anchor", anchor)
+              .attr("fill", "#6b7280")
+              .attr("font-size", "11px")
+              .attr("font-weight", "500")
+              .text(d.org);
+        }
+
+        // Dot
+        svg.append("circle")
+            .attr("cx", p.x)
+            .attr("cy", p.y)
+            .attr("r", 5)
+            .attr("fill", d.color)
+            .attr("stroke", "#fff")
+            .attr("stroke-width", 2);
+
+        // Feature Message (Updated logic)
+        // Replace the old message logic with this centered version:
+        if (i === visibleData.length - 1 && d.description) {
+        svg.append("text")
+            .attr("x", width / 2)       // Centers horizontally based on container width
+            .attr("y", height * 0.15)   // Positions it 15% down from the top
+            .attr("text-anchor", "middle") // Ensures the center of the text aligns with the x-coordinate
+            .attr("font-size", "32px")
+            .attr("font-weight", "700")
+            .attr("fill", "#111")
+            .text(d.description);
+        }
+        // if (i === visibleData.length - 1 && d.description) {
+        //   svg.append("text")
+        //     .attr("x", 40)
+        //     .attr("y", 80)
+        //     .attr("font-size", "32px")
+        //     .attr("font-weight", "700")
+        //     .attr("fill", "#111")
+        //     .text(d.description);
+        // }
+      });
+    }
+
+    
+
+        // 4. Feature Message (Upper Left)
+        // Only updates based on the LATEST visible item
+    //     if (i === visibleData.length - 1 && d.description) {
+    //       const msgGroup = svg.append("g").attr("class", "msg-group");
+          
+    //       msgGroup.append("text")
+    //         .attr("x", 40)
+    //         .attr("y", 80)
+    //         .attr("font-size", "32px") // Large text
+    //         .attr("font-weight", "700")
+    //         .attr("fill", "#111")
+    //         .attr("font-family", "Lato, sans-serif")
+    //         .text(d.description);
+    //     }
+    //   });
+    // }
+
+    function replayAnimation() {
+      if(state.timer) clearInterval(state.timer);
+      state.k = 0;
+      render();
+      state.timer = setInterval(() => {
+        if (state.k < DATA.length) { 
+            state.k++; 
+            render(); 
+        } else { 
+            clearInterval(state.timer); 
+            state.timer = null;
+        }
+      }, 1200); // 500ms per step
+    }
+    function toggleView() {
+      state.isStraight = !state.isStraight;
+      const btn = document.getElementById("btn-toggle");
+      
+      // Update Button Text & State
+      if (state.isStraight) {
+          btn.innerText = "Straight View";
+          btn.classList.add("active"); // Keep it active or toggle style as preferred
+      } else {
+          btn.innerText = "Curved View";
+          btn.classList.remove("active"); 
+          // You might want to swap active class between two separate buttons if you had two
+      }
+      render();
+    }
+
+    // function toggleView() {
+    //   state.isStraight = !state.isStraight;
+    //   document.getElementById("toggle-view").innerText = state.isStraight ? "View Curved Timeline" : "View Straight Timeline";
+    //   render();
+    // }
+
+    window.addEventListener('resize', render);
+    
+    // Start automatically
+    replayAnimation();
+
+} catch (e) {
+    console.error(e);
+    document.getElementById('error-log').style.display = 'block';
+    document.getElementById('error-log').innerHTML = "Error: " + e.message;
+}
+</script>
+</body>
+</html>
