@@ -350,7 +350,7 @@
       white-space: normal;
     }
 
-    @media (max-height: 540px) {
+    @media (max-height: 500px) {
       .viz-grid {
         grid-template-rows: 1fr !important;
         grid-template-columns: 1fr !important;
@@ -375,9 +375,13 @@
         left: 0;
         right: 0;
         bottom: 0;
+        padding-top: 6px;
       }
       #container2, #container3, #container4, #container5 { display: none !important; }
       .custom-legend, .source-text, .logo, .footnote-text { display: none !important; }
+      .info-point {
+        padding-top: 5px;
+      }
       .info-point-content {
         background: transparent;
         border: none;
@@ -639,14 +643,12 @@
     }
 
     const originalData = processRawRows(rawRows);
-
-    // === SETTINGS ===
     const BAR_BORDER_RADIUS = 0;
     const BAR_USE_GRADIENT = 0;
     const BAR_VALUE_POSITION = "outside";
     const BAR_ORIENTATION = "horizontal";
     const PALETTE_MODE = "aiw";
-    const HIGH_BAR_COLOR = "#6dbdc8"; // the "extra" stacked segment color
+    const HIGH_BAR_COLOR = "#6dbdc8";
     const COMPACT_HEIGHT_BREAKPOINT = 500;
 
     function normalizeData(arr) {
@@ -682,7 +684,6 @@
     }
 
     function makeStackedRows(baseRows) {
-      // returns [{name,parent,low,delta,high,bump,color}]
       return baseRows.map(function (d) {
         var low = (typeof d.value === "number" ? d.value : +d.value || 0);
         var high = (d.high != null) ? +d.high : low;
@@ -730,7 +731,6 @@
         return;
       }
 
-      // Force horizontal
       const compactModeActive = isCompactViewport();
       const margin = {
         top: 16,
@@ -752,7 +752,6 @@
       const g = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-      // Unique by name
       const byName = {};
       treemapData.forEach(function (d) {
         var key = d.name || "";
@@ -761,10 +760,8 @@
       });
       const base = Object.keys(byName).map(function (k) { return byName[k]; });
 
-      // Build stacked rows: [low + delta] = high
-      const rows = makeStackedRows(base);
 
-      // Sort SMALLEST first (by total/high)
+      const rows = makeStackedRows(base);
       const nameOrderAsc = rows.slice().sort(function (a, b) {
         return d3.ascending(a.high, b.high);
       }).map(function (d) { return d.name; });
@@ -903,10 +900,7 @@
           xAxisLabel.style("font-size", axisLabelFontSize);
         }
 
-        // Update info points based on current scale
         renderInfoPoints(x, margin, innerHeight);
-
-        // Row backgrounds
         const rowBackgrounds = backgroundGroup.selectAll("rect.row-bg")
           .data(visibleNames, function (d) { return d; });
 
@@ -934,7 +928,6 @@
         const barThickness = Math.max(10, y.bandwidth() * 0.78);
         const yOffset = (y.bandwidth() - barThickness) / 2;
 
-        // ---- STACKED LOW SEGMENT ----
         const lowBars = barGroup.selectAll("rect.bar-low")
           .data(visibleRows, function (d) { return d.name; });
 
@@ -992,12 +985,9 @@
           .attr("height", barThickness)
           .attr("x", function (d) { return x(d.low); })
           .attr("width", function (d) { return Math.max(0, x(d.high) - x(d.low)); });
-
-        // Value labels (show total/high at end)
         if (BAR_VALUE_POSITION === "none") {
           valueLabelGroup.selectAll("text.value-label").remove();
         } else {
-          // Locate your label rendering logic and update it like this:
           const labels = valueLabelGroup.selectAll("text.value-label")
             .data(visibleRows, function (d) { return d.name; });
 
@@ -1010,7 +1000,7 @@
             .append("text")
             .attr("class", "value-label")
             .attr("fill", "#000000")
-            .style("opacity", 1)      // Force full visibility
+            .style("opacity", 1)
             .style("font-weight", "bold")
             .attr("text-anchor", "start")
             .style("font-weight", "600")
@@ -1052,12 +1042,9 @@
         }
       };
 
-      // Identify final and penultimate bars for custom animation speeds
       const finalBarName = nameOrderAsc.length ? nameOrderAsc[nameOrderAsc.length - 1] : null;
       const penultimateBarName = nameOrderAsc.length > 1 ? nameOrderAsc[nameOrderAsc.length - 2] : null;
 
-      // Reveal: SMALLEST FIRST, and as we add bigger ones, we add them "on top"
-      // (prepend so the newest/bigger appears above the existing ones)
       const visibleNames = [];
       let i = 0;
       const revealDelay = 1500;
@@ -1105,7 +1092,6 @@
           return;
         }
 
-        // add bigger ones on top while revealing smallest->largest:
         visibleNames.unshift(nameOrderAsc[i]);
 
         i += 1;
@@ -1122,7 +1108,6 @@
       updateColorNoteVisibility();
     }
 
-    // Info points data (kWh values and descriptions)
     const infoPoints = [
       { value: 3.5, iconClass: "fa-solid fa-shower", text: "~12<br/>min shower" },
       { value: 8, iconClass: "fa-solid fa-mug-hot", text: "~67<br/>kettle boils" },
@@ -1235,7 +1220,6 @@
       .style("fill", "#000000");
 
     renderVisualizationForContainer();
-    // Add this at the bottom of your render loop or after the bars are drawn:
     d3.selectAll(".value-label")
       .transition()
       .duration(200)
