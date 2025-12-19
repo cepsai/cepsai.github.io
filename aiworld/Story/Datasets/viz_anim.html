@@ -22,7 +22,7 @@ body { margin: 0; overflow: hidden; background: #ffffff; color: #111; font-famil
 .corner-logo { position: fixed; right: clamp(12px, 2vw, 20px); bottom: clamp(12px, 2vh, 20px); width: clamp(96px, 18vw, 160px); display: flex; align-items: flex-end; justify-content: flex-end; z-index: 20; }
 .corner-logo img { width: 100%; height: auto; display: block; }
 .y-axis-container { flex: 0 0 clamp(28px, 3vw, 46px); display: flex; align-items: center; justify-content: flex-end; min-width: 0; border-right: 1px solid rgba(0, 0, 0, 0.1); box-sizing: border-box; padding: 0 6px; }
-.y-axis-label { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-weight: 600; font-size: clamp(10px, 1.2vw, 16px); color: #333; line-height: 1.2; letter-spacing: 0.04em; }
+.y-axis-label { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-weight: 600; font-size: clamp(10px, 1.2vw, 16px); color: #333; line-height: 2; letter-spacing: 0.04em; }
 .chart-wrapper { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; margin-left: -6px; }
 .chart-wrapper-inner { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; }
 #viz { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
@@ -40,6 +40,12 @@ body { margin: 0; overflow: hidden; background: #ffffff; color: #111; font-famil
 .metric-btn { border: 1px solid #cfd2d7; background: #fff; color: #26344f; padding: 6px 10px; border-radius: 8px; font-size: clamp(11px, 1.2vw, 14px); font-weight: 700; cursor: pointer; transition: all 0.15s ease; }
 .metric-btn:hover { border-color: #2756d3; color: #2756d3; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
 .metric-btn.active { background: #2756d3; color: #fff; border-color: #2756d3; box-shadow: 0 4px 12px rgba(39,86,211,0.28); }
+.top-filter-buttons { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-right: clamp(10px, 2vw, 18px); }
+.top-btn { border: 1px solid #cfd2d7; background: #fff; color: #26344f; padding: 6px 10px; border-radius: 8px; font-size: clamp(10px, 1.1vw, 13px); font-weight: 700; cursor: pointer; transition: all 0.15s ease; }
+.top-btn:hover { border-color: #2756d3; color: #2756d3; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+.top-btn.active { background: #2756d3; color: #fff; border-color: #2756d3; box-shadow: 0 4px 12px rgba(39,86,211,0.28); }
+.final-label {font-family: "Inter", "Segoe UI", Arial, sans-serif;font-size: 13px; font-weight: 700; letter-spacing: 0.01em; }
+.series-line { stroke-width: 4px; }
 @media (max-width: 860px) { .logo-note { font-size: clamp(7px, 0.9vw, 10px); } }
 @media (max-width: 640px) { #container3 { display: none; } .logo-note { display: none; } .corner-logo { width: clamp(80px, 26vw, 120px); right: clamp(8px, 3vw, 14px); bottom: clamp(8px, 3vw, 14px); } }
 @media (max-width: 460px), (max-height: 520px) { #container2 { display: none; } }
@@ -67,17 +73,18 @@ body { margin: 0; overflow: hidden; background: #ffffff; color: #111; font-famil
         <div id="metricButtons" class="metric-buttons" aria-label="Metric filter"></div>
         <div id="dateDisplay" class="date-display"></div>
       </div>
-      <span class="logo-note">* Weekly HF task metrics (top 50% shown)</span>
+      <span class="logo-note">* Weekly HF task metrics (top 10 shown)</span>
     </div>
     <div id="container3" class="container source-container">
       <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank" rel="noopener">HuggingFace</a></div>
     </div>
     <div id="container4" class="container logo-container">
-      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
-        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" crossorigin="anonymous">
-      </a>
+      <div id="topButtons" class="top-filter-buttons" aria-label="Top results filter"></div>
       <a href="https://huggingface.co" target="_blank" rel="noopener">
         <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="Hugging Face logo" crossorigin="anonymous">
+      </a>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="logo.svg" class="logo" alt="AI World logo" crossorigin="anonymous">
       </a>
     </div>
   </div>
@@ -90,15 +97,18 @@ const yLabelEl = document.getElementById("yLabel");
 const vizEl = document.getElementById("viz");
 const dateDisplayEl = document.getElementById("dateDisplay");
 const metricButtonsEl = document.getElementById("metricButtons");
+const topButtonsEl = document.getElementById("topButtons");
+const logoNoteEl = document.querySelector(".logo-note");
 const TARGET_YEAR = 2025;
-const INCLUDED_PERCENT = 50;
 const METRIC_OPTIONS = [
   { key: "datasets_total", label: "Datasets", type: "cumulative" },
-  { key: "rank_week", label: "Rank", type: "rank" },
   { key: "likes_total", label: "Likes", type: "cumulative" },
   { key: "downloads_total", label: "Downloads", type: "cumulative" }
 ];
+const TOP_OPTIONS = [5, 10, 25];
+const DEFAULT_TOP_LIMIT = 10;
 let currentMetric = METRIC_OPTIONS[0];
+let currentTopLimit = DEFAULT_TOP_LIMIT;
 const DEFAULT_START_DATE = new Date(Date.UTC(2022, 2, 1));
 const DEFAULT_END_DATE = new Date(Date.UTC(2023, 2, 1));
 const TARGET_END_DATE = new Date(Date.UTC(2025, 11, 31));
@@ -192,6 +202,7 @@ init();
 
 async function init(){
   buildMetricButtons();
+  buildTopButtons();
   try{
     const rawData = await fetchJSON("./task_weeks.json");
     rawDataCache = rawData;
@@ -248,21 +259,60 @@ function updateMetricButtonsState(){
   });
 }
 
+function buildTopButtons(){
+  if(!topButtonsEl){ return; }
+  topButtonsEl.innerHTML = "";
+  TOP_OPTIONS.forEach(limit=>{
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "top-btn";
+    btn.textContent = `Top ${limit}`;
+    btn.dataset.top = limit;
+    btn.addEventListener("click", ()=>{
+      const next = Number(limit);
+      if(Number.isFinite(next) && next > 0 && next !== currentTopLimit){
+        currentTopLimit = next;
+        applyMetric(currentMetric);
+        updateTopButtonsState();
+        updateTopNote();
+      }
+    });
+    topButtonsEl.appendChild(btn);
+  });
+  updateTopButtonsState();
+  updateTopNote();
+}
+
+function updateTopButtonsState(){
+  if(!topButtonsEl){ return; }
+  const buttons = topButtonsEl.querySelectorAll("button.top-btn");
+  buttons.forEach(btn=>{
+    const value = Number(btn.dataset.top);
+    btn.classList.toggle("active", Number.isFinite(value) && value === currentTopLimit);
+  });
+}
+
+function updateTopNote(){
+  if(logoNoteEl){ logoNoteEl.textContent = `* Weekly HF task metrics (top ${currentTopLimit} shown)`; }
+}
+
 function applyMetric(metric){
   if(!metric || !Array.isArray(rawDataCache) || !rawDataCache.length){ return; }
   currentMetric = metric;
   yLabelEl.textContent = metric.label;
   stopTimer();
   if(replayTimeout){ window.clearTimeout(replayTimeout); replayTimeout = null; }
-  const processed = buildSeriesAll(rawDataCache, metric);
+  const processed = buildSeriesAll(rawDataCache, metric, currentTopLimit);
   chartSeries = processed.series;
   timelineDates = processed.timeline;
   render();
   setupAnimation();
   updateMetricButtonsState();
+  updateTopButtonsState();
+  updateTopNote();
 }
 
-function buildSeriesAll(rawData, metric){
+function buildSeriesAll(rawData, metric, topLimit){
   if(!Array.isArray(rawData)){ return { series: [], timeline: [], totalSeries: 0, includedCount: 0 }; }
   const metricKey = metric?.key || "datasets_total";
   const metricType = metric?.type || "cumulative";
@@ -336,7 +386,7 @@ function buildSeriesAll(rawData, metric){
   const sortFn = isRankMetric ? ((a, b) => (a.finalValue || Infinity) - (b.finalValue || Infinity)) : ((a, b) => (b.finalValue || 0) - (a.finalValue || 0));
   series.sort(sortFn);
   const totalSeries = series.length;
-  const keepCount = totalSeries ? Math.max(1, Math.round(totalSeries * INCLUDED_PERCENT / 100)) : 0;
+  const keepCount = totalSeries ? Math.min(totalSeries, Math.max(1, Math.round(Number.isFinite(topLimit) ? topLimit : totalSeries))) : 0;
   const kept = keepCount ? series.slice(0, keepCount) : [];
   return { series: kept, timeline, totalSeries, includedCount: kept.length };
 }
@@ -387,7 +437,7 @@ function render(){
     svg.selectAll("*").remove();
     return;
   }
-  const margin = { top: 32, right: 40, bottom: 56, left: 74 };
+  const margin = { top: 32, right: 220, bottom: 56, left: 74 };
   const rect = vizEl.getBoundingClientRect();
   const width = Math.max(margin.left + margin.right + 360, rect.width || 960);
   const height = Math.max(margin.top + margin.bottom + 280, rect.height || 560);
@@ -435,6 +485,7 @@ function render(){
   finalNode.append("circle").attr("class", "final-outline");
   finalNode.append("image").attr("class", "final-logo");
   finalNode.append("text").attr("class", "final-emoji").attr("text-anchor", "middle").attr("dominant-baseline", "middle").attr("pointer-events", "none");
+  finalNode.append("text").attr("class", "final-label").attr("dominant-baseline", "middle").attr("text-anchor", "start");
   const seriesMerged = seriesEnter.merge(seriesGroups);
   seriesMerged.each(function(series){
     d3.select(this).select("path.series-line").attr("stroke", getOrgColor(series.id));
@@ -457,6 +508,7 @@ function updateFrameRange(startIndex, endIndex){
   const logoSize = isTinyW ? Math.round(Math.max(14, Math.min(22, innerWidth / 40))) : compact ? Math.round(Math.max(16, Math.min(28, innerWidth / 36))) : Math.round(Math.max(22, Math.min(42, innerWidth / 26)));
   const r = Math.round(logoSize / 2 + 2);
   const recomputedDotR = (()=>{ if(isTinyW){ return Math.max(1, Math.min(3, Math.round(innerWidth / 360))); } if(compact){ return Math.round(Math.max(2, Math.min(4, innerWidth / 300))); } return Math.round(Math.max(3, Math.min(6, innerWidth / 250))); })();
+  const plotWidth = xScale.range()[1];
   const xTickStep = getMonthTickStep(innerWidth);
   const domainStartDate = timelineDates[currentStart];
   const domainEndDate = timelineDates[currentEnd];
@@ -510,6 +562,11 @@ function updateFrameRange(startIndex, endIndex){
       const emojiSize = Math.max(12, Math.round(logoSize * 0.72));
       const imageEl = node.select("image.final-logo");
       const textEl = node.select("text.final-emoji");
+      const labelEl = node.select("text.final-label");
+      const labelPad = Math.max(6, Math.round(r * 0.45));
+      const labelFont = Math.max(11, Math.round(logoSize * 0.32));
+      const labelX = cx + r + labelPad;
+      const labelAnchor = "start";
       node.raise();
       node.style("display", null);
       node.select("circle.final-outline").attr("cx", cx).attr("cy", cy).attr("r", r).attr("fill", "#ffffff").attr("stroke", getOrgColor(series.id)).attr("stroke-width", 2);
@@ -520,6 +577,7 @@ function updateFrameRange(startIndex, endIndex){
         imageEl.style("display", "none");
         textEl.text(emoji).attr("x", cx).attr("y", cy).attr("font-size", emojiSize).attr("fill", getOrgColor(series.id)).style("display", null);
       }
+      labelEl.text(series.id).attr("x", labelX).attr("y", cy).attr("font-size", labelFont).attr("fill", "#26344f").attr("text-anchor", labelAnchor).style("display", null);
       node.style("pointer-events", "all").on("mouseenter", (event)=>{ showTooltip(event, { ...lastPoint, seriesId: series.id }); }).on("mousemove", (event)=>{ moveTooltip(event, { ...lastPoint, seriesId: series.id }); }).on("mouseleave", ()=>{ hideTooltip(); });
     }else{
       node.style("display", "none");
