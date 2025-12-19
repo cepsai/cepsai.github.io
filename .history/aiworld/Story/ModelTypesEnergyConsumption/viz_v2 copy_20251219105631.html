@@ -1,0 +1,1248 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <style type="text/css">
+    .knitr .inline { background-color: #F7F7F7; border: solid 1px #B0B0B0; }
+    .error { font-weight: bold; color: #FF0000; }
+    .warning { font-weight: bold; }
+    .message { font-style: italic; }
+    .source, .output, .warning, .error, .message { padding: 0 1em; border: solid 1px #F7F7F7; }
+    .source { background-color: #F5F5F5; }
+    .rimage .left { text-align: left; }
+    .rimage .right { text-align: right; }
+    .rimage .center { text-align: center; }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      background-color: white;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 2fr 16fr 1fr 2fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding-bottom: clamp(8px, 2vh, 18px);
+      position: relative;
+    }
+
+    #container0 {
+      grid-row: 1;
+      overflow: visible;
+      min-height: 0;
+      position: relative;
+      pointer-events: none;
+      z-index: 3;
+      padding-top: 2px;
+    }
+
+    #container1 {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #container5 {
+      grid-row: 3;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px;
+      overflow: hidden;
+    }
+
+    #container2 {
+      grid-row: 4;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #container3 {
+      grid-row: 5;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #container4 {
+      grid-row: 5;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #container4 a {
+      height: 100%;
+      display: flex;
+      align-items: center;
+    }
+    #container5 {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 clamp(8px, 2vw, 20px);
+      overflow: hidden;
+      min-width: 0;
+    }
+    
+
+    .bar-color-note {
+      font-size: clamp(9px, 1vw, 11px);
+      font-style: italic;
+      color: #444;
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
+      gap: 6px;
+      margin-right: clamp(6px, 0.8vw, 12px);
+    }
+
+    .bar-color-note.hidden {
+      display: none;
+    }
+
+    .color-swatch {
+      width: clamp(10px, 0.9vw, 14px);
+      height: clamp(10px, 0.9vw, 14px);
+      border-radius: 4px;
+      display: inline-block;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+    }
+
+    .color-swatch--min { background: #4867d1; }
+    .color-swatch--max { background: #6dbdc8; }
+
+    .logo-divider {
+      margin: 0 clamp(6px, 1vw, 14px);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(16px, 1.8vw, 26px);
+      font-weight: 600;
+      line-height: 1;
+      color: #111827;
+    }
+
+    .restart-button {
+      border: none;
+      border-radius: 6px;
+      background: #2756d3;
+      color: #ffffff;
+      font-weight: 400;
+      font-size: clamp(18px, 2vw, 26px);
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity 0.4s ease, transform 0.4s ease;
+      flex: 0 0 auto;
+      width: clamp(44px, 4vw, 60px);
+      height: clamp(20px, 4vw, 40px);
+      margin-right: clamp(8px, 1vw, 16px);
+    }
+
+    .restart-button.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    .restart-button::before {
+      content: '↻';
+      line-height: 1;
+    }
+
+    .restart-button.skip-mode::before {
+      content: '⏭';
+    }
+
+    #viz {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    .custom-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(4px, 1vw, 10px);
+      padding: clamp(2px, 0.5vh, 4px) clamp(4px, 0.8vw, 8px);
+      overflow: auto;
+      max-width: 100%;
+      max-height: 100%;
+      font-size: clamp(8px, 1.3vw, 13px);
+      font-weight: 600;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+      font-weight: 600;
+      color: #333;
+      position: relative;
+    }
+
+    .legend-item.inactive { opacity: 0.35; }
+
+    .legend-square {
+      width: clamp(10px, 1.2vw, 14px);
+      height: clamp(10px, 1.2vw, 14px);
+      border-radius: 4px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset;
+    }
+
+    .legend-item:focus-visible {
+      outline: 2px solid rgba(0, 0, 0, 0.5);
+      outline-offset: 2px;
+    }
+
+    .logo {
+      height: 100%;
+      width: auto;
+      max-height: 100%;
+      max-width: clamp(80px, 15vw, 200px);
+      pointer-events: auto;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .source-text {
+      font-size: clamp(10px, 1.6vw, 16px);
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      font-style: normal;
+    }
+
+    .source-text a {
+      color: #2756d3;
+      text-decoration: underline;
+      cursor: pointer;
+      font-style: normal;
+    }
+
+    .source-text a:visited { color: #2756d3; }
+  
+    .footnote-text {
+      /* Smaller font size as requested previously */
+      font-size: clamp(8px, 1vw, 11px); 
+      font-style: italic;
+      color: #444;
+      
+      /* Text Wrapping Logic */
+      white-space: normal;       /* Allows text to wrap to the next line */
+      overflow: visible;         /* Ensures text isn't cut off */
+      text-overflow: clip;       /* Removes the "..." */
+      
+      /* Right Alignment Logic */
+      text-align: right;         /* Aligns text lines to the right edge */
+      max-width: 25%;            /* Forces wrap by limiting width (adjust % as needed) */
+      line-height: 1.2;          /* Adds a little breathing room between the 2 lines */
+    }
+
+    
+
+    #info-points-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      pointer-events: none;
+    }
+
+    .info-point {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      top: 0;
+      left: 0;
+      height: 100%;
+      opacity: 0;
+      transform: translateX(0px);
+      transform-origin: top left;
+      transition: opacity 0.6s ease-out, transform 0.45s ease;
+      will-change: transform;
+    }
+
+    .info-point.visible {
+      opacity: 1;
+    }
+
+    .info-point--hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .info-point-line {
+      width: 2px;
+      background: repeating-linear-gradient(
+        to bottom,
+        #666 0,
+        #666 4px,
+        transparent 4px,
+        transparent 8px
+      );
+      flex-grow: 1;
+      margin-top: 6px;
+      transition: height 0.3s ease;
+    }
+
+    .info-point-content {
+      background: white;
+      border: 2px solid #666;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: clamp(10px, 1.4vw, 14px);
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+      text-align: center;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      pointer-events: auto;
+    }
+
+    .info-point-icon {
+      font-size: clamp(14px, 1.8vw, 18px);
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .info-point-text {
+      font-size: clamp(9px, 1.2vw, 12px);
+      line-height: 1.3;
+      white-space: normal;
+    }
+
+    @media (max-height: 500px) {
+      .viz-grid {
+        grid-template-rows: 1fr !important;
+        grid-template-columns: 1fr !important;
+        position: relative;
+      }
+      #container1 {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+      }
+      #container0 {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+      }
+      #info-points-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+      }
+      #container2, #container3, #container4, #container5 { display: none !important; }
+      .custom-legend, .source-text, .logo, .footnote-text { display: none !important; }
+      .info-point-content {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+      }
+      .info-point-text { display: none; }
+    }
+  </style>
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+
+<body>
+  <div class="viz-grid">
+    <div id="container0" class="container info-container">
+      <div id="info-points-container"></div>
+    </div>
+    <div id="container1" class="container viz-container">
+      <div id="viz"></div>
+    </div>
+    <div id="container5" class="container footnote-container">
+      <div class="footnote-text" id="footnote-text">
+        * For text generation and reasoning models: Class A contains models under 20B parameters run on a single consumer GPU. Class B (20-60B parameters) runs on cloud GPUs, class C (66B parameters) need multiple cloud GPUs
+      </div>
+    </div>
+    <div id="container2" class="container legend-container">
+      <div class="custom-legend" id="legend"></div>
+    </div>
+    <div id="container3" class="container source-container">
+      <div class="source-text" id="source-text">
+        Source: <a href="https://huggingface.co/spaces/AIEnergyScore/Leaderboard" target="_blank"
+          rel="noopener noreferrer">AI Energy Score Leaderboard</a>
+      </div>
+    </div>
+    <div id="container4" class="container logo-container">
+      <div class="bar-color-note">
+        <span><span class="color-swatch color-swatch--max" aria-hidden="true"></span> Minimum value</span>
+        <span><span class="color-swatch color-swatch--min" aria-hidden="true"></span> Maximum value</span>
+      </div>
+      <button id="restart-button" class="restart-button skip-mode" type="button" aria-label="Skip animation" title="Skip animation"></button>
+      <a href="https://huggingface.co" id="logo-link" target="_blank" rel="noopener">
+        <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="Hugging Face logo" />
+      </a>
+      <span class="logo-divider" aria-hidden="true">×</span>
+      <a href="https://aiworld.eu/" id="logo-link" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" />
+      </a>
+    </div>
+  </div>
+
+  <script>
+    const SHOW_CONTAINER_0 = 1;
+    const SHOW_CONTAINER_2 = 0;
+    const SHOW_CONTAINER_3 = 1;
+    const SHOW_CONTAINER_4 = 1;
+    const SHOW_CONTAINER_5 = 1;
+
+    const VIZ_CONTAINER_ID = 'viz';
+    const SOURCE_CONTAINER_ID = 'source-text';
+    const LOGO_CONTAINER_ID = 'logo-link';
+    const FOOTNOTE_CONTAINER_ID = 'footnote-text';
+
+    const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
+    const restartButton = document.getElementById('restart-button');
+    const colorNote = document.querySelector('.bar-color-note');
+    const animationController = {
+      state: 'idle',
+      skipToEnd: null,
+      replay: null
+    };
+
+    function setRestartButtonState(mode) {
+      if (!restartButton) return;
+      if (mode === 'skip') {
+        restartButton.classList.add('visible', 'skip-mode');
+        restartButton.setAttribute('aria-label', 'Skip animation');
+        restartButton.title = 'Skip animation';
+        return;
+      }
+      if (mode === 'replay') {
+        restartButton.classList.add('visible');
+        restartButton.classList.remove('skip-mode');
+        restartButton.setAttribute('aria-label', 'Replay animation');
+        restartButton.title = 'Replay animation';
+        return;
+      }
+      restartButton.classList.remove('visible', 'skip-mode');
+      restartButton.setAttribute('aria-label', 'Skip animation');
+      restartButton.title = 'Skip animation';
+    }
+
+    setRestartButtonState('hidden');
+
+    if (restartButton) {
+      restartButton.addEventListener('click', function () {
+        if (animationController.state === 'animating' && typeof animationController.skipToEnd === 'function') {
+          animationController.skipToEnd();
+        } else if (animationController.state === 'completed' && typeof animationController.replay === 'function') {
+          animationController.replay();
+        }
+      });
+    }
+
+    function updateColorNoteVisibility() {
+      if (!colorNote) return;
+      const containerWidth = colorNote.parentElement ? colorNote.parentElement.clientWidth : 0;
+      const noteWidth = colorNote.scrollWidth;
+      colorNote.classList.toggle('hidden', noteWidth > containerWidth);
+    }
+
+    (function applyContainerVisibility() {
+      const vizGrid = document.querySelector('.viz-grid');
+      const container0 = document.getElementById('container0');
+      const container1 = document.getElementById('container1');
+      const container2 = document.getElementById('container2');
+      const container3 = document.getElementById('container3');
+      const container4 = document.getElementById('container4');
+      const container5 = document.getElementById('container5');
+
+      if (!SHOW_CONTAINER_0) container0.style.display = 'none';
+      if (!SHOW_CONTAINER_2) container2.style.display = 'none';
+      if (!SHOW_CONTAINER_3) container3.style.display = 'none';
+      if (!SHOW_CONTAINER_4) container4.style.display = 'none';
+      if (!SHOW_CONTAINER_5) container5.style.display = 'none';
+
+      const row1Visible = SHOW_CONTAINER_0;
+      const row3Visible = SHOW_CONTAINER_5;
+      const row4Visible = SHOW_CONTAINER_2;
+      const row5Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+      let gridRows = [];
+      let currentRow = 1;
+
+      if (row1Visible) { gridRows.push('2fr'); container0.style.gridRow = currentRow.toString(); currentRow++; }
+
+      const container1Height = 20 - (row1Visible ? 2 : 0) - (row3Visible ? 1 : 0) - (row4Visible ? 2 : 0) - (row5Visible ? 1 : 0);
+      gridRows.push(`${container1Height}fr`);
+      container1.style.gridRow = currentRow.toString();
+      currentRow++;
+
+      if (row3Visible) { gridRows.push('1fr'); container5.style.gridRow = currentRow.toString(); currentRow++; }
+      if (row4Visible) { gridRows.push('2fr'); container2.style.gridRow = currentRow.toString(); currentRow++; }
+      if (row5Visible) {
+        gridRows.push('1fr');
+        if (SHOW_CONTAINER_3) container3.style.gridRow = currentRow.toString();
+        if (SHOW_CONTAINER_4) container4.style.gridRow = currentRow.toString();
+        currentRow++;
+      }
+
+      vizGrid.style.gridTemplateRows = gridRows.join(' ');
+
+      if (row5Visible) {
+        if (SHOW_CONTAINER_3 && !SHOW_CONTAINER_4) container3.style.gridColumn = '1 / span 2';
+        else if (!SHOW_CONTAINER_3 && SHOW_CONTAINER_4) container4.style.gridColumn = '1 / span 2';
+      }
+    })();
+
+    const PLOT_TYPE = "bar";
+    const rawRows = [
+      { model: "google/pix2struct-base", total_gpu_energy: 0.04574709, extreme: "lowest", source_csv: "image_captioning", class: null, name: "Image Captioning" },
+      { model: "Salesforce/blip2-flan-t5-xxl", total_gpu_energy: 0.179930966, extreme: "highest", source_csv: "image_captioning", class: null, name: "Image Captioning" },
+
+      { model: "facebook/wav2vec2-base-960h", total_gpu_energy: 0.000619699, extreme: "lowest", source_csv: "asr", class: null, name: "Speech Recognition" },
+      { model: "openai/whisper-large-v3", total_gpu_energy: 0.086679066, extreme: "highest", source_csv: "asr", class: null, name: "Speech Recognition" },
+
+      { model: "Mitsua/mitsua-diffusion-one", total_gpu_energy: 0.186811914, extreme: "lowest", source_csv: "image_generation", class: null, name: "Image Generation" },
+      { model: "stabilityai/stable-diffusion-xl-base-1.0", total_gpu_energy: 1.639845472, extreme: "highest", source_csv: "image_generation", class: null, name: "Image Generation" },
+
+      { model: "avsolatorio/GIST-all-MiniLM-L6-v2", total_gpu_energy: 0.000106329, extreme: "lowest", source_csv: "sentence_similarity", class: null, name: "Sentence Similarity" },
+      { model: "Salesforce/SFR-Embedding-Mistral", total_gpu_energy: 0.005220944, extreme: "highest", source_csv: "sentence_similarity", class: null, name: "Sentence Similarity" },
+
+      { model: "lvwerra/distilbert-imdb", total_gpu_energy: 0.000216022, extreme: "lowest", source_csv: "text_classification", class: null, name: "Text Classification" },
+      { model: "google-t5/t5-11b", total_gpu_energy: 0.027787079, extreme: "highest", source_csv: "text_classification", class: null, name: "Text Classification" },
+
+      { model: "microsoft/resnet-18", total_gpu_energy: 0.000299115, extreme: "lowest", source_csv: "image_classification", class: null, name: "Image Classification" },
+      { model: "deepmind/vision-perceiver-conv", total_gpu_energy: 0.002641366, extreme: "highest", source_csv: "image_classification", class: null, name: "Image Classification" },
+
+      { model: "KipperDev/bart_summarizer_model", total_gpu_energy: 0.000784852, extreme: "lowest", source_csv: "summarization", class: null, name: "Summarization" },
+      { model: "google-t5/t5-11b", total_gpu_energy: 0.034807171, extreme: "highest", source_csv: "summarization", class: null, name: "Summarization" },
+
+      { model: "hustvl/yolos-tiny", total_gpu_energy: 0.001004166, extreme: "lowest", source_csv: "object_detection", class: null, name: "Object Detection" },
+      { model: "hustvl/yolos-base", total_gpu_energy: 0.007980927, extreme: "highest", source_csv: "object_detection", class: null, name: "Object Detection" },
+
+      { model: "mrm8488/bert-tiny-finetuned-squadv2", total_gpu_energy: 0.0000554, extreme: "lowest", source_csv: "question_answering", class: null, name: "Question Answering" },
+      { model: "google-t5/t5-11b", total_gpu_energy: 0.178130109, extreme: "highest", source_csv: "question_answering", class: null, name: "Question Answering" },
+
+      // text_generation (A/B/C)
+      { model: "distilbert/distilgpt2", total_gpu_energy: 0.001313, extreme: "lowest", source_csv: "text_generation", class: "A", name: "Text Generation A" },
+      { model: "ibm-granite/granite-4.0-h-tiny", total_gpu_energy: 0.08182, extreme: "highest", source_csv: "text_generation", class: "A", name: "Text Generation A" },
+
+      { model: "Qwen/Qwen3-30B-A3B", total_gpu_energy: 0.03738, extreme: "lowest", source_csv: "text_generation", class: "B", name: "Text Generation B" },
+      { model: "mistralai/Mixtral-8x7B-v0.1", total_gpu_energy: 0.61539, extreme: "highest", source_csv: "text_generation", class: "B", name: "Text Generation B" },
+
+      { model: "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B", total_gpu_energy: 0.03664, extreme: "lowest", source_csv: "text_generation", class: "C", name: "Text Generation C" },
+      { model: "CohereForAI/c4ai-command-r-plus", total_gpu_energy: 3.426382, extreme: "highest", source_csv: "text_generation", class: "C", name: "Text Generation C" },
+
+      // reasoning (A/B/C)
+      { model: "Qwen/Qwen3-0.6B", total_gpu_energy: 0.54699, extreme: "lowest", source_csv: "reasoning", class: "A", name: "Reasoning A" },
+      { model: "HuggingFaceTB/SmolLM3-3B", total_gpu_energy: 12.79122, extreme: "highest", source_csv: "reasoning", class: "A", name: "Reasoning A" },
+
+      { model: "openai/gpt-oss-20b low", total_gpu_energy: 1.13559, extreme: "lowest", source_csv: "reasoning", class: "B", name: "Reasoning B" },
+      { model: "LGAI-EXAONE/EXAONE-4.0-32B", total_gpu_energy: 18.99236, extreme: "highest", source_csv: "reasoning", class: "B", name: "Reasoning B" },
+
+      { model: "Qwen/Qwen3-Next-80B-A3B-Instruct", total_gpu_energy: 0.26673, extreme: "lowest", source_csv: "reasoning", class: "C", name: "Reasoning C" },
+      { model: "openai/gpt-oss-120b high", total_gpu_energy: 8.50362, extreme: "highest", source_csv: "reasoning", class: "C", name: "Reasoning C" },
+    ];
+
+    // --- split text_generation + reasoning into A/B/C subcategories (from `class`) ---
+    const SPLIT_CATS = new Set(["text_generation", "reasoning"]);
+    const VALID_CLASSES = new Set(["A", "B", "C"]);
+
+    // Process rawRows to create originalData format
+    function processRawRows(rows) {
+      const categories = {};
+
+      rows.forEach(function(row) {
+        const cat = row.source_csv;
+        const energy = row.total_gpu_energy;
+        const extreme = row.extreme;
+        const displayName = row.name;
+
+        // For text_generation and reasoning with classes, create separate entries
+        if (SPLIT_CATS.has(cat) && row.class && VALID_CLASSES.has(row.class)) {
+          const key = cat + "_" + row.class;
+          if (!categories[key]) {
+            categories[key] = { name: displayName, low: null, high: null };
+          }
+          if (extreme === "lowest") categories[key].low = energy;
+          if (extreme === "highest") categories[key].high = energy;
+        } else {
+          // For other categories, aggregate all entries
+          if (!categories[cat]) {
+            categories[cat] = { name: displayName, low: null, high: null };
+          }
+          if (extreme === "lowest") {
+            categories[cat].low = (categories[cat].low === null) ? energy : Math.min(categories[cat].low, energy);
+          }
+          if (extreme === "highest") {
+            categories[cat].high = (categories[cat].high === null) ? energy : Math.max(categories[cat].high, energy);
+          }
+        }
+      });
+
+      return Object.keys(categories).map(function(key) {
+        const cat = categories[key];
+        return {
+          id: cat.name,
+          name: cat.name,
+          value: cat.low !== null ? cat.low : 0,
+          high: cat.high !== null ? cat.high : cat.low
+        };
+      });
+    }
+
+    const originalData = processRawRows(rawRows);
+
+    // === SETTINGS ===
+    const BAR_BORDER_RADIUS = 0;
+    const BAR_USE_GRADIENT = 0;
+    const BAR_VALUE_POSITION = "outside";
+    const BAR_ORIENTATION = "horizontal";
+    const PALETTE_MODE = "aiw";
+    const HIGH_BAR_COLOR = "#6dbdc8"; // the "extra" stacked segment color
+    const COMPACT_HEIGHT_BREAKPOINT = 500;
+
+    function normalizeData(arr) {
+      return arr.map(function (d) {
+        var parent = d.parent || d.group || d.domain || d.category || d.type || d.class || "All";
+        var name = d.name || d.id || d.label || d.title;
+        var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+        var high = (d.high != null) ? +d.high : null;
+        var color = d.color != null ? d.color : null;
+        return { parent: parent, name: name, value: value, high: high, color: color };
+      });
+    }
+
+    function buildClampSize(minPx, preferredPx, maxPx) {
+      var safePreferred = (!isFinite(preferredPx) || preferredPx <= 0) ? minPx : preferredPx;
+      return "clamp(" + minPx + "px, " + safePreferred.toFixed(2) + "px, " + maxPx + "px)";
+    }
+
+    function isCompactViewport() {
+      if (typeof window === "undefined") return false;
+      if (typeof window.matchMedia === "function") {
+        return window.matchMedia("(max-height: " + COMPACT_HEIGHT_BREAKPOINT + "px)").matches;
+      }
+      var viewportHeight = window.innerHeight || (document.documentElement && document.documentElement.clientHeight) || 0;
+      return viewportHeight > 0 && viewportHeight <= COMPACT_HEIGHT_BREAKPOINT;
+    }
+
+    let treemapData = normalizeData(originalData);
+
+    function ensureValueLabelsOpaque() {
+      if (!vizContainer) return;
+      d3.select(vizContainer).selectAll(".value-label").style("opacity", 1);
+    }
+
+    function makeStackedRows(baseRows) {
+      // returns [{name,parent,low,delta,high,bump,color}]
+      return baseRows.map(function (d) {
+        var low = (typeof d.value === "number" ? d.value : +d.value || 0);
+        var high = (d.high != null) ? +d.high : low;
+        var delta = Math.max(0, high - low);
+        var bump = low > 0 ? (high - low) / low : 0;
+        return { name: d.name, parent: d.parent, low: low, delta: delta, high: high, bump: bump, color: d.color };
+      });
+    }
+
+    let barTooltip = null;
+    let barRevealTimeout = null;
+
+    function renderBarChart(width, height) {
+      if (!vizContainer) {
+        animationController.state = 'idle';
+        animationController.skipToEnd = null;
+        animationController.replay = null;
+        setRestartButtonState('hidden');
+        updateColorNoteVisibility();
+        return;
+      }
+
+      if (barRevealTimeout) {
+        clearTimeout(barRevealTimeout);
+        barRevealTimeout = null;
+      }
+
+      while (vizContainer.firstChild) vizContainer.removeChild(vizContainer.firstChild);
+
+      if (!Array.isArray(treemapData) || treemapData.length === 0) {
+        const empty = document.createElement("div");
+        empty.style.display = "flex";
+        empty.style.alignItems = "center";
+        empty.style.justifyContent = "center";
+        empty.style.height = "100%";
+        empty.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif";
+        empty.style.color = "#666";
+        empty.textContent = "No data available";
+        vizContainer.appendChild(empty);
+        animationController.state = 'idle';
+        animationController.skipToEnd = null;
+        animationController.replay = null;
+        setRestartButtonState('hidden');
+        updateColorNoteVisibility();
+        return;
+      }
+
+      // Force horizontal
+      const compactModeActive = isCompactViewport();
+      const margin = {
+        top: 16,
+        right: Math.max(70, width * 0.11),
+        bottom: compactModeActive ? Math.max(30, height * 0.07) : Math.max(52, height * 0.1),
+        left: Math.max(140, width * 0.18)
+      };
+      const innerWidth = Math.max(40, width - margin.left - margin.right);
+      const innerHeight = Math.max(40, height - margin.top - margin.bottom);
+
+      const svg = d3.select(vizContainer)
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("viewBox", "0 0 " + width + " " + height)
+        .style("width", "100%")
+        .style("height", "100%");
+
+      const g = svg.append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+      // Unique by name
+      const byName = {};
+      treemapData.forEach(function (d) {
+        var key = d.name || "";
+        if (!key) return;
+        if (!byName[key]) byName[key] = { name: d.name, parent: d.parent, value: (typeof d.value === "number" ? d.value : +d.value || 0), high: d.high, color: d.color };
+      });
+      const base = Object.keys(byName).map(function (k) { return byName[k]; });
+
+      // Build stacked rows: [low + delta] = high
+      const rows = makeStackedRows(base);
+
+      // Sort SMALLEST first (by total/high)
+      const nameOrderAsc = rows.slice().sort(function (a, b) {
+        return d3.ascending(a.high, b.high);
+      }).map(function (d) { return d.name; });
+
+      const rowByName = {};
+      rows.forEach(function (r) { rowByName[r.name] = r; });
+
+      const x = d3.scaleLinear().domain([0, 1]).nice().range([0, innerWidth]);
+      const y = d3.scaleBand().domain([]).rangeRound([0, innerHeight]).paddingInner(0.18).paddingOuter(0.22);
+
+      const backgroundGroup = g.append("g").attr("class", "bar-backgrounds").attr("fill", "none");
+      const yAxisGroup = g.append("g").attr("class", "axis axis--y");
+      const xAxisGroup = g.append("g").attr("class", "axis axis--x").attr("transform", "translate(0," + innerHeight + ")");
+
+      const shouldRenderXAxisLabel = !compactModeActive;
+      const xAxisLabelPadding = shouldRenderXAxisLabel ? Math.max(34, Math.min(66, height * 0.09)) : 0;
+      let xAxisLabel = null;
+      if (shouldRenderXAxisLabel) {
+        xAxisLabel = g.append("text")
+          .attr("class", "axis-label")
+          .attr("x", innerWidth / 2)
+          .attr("y", innerHeight + xAxisLabelPadding)
+          .attr("text-anchor", "middle")
+          .style("font-weight", "600")
+          .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif")
+          .style("fill", "#111827")
+          .text("kWh per 1k Queries");
+      }
+
+      const defs = svg.append("defs");
+
+      const gradLow = defs.append("linearGradient")
+        .attr("id", "barGradientLow")
+        .attr("gradientUnits", "objectBoundingBox")
+        .attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%");
+      gradLow.append("stop").attr("offset", "0%").attr("stop-color", "#cfe8ff");
+      gradLow.append("stop").attr("offset", "100%").attr("stop-color", "#4867d1");
+
+      const gradDelta = defs.append("linearGradient")
+        .attr("id", "barGradientDelta")
+        .attr("gradientUnits", "objectBoundingBox")
+        .attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%");
+      gradDelta.append("stop").attr("offset", "0%").attr("stop-color", "#ffe2c2");
+      gradDelta.append("stop").attr("offset", "100%").attr("stop-color", HIGH_BAR_COLOR);
+
+      if (!barTooltip) {
+        barTooltip = document.createElement("div");
+        barTooltip.style.position = "fixed";
+        barTooltip.style.pointerEvents = "none";
+        barTooltip.style.zIndex = "9999";
+        barTooltip.style.background = "white";
+        barTooltip.style.borderRadius = "8px";
+        barTooltip.style.boxShadow = "0 8px 18px rgba(15,23,42,0.22)";
+        barTooltip.style.padding = "8px 10px";
+        barTooltip.style.fontSize = "12px";
+        barTooltip.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif";
+        barTooltip.style.color = "#111827";
+        barTooltip.style.opacity = "0";
+        barTooltip.style.transition = "opacity 0.12s ease-out, transform 0.12s ease-out";
+        barTooltip.style.transform = "translateY(0)";
+        document.body.appendChild(barTooltip);
+      }
+
+      const barGroup = g.append("g").attr("class", "bars");
+      const valueLabelGroup = g.append("g").attr("class", "value-labels");
+      const formatValue = d3.format(".3f");
+      const axisFontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif";
+
+      function showTooltip(event, name) {
+        const r = rowByName[name];
+        if (!r) return;
+        barTooltip.innerHTML =
+          "<strong>" + name + "</strong>" +
+          "<br/>Lowest: " + formatValue(r.low) + " kWh" +
+          "<br/>Highest: " + formatValue(r.high) + " kWh" +
+          "<br/>Range: " + formatValue(r.delta) + " kWh (" + Math.round(r.bump * 100) + "%)";
+        barTooltip.style.left = (event.clientX + 14) + "px";
+        barTooltip.style.top = (event.clientY - 24) + "px";
+        barTooltip.style.opacity = "1";
+        barTooltip.style.transform = "translateY(-2px)";
+      }
+      function hideTooltip() {
+        barTooltip.style.opacity = "0";
+        barTooltip.style.transform = "translateY(0)";
+      }
+
+      const getAnimationDuration = function (name) {
+        const durationBase = 350;
+        const durationRange = 450;
+        const r = rowByName[name];
+        if (!r) return durationBase;
+        const widthPx = Math.max(0, x(r.high));
+        const ratio = Math.min(1, Math.max(0, innerWidth ? widthPx / innerWidth : 0));
+        let duration = durationBase + ratio * durationRange;
+        if (finalBarName && name === finalBarName) {
+          return duration * 5;
+        }
+        if (penultimateBarName && name === penultimateBarName) {
+          return duration * 1.8;
+        }
+        return duration;
+      };
+
+      const renderFrame = function (visibleNames) {
+        const visibleRows = visibleNames.map(function (n) { return rowByName[n]; }).filter(Boolean);
+
+        const maxHigh = d3.max(visibleRows, function (d) { return d.high; }) || 0;
+        x.domain([0, maxHigh * 1.05 || 1]).nice();
+
+        y.domain(visibleNames);
+
+        const domainCount = Math.max(visibleNames.length, 1);
+        const axisFontPreferred = innerHeight / Math.max(domainCount * 2, 10);
+        const axisTickFontSize = buildClampSize(6, axisFontPreferred, 13);
+        const axisLabelFontSize = buildClampSize(8, axisFontPreferred * 1.2, 16);
+        const valueLabelFontSize = buildClampSize(7, axisFontPreferred * 1.05, 15);
+
+        // Axes
+        yAxisGroup.transition()
+          .duration(450)
+          .call(d3.axisLeft(y));
+
+        yAxisGroup.selectAll("text")
+          .style("font-size", axisTickFontSize)
+          .style("font-family", axisFontFamily);
+
+        xAxisGroup.transition()
+          .duration(450)
+          .call(d3.axisBottom(x).ticks(4));
+
+        xAxisGroup.selectAll("text")
+          .style("font-size", axisTickFontSize)
+          .style("font-family", axisFontFamily);
+
+        if (xAxisLabel) {
+          xAxisLabel.style("font-size", axisLabelFontSize);
+        }
+
+        // Update info points based on current scale
+        renderInfoPoints(x, margin, innerHeight);
+
+        // Row backgrounds
+        const rowBackgrounds = backgroundGroup.selectAll("rect.row-bg")
+          .data(visibleNames, function (d) { return d; });
+
+        rowBackgrounds.exit()
+          .transition().duration(350)
+          .attr("height", 0).attr("opacity", 0)
+          .remove();
+
+        const rowEnter = rowBackgrounds.enter()
+          .append("rect")
+          .attr("class", "row-bg")
+          .attr("x", -margin.left)
+          .attr("y", innerHeight / 2)
+          .attr("width", innerWidth + margin.left + margin.right)
+          .attr("height", 0)
+          .attr("fill", "#ffffff")
+          .attr("pointer-events", "none");
+
+        rowEnter.merge(rowBackgrounds)
+          .transition().duration(450)
+          .attr("y", function (name) { return y(name); })
+          .attr("height", y.bandwidth())
+          .attr("fill", function (_name, i) { return i % 2 ? "#f5f5f5" : "#ffffff"; });
+
+        const barThickness = Math.max(10, y.bandwidth() * 0.78);
+        const yOffset = (y.bandwidth() - barThickness) / 2;
+
+        // ---- STACKED LOW SEGMENT ----
+        const lowBars = barGroup.selectAll("rect.bar-low")
+          .data(visibleRows, function (d) { return d.name; });
+
+        lowBars.exit()
+          .transition().duration(350)
+          .attr("width", 0).style("opacity", 0)
+          .remove();
+
+        const lowEnter = lowBars.enter()
+          .append("rect")
+          .attr("class", "bar-low")
+          .attr("rx", BAR_BORDER_RADIUS)
+          .attr("ry", BAR_BORDER_RADIUS)
+          .attr("fill", BAR_USE_GRADIENT ? "url(#barGradientLow)" : HIGH_BAR_COLOR)
+          .attr("opacity", 0.95)
+          .attr("x", 0)
+          .attr("y", function (d) { return y(d.name) + yOffset; })
+          .attr("height", barThickness)
+          .attr("width", 0);
+
+        lowEnter.merge(lowBars)
+          .on("mousemove", function (event, d) { showTooltip(event, d.name); })
+          .on("mouseleave", hideTooltip)
+          .transition().duration(function (d) { return getAnimationDuration(d.name); })
+          .attr("y", function (d) { return y(d.name) + yOffset; })
+          .attr("height", barThickness)
+          .attr("width", function (d) { return x(d.low); });
+
+        // ---- STACKED DELTA SEGMENT (ON TOP OF LOW) ----
+        const deltaBars = barGroup.selectAll("rect.bar-delta")
+          .data(visibleRows, function (d) { return d.name; });
+
+        deltaBars.exit()
+          .transition().duration(350)
+          .attr("width", 0).style("opacity", 0)
+          .remove();
+
+        const deltaEnter = deltaBars.enter()
+          .append("rect")
+          .attr("class", "bar-delta")
+          .attr("rx", BAR_BORDER_RADIUS)
+          .attr("ry", BAR_BORDER_RADIUS)
+          .attr("fill", BAR_USE_GRADIENT ? "url(#barGradientDelta)" : "#4867d1")
+          .attr("opacity", 0.95)
+          .attr("x", 0)
+          .attr("y", function (d) { return y(d.name) + yOffset; })
+          .attr("height", barThickness)
+          .attr("width", 0);
+
+        deltaEnter.merge(deltaBars)
+          .on("mousemove", function (event, d) { showTooltip(event, d.name); })
+          .on("mouseleave", hideTooltip)
+          .transition().duration(function (d) { return getAnimationDuration(d.name); })
+          .attr("y", function (d) { return y(d.name) + yOffset; })
+          .attr("height", barThickness)
+          .attr("x", function (d) { return x(d.low); })
+          .attr("width", function (d) { return Math.max(0, x(d.high) - x(d.low)); });
+
+        // Value labels (show total/high at end)
+        if (BAR_VALUE_POSITION === "none") {
+          valueLabelGroup.selectAll("text.value-label").remove();
+        } else {
+          // Locate your label rendering logic and update it like this:
+          const labels = valueLabelGroup.selectAll("text.value-label")
+            .data(visibleRows, function (d) { return d.name; });
+
+          labels.exit().transition().duration(250).style("opacity", 0).remove();
+
+          const valueLabelX = function (d) { return x(d.high) + 6; };
+          const valueLabelY = function (d) { return y(d.name) + yOffset + barThickness / 2 + 4; };
+
+           const labelsEnter = labels.enter()
+            .append("text")
+            .attr("class", "value-label")
+            .attr("fill", "#000000")
+            .style("opacity", 1)      // Force full visibility
+            .style("font-weight", "bold")
+            .attr("text-anchor", "start")
+            .style("font-weight", "600")
+            .style("font-family", axisFontFamily)
+            .attr("x", valueLabelX)
+            .attr("y", valueLabelY);
+
+          // const labelsEnter = labels.enter()
+          //   .append("text")
+          //   .attr("class", "value-label")
+          //   .attr("fill", "#111827")
+          //   .attr("text-anchor", "start")
+          //   .style("font-weight", "600")
+          //   .style("font-family", axisFontFamily)
+          //   .style("opacity", 0)
+          //   .attr("x", valueLabelX)
+          //   .attr("y", valueLabelY);
+
+          const mergedLabels = labelsEnter.merge(labels);
+
+          mergedLabels
+            .style("font-size", valueLabelFontSize)
+            .text(function (d) { return formatValue(d.high); });
+
+          mergedLabels.transition()
+            .duration(450)
+            .attr("x", valueLabelX)
+            .attr("y", valueLabelY);
+
+          labels.style("opacity", 1);
+
+          const labelDelay = function (d) { return getAnimationDuration(d.name); };
+
+          labelsEnter
+            .transition()
+            .delay(labelDelay)
+            .duration(350)
+            .style("opacity", 1);
+        }
+      };
+
+      // Identify final and penultimate bars for custom animation speeds
+      const finalBarName = nameOrderAsc.length ? nameOrderAsc[nameOrderAsc.length - 1] : null;
+      const penultimateBarName = nameOrderAsc.length > 1 ? nameOrderAsc[nameOrderAsc.length - 2] : null;
+
+      // Reveal: SMALLEST FIRST, and as we add bigger ones, we add them "on top"
+      // (prepend so the newest/bigger appears above the existing ones)
+      const visibleNames = [];
+      let i = 0;
+      const revealDelay = 1500;
+      let revealCompleted = false;
+
+      const finalizeReveal = function () {
+        if (revealCompleted) return;
+        revealCompleted = true;
+        animationController.state = 'completed';
+        animationController.skipToEnd = null;
+        animationController.replay = function () {
+          renderVisualizationForContainer();
+        };
+        setRestartButtonState('replay');
+        ensureValueLabelsOpaque();
+      };
+
+      const skipAnimation = function () {
+        if (revealCompleted) return;
+        if (barRevealTimeout) {
+          clearTimeout(barRevealTimeout);
+          barRevealTimeout = null;
+        }
+        i = nameOrderAsc.length;
+        visibleNames.length = 0;
+        for (let idx = nameOrderAsc.length - 1; idx >= 0; idx--) {
+          visibleNames.push(nameOrderAsc[idx]);
+        }
+        renderFrame(visibleNames);
+        ensureValueLabelsOpaque();
+        finalizeReveal();
+      };
+
+      animationController.state = 'animating';
+      animationController.skipToEnd = skipAnimation;
+      animationController.replay = null;
+      setRestartButtonState('skip');
+      updateColorNoteVisibility();
+
+      const revealNext = function () {
+        barRevealTimeout = null;
+        if (revealCompleted) return;
+        if (i >= nameOrderAsc.length) {
+          finalizeReveal();
+          return;
+        }
+
+        // add bigger ones on top while revealing smallest->largest:
+        visibleNames.unshift(nameOrderAsc[i]);
+
+        i += 1;
+        renderFrame(visibleNames);
+
+        if (i < nameOrderAsc.length) {
+          barRevealTimeout = setTimeout(revealNext, revealDelay);
+        } else {
+          finalizeReveal();
+        }
+      };
+
+      revealNext();
+      updateColorNoteVisibility();
+    }
+
+    // Info points data (kWh values and descriptions)
+    const infoPoints = [
+      { value: 3.5, iconClass: "fa-solid fa-shower", text: "~12<br/>min shower" },
+      { value: 8, iconClass: "fa-solid fa-mug-hot", text: "~67<br/>kettle boils" },
+      { value: 10, iconClass: "fa-solid fa-lightbulb", text: "~6 weeks of<br/>LED light" },
+      { value: 15, iconClass: "fa-solid fa-mobile", text: "~700<br/>phone charges" }
+    ];
+
+    let infoPointElements = [];
+    let infoPointsInitialized = false;
+
+    function buildInfoPoints(infoContainer) {
+      infoPointElements = infoPoints.map(function(point) {
+        const pointDiv = document.createElement('div');
+        pointDiv.className = 'info-point';
+        pointDiv.style.top = '0px';
+        pointDiv.style.left = '0px';
+
+        const content = document.createElement('div');
+        content.className = 'info-point-content';
+
+        const iconWrapper = document.createElement('div');
+        iconWrapper.className = 'info-point-icon';
+        const icon = document.createElement('i');
+        icon.className = point.iconClass;
+        icon.setAttribute('aria-hidden', 'true');
+        iconWrapper.appendChild(icon);
+
+        const text = document.createElement('div');
+        text.className = 'info-point-text';
+        text.innerHTML = point.text;
+
+        content.appendChild(iconWrapper);
+        content.appendChild(text);
+
+        const line = document.createElement('div');
+        line.className = 'info-point-line';
+
+        pointDiv.appendChild(content);
+        pointDiv.appendChild(line);
+        infoContainer.appendChild(pointDiv);
+
+        requestAnimationFrame(function () {
+          pointDiv.classList.add('visible');
+        });
+
+        return { wrapper: pointDiv, content: content, line: line, value: point.value };
+      });
+      infoPointsInitialized = true;
+    }
+
+    function renderInfoPoints(xScale, margin, innerHeight) {
+      if (!SHOW_CONTAINER_0) return;
+      const infoContainer = document.getElementById('info-points-container');
+      if (!infoContainer) return;
+
+      if (!infoPointsInitialized) {
+        infoContainer.innerHTML = '';
+        buildInfoPoints(infoContainer);
+      }
+
+      const vizRect = vizContainer.getBoundingClientRect();
+      const infoRect = infoContainer.getBoundingClientRect();
+      const axisY = vizRect.top + margin.top + innerHeight;
+      const axisHeight = Math.max(axisY - infoRect.top, 0);
+      const maxDomain = xScale.domain()[1];
+
+      infoPointElements.forEach(function(pointRef) {
+        const active = pointRef.value <= maxDomain;
+        pointRef.wrapper.classList.toggle('info-point--hidden', !active);
+        if (!active) return;
+
+        const xPos = margin.left + xScale(pointRef.value);
+        pointRef.wrapper.style.height = axisHeight + 'px';
+        pointRef.wrapper.style.transform = 'translateX(' + xPos + 'px)';
+
+        const contentRect = pointRef.content.getBoundingClientRect();
+        const lineHeight = Math.max(axisY - contentRect.bottom, 0);
+        pointRef.line.style.height = lineHeight + 'px';
+      });
+    }
+
+    function updateVisualization(width, height) {
+      treemapData = normalizeData(originalData);
+      if (PLOT_TYPE === "bar") renderBarChart(width, height);
+    }
+
+    const renderVisualizationForContainer = function () {
+      if (!vizContainer) return;
+      const rect = vizContainer.getBoundingClientRect();
+      updateVisualization(rect.width, rect.height);
+      updateColorNoteVisibility();
+    };
+
+    let resizeTimer;
+    window.addEventListener('resize', function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(renderVisualizationForContainer, 120);
+    });
+
+    if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+      const resizeObserver = new ResizeObserver(function () {
+        renderVisualizationForContainer();
+      });
+      resizeObserver.observe(vizContainer);
+    }
+    d3.selectAll(".value-label")
+      .transition()
+      .duration(200)
+      .style("opacity", 1)
+      .style("fill", "#000000");
+
+    renderVisualizationForContainer();
+    // Add this at the bottom of your render loop or after the bars are drawn:
+    d3.selectAll(".value-label")
+      .transition()
+      .duration(200)
+      .style("opacity", 1)
+      .style("fill", "#000000");
+    updateColorNoteVisibility();
+  </script>
+</body>
+
+</html>
