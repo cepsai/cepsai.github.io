@@ -293,7 +293,7 @@ function updateTopButtonsState(){
 }
 
 function updateTopNote(){
-  if(logoNoteEl){ logoNoteEl.textContent = `* Weekly HF task metrics (top ${currentTopLimit} shown)`; }
+  if(logoNoteEl){ logoNoteEl.textContent = `* Datasets with minimum of 200 downloads `; }
 }
 
 function applyMetric(metric){
@@ -583,6 +583,7 @@ function updateFrameRange(startIndex, endIndex){
       node.style("display", "none");
     }
   });
+  resolveFinalLabelCollisions(root);
   updateDateUI();
 }
 
@@ -709,6 +710,63 @@ if(typeof ResizeObserver !== "undefined" && vizEl){
 }
 window.addEventListener("resize", ()=>{ render(); updateFrameRange(currentStart, currentEnd); });
 svg.on("mouseleave", hideTooltip);
+
+function resolveFinalLabelCollisions(root){
+  if(!root || !yScale){ return; }
+  const plotBottom = yScale.range()[0];
+  const plotTop = yScale.range()[1];
+  const minGap = 0.5;
+  const labels = [];
+  root.selectAll("g.final-node").each(function(){
+    const labelEl = d3.select(this).select("text.final-label");
+    const circleEl = d3.select(this).select("circle.final-outline");
+    if(labelEl.empty() || circleEl.empty() || labelEl.style("display") === "none"){ return; }
+    const labelNode = labelEl.node();
+    const circleNode = circleEl.node();
+    if(!labelNode || !circleNode){ return; }
+    const bbox = labelNode.getBBox();
+    const targetY = Number(labelEl.attr("y")) || 0;
+    const cx = Number(circleEl.attr("cx")) || 0;
+    const r = Number(circleEl.attr("r")) || 0;
+    labels.push({ labelEl, bbox, targetY, cx, r });
+  });
+  if(!labels.length || !Number.isFinite(plotBottom)){ return; }
+  labels.sort((a, b) => a.targetY - b.targetY);
+  let prevBottom = -Infinity;
+  labels.forEach(label => {
+    const half = label.bbox.height / 2;
+    let y = label.targetY;
+    if(y - half <= prevBottom + minGap){
+      y = prevBottom + minGap + half;
+    }
+    if(y - half < plotTop){ y = plotTop + half; }
+    label.y = y;
+    prevBottom = y + half;
+  });
+  const last = labels[labels.length - 1];
+  const overflowBottom = last.y + last.bbox.height / 2 - plotBottom;
+  if(overflowBottom > 0){
+    for(let i = labels.length - 1; i >= 0; i--){
+      labels[i].y -= overflowBottom;
+      if(i === 0){ continue; }
+      const prev = labels[i - 1];
+      const half = labels[i].bbox.height / 2;
+      const prevHalf = prev.bbox.height / 2;
+      const neededGap = prevHalf + minGap + half;
+      if(labels[i].y - half < prev.y + neededGap){
+        prev.y = labels[i].y - neededGap;
+      }
+    }
+  }
+  const topOverflow = labels[0].y - labels[0].bbox.height / 2 - plotTop;
+  if(topOverflow < 0){
+    labels.forEach(label => { label.y -= topOverflow; });
+  }
+  labels.forEach(label => {
+    const labelPad = Math.max(6, Math.round(label.r * 0.45));
+    label.labelEl.attr("y", label.y).attr("x", label.cx + label.r + labelPad);
+  });
+}
 </script>
 </body>
 </html>
