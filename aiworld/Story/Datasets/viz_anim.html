@@ -715,7 +715,6 @@ function resolveFinalLabelCollisions(root){
   if(!root || !yScale){ return; }
   const plotBottom = yScale.range()[0];
   const plotTop = yScale.range()[1];
-  const minGap = 0.5;
   const labels = [];
   root.selectAll("g.final-node").each(function(){
     const labelEl = d3.select(this).select("text.final-label");
@@ -728,43 +727,49 @@ function resolveFinalLabelCollisions(root){
     const targetY = Number(labelEl.attr("y")) || 0;
     const cx = Number(circleEl.attr("cx")) || 0;
     const r = Number(circleEl.attr("r")) || 0;
-    labels.push({ labelEl, bbox, targetY, cx, r });
+    labels.push({ labelEl, bbox, targetY, cx, r, half: bbox.height / 2 });
   });
   if(!labels.length || !Number.isFinite(plotBottom)){ return; }
+  const available = plotBottom - plotTop;
+  const totalHeight = labels.reduce((sum, item)=>sum + item.bbox.height, 0);
+  const baseGap = 6;
+  const compactGap = labels.length > 1 && Number.isFinite(available) ? (available - totalHeight) / (labels.length - 1) : baseGap;
+  const minGap = Math.max(2.5, Math.min(baseGap, Number.isFinite(compactGap) ? compactGap * 0.6 : baseGap));
+  const maxShift = Math.max(16, Math.min(40, available * 0.18));
   labels.sort((a, b) => a.targetY - b.targetY);
-  let prevBottom = -Infinity;
   labels.forEach(label => {
-    const half = label.bbox.height / 2;
-    let y = label.targetY;
-    if(y - half <= prevBottom + minGap){
-      y = prevBottom + minGap + half;
-    }
-    if(y - half < plotTop){ y = plotTop + half; }
-    label.y = y;
-    prevBottom = y + half;
+    label.y = Math.max(plotTop + label.half, Math.min(plotBottom - label.half, label.targetY));
   });
+  for(let i = 1; i < labels.length; i++){
+    const prev = labels[i - 1];
+    const sep = prev.half + labels[i].half + minGap;
+    labels[i].y = Math.max(labels[i].y, prev.y + sep);
+  }
   const last = labels[labels.length - 1];
-  const overflowBottom = last.y + last.bbox.height / 2 - plotBottom;
+  const overflowBottom = last.y + last.half - plotBottom;
   if(overflowBottom > 0){
-    for(let i = labels.length - 1; i >= 0; i--){
-      labels[i].y -= overflowBottom;
-      if(i === 0){ continue; }
-      const prev = labels[i - 1];
-      const half = labels[i].bbox.height / 2;
-      const prevHalf = prev.bbox.height / 2;
-      const neededGap = prevHalf + minGap + half;
-      if(labels[i].y - half < prev.y + neededGap){
-        prev.y = labels[i].y - neededGap;
-      }
+    labels.forEach(label => { label.y -= overflowBottom; });
+  }
+  for(let i = labels.length - 2; i >= 0; i--){
+    const next = labels[i + 1];
+    const sep = labels[i].half + next.half + minGap;
+    const maxY = next.y - sep;
+    const desired = Math.max(plotTop + labels[i].half, Math.min(maxY, labels[i].targetY + maxShift));
+    labels[i].y = Math.min(labels[i].y, desired);
+  }
+  for(let i = 1; i < labels.length; i++){
+    const prev = labels[i - 1];
+    const sep = prev.half + labels[i].half + minGap;
+    if(labels[i].y < prev.y + sep){
+      labels[i].y = prev.y + sep;
     }
   }
-  const topOverflow = labels[0].y - labels[0].bbox.height / 2 - plotTop;
-  if(topOverflow < 0){
-    labels.forEach(label => { label.y -= topOverflow; });
-  }
+  const topOverflow = labels[0].y - labels[0].half - plotTop;
+  if(topOverflow < 0){ labels.forEach(label => { label.y -= topOverflow; }); }
   labels.forEach(label => {
     const labelPad = Math.max(6, Math.round(label.r * 0.45));
-    label.labelEl.attr("y", label.y).attr("x", label.cx + label.r + labelPad);
+    const clampedY = Math.max(plotTop + label.half, Math.min(plotBottom - label.half, label.y));
+    label.labelEl.attr("y", clampedY).attr("x", label.cx + label.r + labelPad);
   });
 }
 </script>
