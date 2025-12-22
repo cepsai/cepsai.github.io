@@ -1,1350 +1,2018 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8">
-<title>HF Tasks Line Chart - 2025</title>
-<script src="https://d3js.org/d3.v7.min.js"></script>
-<style>
-html, body { height: 100%; }
-body { margin: 0; overflow: hidden; background: #ffffff; color: #111; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif; height: 100vh; }
-.viz-view { width: 100%; height: 100vh; display: none; }
-.viz-view.active { display: block; }
-.viz-layout { position: relative; width: 100%; height: 100vh; display: flex; align-items: stretch; justify-content: flex-start; overflow: hidden; min-width: 0; }
-.viz-grid { display: grid; grid-template-rows: 17.5fr 0.5fr 1fr; grid-template-columns: 1fr 1fr; height: 100vh; width: 100vw; box-sizing: border-box; row-gap: clamp(6px, 1.5vh, 12px); padding: 0 clamp(12px, 2vw, 20px) env(safe-area-inset-bottom) clamp(12px, 2vw, 20px); }
-#container1 { grid-row: 1; grid-column: 1 / span 2; display: flex; overflow: hidden; min-height: 0; column-gap: 0; padding: 0; }
-#container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; gap: clamp(12px, 2vw, 20px); min-width: 0; padding: clamp(4px, 0.5vh, 8px) 0; position: relative; flex-wrap: wrap; }
-#container3 { grid-row: 3; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; min-width: 0; }
-#container4 { grid-row: 3; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; gap: clamp(10px, 2vw, 16px); min-width: 0; min-height: 0; height: 100%; }
-#container4 a{display:flex;align-items:center;height:100%;}
-.source-text { font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal; }
-.source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; }
-.source-text a:visited { color: #2756d3; }
-.logo-note { font-size: clamp(8px, 1vw, 12px); color: #777; font-style: italic; white-space: nowrap; position: absolute; right: 0; }
-.logo { height: 100%; width: auto; max-width: 100%; pointer-events: auto; object-fit: contain; }
-.corner-logo { position: fixed; right: clamp(12px, 2vw, 20px); bottom: clamp(12px, 2vh, 20px); width: clamp(96px, 18vw, 160px); display: flex; align-items: flex-end; justify-content: flex-end; z-index: 20; }
-.corner-logo img { width: 100%; height: auto; display: block; }
-.y-axis-container { flex: 0 0 clamp(28px, 3vw, 46px); display: flex; align-items: center; justify-content: flex-end; min-width: 0; border-right: 1px solid rgba(0, 0, 0, 0.1); box-sizing: border-box; padding: 0 6px; }
-.y-axis-label { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; font-weight: 600; font-size: clamp(10px, 1.2vw, 16px); color: #333; line-height: 2; letter-spacing: 0.04em; }
-.chart-wrapper { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; margin-left: -6px; }
-.chart-wrapper-inner { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; }
-#viz { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
-#chart { display: block; width: 100%; height: 100%; }
-#tooltip { position: absolute; background: #fff; border: 1px solid #d9d9df; border-radius: 6px; padding: 6px 8px; font-size: 12px; pointer-events: none; opacity: 0; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); transition: opacity .12s ease; max-width: 220px; }
-.axis path, .axis line { stroke: #cfd2d7; }
-.axis text { fill: #333; font-size: 12px; }
-.x-axis text { font-size: clamp(12px, 1.2vw, 18px); }
-.grid line { stroke: rgba(230, 232, 239, 0.45); }
-.grid .domain { display: none; }
-.final-node { cursor: pointer; }
-.date-display { display: inline-flex; align-items: center; justify-content: center; padding: 6px 12px; border: 1px solid #cfd2d7; border-radius: 10px; background: rgba(255,255,255,.92); font-weight: 700; color: #26344f; font-size: clamp(12px, 1.4vw, 16px); line-height: 1; min-width: clamp(160px, 20vw, 220px); width: clamp(160px, 20vw, 220px); box-sizing: border-box; }
-.metric-controls { display: inline-flex; align-items: center; justify-content: center; gap: clamp(10px, 2vw, 16px); flex-wrap: wrap; }
-.metric-buttons { display: inline-flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-.metric-btn { border: 1px solid #cfd2d7; background: #fff; color: #26344f; padding: 6px 10px; border-radius: 8px; font-size: clamp(11px, 1.2vw, 14px); font-weight: 700; cursor: pointer; transition: all 0.15s ease; }
-.metric-btn:hover { border-color: #2756d3; color: #2756d3; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
-.metric-btn.active { background: #2756d3; color: #fff; border-color: #2756d3; box-shadow: 0 4px 12px rgba(39,86,211,0.28); }
-.top-filter-buttons { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-right: clamp(10px, 2vw, 18px); }
-.top-btn { border: 1px solid #cfd2d7; background: #fff; color: #26344f; padding: 6px 10px; border-radius: 8px; font-size: clamp(10px, 1.1vw, 13px); font-weight: 700; cursor: pointer; transition: all 0.15s ease; }
-.top-btn:hover { border-color: #2756d3; color: #2756d3; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
-.top-btn.active { background: #2756d3; color: #fff; border-color: #2756d3; box-shadow: 0 4px 12px rgba(39,86,211,0.28); }
-.story-btn { background: linear-gradient(135deg, #111 0%, #1c2a4a 60%, #2756d3 100%); color: #fff; border-color: #111; padding: 8px 12px; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-.story-btn:hover { color: #fff; background: linear-gradient(135deg, #0d1a32 0%, #1f3e75 70%, #2f66e6 100%); border-color: #1f3e75; box-shadow: 0 6px 16px rgba(47,102,230,0.28); }
-.final-label {font-family: "Inter", "Segoe UI", Arial, sans-serif;font-size: 13px; font-weight: 700; letter-spacing: 0.01em; }
-.series-line { stroke-width: 4px; }
-@media (max-width: 860px) { .logo-note { font-size: clamp(7px, 0.9vw, 10px); } }
-@media (max-width: 640px) { #container3 { display: none; } .logo-note { display: none; } .corner-logo { width: clamp(80px, 26vw, 120px); right: clamp(8px, 3vw, 14px); bottom: clamp(8px, 3vw, 14px); } }
-@media (max-width: 460px), (max-height: 520px) { #container2 { display: none; } }
-@media (max-height: 480px) { .viz-grid { grid-template-rows: 1fr; } #container2, #container3, #container4, .corner-logo { display: none; } }
-/* Bump chart view */
-#bumpView .bump-grid { display: grid; grid-template-rows: 17fr 1fr 2fr 1fr; grid-template-columns: 1fr 1fr; height: 100vh; width: 100vw; box-sizing: border-box; padding-bottom: clamp(8px, 2vh, 18px); }
-#bumpView #bumpContainer1 { grid-row: 1; grid-column: 1 / span 2; display: flex; overflow: hidden; min-height: 0; column-gap: 0; }
-#bumpView #bumpContainer1 .chart-wrapper { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; margin-left: 0; }
-#bumpView #bumpContainer1 .chart-wrapper-inner { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; }
-#bumpView #bumpContainer2 { grid-row: 3; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; overflow: hidden; font-size: clamp(8px, 1.6vw, 16px); }
-#bumpView #bumpContainer3 { grid-row: 4; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 20px; overflow: hidden; min-width: 0; }
-#bumpView #bumpContainer4 { grid-row: 4; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; padding: 0 clamp(8px, 2vw, 20px); overflow: hidden; min-width: 0; gap: clamp(4px, 1vw, 8px); }
-#bumpView #bumpContainer4 a { height: 100%; display: flex; align-items: center; flex-shrink: 0; min-width: 0; }
-#bumpView #bumpContainer5 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: flex-end; padding: 0 clamp(8px, 2vw, 20px); overflow: hidden; min-width: 0; }
-#bumpView .selector-group { display: flex; align-items: center; justify-content: center; gap: clamp(2px, 0.5vw, 6px); padding: clamp(2px, 0.4vw, 4px); border-radius: 6px; border: 1px solid rgba(17, 24, 39, 0.15); background: #f8fafc; max-width: 100%; flex-shrink: 1; min-width: 0; }
-#bumpView .selector-button { border: none; background: transparent; padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px); border-radius: 6px; font-size: clamp(9px, 1.4vw, 13px); font-weight: 600; color: #475569; cursor: pointer; transition: background 0.2s ease, color 0.2s ease; white-space: nowrap; flex-shrink: 1; min-width: 0; }
-#bumpView .selector-button.active { background: #2756d3; color: #fff; }
-#bumpView #bumpViz { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: clamp(8px, 1vw, 12px) clamp(12px, 2vw, 24px) 0 clamp(12px, 2vw, 24px); box-sizing: border-box; }
-#bumpView .chart-body { position: relative; flex: 1; min-height: 0; min-width: 0; }
-#bumpView #bumpChart { display: block; width: 100%; height: 100%; }
-#bumpView #bumpTooltip { position: absolute; background: #fff; border: 1px solid #d9d9df; border-radius: 6px; padding: 6px 8px; font-size: 12px; pointer-events: none; opacity: 0; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08); transition: opacity 0.12s ease; }
-#bumpView .custom-legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: clamp(6px, 1vw, 14px); background: rgba(255, 255, 255, 1); padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px); border-radius: clamp(6px, 1vw, 12px); max-width: 100%; max-height: 100%; font-size: clamp(0.625rem, 1.4vw, 1rem); }
-#bumpView .legend-item { display: flex; align-items: center; gap: clamp(4px, 1vw, 8px); cursor: pointer; transition: opacity 0.2s ease; font-weight: 600; color: #333; font-size: inherit; padding: 2px 6px; }
-#bumpView .legend-item.dim { opacity: 0.35; }
-#bumpView .legend-item:focus-visible { outline: 2px solid rgba(0, 0, 0, 0.5); outline-offset: 2px; }
-#bumpView .legend-square { width: clamp(8px, 0.9vw, 12px); height: clamp(8px, 0.9vw, 12px); border-radius: 4px; flex-shrink: 0; }
-#bumpView .series-label { font-size: clamp(7px, 1vw, 14px); font-weight: 400; fill: #111; pointer-events: auto; cursor: pointer; }
-#bumpViz.density-top25 .series-label, #bumpViz.density-top50 .series-label { font-size: clamp(5px, 0.85vw, 11px); }
-#bumpView .series-line { fill: none; stroke-width: var(--lineWidth, 3.4); opacity: 0.9; transition: opacity 0.2s ease, stroke-width 0.2s ease; cursor: pointer; }
-#bumpView .series-point { stroke: #fff; stroke-width: 1.5; cursor: pointer; transition: r 0.2s ease; }
-#bumpView .series.dim .series-line, #bumpView .series.dim .series-point, #bumpView .series.dim .series-label { opacity: 0.15; }
-#bumpView .series.highlighted .series-line { stroke-width: calc(var(--lineWidth, 3.4) * 1.3); opacity: 1; filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.2)); }
-#bumpView .source-text { font-size: clamp(8px, 1.6vw, 16px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal; }
-#bumpView .source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; font-style: normal; }
-#bumpView .source-text a:visited { color: #2756d3; }
-#bumpView .footnote-text { font-size: clamp(8px, 1.6vw, 16px); font-style: italic; color: #333; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-#bumpView .logo { height: 100%; width: auto; max-height: 100%; max-width: clamp(80px, 15vw, 200px); pointer-events: auto; object-fit: contain; flex-shrink: 0; }
-#bumpView .axis path, #bumpView .axis line { stroke: #cfd2d7; }
-#bumpView .tick text { font-size: clamp(8px, 1.2vw, 18px); font-weight: 600; }
-#bumpView .axis--y text { font-style: italic; }
-@media (max-height: 500px) { #bumpView .bump-grid { grid-template-rows: 1fr; grid-template-columns: 1fr; padding-bottom: 0; } #bumpContainer1 { grid-row: 1; grid-column: 1; } #bumpContainer2, #bumpContainer3, #bumpContainer4, #bumpContainer5 { display: none !important; } #bumpViz { padding-top: 0 !important; padding-bottom: 0 !important; } #bumpView .axis--y, #bumpView .axis--x { display: none; } #bumpView .grid-lines { display: none; } #bumpView .footnote-text { display: none !important; } }
-</style>
+  <meta charset="utf-8">
+  <title>HF Tasks Line Chart - 2025</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #ffffff;
+      color: #111;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+      height: 100vh;
+    }
+
+    .viz-view {
+      width: 100%;
+      height: 100vh;
+      display: none;
+    }
+
+    .viz-view.active {
+      display: block;
+    }
+
+    .viz-layout {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      align-items: stretch;
+      justify-content: flex-start;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 17.5fr 0.5fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      row-gap: clamp(6px, 1.5vh, 12px);
+      padding: 0 clamp(12px, 2vw, 20px) env(safe-area-inset-bottom) clamp(12px, 2vw, 20px);
+    }
+
+    #container1 {
+      grid-row: 1;
+      grid-column: 1 / span 2;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+      column-gap: 0;
+      padding: 0;
+    }
+
+    #container2 {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(12px, 2vw, 20px);
+      min-width: 0;
+      padding: clamp(4px, 0.5vh, 8px) 0;
+      position: relative;
+      flex-wrap: wrap;
+    }
+
+    #container3 {
+      grid-row: 3;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      min-width: 0;
+    }
+
+    #container4 {
+      grid-row: 3;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: clamp(10px, 2vw, 16px);
+      min-width: 0;
+      min-height: 0;
+      height: 100%;
+    }
+
+    #container4 a {
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+
+    .source-text {
+      font-size: clamp(10px, 1.6vw, 16px);
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      font-style: normal;
+    }
+
+    .source-text a {
+      color: #2756d3;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .source-text a:visited {
+      color: #2756d3;
+    }
+
+    .logo-note {
+      font-size: clamp(8px, 1vw, 12px);
+      color: #777;
+      font-style: italic;
+      white-space: nowrap;
+      position: absolute;
+      right: 0;
+    }
+
+    .logo {
+      height: 100%;
+      width: auto;
+      max-width: 100%;
+      pointer-events: auto;
+      object-fit: contain;
+    }
+
+    .corner-logo {
+      position: fixed;
+      right: clamp(12px, 2vw, 20px);
+      bottom: clamp(12px, 2vh, 20px);
+      width: clamp(96px, 18vw, 160px);
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      z-index: 20;
+    }
+
+    .corner-logo img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .y-axis-container {
+      flex: 0 0 clamp(28px, 3vw, 46px);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      min-width: 0;
+      border-right: 1px solid rgba(0, 0, 0, 0.1);
+      box-sizing: border-box;
+      padding: 0 6px;
+    }
+
+    .y-axis-label {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      text-align: center;
+      font-weight: 600;
+      font-size: clamp(10px, 1.2vw, 16px);
+      color: #333;
+      line-height: 2;
+      letter-spacing: 0.04em;
+    }
+
+    .chart-wrapper {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+      margin-left: -6px;
+    }
+
+    .chart-wrapper-inner {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+    }
+
+    #viz {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #chart {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #tooltip {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #d9d9df;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      transition: opacity .12s ease;
+      max-width: 220px;
+    }
+
+    .axis path,
+    .axis line {
+      stroke: #cfd2d7;
+    }
+
+    .axis text {
+      fill: #333;
+      font-size: 12px;
+    }
+
+    .x-axis text {
+      font-size: clamp(12px, 1.2vw, 18px);
+    }
+
+    .grid line {
+      stroke: rgba(230, 232, 239, 0.45);
+    }
+
+    .grid .domain {
+      display: none;
+    }
+
+    .final-node {
+      cursor: pointer;
+    }
+
+    .date-display {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border: 1px solid #cfd2d7;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .92);
+      font-weight: 700;
+      color: #26344f;
+      font-size: clamp(12px, 1.4vw, 16px);
+      line-height: 1;
+      min-width: clamp(160px, 20vw, 220px);
+      width: clamp(160px, 20vw, 220px);
+      box-sizing: border-box;
+    }
+
+    .metric-controls {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(10px, 2vw, 16px);
+      flex-wrap: wrap;
+    }
+
+    .metric-buttons {
+      display: inline-flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .metric-btn {
+      border: 1px solid #cfd2d7;
+      background: #fff;
+      color: #26344f;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: clamp(11px, 1.2vw, 14px);
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .metric-btn:hover {
+      border-color: #2756d3;
+      color: #2756d3;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    }
+
+    .metric-btn.active {
+      background: #2756d3;
+      color: #fff;
+      border-color: #2756d3;
+      box-shadow: 0 4px 12px rgba(39, 86, 211, 0.28);
+    }
+
+    .top-filter-buttons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-right: clamp(10px, 2vw, 18px);
+    }
+
+    .top-btn {
+      border: 1px solid #cfd2d7;
+      background: #fff;
+      color: #26344f;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: clamp(10px, 1.1vw, 13px);
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .top-btn:hover {
+      border-color: #2756d3;
+      color: #2756d3;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    }
+
+    .top-btn.active {
+      background: #2756d3;
+      color: #fff;
+      border-color: #2756d3;
+      box-shadow: 0 4px 12px rgba(39, 86, 211, 0.28);
+    }
+
+    .story-btn {
+      background: linear-gradient(135deg, #111 0%, #1c2a4a 60%, #2756d3 100%);
+      color: #fff;
+      border-color: #111;
+      padding: 8px 12px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .story-btn:hover {
+      color: #fff;
+      background: linear-gradient(135deg, #0d1a32 0%, #1f3e75 70%, #2f66e6 100%);
+      border-color: #1f3e75;
+      box-shadow: 0 6px 16px rgba(47, 102, 230, 0.28);
+    }
+
+    .final-label {
+      font-family: "Inter", "Segoe UI", Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .series-line {
+      stroke-width: 4px;
+    }
+
+    @media (max-width: 860px) {
+      .logo-note {
+        font-size: clamp(7px, 0.9vw, 10px);
+      }
+    }
+
+    @media (max-width: 640px) {
+      #container3 {
+        display: none;
+      }
+
+      .logo-note {
+        display: none;
+      }
+
+      .corner-logo {
+        width: clamp(80px, 26vw, 120px);
+        right: clamp(8px, 3vw, 14px);
+        bottom: clamp(8px, 3vw, 14px);
+      }
+    }
+
+    @media (max-width: 460px),
+    (max-height: 520px) {
+      #container2 {
+        display: none;
+      }
+    }
+
+    @media (max-height: 480px) {
+      .viz-grid {
+        grid-template-rows: 1fr;
+      }
+
+      #container2,
+      #container3,
+      #container4,
+      .corner-logo {
+        display: none;
+      }
+    }
+
+    /* Bump chart view */
+    #bumpView .bump-grid {
+      display: grid;
+      grid-template-rows: 17fr 1fr 2fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding-bottom: clamp(8px, 2vh, 18px);
+    }
+
+    #bumpView #bumpContainer1 {
+      grid-row: 1;
+      grid-column: 1 / span 2;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+      column-gap: 0;
+    }
+
+    #bumpView #bumpContainer1 .chart-wrapper {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+      margin-left: 0;
+    }
+
+    #bumpView #bumpContainer1 .chart-wrapper-inner {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+    }
+
+    #bumpView #bumpContainer2 {
+      grid-row: 3;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      font-size: clamp(8px, 1.6vw, 16px);
+    }
+
+    #bumpView #bumpContainer3 {
+      grid-row: 4;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #bumpView #bumpContainer4 {
+      grid-row: 4;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 clamp(8px, 2vw, 20px);
+      overflow: hidden;
+      min-width: 0;
+      gap: clamp(4px, 1vw, 8px);
+    }
+
+    #bumpView #bumpContainer4 a {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      min-width: 0;
+    }
+
+    #bumpView #bumpContainer5 {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 clamp(8px, 2vw, 20px);
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #bumpView .selector-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(2px, 0.5vw, 6px);
+      padding: clamp(2px, 0.4vw, 4px);
+      border-radius: 6px;
+      border: 1px solid rgba(17, 24, 39, 0.15);
+      background: #f8fafc;
+      max-width: 100%;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+
+    #bumpView .selector-button {
+      border: none;
+      background: transparent;
+      padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+      border-radius: 6px;
+      font-size: clamp(9px, 1.4vw, 13px);
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+      white-space: nowrap;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+
+    #bumpView .selector-button.active {
+      background: #2756d3;
+      color: #fff;
+    }
+
+    #bumpView #bumpViz {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: clamp(8px, 1vw, 12px) clamp(12px, 2vw, 24px) 0 clamp(12px, 2vw, 24px);
+      box-sizing: border-box;
+    }
+
+    #bumpView .chart-body {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    #bumpView #bumpChart {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #bumpView #bumpTooltip {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #d9d9df;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      transition: opacity 0.12s ease;
+    }
+
+    #bumpView .custom-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(6px, 1vw, 14px);
+      background: rgba(255, 255, 255, 1);
+      padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+      border-radius: clamp(6px, 1vw, 12px);
+      max-width: 100%;
+      max-height: 100%;
+      font-size: clamp(0.625rem, 1.4vw, 1rem);
+    }
+
+    #bumpView .legend-item {
+      display: flex;
+      align-items: center;
+      gap: clamp(4px, 1vw, 8px);
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+      font-weight: 600;
+      color: #333;
+      font-size: inherit;
+      padding: 2px 6px;
+    }
+
+    #bumpView .legend-item.dim {
+      opacity: 0.35;
+    }
+
+    #bumpView .legend-item:focus-visible {
+      outline: 2px solid rgba(0, 0, 0, 0.5);
+      outline-offset: 2px;
+    }
+
+    #bumpView .legend-square {
+      width: clamp(8px, 0.9vw, 12px);
+      height: clamp(8px, 0.9vw, 12px);
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    #bumpView .series-label {
+      font-size: clamp(7px, 1vw, 14px);
+      font-weight: 400;
+      fill: #111;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+    #bumpViz.density-top25 .series-label,
+    #bumpViz.density-top50 .series-label {
+      font-size: clamp(5px, 0.85vw, 11px);
+    }
+
+    #bumpView .series-line {
+      fill: none;
+      stroke-width: var(--lineWidth, 3.4);
+      opacity: 0.9;
+      transition: opacity 0.2s ease, stroke-width 0.2s ease;
+      cursor: pointer;
+    }
+
+    #bumpView .series-point {
+      stroke: #fff;
+      stroke-width: 1.5;
+      cursor: pointer;
+      transition: r 0.2s ease;
+    }
+
+    #bumpView .series.dim .series-line,
+    #bumpView .series.dim .series-point,
+    #bumpView .series.dim .series-label {
+      opacity: 0.15;
+    }
+
+    #bumpView .series.highlighted .series-line {
+      stroke-width: calc(var(--lineWidth, 3.4) * 1.3);
+      opacity: 1;
+      filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.2));
+    }
+
+    #bumpView .source-text {
+      font-size: clamp(8px, 1.6vw, 16px);
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      font-style: normal;
+    }
+
+    #bumpView .source-text a {
+      color: #2756d3;
+      text-decoration: underline;
+      cursor: pointer;
+      font-style: normal;
+    }
+
+    #bumpView .source-text a:visited {
+      color: #2756d3;
+    }
+
+    #bumpView .footnote-text {
+      font-size: clamp(8px, 1.6vw, 16px);
+      font-style: italic;
+      color: #333;
+      text-align: right;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    #bumpView .logo {
+      height: 100%;
+      width: auto;
+      max-height: 100%;
+      max-width: clamp(80px, 15vw, 200px);
+      pointer-events: auto;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    #bumpView .axis path,
+    #bumpView .axis line {
+      stroke: #cfd2d7;
+    }
+
+    #bumpView .tick text {
+      font-size: clamp(8px, 1.2vw, 18px);
+      font-weight: 600;
+    }
+
+    #bumpView .axis--y text {
+      font-style: italic;
+    }
+
+    @media (max-height: 500px) {
+      #bumpView .bump-grid {
+        grid-template-rows: 1fr;
+        grid-template-columns: 1fr;
+        padding-bottom: 0;
+      }
+
+      #bumpContainer1 {
+        grid-row: 1;
+        grid-column: 1;
+      }
+
+      #bumpContainer2,
+      #bumpContainer3,
+      #bumpContainer4,
+      #bumpContainer5 {
+        display: none !important;
+      }
+
+      #bumpViz {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+      }
+
+      #bumpView .axis--y,
+      #bumpView .axis--x {
+        display: none;
+      }
+
+      #bumpView .grid-lines {
+        display: none;
+      }
+
+      #bumpView .footnote-text {
+        display: none !important;
+      }
+    }
+  </style>
 </head>
+
 <body>
-<div id="lineView" class="viz-view active">
-  <div class="viz-layout" id="vizLayout">
-    <div class="viz-grid">
-      <div id="container1" class="container chart-container">
-        <div class="y-axis-container">
-          <div class="y-axis-label" id="yLabel">Datasets</div>
+  <div id="lineView" class="viz-view active">
+    <div class="viz-layout" id="vizLayout">
+      <div class="viz-grid">
+        <div id="container1" class="container chart-container">
+          <div class="y-axis-container">
+            <div class="y-axis-label" id="yLabel">Datasets</div>
+          </div>
+          <div class="chart-wrapper">
+            <div class="chart-wrapper-inner">
+              <div id="viz">
+                <svg id="chart" role="img"></svg>
+                <div id="tooltip"></div>
+              </div>
+            </div>
+          </div>
         </div>
+        <div id="container2" class="container note-container">
+          <div class="metric-controls">
+            <div id="metricButtons" class="metric-buttons" aria-label="Metric filter"></div>
+            <div id="dateDisplay" class="date-display"></div>
+          </div>
+          <span class="logo-note">* Weekly HF task metrics (top 10 shown)</span>
+        </div>
+        <div id="container3" class="container source-container">
+          <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank"
+              rel="noopener">HuggingFace</a></div>
+        </div>
+        <div id="container4" class="container logo-container">
+          <div id="topButtons" class="top-filter-buttons" aria-label="Top results filter"></div>
+          <button id="aiWorldStoryButton" class="top-btn story-btn" type="button">Bumpchart</button>
+          <a href="https://huggingface.co" target="_blank" rel="noopener">
+            <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo"
+              alt="Hugging Face logo" crossorigin="anonymous">
+          </a>
+          <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+            <img src="logo.svg" class="logo" alt="AI World logo" crossorigin="anonymous">
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bumpView" class="viz-view">
+    <div class="bump-grid">
+      <div id="bumpContainer1">
         <div class="chart-wrapper">
           <div class="chart-wrapper-inner">
-            <div id="viz">
-              <svg id="chart" role="img"></svg>
-              <div id="tooltip"></div>
+            <div id="bumpViz">
+              <div class="chart-body">
+                <svg id="bumpChart" role="img" aria-label="AI task ranking bump chart"></svg>
+                <div id="bumpTooltip"></div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div id="container2" class="container note-container">
-        <div class="metric-controls">
-          <div id="metricButtons" class="metric-buttons" aria-label="Metric filter"></div>
-          <div id="dateDisplay" class="date-display"></div>
+      <div id="bumpContainer5">
+        <div class="footnote-text">
+          * Datasets displayed are the top datasets in 2025
         </div>
-        <span class="logo-note">* Weekly HF task metrics (top 10 shown)</span>
       </div>
-      <div id="container3" class="container source-container">
-        <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank" rel="noopener">HuggingFace</a></div>
+      <div id="bumpContainer2">
+        <div id="bumpLegend" class="custom-legend"></div>
       </div>
-      <div id="container4" class="container logo-container">
-        <div id="topButtons" class="top-filter-buttons" aria-label="Top results filter"></div>
-        <button id="aiWorldStoryButton" class="top-btn story-btn" type="button">Bumpchart</button>
-        <a href="https://huggingface.co" target="_blank" rel="noopener">
-          <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="Hugging Face logo" crossorigin="anonymous">
+      <div id="bumpContainer3">
+        <div class="source-text">
+          Source:
+          <a href="https://huggingface.co/" target="_blank" rel="noopener">
+            Hugging Face
+          </a>
+        </div>
+      </div>
+      <div id="bumpContainer4">
+        <div class="selector-group" role="group" aria-label="Select number of labels">
+          <button type="button" class="selector-button active" data-mode="top10">Top 10</button>
+          <button type="button" class="selector-button" data-mode="top25">Top 25</button>
+          <button type="button" class="selector-button" data-mode="top50">Top 50</button>
+        </div>
+        <button id="bumpBackButton" class="top-btn story-btn" type="button">Racechart</button>
+        <a href="https://huggingface.co/" target="_blank" rel="noopener">
+          <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo"
+            alt="Hugging Face logo">
         </a>
         <a href="https://aiworld.eu/" target="_blank" rel="noopener">
-          <img src="logo.svg" class="logo" alt="AI World logo" crossorigin="anonymous">
+          <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
         </a>
       </div>
     </div>
   </div>
-</div>
 
-<div id="bumpView" class="viz-view">
-  <div class="bump-grid">
-    <div id="bumpContainer1">
-      <div class="chart-wrapper">
-        <div class="chart-wrapper-inner">
-          <div id="bumpViz">
-            <div class="chart-body">
-              <svg id="bumpChart" role="img" aria-label="AI task ranking bump chart"></svg>
-              <div id="bumpTooltip"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div id="bumpContainer5">
-      <div class="footnote-text">
-        * Datasets displayed are the top datasets in 2025
-      </div>
-    </div>
-    <div id="bumpContainer2">
-      <div id="bumpLegend" class="custom-legend"></div>
-    </div>
-    <div id="bumpContainer3">
-      <div class="source-text">
-        Source:
-        <a href="https://huggingface.co/" target="_blank" rel="noopener">
-          Hugging Face
-        </a>
-      </div>
-    </div>
-    <div id="bumpContainer4">
-      <div class="selector-group" role="group" aria-label="Select number of labels">
-        <button type="button" class="selector-button active" data-mode="top10">Top 10</button>
-        <button type="button" class="selector-button" data-mode="top25">Top 25</button>
-        <button type="button" class="selector-button" data-mode="top50">Top 50</button>
-      </div>
-      <button id="bumpBackButton" class="top-btn story-btn" type="button">Racechart</button>
-      <a href="https://huggingface.co/" target="_blank" rel="noopener">
-        <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="Hugging Face logo">
-      </a>
-      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
-        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
-      </a>
-    </div>
-  </div>
-</div>
+  <script>
+    const svg = d3.select("#chart");
+    const tooltip = d3.select("#tooltip");
+    const yLabelEl = document.getElementById("yLabel");
+    const vizEl = document.getElementById("viz");
+    const dateDisplayEl = document.getElementById("dateDisplay");
+    const metricButtonsEl = document.getElementById("metricButtons");
+    const topButtonsEl = document.getElementById("topButtons");
+    const storyButtonEl = document.getElementById("aiWorldStoryButton");
+    const bumpBackButtonEl = document.getElementById("bumpBackButton");
+    const logoNoteEl = document.querySelector(".logo-note");
+    const lineViewEl = document.getElementById("lineView");
+    const bumpViewEl = document.getElementById("bumpView");
+    const LINE_TO_BUMP_LABEL = "Bumpchart";
+    const BUMP_TO_LINE_LABEL = "Racechart";
+    const TARGET_YEAR = 2025;
+    const METRIC_OPTIONS = [
+      { key: "datasets_total", label: "Datasets", type: "cumulative" },
+      { key: "likes_total", label: "Likes", type: "cumulative" },
+      { key: "downloads_total", label: "Downloads", type: "cumulative" }
+    ];
+    const TOP_OPTIONS = [5, 10, 25];
+    const DEFAULT_TOP_LIMIT = 10;
+    let currentMetric = METRIC_OPTIONS[0];
+    let currentTopLimit = DEFAULT_TOP_LIMIT;
+    let isBumpVisible = false;
+    let bumpInitialized = false;
+    const DEFAULT_START_DATE = new Date(Date.UTC(2022, 2, 1));
+    const DEFAULT_END_DATE = new Date(Date.UTC(2023, 2, 1));
+    const TARGET_END_DATE = new Date(Date.UTC(2025, 11, 31));
+    const STEP_MIN = 1;
+    const STEP_MAX = 16;
+    const DELAY_MIN = 60;
+    const DELAY_MAX = 4000;
+    const REPLAY_DELAY = 4000;
+    let autoStep = 1;
+    let autoDelay = 160;
+    const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
+    const EMOJI_BY_ID = new Map([
+      ["any-to-any", "🔀"],
+      ["audio-classification", "🎧"],
+      ["audio-text-to-text", "🗣️"],
+      ["audio-to-audio", "🔊"],
+      ["automatic-speech-recognition", "🎙️"],
+      ["depth-estimation", "📏"],
+      ["document-question-answering", "📄"],
+      ["feature-extraction", "🧠"],
+      ["fill-mask", "🎭"],
+      ["graph-ml", "🕸️"],
+      ["image-classification", "🖼️"],
+      ["image-feature-extraction", "🔍"],
+      ["image-segmentation", "✂️"],
+      ["image-text-to-image", "🪄"],
+      ["image-text-to-text", "📝"],
+      ["image-to-3d", "🧊"],
+      ["image-to-image", "🎨"],
+      ["image-to-text", "💬"],
+      ["image-to-video", "🎬"],
+      ["keypoint-detection", "🎯"],
+      ["mask-generation", "🩹"],
+      ["multiple-choice", "✅"],
+      ["object-detection", "📦"],
+      ["other", "❓"],
+      ["question-answering", "💡"],
+      ["reinforcement-learning", "🤖"],
+      ["robotics", "🦾"],
+      ["sentence-similarity", "🤝"],
+      ["summarization", "📰"],
+      ["table-question-answering", "📊"],
+      ["table-to-text", "🧾"],
+      ["tabular-classification", "🗂️"],
+      ["tabular-regression", "📈"],
+      ["tabular-to-text", "📝"],
+      ["text-classification", "🏷️"],
+      ["text-generation", "✍️"],
+      ["text-ranking", "🏅"],
+      ["text-retrieval", "🔎"],
+      ["text-to-3d", "🧱"],
+      ["text-to-audio", "📢"],
+      ["text-to-image", "🖌️"],
+      ["text-to-speech", "🗣️"],
+      ["text-to-video", "🎥"],
+      ["text2text-generation", "🔁"],
+      ["time-series-forecasting", "⏱️"],
+      ["token-classification", "🔖"],
+      ["translation", "🌍"],
+      ["unconditional-image-generation", "🌈"],
+      ["video-classification", "🎞️"],
+      ["video-text-to-text", "🗨️"],
+      ["video-to-video", "🔁"],
+      ["visual-document-retrieval", "📚"],
+      ["visual-question-answering", "👁️"],
+      ["voice-activity-detection", "🎤"],
+      ["zero-shot-classification", "🧠"],
+      ["zero-shot-image-classification", "⚡"],
+      ["zero-shot-object-detection", "🎯"]
+    ]);
+    const formatComma = d3.format(",.0f");
+    const formatShort = d3.format(".2s");
+    const dateFormatter = d3.utcFormat("%B %-d, %Y");
+    let orgMeta = new Map();
+    let rawDataCache = [];
+    let chartSeries = [];
+    let timelineDates = [];
+    let xScale = null;
+    let yScale = null;
+    let lineGenerator = null;
+    let currentStart = 0;
+    let currentEnd = 0;
+    let autoTimer = null;
+    let replayTimeout = null;
+    let animDefaultStart = 0;
+    let animDefaultEnd = 0;
+    let animWindowSize = 1;
+    let animTargetEnd = 0;
 
-<script>
-const svg = d3.select("#chart");
-const tooltip = d3.select("#tooltip");
-const yLabelEl = document.getElementById("yLabel");
-const vizEl = document.getElementById("viz");
-const dateDisplayEl = document.getElementById("dateDisplay");
-const metricButtonsEl = document.getElementById("metricButtons");
-const topButtonsEl = document.getElementById("topButtons");
-const storyButtonEl = document.getElementById("aiWorldStoryButton");
-const bumpBackButtonEl = document.getElementById("bumpBackButton");
-const logoNoteEl = document.querySelector(".logo-note");
-const lineViewEl = document.getElementById("lineView");
-const bumpViewEl = document.getElementById("bumpView");
-const LINE_TO_BUMP_LABEL = "Bumpchart";
-const BUMP_TO_LINE_LABEL = "Racechart";
-const TARGET_YEAR = 2025;
-const METRIC_OPTIONS = [
-  { key: "datasets_total", label: "Datasets", type: "cumulative" },
-  { key: "likes_total", label: "Likes", type: "cumulative" },
-  { key: "downloads_total", label: "Downloads", type: "cumulative" }
-];
-const TOP_OPTIONS = [5, 10, 25];
-const DEFAULT_TOP_LIMIT = 10;
-let currentMetric = METRIC_OPTIONS[0];
-let currentTopLimit = DEFAULT_TOP_LIMIT;
-let isBumpVisible = false;
-let bumpInitialized = false;
-const DEFAULT_START_DATE = new Date(Date.UTC(2022, 2, 1));
-const DEFAULT_END_DATE = new Date(Date.UTC(2023, 2, 1));
-const TARGET_END_DATE = new Date(Date.UTC(2025, 11, 31));
-const STEP_MIN = 1;
-const STEP_MAX = 16;
-const DELAY_MIN = 60;
-const DELAY_MAX = 4000;
-const REPLAY_DELAY = 4000;
-let autoStep = 1;
-let autoDelay = 160;
-const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
-const EMOJI_BY_ID = new Map([
-  ["any-to-any", "🔀"],
-  ["audio-classification", "🎧"],
-  ["audio-text-to-text", "🗣️"],
-  ["audio-to-audio", "🔊"],
-  ["automatic-speech-recognition", "🎙️"],
-  ["depth-estimation", "📏"],
-  ["document-question-answering", "📄"],
-  ["feature-extraction", "🧠"],
-  ["fill-mask", "🎭"],
-  ["graph-ml", "🕸️"],
-  ["image-classification", "🖼️"],
-  ["image-feature-extraction", "🔍"],
-  ["image-segmentation", "✂️"],
-  ["image-text-to-image", "🪄"],
-  ["image-text-to-text", "📝"],
-  ["image-to-3d", "🧊"],
-  ["image-to-image", "🎨"],
-  ["image-to-text", "💬"],
-  ["image-to-video", "🎬"],
-  ["keypoint-detection", "🎯"],
-  ["mask-generation", "🩹"],
-  ["multiple-choice", "✅"],
-  ["object-detection", "📦"],
-  ["other", "❓"],
-  ["question-answering", "💡"],
-  ["reinforcement-learning", "🤖"],
-  ["robotics", "🦾"],
-  ["sentence-similarity", "🤝"],
-  ["summarization", "📰"],
-  ["table-question-answering", "📊"],
-  ["table-to-text", "🧾"],
-  ["tabular-classification", "🗂️"],
-  ["tabular-regression", "📈"],
-  ["tabular-to-text", "📝"],
-  ["text-classification", "🏷️"],
-  ["text-generation", "✍️"],
-  ["text-ranking", "🏅"],
-  ["text-retrieval", "🔎"],
-  ["text-to-3d", "🧱"],
-  ["text-to-audio", "📢"],
-  ["text-to-image", "🖌️"],
-  ["text-to-speech", "🗣️"],
-  ["text-to-video", "🎥"],
-  ["text2text-generation", "🔁"],
-  ["time-series-forecasting", "⏱️"],
-  ["token-classification", "🔖"],
-  ["translation", "🌍"],
-  ["unconditional-image-generation", "🌈"],
-  ["video-classification", "🎞️"],
-  ["video-text-to-text", "🗨️"],
-  ["video-to-video", "🔁"],
-  ["visual-document-retrieval", "📚"],
-  ["visual-question-answering", "👁️"],
-  ["voice-activity-detection", "🎤"],
-  ["zero-shot-classification", "🧠"],
-  ["zero-shot-image-classification", "⚡"],
-  ["zero-shot-object-detection", "🎯"]
-]);
-const formatComma = d3.format(",.0f");
-const formatShort = d3.format(".2s");
-const dateFormatter = d3.utcFormat("%B %-d, %Y");
-let orgMeta = new Map();
-let rawDataCache = [];
-let chartSeries = [];
-let timelineDates = [];
-let xScale = null;
-let yScale = null;
-let lineGenerator = null;
-let currentStart = 0;
-let currentEnd = 0;
-let autoTimer = null;
-let replayTimeout = null;
-let animDefaultStart = 0;
-let animDefaultEnd = 0;
-let animWindowSize = 1;
-let animTargetEnd = 0;
+    init();
 
-init();
-
-async function init(){
-  buildMetricButtons();
-  buildTopButtons();
-  bindStoryButton();
-  try{
-    const rawData = await fetchJSON("./task_weeks.json");
-    rawDataCache = rawData;
-    orgMeta = new Map();
-    applyMetric(currentMetric);
-    bindSpeedKeys();
-  }catch(err){
-    console.error("Failed to load visualization data:", err);
-  }
-}
-
-function buildOrgMeta(list){
-  const map = new Map();
-  if(Array.isArray(list)){
-    list.forEach(item=>{
-      if(!item || !item.id){ return; }
-      map.set(item.id, { ...item, company: item.company === true, regionKey: normalizeRegion(item.region) });
-    });
-  }
-  return map;
-}
-
-function normalizeRegion(value){
-  return String(value ?? "").trim().toLowerCase();
-}
-
-async function fetchJSON(url){
-  const response = await fetch(url);
-  if(!response.ok){ throw new Error(`HTTP ${response.status} while fetching ${url}`); }
-  return response.json();
-}
-
-function buildMetricButtons(){
-  if(!metricButtonsEl){ return; }
-  metricButtonsEl.innerHTML = "";
-  METRIC_OPTIONS.forEach(option=>{
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "metric-btn";
-    btn.textContent = option.label;
-    btn.dataset.metric = option.key;
-    btn.addEventListener("click", ()=>{ if(currentMetric.key !== option.key){ applyMetric(option); } });
-    metricButtonsEl.appendChild(btn);
-  });
-  updateMetricButtonsState();
-}
-
-function updateMetricButtonsState(){
-  if(!metricButtonsEl){ return; }
-  const buttons = metricButtonsEl.querySelectorAll("button.metric-btn");
-  buttons.forEach(btn=>{
-    const key = btn.getAttribute("data-metric");
-    btn.classList.toggle("active", !!currentMetric && key === currentMetric.key);
-  });
-}
-
-function buildTopButtons(){
-  if(!topButtonsEl){ return; }
-  topButtonsEl.innerHTML = "";
-  TOP_OPTIONS.forEach(limit=>{
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "top-btn";
-    btn.textContent = `Top ${limit}`;
-    btn.dataset.top = limit;
-    btn.addEventListener("click", ()=>{
-      const next = Number(limit);
-      if(Number.isFinite(next) && next > 0 && next !== currentTopLimit){
-        currentTopLimit = next;
+    async function init() {
+      buildMetricButtons();
+      buildTopButtons();
+      bindStoryButton();
+      try {
+        const rawData = await fetchJSON("./task_weeks.json");
+        rawDataCache = rawData;
+        orgMeta = new Map();
         applyMetric(currentMetric);
-        updateTopButtonsState();
-        updateTopNote();
-      }
-    });
-    topButtonsEl.appendChild(btn);
-  });
-  updateTopButtonsState();
-  updateTopNote();
-}
-
-function updateTopButtonsState(){
-  if(!topButtonsEl){ return; }
-  const buttons = topButtonsEl.querySelectorAll("button.top-btn");
-  buttons.forEach(btn=>{
-    const value = Number(btn.dataset.top);
-    btn.classList.toggle("active", Number.isFinite(value) && value === currentTopLimit);
-  });
-}
-
-function updateTopNote(){
-  if(logoNoteEl){ logoNoteEl.textContent = `* Datasets with minimum of 200 downloads `; }
-}
-
-function bindStoryButton(){
-  updateStoryButtonLabel();
-  if(storyButtonEl){
-    storyButtonEl.addEventListener("click", ()=>{
-      if(isBumpVisible){ showLineView(); } else { showBumpView(); }
-    });
-  }
-  if(bumpBackButtonEl){
-    bumpBackButtonEl.addEventListener("click", ()=>{ showLineView(); });
-  }
-}
-
-function updateStoryButtonLabel(){
-  const primaryLabel = isBumpVisible ? BUMP_TO_LINE_LABEL : LINE_TO_BUMP_LABEL;
-  if(storyButtonEl){ storyButtonEl.textContent = primaryLabel; }
-  if(bumpBackButtonEl){ bumpBackButtonEl.textContent = BUMP_TO_LINE_LABEL; }
-}
-
-function showLineView(){
-  if(!lineViewEl || !bumpViewEl){ return; }
-  isBumpVisible = false;
-  bumpViewEl.classList.remove("active");
-  lineViewEl.classList.add("active");
-  hideTooltip();
-  updateStoryButtonLabel();
-  startTimer();
-}
-
-function showBumpView(){
-  if(!lineViewEl || !bumpViewEl){ return; }
-  isBumpVisible = true;
-  lineViewEl.classList.remove("active");
-  bumpViewEl.classList.add("active");
-  hideTooltip();
-  updateStoryButtonLabel();
-  stopTimer();
-  if(replayTimeout){ window.clearTimeout(replayTimeout); replayTimeout = null; }
-  ensureBumpView();
-}
-
-function ensureBumpView(){
-  if(bumpInitialized){
-    if(window.BumpView && typeof window.BumpView.redraw === "function"){ window.BumpView.redraw(); }
-    return;
-  }
-  bumpInitialized = true;
-  if(window.BumpView && typeof window.BumpView.init === "function"){
-    window.BumpView.init();
-  }
-}
-
-function applyMetric(metric){
-  if(!metric || !Array.isArray(rawDataCache) || !rawDataCache.length){ return; }
-  currentMetric = metric;
-  yLabelEl.textContent = metric.label;
-  stopTimer();
-  if(replayTimeout){ window.clearTimeout(replayTimeout); replayTimeout = null; }
-  const processed = buildSeriesAll(rawDataCache, metric, currentTopLimit);
-  chartSeries = processed.series;
-  timelineDates = processed.timeline;
-  render();
-  setupAnimation();
-  updateMetricButtonsState();
-  updateTopButtonsState();
-  updateTopNote();
-}
-
-function buildSeriesAll(rawData, metric, topLimit){
-  if(!Array.isArray(rawData)){ return { series: [], timeline: [], totalSeries: 0, includedCount: 0 }; }
-  const metricKey = metric?.key || "datasets_total";
-  const metricType = metric?.type || "cumulative";
-  const isRankMetric = metricType === "rank";
-  const applyBaseline = !isRankMetric;
-  const companyIds = new Set();
-  orgMeta.forEach(meta=>{ if(meta && meta.id && meta.company !== false){ companyIds.add(meta.id); } });
-  const includeAll = companyIds.size === 0;
-  const groups = d3.group(rawData, d => d.id);
-  const perOrgAll = [];
-  groups.forEach((entries, id)=>{
-    if(!includeAll && !companyIds.has(id)){ return; }
-    const all = entries.map(entry=>{
-      const date = parseDate(entry.week_date || entry.month_date || null);
-      const rawVal = Number(entry[metricKey]);
-      const value = Number.isFinite(rawVal) ? rawVal : 0;
-      return { id, date, value };
-    }).filter(p => p.date instanceof Date && !Number.isNaN(p.date.valueOf()));
-    all.sort((a, b) => a.date - b.date);
-    if(!all.length){ return; }
-    perOrgAll.push({ id, all });
-  });
-  if(!perOrgAll.length){ return { series: [], timeline: [], totalSeries: 0, includedCount: 0 }; }
-  let globalMin = null;
-  let globalMax = null;
-  perOrgAll.forEach(({ all })=>{
-    const a0 = all[0].date;
-    const a1 = all[all.length - 1].date;
-    if(!globalMin || a0 < globalMin){ globalMin = a0; }
-    if(!globalMax || a1 > globalMax){ globalMax = a1; }
-  });
-  const addDaysUTC = (date, days)=>{ const d = new Date(date.getTime()); d.setUTCDate(d.getUTCDate() + days); return d; };
-  const weekStepDates = [];
-  for(let d = new Date(Date.UTC(globalMin.getUTCFullYear(), globalMin.getUTCMonth(), globalMin.getUTCDate())); d <= globalMax; d = addDaysUTC(d, 7)){
-    weekStepDates.push(new Date(d.getTime()));
-  }
-  const dummy0 = weekStepDates[0] ? new Date(weekStepDates[0].getTime()) : new Date(globalMin.getTime());
-  const timeline = [dummy0, ...weekStepDates];
-  const series = [];
-  perOrgAll.forEach(({ id, all })=>{
-    let baseTotal = 0;
-    if(applyBaseline){
-      for(let i = 0; i < all.length; i++){
-        if(all[i].date < weekStepDates[0]){ baseTotal = all[i].value; } else { break; }
+        bindSpeedKeys();
+      } catch (err) {
+        console.error("Failed to load visualization data:", err);
       }
     }
-    const within = all.filter(p => p.date >= weekStepDates[0] && p.date <= weekStepDates[weekStepDates.length - 1]);
-    if(!within.length){ return; }
-    let j = 0;
-    let carry = within.length ? within[0].value : 0;
-    if(applyBaseline){ carry = Math.max(0, carry - baseTotal); }
-    const pts = [];
-    for(let i = 0; i < weekStepDates.length; i++){
-      const d = weekStepDates[i];
-      while(j < within.length && within[j].date <= d){
-        carry = within[j].value;
-        if(applyBaseline){ carry = Math.max(0, carry - baseTotal); }
-        j += 1;
+
+    function buildOrgMeta(list) {
+      const map = new Map();
+      if (Array.isArray(list)) {
+        list.forEach(item => {
+          if (!item || !item.id) { return; }
+          map.set(item.id, { ...item, company: item.company === true, regionKey: normalizeRegion(item.region) });
+        });
       }
-      const end = carry;
-      const idx = i + 1;
-      pts.push({ id, date: d, end, delta: 0, index: idx });
+      return map;
     }
-    const ptsWithZero = [{ id, date: dummy0, end: 0, delta: 0, index: 0 }, ...pts];
-    for(let k = 1; k < ptsWithZero.length; k++){
-      ptsWithZero[k].delta = ptsWithZero[k].end - ptsWithZero[k - 1].end;
+
+    function normalizeRegion(value) {
+      return String(value ?? "").trim().toLowerCase();
     }
-    const finalValue = ptsWithZero.length ? ptsWithZero[ptsWithZero.length - 1].end : 0;
-    series.push({ id, values: ptsWithZero, finalValue });
-  });
-  const sortFn = isRankMetric ? ((a, b) => (a.finalValue || Infinity) - (b.finalValue || Infinity)) : ((a, b) => (b.finalValue || 0) - (a.finalValue || 0));
-  series.sort(sortFn);
-  const totalSeries = series.length;
-  const keepCount = totalSeries ? Math.min(totalSeries, Math.max(1, Math.round(Number.isFinite(topLimit) ? topLimit : totalSeries))) : 0;
-  const kept = keepCount ? series.slice(0, keepCount) : [];
-  return { series: kept, timeline, totalSeries, includedCount: kept.length };
-}
 
-function parseDate(input){
-  if(!input){ return null; }
-  const text = String(input).trim();
-  if(!text){ return null; }
-  const iso = text.includes("T") ? text : `${text}T00:00:00Z`;
-  const date = new Date(iso);
-  return Number.isNaN(date.valueOf()) ? null : date;
-}
+    async function fetchJSON(url) {
+      const response = await fetch(url);
+      if (!response.ok) { throw new Error(`HTTP ${response.status} while fetching ${url}`); }
+      return response.json();
+    }
 
-function getOrgColor(id){
-  const meta = orgMeta.get(id);
-  if(meta && meta.color){ return meta.color; }
-  return colorScale(id);
-}
+    function buildMetricButtons() {
+      if (!metricButtonsEl) { return; }
+      metricButtonsEl.innerHTML = "";
+      METRIC_OPTIONS.forEach(option => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "metric-btn";
+        btn.textContent = option.label;
+        btn.dataset.metric = option.key;
+        btn.addEventListener("click", () => { if (currentMetric.key !== option.key) { applyMetric(option); } });
+        metricButtonsEl.appendChild(btn);
+      });
+      updateMetricButtonsState();
+    }
 
-function formatValue(value){
-  if(!Number.isFinite(value)){ return "0"; }
-  const abs = Math.abs(value);
-  if(abs >= 1e9){ return formatShort(value).replace("G", "B"); }
-  if(abs >= 1e6){ return formatShort(value); }
-  if(abs >= 1e3){ return formatShort(value); }
-  return formatComma(value);
-}
+    function updateMetricButtonsState() {
+      if (!metricButtonsEl) { return; }
+      const buttons = metricButtonsEl.querySelectorAll("button.metric-btn");
+      buttons.forEach(btn => {
+        const key = btn.getAttribute("data-metric");
+        btn.classList.toggle("active", !!currentMetric && key === currentMetric.key);
+      });
+    }
 
-function getOrgLogo(id){
-  const meta = orgMeta.get(id) || {};
-  return meta.logo || meta.logo_url || meta.avatar || meta.icon || null;
-}
+    function buildTopButtons() {
+      if (!topButtonsEl) { return; }
+      topButtonsEl.innerHTML = "";
+      TOP_OPTIONS.forEach(limit => {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "top-btn";
+        btn.textContent = `Top ${limit}`;
+        btn.dataset.top = limit;
+        btn.addEventListener("click", () => {
+          const next = Number(limit);
+          if (Number.isFinite(next) && next > 0 && next !== currentTopLimit) {
+            currentTopLimit = next;
+            applyMetric(currentMetric);
+            updateTopButtonsState();
+            updateTopNote();
+          }
+        });
+        topButtonsEl.appendChild(btn);
+      });
+      updateTopButtonsState();
+      updateTopNote();
+    }
 
-function getTaskEmoji(id){
-  if(!id){ return "❓"; }
-  return EMOJI_BY_ID.get(id) || "❓";
-}
+    function updateTopButtonsState() {
+      if (!topButtonsEl) { return; }
+      const buttons = topButtonsEl.querySelectorAll("button.top-btn");
+      buttons.forEach(btn => {
+        const value = Number(btn.dataset.top);
+        btn.classList.toggle("active", Number.isFinite(value) && value === currentTopLimit);
+      });
+    }
 
-function getMonthTickStep(innerW){
-  if(innerW < 360){ return 6; }
-  if(innerW < 680){ return 3; }
-  if(innerW < 900){ return 2; }
-  return 1;
-}
+    function updateTopNote() {
+      if (logoNoteEl) { logoNoteEl.textContent = `* Datasets with minimum of 200 downloads `; }
+    }
 
-function render(){
-  if(!chartSeries.length){
-    svg.selectAll("*").remove();
-    return;
-  }
-  const margin = { top: 32, right: 220, bottom: 56, left: 74 };
-  const rect = vizEl.getBoundingClientRect();
-  const width = Math.max(margin.left + margin.right + 360, rect.width || 960);
-  const height = Math.max(margin.top + margin.bottom + 280, rect.height || 560);
-  svg.attr("viewBox", `0 0 ${width} ${height}`);
-  svg.attr("aria-label", `${currentMetric.label} line chart for ${TARGET_YEAR}`);
-  const defs = svg.selectAll("defs").data([null]).join("defs");
-  const logoClip = defs.selectAll("clipPath#logoCircleClip").data([null]).join("clipPath").attr("id", "logoCircleClip").attr("clipPathUnits", "objectBoundingBox");
-  logoClip.selectAll("circle").data([null]).join("circle").attr("cx", 0.5).attr("cy", 0.5).attr("r", 0.5);
-  const root = svg.selectAll("g.chart-root").data([null]).join("g").attr("class", "chart-root").attr("transform", `translate(${margin.left},${margin.top})`);
-  const allDates = timelineDates.length ? timelineDates : chartSeries.flatMap(s => s.values.map(p => p.date));
-  if(!allDates.length){
-    svg.selectAll("*").remove();
-    return;
-  }
-  let xDomain = d3.extent(allDates);
-  if(!xDomain[0] || !xDomain[1] || xDomain[0].getTime() === xDomain[1].getTime()){
-    const base = xDomain[0] || new Date(Date.UTC(TARGET_YEAR, 0, 1));
-    xDomain = [d3.utcDay.offset(base, -3), d3.utcDay.offset(base, 3)];
-  }
-  const valuesFlat = chartSeries.flatMap(s => s.values.map(p => p.end));
-  const yMax = d3.max(valuesFlat);
-  const domainMax = yMax && Number.isFinite(yMax) ? yMax : 1;
-  xScale = d3.scaleUtc().domain(xDomain).range([0, Math.max(120, width - margin.left - margin.right)]);
-  yScale = d3.scaleLinear().domain([0, domainMax]).nice().range([Math.max(120, height - margin.top - margin.bottom), 0]);
-  const innerW = xScale.range()[1];
-  const isTiny = innerW < 420;
-  const compact = innerW < 720 && !isTiny;
-  const dotR = isTiny ? Math.max(1, Math.min(3, Math.round(innerW / 360))) : compact ? Math.round(Math.max(2, Math.min(4, innerW / 300))) : Math.round(Math.max(3, Math.min(6, innerW / 250)));
-  const xTickStep = getMonthTickStep(innerW);
-  const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(xTickStep)).tickFormat(d3.utcFormat("%b %Y"));
-  const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
-  const grid = root.selectAll("g.grid-y").data([null]).join("g").attr("class", "grid grid-y").call(d3.axisLeft(yScale).ticks(6).tickSize(-xScale.range()[1]).tickFormat(""));
-  grid.select(".domain").remove();
-  grid.selectAll("line").attr("stroke", "rgba(230,232,239,0.45)");
-  const xAxisGroup = root.selectAll("g.x-axis").data([null]).join("g").attr("class", "axis x-axis").attr("transform", `translate(0,${yScale.range()[0]})`).call(xAxis);
-  const yAxisGroup = root.selectAll("g.y-axis").data([null]).join("g").attr("class", "axis y-axis").call(yAxis);
-  yAxisGroup.select(".domain").remove();
-  xAxisGroup.select(".domain").attr("stroke", "#cfd2d7");
-  lineGenerator = d3.line().defined(point => Number.isFinite(point.end)).x(point => xScale(point.date)).y(point => yScale(point.end));
-  const seriesGroups = root.selectAll("g.series-group").data(chartSeries, d => d.id);
-  const seriesEnter = seriesGroups.enter().append("g").attr("class", "series-group");
-  seriesEnter.append("path").attr("class", "series-line").attr("fill", "none").attr("stroke-width", 2);
-  seriesEnter.append("g").attr("class", "series-dots");
-  const finalNode = seriesEnter.append("g").attr("class", "final-node");
-  finalNode.append("circle").attr("class", "final-outline");
-  finalNode.append("image").attr("class", "final-logo");
-  finalNode.append("text").attr("class", "final-emoji").attr("text-anchor", "middle").attr("dominant-baseline", "middle").attr("pointer-events", "none");
-  finalNode.append("text").attr("class", "final-label").attr("dominant-baseline", "middle").attr("text-anchor", "start");
-  const seriesMerged = seriesEnter.merge(seriesGroups);
-  seriesMerged.each(function(series){
-    d3.select(this).select("path.series-line").attr("stroke", getOrgColor(series.id));
-    d3.select(this).select("g.series-dots").attr("data-dot-r", dotR);
-  });
-  seriesGroups.exit().remove();
-  updateFrameRange(currentStart, currentEnd);
-}
-
-function updateFrameRange(startIndex, endIndex){
-  if(!chartSeries.length || !timelineDates.length || !xScale || !yScale || !lineGenerator){ return; }
-  currentStart = Math.max(0, Math.min(startIndex, timelineDates.length - 1));
-  currentEnd = Math.max(currentStart, Math.min(endIndex, timelineDates.length - 1));
-  const isRankMetric = currentMetric && currentMetric.type === "rank";
-  const useBaseline = !isRankMetric;
-  const root = svg.select("g.chart-root");
-  const innerWidth = xScale.range()[1];
-  const isTinyW = innerWidth < 420;
-  const compact = innerWidth < 720 && !isTinyW;
-  const logoSize = isTinyW ? Math.round(Math.max(14, Math.min(22, innerWidth / 40))) : compact ? Math.round(Math.max(16, Math.min(28, innerWidth / 36))) : Math.round(Math.max(22, Math.min(42, innerWidth / 26)));
-  const r = Math.round(logoSize / 2 + 2);
-  const recomputedDotR = (()=>{ if(isTinyW){ return Math.max(1, Math.min(3, Math.round(innerWidth / 360))); } if(compact){ return Math.round(Math.max(2, Math.min(4, innerWidth / 300))); } return Math.round(Math.max(3, Math.min(6, innerWidth / 250))); })();
-  const plotWidth = xScale.range()[1];
-  const xTickStep = getMonthTickStep(innerWidth);
-  const domainStartDate = timelineDates[currentStart];
-  const domainEndDate = timelineDates[currentEnd];
-  xScale.domain([domainStartDate, domainEndDate]);
-  const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(xTickStep)).tickFormat(d3.utcFormat("%b %Y"));
-  root.select("g.x-axis").attr("transform", `translate(0,${yScale.range()[0]})`).call(xAxis);
-  root.select("g.x-axis .domain").attr("stroke", "#cfd2d7");
-  const adjustedById = new Map();
-  chartSeries.forEach(s=>{
-    const vis = s.values.filter(v => v.index >= currentStart && v.index <= currentEnd);
-    const baseIndex = currentStart - 1;
-    const basePt = baseIndex >= 0 ? s.values.find(v => v.index === baseIndex) : null;
-    const baseline = useBaseline && basePt && Number.isFinite(basePt.end) ? basePt.end : 0;
-    const adj = vis.map(v=>{
-      const rawVal = Number.isFinite(v.end) ? v.end : 0;
-      const end = useBaseline ? Math.max(0, rawVal - baseline) : rawVal;
-      return { ...v, end };
-    });
-    adjustedById.set(s.id, { adj, last: adj[adj.length - 1] || null });
-  });
-  const yMaxWindow = d3.max(Array.from(adjustedById.values(), d => d3.max(d.adj, p => p.end))) || 0;
-  const newDomainMax = yMaxWindow > 0 ? yMaxWindow : 1;
-  yScale.domain([0, newDomainMax]).nice();
-  const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
-  root.select("g.y-axis").call(yAxis);
-  const gridCall = d3.axisLeft(yScale).ticks(6).tickSize(-xScale.range()[1]).tickFormat("");
-  const grid = root.select("g.grid-y").call(gridCall);
-  grid.select(".domain").remove();
-  grid.selectAll("line").attr("stroke", "rgba(230,232,239,0.45)");
-  const seriesMerged = root.selectAll("g.series-group");
-  seriesMerged.each(function(series){
-    const rec = adjustedById.get(series.id) || { adj: [], last: null };
-    const adjValues = rec.adj;
-    const drawValues = adjValues;
-    d3.select(this).select("path.series-line").attr("d", lineGenerator(drawValues));
-    const dotsSel = d3.select(this).select("g.series-dots").selectAll("circle.dot").data(drawValues, d => d.date.getTime());
-    dotsSel.enter().append("circle").attr("class", "dot").attr("fill", getOrgColor(series.id)).attr("stroke", "#fff").attr("stroke-width", 1).merge(dotsSel).attr("r", recomputedDotR).attr("cx", point => xScale(point.date)).attr("cy", point => yScale(point.end)).on("mouseenter", function(event, point){
-      const seriesGroup = d3.select(this.parentNode.parentNode);
-      seriesGroup.raise();
-      d3.select(this).transition().duration(120).attr("r", recomputedDotR + 3).attr("stroke-width", 2);
-      showTooltip(event, { ...point, seriesId: series.id });
-    }).on("mousemove", function(event, point){ moveTooltip(event, { ...point, seriesId: series.id }); }).on("mouseleave", function(){ d3.select(this).transition().duration(120).attr("r", recomputedDotR).attr("stroke-width", 1); hideTooltip(); });
-    dotsSel.exit().remove();
-    const lastPoint = rec.last;
-    const node = d3.select(this).select("g.final-node");
-    if(lastPoint){
-      const cx = xScale(lastPoint.date);
-      const cy = yScale(lastPoint.end);
-      const logoUrl = getOrgLogo(series.id) || "";
-      const emoji = getTaskEmoji(series.id);
-      const emojiSize = Math.max(12, Math.round(logoSize * 0.72));
-      const imageEl = node.select("image.final-logo");
-      const textEl = node.select("text.final-emoji");
-      const labelEl = node.select("text.final-label");
-      const labelPad = Math.max(6, Math.round(r * 0.45));
-      const labelFont = Math.max(11, Math.round(logoSize * 0.32));
-      const labelX = cx + r + labelPad;
-      const labelAnchor = "start";
-      node.raise();
-      node.style("display", null);
-      node.select("circle.final-outline").attr("cx", cx).attr("cy", cy).attr("r", r).attr("fill", "#ffffff").attr("stroke", getOrgColor(series.id)).attr("stroke-width", 2);
-      if(logoUrl){
-        imageEl.attr("href", logoUrl).attr("x", cx - logoSize / 2).attr("y", cy - logoSize / 2).attr("width", logoSize).attr("height", logoSize).attr("preserveAspectRatio", "xMidYMid slice").attr("clip-path", "url(#logoCircleClip)").style("display", null);
-        textEl.text("").style("display", "none");
-      }else{
-        imageEl.style("display", "none");
-        textEl.text(emoji).attr("x", cx).attr("y", cy).attr("font-size", emojiSize).attr("fill", getOrgColor(series.id)).style("display", null);
+    function bindStoryButton() {
+      updateStoryButtonLabel();
+      if (storyButtonEl) {
+        storyButtonEl.addEventListener("click", () => {
+          if (isBumpVisible) { showLineView(); } else { showBumpView(); }
+        });
       }
-      labelEl.text(series.id).attr("x", labelX).attr("y", cy).attr("font-size", labelFont).attr("fill", "#26344f").attr("text-anchor", labelAnchor).style("display", null);
-      node.style("pointer-events", "all").on("mouseenter", (event)=>{ showTooltip(event, { ...lastPoint, seriesId: series.id }); }).on("mousemove", (event)=>{ moveTooltip(event, { ...lastPoint, seriesId: series.id }); }).on("mouseleave", ()=>{ hideTooltip(); });
-    }else{
-      node.style("display", "none");
+      if (bumpBackButtonEl) {
+        bumpBackButtonEl.addEventListener("click", () => { showLineView(); });
+      }
     }
-  });
-  resolveFinalLabelCollisions(root);
-  updateDateUI();
-}
 
-function showTooltip(event, point){
-  tooltip.style("opacity", 1);
-  moveTooltip(event, point);
-}
-
-function moveTooltip(event, point){
-  const [x, y] = d3.pointer(event, vizEl);
-  let dateText = "Week";
-  if(point.date){
-    const startDate = new Date(point.date.getTime());
-    const endDate = new Date(point.date.getTime());
-    endDate.setUTCDate(endDate.getUTCDate() + 7);
-    dateText = `${dateFormatter(endDate)}`;
-  }
-  const deltaText = Number.isFinite(point.delta) ? formatValue(point.delta) : "0";
-  tooltip.html(`<strong>${point.id}</strong><br>${dateText}<br>${currentMetric.label} so far: ${formatValue(point.end)}<br>This week: ${deltaText}`);
-  const ttNode = tooltip.node();
-  const ttWidth = ttNode ? ttNode.offsetWidth : 0;
-  const left = Math.max(6, x - ttWidth - 14);
-  const top = Math.max(6, y - 28);
-  tooltip.style("left", `${left}px`);
-  tooltip.style("top", `${top}px`);
-}
-
-function hideTooltip(){ tooltip.style("opacity", 0); }
-
-function updateDateUI(){
-  if(!timelineDates.length || !dateDisplayEl){ return; }
-  const idx = Math.max(0, Math.min(currentEnd, timelineDates.length - 1));
-  const d = timelineDates[idx];
-  const endDate = new Date(d.getTime());
-  endDate.setUTCDate(endDate.getUTCDate() + 7);
-  dateDisplayEl.textContent = `${dateFormatter(endDate)}`;
-}
-
-function setupAnimation(){
-  if(!timelineDates.length){ return; }
-  const clampIndex = v => Math.max(0, Math.min(v, timelineDates.length - 1));
-  const findStartIdx = (date)=>{
-    let idx = timelineDates.findIndex(d => d.getTime() >= date.getTime());
-    if(idx === -1){ idx = timelineDates.length - 1; }
-    return clampIndex(idx);
-  };
-  const findEndIdx = (date)=>{
-    let idx = timelineDates.length - 1;
-    for(let i = timelineDates.length - 1; i >= 0; i--){
-      if(timelineDates[i].getTime() <= date.getTime()){ idx = i; break; }
+    function updateStoryButtonLabel() {
+      const primaryLabel = isBumpVisible ? BUMP_TO_LINE_LABEL : LINE_TO_BUMP_LABEL;
+      if (storyButtonEl) { storyButtonEl.textContent = primaryLabel; }
+      if (bumpBackButtonEl) { bumpBackButtonEl.textContent = BUMP_TO_LINE_LABEL; }
     }
-    return clampIndex(idx);
-  };
-  const startIdx = findStartIdx(DEFAULT_START_DATE);
-  const endIdx = findEndIdx(DEFAULT_END_DATE);
-  animDefaultStart = startIdx;
-  animDefaultEnd = endIdx;
-  animWindowSize = Math.max(1, animDefaultEnd - animDefaultStart);
-  currentEnd = animDefaultEnd;
-  currentStart = Math.max(0, currentEnd - animWindowSize);
-  animTargetEnd = timelineDates.length - 1;
-  updateFrameRange(currentStart, currentEnd);
-  startTimer();
-}
 
-function tick(){
-  const hardStop = Math.min(animTargetEnd, timelineDates.length - 1);
-  if(currentEnd >= hardStop){
-    stopTimer();
-    if(replayTimeout){ window.clearTimeout(replayTimeout); }
-    replayTimeout = window.setTimeout(()=>{
+    function showLineView() {
+      if (!lineViewEl || !bumpViewEl) { return; }
+      isBumpVisible = false;
+      bumpViewEl.classList.remove("active");
+      lineViewEl.classList.add("active");
+      hideTooltip();
+      updateStoryButtonLabel();
+      startTimer();
+    }
+
+    function showBumpView() {
+      if (!lineViewEl || !bumpViewEl) { return; }
+      isBumpVisible = true;
+      lineViewEl.classList.remove("active");
+      bumpViewEl.classList.add("active");
+      hideTooltip();
+      updateStoryButtonLabel();
+      stopTimer();
+      if (replayTimeout) { window.clearTimeout(replayTimeout); replayTimeout = null; }
+      ensureBumpView();
+    }
+
+    function ensureBumpView() {
+      if (bumpInitialized) {
+        if (window.BumpView && typeof window.BumpView.redraw === "function") { window.BumpView.redraw(); }
+        return;
+      }
+      bumpInitialized = true;
+      if (window.BumpView && typeof window.BumpView.init === "function") {
+        window.BumpView.init();
+      }
+    }
+
+    function applyMetric(metric) {
+      if (!metric || !Array.isArray(rawDataCache) || !rawDataCache.length) { return; }
+      currentMetric = metric;
+      yLabelEl.textContent = metric.label;
+      stopTimer();
+      if (replayTimeout) { window.clearTimeout(replayTimeout); replayTimeout = null; }
+      const processed = buildSeriesAll(rawDataCache, metric, currentTopLimit);
+      chartSeries = processed.series;
+      timelineDates = processed.timeline;
+      render();
+      setupAnimation();
+      updateMetricButtonsState();
+      updateTopButtonsState();
+      updateTopNote();
+    }
+
+    function buildSeriesAll(rawData, metric, topLimit) {
+      if (!Array.isArray(rawData)) { return { series: [], timeline: [], totalSeries: 0, includedCount: 0 }; }
+      const metricKey = metric?.key || "datasets_total";
+      const metricType = metric?.type || "cumulative";
+      const isRankMetric = metricType === "rank";
+      const applyBaseline = !isRankMetric;
+      const companyIds = new Set();
+      orgMeta.forEach(meta => { if (meta && meta.id && meta.company !== false) { companyIds.add(meta.id); } });
+      const includeAll = companyIds.size === 0;
+      const groups = d3.group(rawData, d => d.id);
+      const perOrgAll = [];
+      groups.forEach((entries, id) => {
+        if (!includeAll && !companyIds.has(id)) { return; }
+        const all = entries.map(entry => {
+          const date = parseDate(entry.week_date || entry.month_date || null);
+          const rawVal = Number(entry[metricKey]);
+          const value = Number.isFinite(rawVal) ? rawVal : 0;
+          return { id, date, value, entry };
+        }).filter(p => p.date instanceof Date && !Number.isNaN(p.date.valueOf()));
+        all.sort((a, b) => a.date - b.date);
+        if (!all.length) { return; }
+        perOrgAll.push({ id, all });
+      });
+      if (!perOrgAll.length) { return { series: [], timeline: [], totalSeries: 0, includedCount: 0 }; }
+      let globalMin = null;
+      let globalMax = null;
+      perOrgAll.forEach(({ all }) => {
+        const a0 = all[0].date;
+        const a1 = all[all.length - 1].date;
+        if (!globalMin || a0 < globalMin) { globalMin = a0; }
+        if (!globalMax || a1 > globalMax) { globalMax = a1; }
+      });
+      const addDaysUTC = (date, days) => { const d = new Date(date.getTime()); d.setUTCDate(d.getUTCDate() + days); return d; };
+      const weekStepDates = [];
+      for (let d = new Date(Date.UTC(globalMin.getUTCFullYear(), globalMin.getUTCMonth(), globalMin.getUTCDate())); d <= globalMax; d = addDaysUTC(d, 7)) {
+        weekStepDates.push(new Date(d.getTime()));
+      }
+      const dummy0 = weekStepDates[0] ? new Date(weekStepDates[0].getTime()) : new Date(globalMin.getTime());
+      const timeline = [dummy0, ...weekStepDates];
+      const series = [];
+      perOrgAll.forEach(({ id, all }) => {
+        let baseTotal = 0;
+        if (applyBaseline) {
+          for (let i = 0; i < all.length; i++) {
+            if (all[i].date < weekStepDates[0]) { baseTotal = all[i].value; } else { break; }
+          }
+        }
+        const within = all.filter(p => p.date >= weekStepDates[0] && p.date <= weekStepDates[weekStepDates.length - 1]);
+        if (!within.length) { return; }
+        let j = 0;
+        let carry = within.length ? within[0].value : 0;
+        let carryEntry = within.length ? within[0].entry : null;
+        if (applyBaseline) { carry = Math.max(0, carry - baseTotal); }
+        const pts = [];
+        for (let i = 0; i < weekStepDates.length; i++) {
+          const d = weekStepDates[i];
+          while (j < within.length && within[j].date <= d) {
+            carry = within[j].value;
+            carryEntry = within[j].entry;
+            if (applyBaseline) { carry = Math.max(0, carry - baseTotal); }
+            j += 1;
+          }
+          const end = carry;
+          const idx = i + 1;
+          pts.push({ id, date: d, end, delta: 0, index: idx, data: carryEntry });
+        }
+        const ptsWithZero = [{ id, date: dummy0, end: 0, delta: 0, index: 0, data: null }, ...pts];
+        for (let k = 1; k < ptsWithZero.length; k++) {
+          ptsWithZero[k].delta = ptsWithZero[k].end - ptsWithZero[k - 1].end;
+        }
+        const finalValue = ptsWithZero.length ? ptsWithZero[ptsWithZero.length - 1].end : 0;
+        series.push({ id, values: ptsWithZero, finalValue });
+      });
+      const sortFn = isRankMetric ? ((a, b) => (a.finalValue || Infinity) - (b.finalValue || Infinity)) : ((a, b) => (b.finalValue || 0) - (a.finalValue || 0));
+      series.sort(sortFn);
+      const totalSeries = series.length;
+      const keepCount = totalSeries ? Math.min(totalSeries, Math.max(1, Math.round(Number.isFinite(topLimit) ? topLimit : totalSeries))) : 0;
+      const kept = keepCount ? series.slice(0, keepCount) : [];
+      return { series: kept, timeline, totalSeries, includedCount: kept.length };
+    }
+
+    function parseDate(input) {
+      if (!input) { return null; }
+      const text = String(input).trim();
+      if (!text) { return null; }
+      const iso = text.includes("T") ? text : `${text}T00:00:00Z`;
+      const date = new Date(iso);
+      return Number.isNaN(date.valueOf()) ? null : date;
+    }
+
+    function getOrgColor(id) {
+      const meta = orgMeta.get(id);
+      if (meta && meta.color) { return meta.color; }
+      return colorScale(id);
+    }
+
+    function formatValue(value) {
+      if (!Number.isFinite(value)) { return "0"; }
+      const abs = Math.abs(value);
+      if (abs >= 1e9) { return formatShort(value).replace("G", "B"); }
+      if (abs >= 1e6) { return formatShort(value); }
+      if (abs >= 1e3) { return formatShort(value); }
+      return formatComma(value);
+    }
+
+    function getOrgLogo(id) {
+      const meta = orgMeta.get(id) || {};
+      return meta.logo || meta.logo_url || meta.avatar || meta.icon || null;
+    }
+
+    function getTaskEmoji(id) {
+      if (!id) { return "❓"; }
+      return EMOJI_BY_ID.get(id) || "❓";
+    }
+
+    function getMonthTickStep(innerW) {
+      if (innerW < 360) { return 6; }
+      if (innerW < 680) { return 3; }
+      if (innerW < 900) { return 2; }
+      return 1;
+    }
+
+    function render() {
+      if (!chartSeries.length) {
+        svg.selectAll("*").remove();
+        return;
+      }
+      const margin = { top: 32, right: 220, bottom: 56, left: 74 };
+      const rect = vizEl.getBoundingClientRect();
+      const width = Math.max(margin.left + margin.right + 360, rect.width || 960);
+      const height = Math.max(margin.top + margin.bottom + 280, rect.height || 560);
+      svg.attr("viewBox", `0 0 ${width} ${height}`);
+      svg.attr("aria-label", `${currentMetric.label} line chart for ${TARGET_YEAR}`);
+      const defs = svg.selectAll("defs").data([null]).join("defs");
+      const logoClip = defs.selectAll("clipPath#logoCircleClip").data([null]).join("clipPath").attr("id", "logoCircleClip").attr("clipPathUnits", "objectBoundingBox");
+      logoClip.selectAll("circle").data([null]).join("circle").attr("cx", 0.5).attr("cy", 0.5).attr("r", 0.5);
+      const root = svg.selectAll("g.chart-root").data([null]).join("g").attr("class", "chart-root").attr("transform", `translate(${margin.left},${margin.top})`);
+      const allDates = timelineDates.length ? timelineDates : chartSeries.flatMap(s => s.values.map(p => p.date));
+      if (!allDates.length) {
+        svg.selectAll("*").remove();
+        return;
+      }
+      let xDomain = d3.extent(allDates);
+      if (!xDomain[0] || !xDomain[1] || xDomain[0].getTime() === xDomain[1].getTime()) {
+        const base = xDomain[0] || new Date(Date.UTC(TARGET_YEAR, 0, 1));
+        xDomain = [d3.utcDay.offset(base, -3), d3.utcDay.offset(base, 3)];
+      }
+      const valuesFlat = chartSeries.flatMap(s => s.values.map(p => p.end));
+      const yMax = d3.max(valuesFlat);
+      const domainMax = yMax && Number.isFinite(yMax) ? yMax : 1;
+      xScale = d3.scaleUtc().domain(xDomain).range([0, Math.max(120, width - margin.left - margin.right)]);
+      yScale = d3.scaleLinear().domain([0, domainMax]).nice().range([Math.max(120, height - margin.top - margin.bottom), 0]);
+      const innerW = xScale.range()[1];
+      const isTiny = innerW < 420;
+      const compact = innerW < 720 && !isTiny;
+      const dotR = isTiny ? Math.max(1, Math.min(3, Math.round(innerW / 360))) : compact ? Math.round(Math.max(2, Math.min(4, innerW / 300))) : Math.round(Math.max(3, Math.min(6, innerW / 250)));
+      const xTickStep = getMonthTickStep(innerW);
+      const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(xTickStep)).tickFormat(d3.utcFormat("%b %Y"));
+      const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
+      const grid = root.selectAll("g.grid-y").data([null]).join("g").attr("class", "grid grid-y").call(d3.axisLeft(yScale).ticks(6).tickSize(-xScale.range()[1]).tickFormat(""));
+      grid.select(".domain").remove();
+      grid.selectAll("line").attr("stroke", "rgba(230,232,239,0.45)");
+      const xAxisGroup = root.selectAll("g.x-axis").data([null]).join("g").attr("class", "axis x-axis").attr("transform", `translate(0,${yScale.range()[0]})`).call(xAxis);
+      const yAxisGroup = root.selectAll("g.y-axis").data([null]).join("g").attr("class", "axis y-axis").call(yAxis);
+      yAxisGroup.select(".domain").remove();
+      xAxisGroup.select(".domain").attr("stroke", "#cfd2d7");
+      lineGenerator = d3.line().defined(point => Number.isFinite(point.end)).x(point => xScale(point.date)).y(point => yScale(point.end));
+      const seriesGroups = root.selectAll("g.series-group").data(chartSeries, d => d.id);
+      const seriesEnter = seriesGroups.enter().append("g").attr("class", "series-group");
+      seriesEnter.append("path").attr("class", "series-line").attr("fill", "none").attr("stroke-width", 2);
+      seriesEnter.append("g").attr("class", "series-dots");
+      const finalNode = seriesEnter.append("g").attr("class", "final-node");
+      finalNode.append("circle").attr("class", "final-outline");
+      finalNode.append("image").attr("class", "final-logo");
+      finalNode.append("text").attr("class", "final-emoji").attr("text-anchor", "middle").attr("dominant-baseline", "middle").attr("pointer-events", "none");
+      finalNode.append("text").attr("class", "final-label").attr("dominant-baseline", "middle").attr("text-anchor", "start");
+      const seriesMerged = seriesEnter.merge(seriesGroups);
+      seriesMerged.each(function (series) {
+        d3.select(this).select("path.series-line").attr("stroke", getOrgColor(series.id));
+        d3.select(this).select("g.series-dots").attr("data-dot-r", dotR);
+      });
+      seriesGroups.exit().remove();
+      updateFrameRange(currentStart, currentEnd);
+    }
+
+    function updateFrameRange(startIndex, endIndex) {
+      if (!chartSeries.length || !timelineDates.length || !xScale || !yScale || !lineGenerator) { return; }
+      currentStart = Math.max(0, Math.min(startIndex, timelineDates.length - 1));
+      currentEnd = Math.max(currentStart, Math.min(endIndex, timelineDates.length - 1));
+      const isRankMetric = currentMetric && currentMetric.type === "rank";
+      const useBaseline = !isRankMetric;
+      const root = svg.select("g.chart-root");
+      const innerWidth = xScale.range()[1];
+      const isTinyW = innerWidth < 420;
+      const compact = innerWidth < 720 && !isTinyW;
+      const logoSize = isTinyW ? Math.round(Math.max(14, Math.min(22, innerWidth / 40))) : compact ? Math.round(Math.max(16, Math.min(28, innerWidth / 36))) : Math.round(Math.max(22, Math.min(42, innerWidth / 26)));
+      const r = Math.round(logoSize / 2 + 2);
+      const recomputedDotR = (() => { if (isTinyW) { return Math.max(1, Math.min(3, Math.round(innerWidth / 360))); } if (compact) { return Math.round(Math.max(2, Math.min(4, innerWidth / 300))); } return Math.round(Math.max(3, Math.min(6, innerWidth / 250))); })();
+      const plotWidth = xScale.range()[1];
+      const xTickStep = getMonthTickStep(innerWidth);
+      const domainStartDate = timelineDates[currentStart];
+      const domainEndDate = timelineDates[currentEnd];
+      xScale.domain([domainStartDate, domainEndDate]);
+      const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(xTickStep)).tickFormat(d3.utcFormat("%b %Y"));
+      root.select("g.x-axis").attr("transform", `translate(0,${yScale.range()[0]})`).call(xAxis);
+      root.select("g.x-axis .domain").attr("stroke", "#cfd2d7");
+      const adjustedById = new Map();
+      chartSeries.forEach(s => {
+        const vis = s.values.filter(v => v.index >= currentStart && v.index <= currentEnd);
+        const baseIndex = currentStart - 1;
+        const basePt = baseIndex >= 0 ? s.values.find(v => v.index === baseIndex) : null;
+        const baseline = useBaseline && basePt && Number.isFinite(basePt.end) ? basePt.end : 0;
+        const adj = vis.map(v => {
+          const rawVal = Number.isFinite(v.end) ? v.end : 0;
+          const end = useBaseline ? Math.max(0, rawVal - baseline) : rawVal;
+          return { ...v, end };
+        });
+        adjustedById.set(s.id, { adj, last: adj[adj.length - 1] || null });
+      });
+      const yMaxWindow = d3.max(Array.from(adjustedById.values(), d => d3.max(d.adj, p => p.end))) || 0;
+      const newDomainMax = yMaxWindow > 0 ? yMaxWindow : 1;
+      yScale.domain([0, newDomainMax]).nice();
+      const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
+      root.select("g.y-axis").call(yAxis);
+      const gridCall = d3.axisLeft(yScale).ticks(6).tickSize(-xScale.range()[1]).tickFormat("");
+      const grid = root.select("g.grid-y").call(gridCall);
+      grid.select(".domain").remove();
+      grid.selectAll("line").attr("stroke", "rgba(230,232,239,0.45)");
+      const seriesMerged = root.selectAll("g.series-group");
+      seriesMerged.each(function (series) {
+        const rec = adjustedById.get(series.id) || { adj: [], last: null };
+        const adjValues = rec.adj;
+        const drawValues = adjValues;
+        d3.select(this).select("path.series-line").attr("d", lineGenerator(drawValues));
+        const dotsSel = d3.select(this).select("g.series-dots").selectAll("circle.dot").data(drawValues, d => d.date.getTime());
+        dotsSel.enter().append("circle").attr("class", "dot").attr("fill", getOrgColor(series.id)).attr("stroke", "#fff").attr("stroke-width", 1).merge(dotsSel).attr("r", recomputedDotR).attr("cx", point => xScale(point.date)).attr("cy", point => yScale(point.end)).on("mouseenter", function (event, point) {
+          const seriesGroup = d3.select(this.parentNode.parentNode);
+          seriesGroup.raise();
+          d3.select(this).transition().duration(120).attr("r", recomputedDotR + 3).attr("stroke-width", 2);
+          showTooltip(event, { ...point, seriesId: series.id });
+        }).on("mousemove", function (event, point) { moveTooltip(event, { ...point, seriesId: series.id }); }).on("mouseleave", function () { d3.select(this).transition().duration(120).attr("r", recomputedDotR).attr("stroke-width", 1); hideTooltip(); });
+        dotsSel.exit().remove();
+        const lastPoint = rec.last;
+        const node = d3.select(this).select("g.final-node");
+        if (lastPoint) {
+          const cx = xScale(lastPoint.date);
+          const cy = yScale(lastPoint.end);
+          const logoUrl = getOrgLogo(series.id) || "";
+          const emoji = getTaskEmoji(series.id);
+          const emojiSize = Math.max(12, Math.round(logoSize * 0.72));
+          const imageEl = node.select("image.final-logo");
+          const textEl = node.select("text.final-emoji");
+          const labelEl = node.select("text.final-label");
+          const labelPad = Math.max(6, Math.round(r * 0.45));
+          const labelFont = Math.max(11, Math.round(logoSize * 0.32));
+          const labelX = cx + r + labelPad;
+          const labelAnchor = "start";
+          node.raise();
+          node.style("display", null);
+          node.select("circle.final-outline").attr("cx", cx).attr("cy", cy).attr("r", r).attr("fill", "#ffffff").attr("stroke", getOrgColor(series.id)).attr("stroke-width", 2);
+          if (logoUrl) {
+            imageEl.attr("href", logoUrl).attr("x", cx - logoSize / 2).attr("y", cy - logoSize / 2).attr("width", logoSize).attr("height", logoSize).attr("preserveAspectRatio", "xMidYMid slice").attr("clip-path", "url(#logoCircleClip)").style("display", null);
+            textEl.text("").style("display", "none");
+          } else {
+            imageEl.style("display", "none");
+            textEl.text(emoji).attr("x", cx).attr("y", cy).attr("font-size", emojiSize).attr("fill", getOrgColor(series.id)).style("display", null);
+          }
+          labelEl.text(series.id).attr("x", labelX).attr("y", cy).attr("font-size", labelFont).attr("fill", "#26344f").attr("text-anchor", labelAnchor).style("display", null);
+          node.style("pointer-events", "all").on("mouseenter", (event) => { showTooltip(event, { ...lastPoint, seriesId: series.id }); }).on("mousemove", (event) => { moveTooltip(event, { ...lastPoint, seriesId: series.id }); }).on("mouseleave", () => { hideTooltip(); });
+        } else {
+          node.style("display", "none");
+        }
+      });
+      resolveFinalLabelCollisions(root);
+      updateDateUI();
+    }
+
+    function showTooltip(event, point) {
+      tooltip.style("opacity", 1);
+      moveTooltip(event, point);
+    }
+
+    function moveTooltip(event, point) {
+      const [x, y] = d3.pointer(event, vizEl);
+      let dateText = "Week";
+      if (point.date) {
+        const startDate = new Date(point.date.getTime());
+        const endDate = new Date(point.date.getTime());
+        endDate.setUTCDate(endDate.getUTCDate() + 7);
+        dateText = `${dateFormatter(endDate)}`;
+      }
+      const deltaText = Number.isFinite(point.delta) ? formatValue(point.delta) : "0";
+      const data = point.data || {};
+
+
+      const valTotal = data.datasets_without_filter_total != null ? formatValue(data.datasets_without_filter_total) : "0";
+      const valWeek = data.datasets_week_without_filter != null ? formatValue(data.datasets_week_without_filter) : "0";
+      tooltip.html(`<strong>${point.id}</strong><br>${dateText}<br>${currentMetric.label} so far DL > 200: ${formatValue(point.end)}<br>This week: ${deltaText}<br>Datasets so far: ${valTotal}`);
+      const ttNode = tooltip.node();
+      const ttWidth = ttNode ? ttNode.offsetWidth : 0;
+      const left = Math.max(6, x - ttWidth - 14);
+      const top = Math.max(6, y - 28);
+      tooltip.style("left", `${left}px`);
+      tooltip.style("top", `${top}px`);
+    }
+
+    function hideTooltip() { tooltip.style("opacity", 0); }
+
+    function updateDateUI() {
+      if (!timelineDates.length || !dateDisplayEl) { return; }
+      const idx = Math.max(0, Math.min(currentEnd, timelineDates.length - 1));
+      const d = timelineDates[idx];
+      const endDate = new Date(d.getTime());
+      endDate.setUTCDate(endDate.getUTCDate() + 7);
+      dateDisplayEl.textContent = `${dateFormatter(endDate)}`;
+    }
+
+    function setupAnimation() {
+      if (!timelineDates.length) { return; }
+      const clampIndex = v => Math.max(0, Math.min(v, timelineDates.length - 1));
+      const findStartIdx = (date) => {
+        let idx = timelineDates.findIndex(d => d.getTime() >= date.getTime());
+        if (idx === -1) { idx = timelineDates.length - 1; }
+        return clampIndex(idx);
+      };
+      const findEndIdx = (date) => {
+        let idx = timelineDates.length - 1;
+        for (let i = timelineDates.length - 1; i >= 0; i--) {
+          if (timelineDates[i].getTime() <= date.getTime()) { idx = i; break; }
+        }
+        return clampIndex(idx);
+      };
+      const startIdx = findStartIdx(DEFAULT_START_DATE);
+      const endIdx = findEndIdx(DEFAULT_END_DATE);
+      animDefaultStart = startIdx;
+      animDefaultEnd = endIdx;
+      animWindowSize = Math.max(1, animDefaultEnd - animDefaultStart);
       currentEnd = animDefaultEnd;
       currentStart = Math.max(0, currentEnd - animWindowSize);
+      animTargetEnd = timelineDates.length - 1;
       updateFrameRange(currentStart, currentEnd);
       startTimer();
-    }, REPLAY_DELAY);
-    return;
-  }
-  const nextEnd = Math.min(hardStop, currentEnd + autoStep);
-  const nextStart = Math.max(0, nextEnd - animWindowSize);
-  currentStart = nextStart;
-  currentEnd = nextEnd;
-  updateFrameRange(currentStart, currentEnd);
-}
-
-function startTimer(){
-  stopTimer();
-  autoTimer = window.setInterval(tick, autoDelay);
-}
-
-function stopTimer(){
-  if(autoTimer){ window.clearInterval(autoTimer); autoTimer = null; }
-}
-
-function restartTimerIfPlaying(){
-  if(autoTimer){ startTimer(); }
-}
-
-function setAutoStep(n){
-  const v = Math.max(STEP_MIN, Math.min(STEP_MAX, Math.round(n)));
-  autoStep = v;
-  restartTimerIfPlaying();
-}
-
-function setAutoDelay(ms){
-  const v = Math.max(DELAY_MIN, Math.min(DELAY_MAX, Math.round(ms)));
-  autoDelay = v;
-  restartTimerIfPlaying();
-}
-
-function bindSpeedKeys(){
-  window.addEventListener("keydown", e=>{
-    if(e.key === "-" || e.key === "_"){ setAutoDelay(autoDelay + 150); }
-    else if(e.key === "=" || e.key === "+"){ setAutoDelay(autoDelay - 120); }
-    else if(e.key === "["){ setAutoStep(autoStep - 1); }
-    else if(e.key === "]"){ setAutoStep(autoStep + 1); }
-  });
-  window.AnimationSpeed = { setAutoStep, setAutoDelay };
-}
-
-if(typeof ResizeObserver !== "undefined" && vizEl){
-  const chartObserver = new ResizeObserver(()=>{ render(); updateFrameRange(currentStart, currentEnd); });
-  chartObserver.observe(vizEl);
-}
-window.addEventListener("resize", ()=>{ render(); updateFrameRange(currentStart, currentEnd); });
-svg.on("mouseleave", hideTooltip);
-
-function resolveFinalLabelCollisions(root){
-  if(!root || !yScale){ return; }
-  const plotBottom = yScale.range()[0];
-  const plotTop = yScale.range()[1];
-  const labels = [];
-  root.selectAll("g.final-node").each(function(){
-    const labelEl = d3.select(this).select("text.final-label");
-    const circleEl = d3.select(this).select("circle.final-outline");
-    if(labelEl.empty() || circleEl.empty() || labelEl.style("display") === "none"){ return; }
-    const labelNode = labelEl.node();
-    const circleNode = circleEl.node();
-    if(!labelNode || !circleNode){ return; }
-    const bbox = labelNode.getBBox();
-    const targetY = Number(labelEl.attr("y")) || 0;
-    const cx = Number(circleEl.attr("cx")) || 0;
-    const r = Number(circleEl.attr("r")) || 0;
-    labels.push({ labelEl, bbox, targetY, cx, r, half: bbox.height / 2 });
-  });
-  if(!labels.length || !Number.isFinite(plotBottom)){ return; }
-  const available = plotBottom - plotTop;
-  const totalHeight = labels.reduce((sum, item)=>sum + item.bbox.height, 0);
-  const baseGap = 6;
-  const compactGap = labels.length > 1 && Number.isFinite(available) ? (available - totalHeight) / (labels.length - 1) : baseGap;
-  const minGap = Math.max(2.5, Math.min(baseGap, Number.isFinite(compactGap) ? compactGap * 0.6 : baseGap));
-  const maxShift = Math.max(16, Math.min(40, available * 0.18));
-  labels.sort((a, b) => a.targetY - b.targetY);
-  labels.forEach(label => {
-    label.y = Math.max(plotTop + label.half, Math.min(plotBottom - label.half, label.targetY));
-  });
-  for(let i = 1; i < labels.length; i++){
-    const prev = labels[i - 1];
-    const sep = prev.half + labels[i].half + minGap;
-    labels[i].y = Math.max(labels[i].y, prev.y + sep);
-  }
-  const last = labels[labels.length - 1];
-  const overflowBottom = last.y + last.half - plotBottom;
-  if(overflowBottom > 0){
-    labels.forEach(label => { label.y -= overflowBottom; });
-  }
-  for(let i = labels.length - 2; i >= 0; i--){
-    const next = labels[i + 1];
-    const sep = labels[i].half + next.half + minGap;
-    const maxY = next.y - sep;
-    const desired = Math.max(plotTop + labels[i].half, Math.min(maxY, labels[i].targetY + maxShift));
-    labels[i].y = Math.min(labels[i].y, desired);
-  }
-  for(let i = 1; i < labels.length; i++){
-    const prev = labels[i - 1];
-    const sep = prev.half + labels[i].half + minGap;
-    if(labels[i].y < prev.y + sep){
-      labels[i].y = prev.y + sep;
     }
-  }
-  const topOverflow = labels[0].y - labels[0].half - plotTop;
-  if(topOverflow < 0){ labels.forEach(label => { label.y -= topOverflow; }); }
-  labels.forEach(label => {
-    const labelPad = Math.max(6, Math.round(label.r * 0.45));
-    const clampedY = Math.max(plotTop + label.half, Math.min(plotBottom - label.half, label.y));
-    label.labelEl.attr("y", clampedY).attr("x", label.cx + label.r + labelPad);
-  });
-}
-</script>
-<script>
-(function(){
-  const DATA_URL = "data2.csv";
-  const LIMIT_MODES = { top10: 10, top25: 25, top50: 50 };
-  const DEFAULT_LIMIT_MODE = "top10";
-  const svg = d3.select("#bumpChart");
-  const tooltip = d3.select("#bumpTooltip");
-  const legendContainer = d3.select("#bumpLegend");
-  const vizContainer = document.getElementById("bumpViz");
-  const selectorButtons = Array.from(document.querySelectorAll("#bumpView .selector-button"));
-  let preparedData = null;
-  let rawRows = [];
-  let currentLimitMode = DEFAULT_LIMIT_MODE;
-  let selectedLabel = null;
-  let selectedParent = null;
-  let parentIndexMap = new Map();
-  let isFullScreen = false;
-  let listenersReady = false;
-  let hasLoaded = false;
 
-  function getQueryParams(){
-    const params = new URLSearchParams(window.location.search);
-    return { top: params.get("top"), parent: params.get("parent"), fullScreen: params.get("fullScreen") };
-  }
-
-  function updateURL(params = {}){
-    const url = new URL(window.location);
-    if(params.top !== undefined){
-      if(params.top && params.top !== DEFAULT_LIMIT_MODE){ url.searchParams.set("top", params.top); }
-      else { url.searchParams.delete("top"); }
-    }
-    if(params.parent !== undefined){
-      if(params.parent !== null && params.parent !== ""){ url.searchParams.set("parent", params.parent); }
-      else { url.searchParams.delete("parent"); }
-    }
-    window.history.replaceState({}, "", url);
-  }
-
-  function getParentIndex(parentName){
-    return Array.from(parentIndexMap.entries()).find(([key, value]) => value === parentName)?.[0] ?? null;
-  }
-
-  function getParentByIndex(index){
-    return parentIndexMap.get(parseInt(index, 10)) ?? null;
-  }
-
-  function sanitizeColumn(value){
-    if(value === undefined || value === null){ return null; }
-    const trimmed = String(value).trim();
-    return trimmed || null;
-  }
-
-  function getCurrentLimit(){
-    const limit = LIMIT_MODES[currentLimitMode];
-    return Number.isFinite(limit) ? limit : Infinity;
-  }
-
-  function getAxisFontSize(){
-    if(currentLimitMode === "top25"){ return "clamp(7px, 1vw, 14px)"; }
-    if(currentLimitMode === "top50"){ return "clamp(6px, 0.9vw, 12px)"; }
-    return "clamp(8px, 1.2vw, 18px)";
-  }
-
-  function getLineWidth(){
-    let baseWidth;
-    if(currentLimitMode === "top25"){ baseWidth = 2.6; }
-    else if(currentLimitMode === "top50"){ baseWidth = 2.2; }
-    else { baseWidth = 3.4; }
-    return isFullScreen ? baseWidth * 1.5 : baseWidth;
-  }
-
-  function getPointRadius(){
-    let baseRadius;
-    if(currentLimitMode === "top25"){ baseRadius = 5.2; }
-    else if(currentLimitMode === "top50"){ baseRadius = 4.3; }
-    else { baseRadius = 7; }
-    return isFullScreen ? baseRadius * 1.5 : baseRadius;
-  }
-
-  function updateVizDensityClass(){
-    if(!vizContainer){ return; }
-    vizContainer.classList.remove("density-top10", "density-top25", "density-top50");
-    const modeClass = currentLimitMode ? `density-${currentLimitMode}` : null;
-    if(modeClass){ vizContainer.classList.add(modeClass); }
-  }
-
-  function updateSelectorButtons(){
-    selectorButtons.forEach(button => {
-      const mode = button.getAttribute("data-mode");
-      button.classList.toggle("active", mode === currentLimitMode);
-    });
-  }
-
-  function buildColorPalette(){
-    const paletteSources = [d3.schemeTableau10, d3.schemeSet3, d3.schemeSet2, d3.schemeSet1, d3.schemePaired, d3.schemeAccent, d3.schemeCategory10];
-    const merged = [];
-    paletteSources.forEach(source => {
-      if(!Array.isArray(source)){ return; }
-      if(source.every(item => typeof item === "string")){ merged.push(...source); }
-      else { source.forEach(entry => { if(Array.isArray(entry)){ merged.push(...entry); } }); }
-    });
-    if(!merged.length){ merged.push("#2756d3", "#22c55e", "#f97316", "#eab308", "#a855f7", "#0ea5e9"); }
-    return merged;
-  }
-
-  function prepareBumpData(rows, limit = Infinity){
-    const parsed = rows.map(row => {
-      const yearRaw = sanitizeColumn(row.year);
-      const label = sanitizeColumn(row.label);
-      const parent = sanitizeColumn(row.parent);
-      const valueRaw = sanitizeColumn(row.count ?? row.amount ?? row.value ?? row.total ?? row.counts);
-      const value = valueRaw !== null ? +valueRaw : NaN;
-      const color = sanitizeColumn(row.color);
-      const yearValue = yearRaw ? +yearRaw : NaN;
-      return { year: yearRaw, yearValue: Number.isFinite(yearValue) ? yearValue : null, label, parent, value: Number.isFinite(value) ? value : null, color };
-    }).filter(d => d.year && d.label && Number.isFinite(d.yearValue) && Number.isFinite(d.value));
-    if(!parsed.length){ return null; }
-    const yearValues = Array.from(new Set(parsed.map(d => d.yearValue))).sort((a, b) => a - b);
-    const yearLabelMap = new Map();
-    parsed.forEach(row => { if(!yearLabelMap.has(row.yearValue)){ yearLabelMap.set(row.yearValue, row.year); } });
-    const labelColorCandidates = new Map();
-    const labelParentMap = new Map();
-    const labelYearMap = new Map();
-    parsed.forEach(row => {
-      if(!row.label){ return; }
-      if(!labelColorCandidates.has(row.label) && row.color){ labelColorCandidates.set(row.label, row.color); }
-      if(row.parent && !labelParentMap.has(row.label)){ labelParentMap.set(row.label, row.parent); }
-      if(!labelYearMap.has(row.label)){ labelYearMap.set(row.label, new Map()); }
-      const yearMap = labelYearMap.get(row.label);
-      yearMap.set(row.yearValue, (yearMap.get(row.yearValue) || 0) + row.value);
-    });
-    const latestYear = d3.max(yearValues);
-    const labelMetrics = Array.from(labelYearMap.entries()).map(([label, yearMap]) => {
-      const latestValue = yearMap.get(latestYear) || 0;
-      const total = Array.from(yearMap.values()).reduce((sum, v) => sum + v, 0);
-      return { label, latestValue, total };
-    });
-    labelMetrics.sort((a, b) => {
-      if(b.latestValue === a.latestValue){
-        if(b.total === a.total){ return a.label.localeCompare(b.label); }
-        return b.total - a.total;
+    function tick() {
+      const hardStop = Math.min(animTargetEnd, timelineDates.length - 1);
+      if (currentEnd >= hardStop) {
+        stopTimer();
+        if (replayTimeout) { window.clearTimeout(replayTimeout); }
+        replayTimeout = window.setTimeout(() => {
+          currentEnd = animDefaultEnd;
+          currentStart = Math.max(0, currentEnd - animWindowSize);
+          updateFrameRange(currentStart, currentEnd);
+          startTimer();
+        }, REPLAY_DELAY);
+        return;
       }
-      return b.latestValue - a.latestValue;
-    });
-    const limitCount = Number.isFinite(limit) ? limit : labelMetrics.length;
-    const topLabels = labelMetrics.slice(0, limitCount);
-    const palette = buildColorPalette();
-    const colorScale = d3.scaleOrdinal().domain(topLabels.map(d => d.label)).range(palette);
-    const rankingByYear = new Map();
-    yearValues.forEach(yearValue => {
-      const ranking = topLabels.map(d => {
-        const count = (labelYearMap.get(d.label)?.get(yearValue)) || 0;
-        return { label: d.label, value: count };
-      }).sort((a, b) => {
-        if(b.value === a.value){ return a.label.localeCompare(b.label); }
-        return b.value - a.value;
+      const nextEnd = Math.min(hardStop, currentEnd + autoStep);
+      const nextStart = Math.max(0, nextEnd - animWindowSize);
+      currentStart = nextStart;
+      currentEnd = nextEnd;
+      updateFrameRange(currentStart, currentEnd);
+    }
+
+    function startTimer() {
+      stopTimer();
+      autoTimer = window.setInterval(tick, autoDelay);
+    }
+
+    function stopTimer() {
+      if (autoTimer) { window.clearInterval(autoTimer); autoTimer = null; }
+    }
+
+    function restartTimerIfPlaying() {
+      if (autoTimer) { startTimer(); }
+    }
+
+    function setAutoStep(n) {
+      const v = Math.max(STEP_MIN, Math.min(STEP_MAX, Math.round(n)));
+      autoStep = v;
+      restartTimerIfPlaying();
+    }
+
+    function setAutoDelay(ms) {
+      const v = Math.max(DELAY_MIN, Math.min(DELAY_MAX, Math.round(ms)));
+      autoDelay = v;
+      restartTimerIfPlaying();
+    }
+
+    function bindSpeedKeys() {
+      window.addEventListener("keydown", e => {
+        if (e.key === "-" || e.key === "_") { setAutoDelay(autoDelay + 150); }
+        else if (e.key === "=" || e.key === "+") { setAutoDelay(autoDelay - 120); }
+        else if (e.key === "[") { setAutoStep(autoStep - 1); }
+        else if (e.key === "]") { setAutoStep(autoStep + 1); }
       });
-      ranking.forEach((entry, index) => { entry.rank = index + 1; });
-      rankingByYear.set(yearValue, new Map(ranking.map(entry => [entry.label, entry.rank])));
-    });
-    const series = topLabels.map(item => {
-      const labelName = item.label;
-      const color = labelColorCandidates.get(labelName) || colorScale(labelName);
-      const parentName = labelParentMap.get(labelName) || null;
-      const values = yearValues.map(yearValue => ({
-        label: labelName,
-        parent: parentName,
-        yearValue,
-        year: yearLabelMap.get(yearValue) || String(yearValue),
-        value: (labelYearMap.get(labelName)?.get(yearValue)) || 0,
-        rank: rankingByYear.get(yearValue)?.get(labelName) ?? topLabels.length
-      }));
-      return { label: labelName, parent: parentName, color, values };
-    });
-    return { series, years: yearValues, yearLabels: yearValues.map(yearValue => yearLabelMap.get(yearValue) || String(yearValue)), maxRank: topLabels.length };
-  }
-
-  function buildLegend(series){
-    legendContainer.selectAll("*").remove();
-    const groups = d3.group(series, d => d.parent || "Uncategorized");
-    const entries = Array.from(groups.entries()).map(([parent, groupSeries]) => ({ parent, color: groupSeries[0]?.color || "#94a3b8", labels: groupSeries.map(s => s.label) }));
-    parentIndexMap.clear();
-    entries.forEach((entry, index) => { parentIndexMap.set(index, entry.parent); });
-    const legendItems = legendContainer.selectAll(".legend-item").data(entries, d => d.parent);
-    const legendEnter = legendItems.enter().append("div").attr("class", "legend-item").attr("tabindex", 0).on("mouseenter", (_, d) => handleLegendHover(d.parent)).on("mouseleave", handleLegendMouseLeave).on("focus", (_, d) => handleLegendHover(d.parent)).on("blur", handleLegendMouseLeave).on("click", (event, d) => { event.preventDefault(); toggleParentSelection(d.parent); }).on("keydown", (event, d) => {
-      if(event.key !== "Enter" && event.key !== " "){ return; }
-      event.preventDefault();
-      toggleParentSelection(d.parent);
-    });
-    legendEnter.append("div").attr("class", "legend-square").style("background", d => d.color);
-    legendEnter.append("div").text(d => d.parent);
-    legendItems.exit().remove();
-  }
-
-  function drawChart(data){
-    if(!data || !data.series.length){
-      svg.selectAll("*").remove();
-      return;
+      window.AnimationSpeed = { setAutoStep, setAutoDelay };
     }
-    const containerWidth = vizContainer ? vizContainer.clientWidth : 800;
-    const containerHeight = vizContainer ? vizContainer.clientHeight : 520;
-    const width = containerWidth || 800;
-    const height = (containerHeight > 0 ? containerHeight : 520);
-    const isSmallHeight = window.innerHeight < 500;
-    let margin;
-    if(isSmallHeight){ margin = { top: 8, right: 8, bottom: 8, left: 8 }; }
-    else if(currentLimitMode === "top10"){ margin = { top: 32, right: 80, bottom: 48, left: 80 }; }
-    else { margin = { top: 32, right: 16, bottom: 48, left: 56 }; }
-    svg.attr("viewBox", `0 0 ${width} ${height}`).attr("width", width).attr("height", height);
-    svg.selectAll("*").remove();
-    const xScale = d3.scalePoint().domain(data.yearLabels).range([margin.left, width - margin.right]).padding(0.5);
-    const yScale = d3.scaleLinear().domain([data.maxRank + 0.5, 0.5]).range([height - margin.bottom, margin.top]);
-    const lineGenerator = d3.line().x(d => xScale(d.year)).y(d => yScale(d.rank)).curve(d3.curveMonotoneX);
-    const axisFontSize = getAxisFontSize();
-    const lineWidth = getLineWidth();
-    const pointRadius = getPointRadius();
-    const lineWidthPx = `${lineWidth}px`;
-    svg.append("g").attr("class", "axis axis--y").attr("transform", `translate(${margin.left},0)`).call(d3.axisLeft(yScale).ticks(data.maxRank).tickFormat(d => d)).selectAll("text").style("font-size", axisFontSize).style("font-weight", 600);
-    svg.append("g").attr("class", "axis axis--x").attr("transform", `translate(0,${height - margin.bottom})`).call(d3.axisBottom(xScale)).selectAll("text").style("font-weight", 700).style("font-size", axisFontSize);
-    svg.append("g").attr("class", "grid-lines").selectAll("line").data(d3.range(1, data.maxRank + 1)).enter().append("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", d => yScale(d)).attr("y2", d => yScale(d)).attr("stroke", "rgba(15, 23, 42, 0.08)").attr("stroke-dasharray", "4,4");
-    const seriesGroup = svg.append("g").attr("class", "series-group").selectAll(".series").data(data.series, d => d.label).enter().append("g").attr("class", "series").attr("data-label", d => d.label);
-    seriesGroup.append("path").attr("class", "series-line").attr("stroke", d => d.color).attr("d", d => lineGenerator(d.values)).style("--lineWidth", lineWidthPx).on("mouseenter", (_, d) => handleLabelHover(d.label)).on("mouseleave", handleLabelMouseLeave).on("click", (event, d) => { event.stopPropagation(); toggleLabelSelection(d.label); });
-    seriesGroup.selectAll(".series-point").data(d => d.values.map(value => ({ ...value, color: d.color }))).enter().append("circle").attr("class", "series-point").attr("r", pointRadius).attr("cx", d => xScale(d.year)).attr("cy", d => yScale(d.rank)).attr("fill", d => d.color).on("mouseenter", (event, d) => {
-      handleLabelHover(d.label);
-      tooltip.style("opacity", 1).html(() => {
-        const parentLine = d.parent ? `Category: ${d.parent}<br/>` : "";
-        return `<strong>${d.label}</strong><br/>${parentLine}Year: ${d.year}<br/>Rank: ${d.rank}<br/>Datasets: ${d3.format(",.0f")(d.value)}`;
+
+    if (typeof ResizeObserver !== "undefined" && vizEl) {
+      const chartObserver = new ResizeObserver(() => { render(); updateFrameRange(currentStart, currentEnd); });
+      chartObserver.observe(vizEl);
+    }
+    window.addEventListener("resize", () => { render(); updateFrameRange(currentStart, currentEnd); });
+    svg.on("mouseleave", hideTooltip);
+
+    function resolveFinalLabelCollisions(root) {
+      if (!root || !yScale) { return; }
+      const plotBottom = yScale.range()[0];
+      const plotTop = yScale.range()[1];
+      const labels = [];
+      root.selectAll("g.final-node").each(function () {
+        const labelEl = d3.select(this).select("text.final-label");
+        const circleEl = d3.select(this).select("circle.final-outline");
+        if (labelEl.empty() || circleEl.empty() || labelEl.style("display") === "none") { return; }
+        const labelNode = labelEl.node();
+        const circleNode = circleEl.node();
+        if (!labelNode || !circleNode) { return; }
+        const bbox = labelNode.getBBox();
+        const targetY = Number(labelEl.attr("y")) || 0;
+        const cx = Number(circleEl.attr("cx")) || 0;
+        const r = Number(circleEl.attr("r")) || 0;
+        labels.push({ labelEl, bbox, targetY, cx, r, half: bbox.height / 2 });
       });
-      moveTooltip(event);
-    }).on("mousemove", moveTooltip).on("mouseleave", () => { tooltip.style("opacity", 0); handleLabelMouseLeave(); }).on("click", (event, d) => { event.stopPropagation(); toggleLabelSelection(d.label); });
-    const firstYearLabel = data.yearLabels[0];
-    const lastYearLabel = data.yearLabels[data.yearLabels.length - 1];
-    const firstX = (xScale(firstYearLabel) || margin.left) - 12;
-    const lastX = (xScale(lastYearLabel) || (width - margin.right)) + 12;
-    const startLabels = seriesGroup.append("text").attr("class", "series-label series-label-start").attr("x", firstX).attr("y", d => yScale(d.values[0].rank)).attr("text-anchor", "end").attr("dy", "0.35em").attr("fill", d => d.color).text(d => d.label);
-    const endLabels = seriesGroup.append("text").attr("class", "series-label series-label-end").attr("x", lastX).attr("y", d => yScale(d.values[d.values.length - 1].rank)).attr("text-anchor", "start").attr("dy", "0.35em").attr("fill", d => d.color).text(d => d.label);
-    function attachLabelInteractions(selection){
-      selection.attr("role", "button").attr("tabindex", 0).attr("data-label", d => d.label).style("pointer-events", "auto").style("cursor", "pointer").on("mouseenter", (_, d) => handleLabelHover(d.label)).on("mouseleave", handleLabelMouseLeave).on("click", (event, d) => { event.stopPropagation(); toggleLabelSelection(d.label); }).on("keydown", (event, d) => {
-        if(event.key !== "Enter" && event.key !== " "){ return; }
-        event.preventDefault();
-        toggleLabelSelection(d.label);
+      if (!labels.length || !Number.isFinite(plotBottom)) { return; }
+      const available = plotBottom - plotTop;
+      const totalHeight = labels.reduce((sum, item) => sum + item.bbox.height, 0);
+      const baseGap = 6;
+      const compactGap = labels.length > 1 && Number.isFinite(available) ? (available - totalHeight) / (labels.length - 1) : baseGap;
+      const minGap = Math.max(2.5, Math.min(baseGap, Number.isFinite(compactGap) ? compactGap * 0.6 : baseGap));
+      const maxShift = Math.max(16, Math.min(40, available * 0.18));
+      labels.sort((a, b) => a.targetY - b.targetY);
+      labels.forEach(label => {
+        label.y = Math.max(plotTop + label.half, Math.min(plotBottom - label.half, label.targetY));
       });
-    }
-    attachLabelInteractions(startLabels);
-    attachLabelInteractions(endLabels);
-    applyCurrentHighlight();
-  }
-
-  function moveTooltip(event){
-    const tooltipNode = tooltip.node();
-    if(!tooltipNode){ return; }
-    const { pageX, pageY } = event;
-    const tooltipWidth = tooltipNode.offsetWidth || 160;
-    const offset = 16;
-    const left = (pageX + tooltipWidth + offset > window.innerWidth) ? pageX - tooltipWidth - offset : pageX + offset;
-    tooltip.style("left", `${left}px`).style("top", `${pageY - 24}px`);
-  }
-
-  function highlightSeries(labelName){
-    const seriesSelection = svg.selectAll(".series");
-    if(!labelName){
-      seriesSelection.classed("highlighted", false).classed("dim", false);
-      legendContainer.selectAll(".legend-item").classed("dim", false);
-      return;
-    }
-    seriesSelection.classed("highlighted", d => d.label === labelName).classed("dim", d => d.label !== labelName);
-    legendContainer.selectAll(".legend-item").classed("dim", d => d.labels && !d.labels.includes(labelName));
-  }
-
-  function applyCurrentHighlight(){
-    if(selectedLabel){ highlightSeries(selectedLabel); return; }
-    if(selectedParent){ highlightParentSeries(selectedParent); return; }
-    highlightSeries(null);
-  }
-
-  function toggleLabelSelection(labelName){
-    if(!labelName){ return; }
-    if(selectedLabel === labelName){ selectedLabel = null; applyCurrentHighlight(); }
-    else { selectedLabel = labelName; selectedParent = null; highlightSeries(labelName); }
-  }
-
-  function handleLabelHover(labelName){
-    if(!labelName){ return; }
-    if((selectedLabel && selectedLabel !== labelName) || selectedParent){ return; }
-    highlightSeries(labelName);
-  }
-
-  function handleLabelMouseLeave(){
-    applyCurrentHighlight();
-  }
-
-  function highlightParentSeries(parentName){
-    const seriesSelection = svg.selectAll(".series");
-    seriesSelection.classed("highlighted", d => (d.parent || "Uncategorized") === parentName).classed("dim", d => (d.parent || "Uncategorized") !== parentName);
-    legendContainer.selectAll(".legend-item").classed("dim", d => d.parent !== parentName);
-  }
-
-  function toggleParentSelection(parentName){
-    if(!parentName){ return; }
-    if(selectedParent === parentName){
-      selectedParent = null;
-      updateURL({ parent: null });
-    }else{
-      selectedParent = parentName;
-      selectedLabel = null;
-      const parentIndex = getParentIndex(parentName);
-      updateURL({ parent: parentIndex !== null ? String(parentIndex) : null });
-    }
-    applyCurrentHighlight();
-  }
-
-  function handleLegendHover(parentName){
-    if(!parentName || selectedLabel || selectedParent){ return; }
-    highlightParentSeries(parentName);
-  }
-
-  function handleLegendMouseLeave(){
-    applyCurrentHighlight();
-  }
-
-  function applyFullScreenMode(){
-    const vizGrid = document.querySelector("#bumpView .bump-grid");
-    const container3 = document.getElementById("bumpContainer3");
-    const container4 = document.getElementById("bumpContainer4");
-    const container5 = document.getElementById("bumpContainer5");
-    if(isFullScreen){
-      if(container3){ container3.style.display = "none"; }
-      if(container4){ container4.style.display = "none"; }
-      if(container5){ container5.style.display = "none"; }
-      if(vizGrid){ vizGrid.style.gridTemplateRows = "1fr auto"; }
-    }else{
-      if(container3){ container3.style.display = ""; }
-      if(container4){ container4.style.display = ""; }
-      if(container5){ container5.style.display = ""; }
-      if(vizGrid){ vizGrid.style.gridTemplateRows = ""; }
-    }
-  }
-
-  function loadData(){
-    d3.csv(DATA_URL).then(rows => {
-      rawRows = rows;
-      selectedLabel = null;
-      selectedParent = null;
-      const queryParams = getQueryParams();
-      if(queryParams.top && LIMIT_MODES[queryParams.top]){ currentLimitMode = queryParams.top; }
-      isFullScreen = queryParams.fullScreen === "1";
-      applyFullScreenMode();
-      updateSelectorButtons();
-      updateVisualization();
-      if(queryParams.parent !== null && queryParams.parent !== ""){
-        const parentName = getParentByIndex(queryParams.parent);
-        if(parentName){ selectedParent = parentName; applyCurrentHighlight(); }
+      for (let i = 1; i < labels.length; i++) {
+        const prev = labels[i - 1];
+        const sep = prev.half + labels[i].half + minGap;
+        labels[i].y = Math.max(labels[i].y, prev.y + sep);
       }
-    }).catch(err => {
-      console.error("Failed to load CSV", err);
-      svg.selectAll("*").remove();
-      legendContainer.text("Unable to load data");
-    });
-  }
-
-  function updateVisualization(){
-    if(!rawRows.length){
-      svg.selectAll("*").remove();
-      legendContainer.text("No data available");
-      return;
-    }
-    preparedData = prepareBumpData(rawRows, getCurrentLimit());
-    if(!preparedData || !preparedData.series.length){
-      console.error("Unable to prepare bump chart data");
-      svg.selectAll("*").remove();
-      legendContainer.text("No data available");
-      return;
-    }
-    if(selectedLabel && !preparedData.series.some(series => series.label === selectedLabel)){ selectedLabel = null; }
-    if(selectedParent){
-      const hasParent = preparedData.series.some(series => {
-        const normalizedParent = series.parent || "Uncategorized";
-        return normalizedParent === selectedParent;
+      const last = labels[labels.length - 1];
+      const overflowBottom = last.y + last.half - plotBottom;
+      if (overflowBottom > 0) {
+        labels.forEach(label => { label.y -= overflowBottom; });
+      }
+      for (let i = labels.length - 2; i >= 0; i--) {
+        const next = labels[i + 1];
+        const sep = labels[i].half + next.half + minGap;
+        const maxY = next.y - sep;
+        const desired = Math.max(plotTop + labels[i].half, Math.min(maxY, labels[i].targetY + maxShift));
+        labels[i].y = Math.min(labels[i].y, desired);
+      }
+      for (let i = 1; i < labels.length; i++) {
+        const prev = labels[i - 1];
+        const sep = prev.half + labels[i].half + minGap;
+        if (labels[i].y < prev.y + sep) {
+          labels[i].y = prev.y + sep;
+        }
+      }
+      const topOverflow = labels[0].y - labels[0].half - plotTop;
+      if (topOverflow < 0) { labels.forEach(label => { label.y -= topOverflow; }); }
+      labels.forEach(label => {
+        const labelPad = Math.max(6, Math.round(label.r * 0.45));
+        const clampedY = Math.max(plotTop + label.half, Math.min(plotBottom - label.half, label.y));
+        label.labelEl.attr("y", clampedY).attr("x", label.cx + label.r + labelPad);
       });
-      if(!hasParent){ selectedParent = null; }
     }
-    updateVizDensityClass();
-    buildLegend(preparedData.series);
-    drawChart(preparedData);
-  }
+  </script>
+  <script>
+    (function () {
+      const DATA_URL = "data2.csv";
+      const LIMIT_MODES = { top10: 10, top25: 25, top50: 50 };
+      const DEFAULT_LIMIT_MODE = "top10";
+      const svg = d3.select("#bumpChart");
+      const tooltip = d3.select("#bumpTooltip");
+      const legendContainer = d3.select("#bumpLegend");
+      const vizContainer = document.getElementById("bumpViz");
+      const selectorButtons = Array.from(document.querySelectorAll("#bumpView .selector-button"));
+      let preparedData = null;
+      let rawRows = [];
+      let currentLimitMode = DEFAULT_LIMIT_MODE;
+      let selectedLabel = null;
+      let selectedParent = null;
+      let parentIndexMap = new Map();
+      let isFullScreen = false;
+      let listenersReady = false;
+      let hasLoaded = false;
 
-  function handleResize(){
-    if(preparedData){ drawChart(preparedData); }
-  }
+      function getQueryParams() {
+        const params = new URLSearchParams(window.location.search);
+        return { top: params.get("top"), parent: params.get("parent"), fullScreen: params.get("fullScreen") };
+      }
 
-  function ensureListeners(){
-    if(listenersReady){ return; }
-    listenersReady = true;
-    selectorButtons.forEach(button => {
-      button.addEventListener("click", () => {
-        const mode = button.getAttribute("data-mode");
-        if(!mode || mode === currentLimitMode){ return; }
-        currentLimitMode = mode;
-        selectedLabel = null;
-        selectedParent = null;
-        updateURL({ top: mode, parent: null });
-        updateSelectorButtons();
-        updateVisualization();
-      });
-    });
-    window.addEventListener("resize", handleResize);
-  }
+      function updateURL(params = {}) {
+        const url = new URL(window.location);
+        if (params.top !== undefined) {
+          if (params.top && params.top !== DEFAULT_LIMIT_MODE) { url.searchParams.set("top", params.top); }
+          else { url.searchParams.delete("top"); }
+        }
+        if (params.parent !== undefined) {
+          if (params.parent !== null && params.parent !== "") { url.searchParams.set("parent", params.parent); }
+          else { url.searchParams.delete("parent"); }
+        }
+        window.history.replaceState({}, "", url);
+      }
 
-  function init(){
-    ensureListeners();
-    if(hasLoaded){ updateVisualization(); return; }
-    hasLoaded = true;
-    loadData();
-  }
+      function getParentIndex(parentName) {
+        return Array.from(parentIndexMap.entries()).find(([key, value]) => value === parentName)?.[0] ?? null;
+      }
 
-  window.BumpView = {
-    init,
-    redraw: ()=>{ if(preparedData){ drawChart(preparedData); applyCurrentHighlight(); } }
-  };
-})();
-</script>
+      function getParentByIndex(index) {
+        return parentIndexMap.get(parseInt(index, 10)) ?? null;
+      }
+
+      function sanitizeColumn(value) {
+        if (value === undefined || value === null) { return null; }
+        const trimmed = String(value).trim();
+        return trimmed || null;
+      }
+
+      function getCurrentLimit() {
+        const limit = LIMIT_MODES[currentLimitMode];
+        return Number.isFinite(limit) ? limit : Infinity;
+      }
+
+      function getAxisFontSize() {
+        if (currentLimitMode === "top25") { return "clamp(7px, 1vw, 14px)"; }
+        if (currentLimitMode === "top50") { return "clamp(6px, 0.9vw, 12px)"; }
+        return "clamp(8px, 1.2vw, 18px)";
+      }
+
+      function getLineWidth() {
+        let baseWidth;
+        if (currentLimitMode === "top25") { baseWidth = 2.6; }
+        else if (currentLimitMode === "top50") { baseWidth = 2.2; }
+        else { baseWidth = 3.4; }
+        return isFullScreen ? baseWidth * 1.5 : baseWidth;
+      }
+
+      function getPointRadius() {
+        let baseRadius;
+        if (currentLimitMode === "top25") { baseRadius = 5.2; }
+        else if (currentLimitMode === "top50") { baseRadius = 4.3; }
+        else { baseRadius = 7; }
+        return isFullScreen ? baseRadius * 1.5 : baseRadius;
+      }
+
+      function updateVizDensityClass() {
+        if (!vizContainer) { return; }
+        vizContainer.classList.remove("density-top10", "density-top25", "density-top50");
+        const modeClass = currentLimitMode ? `density-${currentLimitMode}` : null;
+        if (modeClass) { vizContainer.classList.add(modeClass); }
+      }
+
+      function updateSelectorButtons() {
+        selectorButtons.forEach(button => {
+          const mode = button.getAttribute("data-mode");
+          button.classList.toggle("active", mode === currentLimitMode);
+        });
+      }
+
+      function buildColorPalette() {
+        const paletteSources = [d3.schemeTableau10, d3.schemeSet3, d3.schemeSet2, d3.schemeSet1, d3.schemePaired, d3.schemeAccent, d3.schemeCategory10];
+        const merged = [];
+        paletteSources.forEach(source => {
+          if (!Array.isArray(source)) { return; }
+          if (source.every(item => typeof item === "string")) { merged.push(...source); }
+          else { source.forEach(entry => { if (Array.isArray(entry)) { merged.push(...entry); } }); }
+        });
+        if (!merged.length) { merged.push("#2756d3", "#22c55e", "#f97316", "#eab308", "#a855f7", "#0ea5e9"); }
+        return merged;
+      }
+
+      function prepareBumpData(rows, limit = Infinity) {
+        const parsed = rows.map(row => {
+          const yearRaw = sanitizeColumn(row.year);
+          const label = sanitizeColumn(row.label);
+          const parent = sanitizeColumn(row.parent);
+          const valueRaw = sanitizeColumn(row.count ?? row.amount ?? row.value ?? row.total ?? row.counts);
+          const value = valueRaw !== null ? +valueRaw : NaN;
+          const color = sanitizeColumn(row.color);
+          const yearValue = yearRaw ? +yearRaw : NaN;
+          return { year: yearRaw, yearValue: Number.isFinite(yearValue) ? yearValue : null, label, parent, value: Number.isFinite(value) ? value : null, color };
+        }).filter(d => d.year && d.label && Number.isFinite(d.yearValue) && Number.isFinite(d.value));
+        if (!parsed.length) { return null; }
+        const yearValues = Array.from(new Set(parsed.map(d => d.yearValue))).sort((a, b) => a - b);
+        const yearLabelMap = new Map();
+        parsed.forEach(row => { if (!yearLabelMap.has(row.yearValue)) { yearLabelMap.set(row.yearValue, row.year); } });
+        const labelColorCandidates = new Map();
+        const labelParentMap = new Map();
+        const labelYearMap = new Map();
+        parsed.forEach(row => {
+          if (!row.label) { return; }
+          if (!labelColorCandidates.has(row.label) && row.color) { labelColorCandidates.set(row.label, row.color); }
+          if (row.parent && !labelParentMap.has(row.label)) { labelParentMap.set(row.label, row.parent); }
+          if (!labelYearMap.has(row.label)) { labelYearMap.set(row.label, new Map()); }
+          const yearMap = labelYearMap.get(row.label);
+          yearMap.set(row.yearValue, (yearMap.get(row.yearValue) || 0) + row.value);
+        });
+        const latestYear = d3.max(yearValues);
+        const labelMetrics = Array.from(labelYearMap.entries()).map(([label, yearMap]) => {
+          const latestValue = yearMap.get(latestYear) || 0;
+          const total = Array.from(yearMap.values()).reduce((sum, v) => sum + v, 0);
+          return { label, latestValue, total };
+        });
+        labelMetrics.sort((a, b) => {
+          if (b.latestValue === a.latestValue) {
+            if (b.total === a.total) { return a.label.localeCompare(b.label); }
+            return b.total - a.total;
+          }
+          return b.latestValue - a.latestValue;
+        });
+        const limitCount = Number.isFinite(limit) ? limit : labelMetrics.length;
+        const topLabels = labelMetrics.slice(0, limitCount);
+        const palette = buildColorPalette();
+        const colorScale = d3.scaleOrdinal().domain(topLabels.map(d => d.label)).range(palette);
+        const rankingByYear = new Map();
+        yearValues.forEach(yearValue => {
+          const ranking = topLabels.map(d => {
+            const count = (labelYearMap.get(d.label)?.get(yearValue)) || 0;
+            return { label: d.label, value: count };
+          }).sort((a, b) => {
+            if (b.value === a.value) { return a.label.localeCompare(b.label); }
+            return b.value - a.value;
+          });
+          ranking.forEach((entry, index) => { entry.rank = index + 1; });
+          rankingByYear.set(yearValue, new Map(ranking.map(entry => [entry.label, entry.rank])));
+        });
+        const series = topLabels.map(item => {
+          const labelName = item.label;
+          const color = labelColorCandidates.get(labelName) || colorScale(labelName);
+          const parentName = labelParentMap.get(labelName) || null;
+          const values = yearValues.map(yearValue => ({
+            label: labelName,
+            parent: parentName,
+            yearValue,
+            year: yearLabelMap.get(yearValue) || String(yearValue),
+            value: (labelYearMap.get(labelName)?.get(yearValue)) || 0,
+            rank: rankingByYear.get(yearValue)?.get(labelName) ?? topLabels.length
+          }));
+          return { label: labelName, parent: parentName, color, values };
+        });
+        return { series, years: yearValues, yearLabels: yearValues.map(yearValue => yearLabelMap.get(yearValue) || String(yearValue)), maxRank: topLabels.length };
+      }
+
+      function buildLegend(series) {
+        legendContainer.selectAll("*").remove();
+        const groups = d3.group(series, d => d.parent || "Uncategorized");
+        const entries = Array.from(groups.entries()).map(([parent, groupSeries]) => ({ parent, color: groupSeries[0]?.color || "#94a3b8", labels: groupSeries.map(s => s.label) }));
+        parentIndexMap.clear();
+        entries.forEach((entry, index) => { parentIndexMap.set(index, entry.parent); });
+        const legendItems = legendContainer.selectAll(".legend-item").data(entries, d => d.parent);
+        const legendEnter = legendItems.enter().append("div").attr("class", "legend-item").attr("tabindex", 0).on("mouseenter", (_, d) => handleLegendHover(d.parent)).on("mouseleave", handleLegendMouseLeave).on("focus", (_, d) => handleLegendHover(d.parent)).on("blur", handleLegendMouseLeave).on("click", (event, d) => { event.preventDefault(); toggleParentSelection(d.parent); }).on("keydown", (event, d) => {
+          if (event.key !== "Enter" && event.key !== " ") { return; }
+          event.preventDefault();
+          toggleParentSelection(d.parent);
+        });
+        legendEnter.append("div").attr("class", "legend-square").style("background", d => d.color);
+        legendEnter.append("div").text(d => d.parent);
+        legendItems.exit().remove();
+      }
+
+      function drawChart(data) {
+        if (!data || !data.series.length) {
+          svg.selectAll("*").remove();
+          return;
+        }
+        const containerWidth = vizContainer ? vizContainer.clientWidth : 800;
+        const containerHeight = vizContainer ? vizContainer.clientHeight : 520;
+        const width = containerWidth || 800;
+        const height = (containerHeight > 0 ? containerHeight : 520);
+        const isSmallHeight = window.innerHeight < 500;
+        let margin;
+        if (isSmallHeight) { margin = { top: 8, right: 8, bottom: 8, left: 8 }; }
+        else if (currentLimitMode === "top10") { margin = { top: 32, right: 80, bottom: 48, left: 80 }; }
+        else { margin = { top: 32, right: 16, bottom: 48, left: 56 }; }
+        svg.attr("viewBox", `0 0 ${width} ${height}`).attr("width", width).attr("height", height);
+        svg.selectAll("*").remove();
+        const xScale = d3.scalePoint().domain(data.yearLabels).range([margin.left, width - margin.right]).padding(0.5);
+        const yScale = d3.scaleLinear().domain([data.maxRank + 0.5, 0.5]).range([height - margin.bottom, margin.top]);
+        const lineGenerator = d3.line().x(d => xScale(d.year)).y(d => yScale(d.rank)).curve(d3.curveMonotoneX);
+        const axisFontSize = getAxisFontSize();
+        const lineWidth = getLineWidth();
+        const pointRadius = getPointRadius();
+        const lineWidthPx = `${lineWidth}px`;
+        svg.append("g").attr("class", "axis axis--y").attr("transform", `translate(${margin.left},0)`).call(d3.axisLeft(yScale).ticks(data.maxRank).tickFormat(d => d)).selectAll("text").style("font-size", axisFontSize).style("font-weight", 600);
+        svg.append("g").attr("class", "axis axis--x").attr("transform", `translate(0,${height - margin.bottom})`).call(d3.axisBottom(xScale)).selectAll("text").style("font-weight", 700).style("font-size", axisFontSize);
+        svg.append("g").attr("class", "grid-lines").selectAll("line").data(d3.range(1, data.maxRank + 1)).enter().append("line").attr("x1", margin.left).attr("x2", width - margin.right).attr("y1", d => yScale(d)).attr("y2", d => yScale(d)).attr("stroke", "rgba(15, 23, 42, 0.08)").attr("stroke-dasharray", "4,4");
+        const seriesGroup = svg.append("g").attr("class", "series-group").selectAll(".series").data(data.series, d => d.label).enter().append("g").attr("class", "series").attr("data-label", d => d.label);
+        seriesGroup.append("path").attr("class", "series-line").attr("stroke", d => d.color).attr("d", d => lineGenerator(d.values)).style("--lineWidth", lineWidthPx).on("mouseenter", (_, d) => handleLabelHover(d.label)).on("mouseleave", handleLabelMouseLeave).on("click", (event, d) => { event.stopPropagation(); toggleLabelSelection(d.label); });
+        seriesGroup.selectAll(".series-point").data(d => d.values.map(value => ({ ...value, color: d.color }))).enter().append("circle").attr("class", "series-point").attr("r", pointRadius).attr("cx", d => xScale(d.year)).attr("cy", d => yScale(d.rank)).attr("fill", d => d.color).on("mouseenter", (event, d) => {
+          handleLabelHover(d.label);
+          tooltip.style("opacity", 1).html(() => {
+            const parentLine = d.parent ? `Category: ${d.parent}<br/>` : "";
+            return `<strong>${d.label}</strong><br/>${parentLine}Year: ${d.year}<br/>Rank: ${d.rank}<br/>Datasets DL>200: ${d3.format(",.0f")(d.value)}`;
+          });
+          moveTooltip(event);
+        }).on("mousemove", moveTooltip).on("mouseleave", () => { tooltip.style("opacity", 0); handleLabelMouseLeave(); }).on("click", (event, d) => { event.stopPropagation(); toggleLabelSelection(d.label); });
+        const firstYearLabel = data.yearLabels[0];
+        const lastYearLabel = data.yearLabels[data.yearLabels.length - 1];
+        const firstX = (xScale(firstYearLabel) || margin.left) - 12;
+        const lastX = (xScale(lastYearLabel) || (width - margin.right)) + 12;
+        const startLabels = seriesGroup.append("text").attr("class", "series-label series-label-start").attr("x", firstX).attr("y", d => yScale(d.values[0].rank)).attr("text-anchor", "end").attr("dy", "0.35em").attr("fill", d => d.color).text(d => d.label);
+        const endLabels = seriesGroup.append("text").attr("class", "series-label series-label-end").attr("x", lastX).attr("y", d => yScale(d.values[d.values.length - 1].rank)).attr("text-anchor", "start").attr("dy", "0.35em").attr("fill", d => d.color).text(d => d.label);
+        function attachLabelInteractions(selection) {
+          selection.attr("role", "button").attr("tabindex", 0).attr("data-label", d => d.label).style("pointer-events", "auto").style("cursor", "pointer").on("mouseenter", (_, d) => handleLabelHover(d.label)).on("mouseleave", handleLabelMouseLeave).on("click", (event, d) => { event.stopPropagation(); toggleLabelSelection(d.label); }).on("keydown", (event, d) => {
+            if (event.key !== "Enter" && event.key !== " ") { return; }
+            event.preventDefault();
+            toggleLabelSelection(d.label);
+          });
+        }
+        attachLabelInteractions(startLabels);
+        attachLabelInteractions(endLabels);
+        applyCurrentHighlight();
+      }
+
+      function moveTooltip(event) {
+        const tooltipNode = tooltip.node();
+        if (!tooltipNode) { return; }
+        const { pageX, pageY } = event;
+        const tooltipWidth = tooltipNode.offsetWidth || 160;
+        const offset = 16;
+        const left = (pageX + tooltipWidth + offset > window.innerWidth) ? pageX - tooltipWidth - offset : pageX + offset;
+        tooltip.style("left", `${left}px`).style("top", `${pageY - 24}px`);
+      }
+
+      function highlightSeries(labelName) {
+        const seriesSelection = svg.selectAll(".series");
+        if (!labelName) {
+          seriesSelection.classed("highlighted", false).classed("dim", false);
+          legendContainer.selectAll(".legend-item").classed("dim", false);
+          return;
+        }
+        seriesSelection.classed("highlighted", d => d.label === labelName).classed("dim", d => d.label !== labelName);
+        legendContainer.selectAll(".legend-item").classed("dim", d => d.labels && !d.labels.includes(labelName));
+      }
+
+      function applyCurrentHighlight() {
+        if (selectedLabel) { highlightSeries(selectedLabel); return; }
+        if (selectedParent) { highlightParentSeries(selectedParent); return; }
+        highlightSeries(null);
+      }
+
+      function toggleLabelSelection(labelName) {
+        if (!labelName) { return; }
+        if (selectedLabel === labelName) { selectedLabel = null; applyCurrentHighlight(); }
+        else { selectedLabel = labelName; selectedParent = null; highlightSeries(labelName); }
+      }
+
+      function handleLabelHover(labelName) {
+        if (!labelName) { return; }
+        if ((selectedLabel && selectedLabel !== labelName) || selectedParent) { return; }
+        highlightSeries(labelName);
+      }
+
+      function handleLabelMouseLeave() {
+        applyCurrentHighlight();
+      }
+
+      function highlightParentSeries(parentName) {
+        const seriesSelection = svg.selectAll(".series");
+        seriesSelection.classed("highlighted", d => (d.parent || "Uncategorized") === parentName).classed("dim", d => (d.parent || "Uncategorized") !== parentName);
+        legendContainer.selectAll(".legend-item").classed("dim", d => d.parent !== parentName);
+      }
+
+      function toggleParentSelection(parentName) {
+        if (!parentName) { return; }
+        if (selectedParent === parentName) {
+          selectedParent = null;
+          updateURL({ parent: null });
+        } else {
+          selectedParent = parentName;
+          selectedLabel = null;
+          const parentIndex = getParentIndex(parentName);
+          updateURL({ parent: parentIndex !== null ? String(parentIndex) : null });
+        }
+        applyCurrentHighlight();
+      }
+
+      function handleLegendHover(parentName) {
+        if (!parentName || selectedLabel || selectedParent) { return; }
+        highlightParentSeries(parentName);
+      }
+
+      function handleLegendMouseLeave() {
+        applyCurrentHighlight();
+      }
+
+      function applyFullScreenMode() {
+        const vizGrid = document.querySelector("#bumpView .bump-grid");
+        const container3 = document.getElementById("bumpContainer3");
+        const container4 = document.getElementById("bumpContainer4");
+        const container5 = document.getElementById("bumpContainer5");
+        if (isFullScreen) {
+          if (container3) { container3.style.display = "none"; }
+          if (container4) { container4.style.display = "none"; }
+          if (container5) { container5.style.display = "none"; }
+          if (vizGrid) { vizGrid.style.gridTemplateRows = "1fr auto"; }
+        } else {
+          if (container3) { container3.style.display = ""; }
+          if (container4) { container4.style.display = ""; }
+          if (container5) { container5.style.display = ""; }
+          if (vizGrid) { vizGrid.style.gridTemplateRows = ""; }
+        }
+      }
+
+      function loadData() {
+        d3.csv(DATA_URL).then(rows => {
+          rawRows = rows;
+          selectedLabel = null;
+          selectedParent = null;
+          const queryParams = getQueryParams();
+          if (queryParams.top && LIMIT_MODES[queryParams.top]) { currentLimitMode = queryParams.top; }
+          isFullScreen = queryParams.fullScreen === "1";
+          applyFullScreenMode();
+          updateSelectorButtons();
+          updateVisualization();
+          if (queryParams.parent !== null && queryParams.parent !== "") {
+            const parentName = getParentByIndex(queryParams.parent);
+            if (parentName) { selectedParent = parentName; applyCurrentHighlight(); }
+          }
+        }).catch(err => {
+          console.error("Failed to load CSV", err);
+          svg.selectAll("*").remove();
+          legendContainer.text("Unable to load data");
+        });
+      }
+
+      function updateVisualization() {
+        if (!rawRows.length) {
+          svg.selectAll("*").remove();
+          legendContainer.text("No data available");
+          return;
+        }
+        preparedData = prepareBumpData(rawRows, getCurrentLimit());
+        if (!preparedData || !preparedData.series.length) {
+          console.error("Unable to prepare bump chart data");
+          svg.selectAll("*").remove();
+          legendContainer.text("No data available");
+          return;
+        }
+        if (selectedLabel && !preparedData.series.some(series => series.label === selectedLabel)) { selectedLabel = null; }
+        if (selectedParent) {
+          const hasParent = preparedData.series.some(series => {
+            const normalizedParent = series.parent || "Uncategorized";
+            return normalizedParent === selectedParent;
+          });
+          if (!hasParent) { selectedParent = null; }
+        }
+        updateVizDensityClass();
+        buildLegend(preparedData.series);
+        drawChart(preparedData);
+      }
+
+      function handleResize() {
+        if (preparedData) { drawChart(preparedData); }
+      }
+
+      function ensureListeners() {
+        if (listenersReady) { return; }
+        listenersReady = true;
+        selectorButtons.forEach(button => {
+          button.addEventListener("click", () => {
+            const mode = button.getAttribute("data-mode");
+            if (!mode || mode === currentLimitMode) { return; }
+            currentLimitMode = mode;
+            selectedLabel = null;
+            selectedParent = null;
+            updateURL({ top: mode, parent: null });
+            updateSelectorButtons();
+            updateVisualization();
+          });
+        });
+        window.addEventListener("resize", handleResize);
+      }
+
+      function init() {
+        ensureListeners();
+        if (hasLoaded) { updateVisualization(); return; }
+        hasLoaded = true;
+        loadData();
+      }
+
+      window.BumpView = {
+        init,
+        redraw: () => { if (preparedData) { drawChart(preparedData); applyCurrentHighlight(); } }
+      };
+    })();
+  </script>
 </body>
-</html>
 
+</html>
