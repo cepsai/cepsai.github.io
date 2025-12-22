@@ -1,0 +1,660 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style type="text/css">
+        .knitr .inline {
+            background-color: #F7F7F7;
+            border: solid 1px #B0B0B0;
+        }
+
+        .error {
+            font-weight: bold;
+            color: #FF0000;
+        }
+
+        .warning {
+            font-weight: bold;
+        }
+
+        .message {
+            font-style: italic;
+        }
+
+        .source,
+        .output,
+        .warning,
+        .error,
+        .message {
+            padding: 0 1em;
+            border: solid 1px #F7F7F7;
+        }
+
+        .source {
+            background-color: #F5F5F5;
+        }
+
+        .rimage .left {
+            text-align: left;
+        }
+
+        .rimage .right {
+            text-align: right;
+        }
+
+        .rimage .center {
+            text-align: center;
+        }
+
+        .hl.num {
+            color: #AF0F91;
+        }
+
+        .hl.str {
+            color: #317ECC;
+        }
+
+        .hl.com {
+            color: #AD95AF;
+            font-style: italic;
+        }
+
+        .hl.opt {
+            color: #000000;
+        }
+
+        .hl.std {
+            color: #585858;
+        }
+
+        .hl.kwa {
+            color: #295F94;
+            font-weight: bold;
+        }
+
+        .hl.kwb {
+            color: #B05A65;
+        }
+
+        .hl.kwc {
+            color: #55AA55;
+        }
+
+        .hl.kwd {
+            color: #BC5A65;
+            font-weight: bold;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 17fr 2fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(8px, 1vh, 18px);
+            padding: clamp(10px, 1.5vh, 18px) clamp(12px, 2vw, 24px);
+            overflow: hidden;
+        }
+
+        #container3 {
+            grid-row: 3;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: visible;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+            gap: clamp(6px, 1.5vw, 18px);
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        #treemap {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: 100%;
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .source-text a:visited {
+            color: #2756d3;
+        }
+
+        .custom-legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1.5vw, 14px);
+            background: rgba(255, 255, 255, 0.9);
+            padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 16px);
+            border-radius: clamp(6px, 1.2vw, 12px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            overflow: auto;
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            font-weight: 600;
+            color: #333;
+            position: relative;
+        }
+
+        .legend-item.inactive {
+            opacity: 0.35;
+        }
+
+        .legend-square {
+            width: clamp(10px, 1.2vw, 14px);
+            height: clamp(10px, 1.2vw, 14px);
+            border-radius: 4px;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset;
+        }
+
+        .legend-item:focus-visible {
+            outline: 2px solid rgba(0, 0, 0, 0.5);
+            outline-offset: 2px;
+        }
+
+        .top-filter {
+            display: inline-flex;
+            align-items: stretch;
+            border: 1.5px solid #2756d3;
+            border-radius: 14px;
+            overflow: hidden;
+            background: #fff;
+            box-shadow: 0 3px 8px rgba(31, 49, 99, 0.15);
+        }
+
+        .top-filter-button {
+            border: none;
+            background: transparent;
+            color: #2756d3;
+            padding: clamp(6px, 1vh, 10px) clamp(16px, 2vw, 22px);
+            font-size: clamp(11px, 1.4vw, 15px);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+            text-transform: uppercase;
+            line-height: 1.2;
+            min-width: clamp(46px, 6vw, 70px);
+        }
+
+        .top-filter-button+.top-filter-button {
+            border-left: 1px solid rgba(39, 86, 211, 0.2);
+        }
+
+        .top-filter-button.active {
+            background: #2756d3;
+            color: #fff;
+            box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .top-filter-button:focus-visible {
+            outline: none;
+            box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.8), 0 0 0 2px rgba(31, 49, 99, 0.4);
+        }
+
+        .error-message {
+            font-size: clamp(12px, 1.6vw, 18px);
+            font-weight: 600;
+            color: #333;
+            text-align: center;
+            padding: clamp(12px, 2vh, 20px);
+        }
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr;
+                grid-template-columns: 1fr;
+            }
+
+            #container1 {
+                grid-row: 1;
+                grid-column: 1;
+            }
+
+            #container2,
+            #container3,
+            #container4 {
+                display: none !important;
+            }
+
+            .custom-legend,
+            .source-text,
+            .logo,
+            .top-filter {
+                display: none !important;
+            }
+        }
+    </style>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1" class="container treemap-container">
+            <div id="treemap"></div>
+        </div>
+        <div id="container2" class="container legend-container">
+            <div class="custom-legend" id="legend"></div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-wrapper">
+                <div class="source-text" id="sourceText">Source: <a href="https://huggingface.co/datasets"
+                        id="sourceLink" target="_blank" rel="noopener">Hugging Face Datasets</a></div>
+            </div>
+        </div>
+        <div id="container4" class="container logo-container">
+            <div class="top-filter" id="topFilter" role="group" aria-label="Filtro Top de autores"></div>
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" />
+            </a>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var rawData = [];
+            var groups = [];
+            var groupColors = {};
+            var activeGroups = new Set();
+            var resizeTimer;
+            var dataReady = false;
+
+            var topLimitOptions = [
+                { label: "50", value: 50 },
+                { label: "100", value: 100 },
+                { label: "All", value: "All" }
+            ];
+            var currentTopLimit = "All";
+
+            function lightenColor(hex, amount) {
+                if (typeof hex !== "string") return hex;
+                var color = hex.trim();
+                var original = hex;
+                if (!color) return hex;
+                if (color.charAt(0) === "#") {
+                    color = color.slice(1);
+                }
+                if (color.length === 3) {
+                    color = color.split("").map(function (ch) { return ch + ch; }).join("");
+                }
+                if (color.length !== 6) return original;
+                var amt = isNaN(amount) ? 0 : Math.max(0, Math.min(1, amount));
+                function mix(component) {
+                    var value = parseInt(component, 16);
+                    if (isNaN(value)) return component;
+                    var mixed = Math.round(value + (255 - value) * amt);
+                    return mixed.toString(16).padStart(2, "0");
+                }
+                var r = mix(color.slice(0, 2));
+                var g = mix(color.slice(2, 4));
+                var b = mix(color.slice(4, 6));
+                return "#" + r + g + b;
+            }
+
+            function hslToHex(h, s, l) {
+                var hh = (h % 360 + 360) % 360;
+                var ss = Math.max(0, Math.min(100, s)) / 100;
+                var ll = Math.max(0, Math.min(100, l)) / 100;
+                var c = (1 - Math.abs(2 * ll - 1)) * ss;
+                var x = c * (1 - Math.abs((hh / 60) % 2 - 1));
+                var m = ll - c / 2;
+                var r = 0, g = 0, b = 0;
+                if (hh < 60) { r = c; g = x; }
+                else if (hh < 120) { r = x; g = c; }
+                else if (hh < 180) { g = c; b = x; }
+                else if (hh < 240) { g = x; b = c; }
+                else if (hh < 300) { r = x; b = c; }
+                else { r = c; b = x; }
+                function toHex(value) { return Math.round((value + m) * 255).toString(16).padStart(2, "0"); }
+                return "#" + toHex(r) + toHex(g) + toHex(b);
+            }
+
+            function deterministicColorFromString(str) {
+                var text = String(str || "Unknown");
+                var hash = 0;
+                for (var i = 0; i < text.length; i++) {
+                    hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+                }
+                var hue = hash % 360;
+                var saturation = 55 + (hash % 20);
+                var lightness = 45 + (Math.floor(hash / 7) % 10);
+                return hslToHex(hue, saturation, lightness);
+            }
+
+            function getBaseGroupKey(d) {
+                if (!d) return "Unknown";
+                var direct = d.parent;
+                if (typeof direct === "string" && direct) {
+                    return direct;
+                }
+                if (d.data && d.data.parent) {
+                    return d.data.parent;
+                }
+                return "Unknown";
+            }
+
+            var treemap = new d3plus.Treemap()
+                .select("#treemap")
+                .groupBy(["parent", "name"])
+                .tooltipConfig({
+                    title: function (d) { return d.name || d.id; },
+                    body: function (d) {
+                        var category = d.parent || "Unknown";
+                        var value = d.value || 0;
+                        var lines = [
+                            "<strong>Category:</strong> " + category,
+                            "<strong>Datasets:</strong> " + value
+                        ];
+                        return lines.join("<br>");
+                    }
+                })
+                .sum("value")
+                .layoutPadding(2)
+                .legend(false)
+                .color(function (d) {
+                    var baseKey = getBaseGroupKey(d);
+                    var baseColor = getGroupColor(baseKey);
+                    if (d.depth === 1) {
+                        return lightenColor(baseColor, 0.35);
+                    }
+                    return baseColor;
+                })
+                .shapeConfig({
+                    rx: 0,
+                    ry: 0,
+                    stroke: function (d) {
+                        if (d.depth === 0) {
+                            return getGroupColor(d.id);
+                        }
+                        if (d.depth === 1) {
+                            return getGroupColor(getBaseGroupKey(d));
+                        }
+                        return "transparent";
+                    },
+                    strokeWidth: function (d) {
+                        if (d.depth === 0) {
+                            return 3;
+                        }
+                        if (d.depth === 1) {
+                            return 1.8;
+                        }
+                        return 0;
+                    }
+                });
+
+            function init() {
+                buildTopFilter();
+                loadData();
+            }
+
+            function loadData() {
+                d3.csv("Datasets/hf_boss.csv").then(function (rows) {
+                    var authorCounts = {};
+                    rows.forEach(function (row) {
+                        var author = row.author;
+                        var category = row.category || "Unknown";
+                        if (!author) return;
+
+                        var key = author + "|||" + category;
+                        if (!authorCounts[key]) {
+                            authorCounts[key] = { author: author, category: category, count: 0 };
+                        }
+                        authorCounts[key].count++;
+                    });
+
+                    rawData = Object.values(authorCounts).map(function (item) {
+                        return {
+                            name: item.author,
+                            parent: item.category,
+                            value: item.count
+                        };
+                    });
+
+                    if (!rawData.length) {
+                        displayNoData("No data found.");
+                        return;
+                    }
+
+                    buildGroupColorMap();
+                    groups = Array.from(new Set(rawData.map(function (d) { return d.parent; })));
+                    activeGroups = new Set(groups);
+
+                    buildLegend();
+                    updateVisualization();
+                    renderToContainerSize();
+
+                }).catch(function (err) {
+                    console.error("Error loading data", err);
+                    displayNoData("Error loading data: " + err);
+                });
+            }
+
+            function buildGroupColorMap() {
+                rawData.forEach(function (entry) {
+                    var parent = entry.parent || "Unknown";
+                    if (!groupColors[parent]) {
+                        groupColors[parent] = deterministicColorFromString(parent);
+                    }
+                });
+            }
+
+            function prepareData() {
+                var rows = rawData.filter(function (d) {
+                    return d.value > 0 && activeGroups.has(d.parent);
+                });
+                rows.sort(function (a, b) { return b.value - a.value; });
+                return applyTopLimit(rows);
+            }
+
+            function applyTopLimit(dataset) {
+                if (currentTopLimit === "All") { return dataset; }
+                var limitValue = typeof currentTopLimit === "number" ? currentTopLimit : parseInt(currentTopLimit, 10);
+                if (isNaN(limitValue)) { return dataset; }
+                return dataset.slice(0, Math.max(0, limitValue));
+            }
+
+            function getGroupColor(parent) {
+                return groupColors[parent] || "#666666";
+            }
+
+            function updateVisualization() {
+                var dataset = prepareData();
+                treemap.data(dataset).render();
+                dataReady = true;
+                updateLegendState();
+                updateTopFilterState();
+            }
+
+            function buildTopFilter() {
+                var container = document.getElementById("topFilter");
+                if (!container) return;
+                container.innerHTML = "";
+                topLimitOptions.forEach(function (opt) {
+                    var button = document.createElement("button");
+                    button.type = "button";
+                    button.className = "top-filter-button";
+                    button.textContent = opt.label;
+                    button.setAttribute("data-limit", opt.value);
+                    var description = opt.value === "All" ? "Show all authors" : "Show top " + opt.value + " authors";
+                    button.title = description;
+                    button.setAttribute("aria-label", description);
+                    button.addEventListener("click", function () {
+                        if (currentTopLimit === opt.value) {
+                            return;
+                        }
+                        currentTopLimit = opt.value;
+                        updateTopFilterState();
+                        updateVisualization();
+                    });
+                    container.appendChild(button);
+                });
+                updateTopFilterState();
+            }
+
+            function updateTopFilterState() {
+                document.querySelectorAll(".top-filter-button").forEach(function (btn) {
+                    var valueAttr = btn.getAttribute("data-limit");
+                    var normalized = valueAttr === "All" ? "All" : parseInt(valueAttr, 10);
+                    var isActive = (currentTopLimit === "All" && normalized === "All") ||
+                        (typeof currentTopLimit === "number" && normalized === currentTopLimit);
+                    btn.classList.toggle("active", isActive);
+                    btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+                });
+            }
+
+            function buildLegend() {
+                var legend = document.getElementById("legend");
+                if (!legend) return;
+                legend.innerHTML = "";
+                groups.forEach(function (group) {
+                    var item = document.createElement("div");
+                    item.className = "legend-item active";
+                    item.setAttribute("data-group", group);
+                    item.setAttribute("role", "button");
+                    item.setAttribute("tabindex", "0");
+
+                    var square = document.createElement("div");
+                    square.className = "legend-square";
+                    square.style.backgroundColor = getGroupColor(group);
+
+                    var label = document.createElement("span");
+                    label.textContent = group;
+
+                    item.appendChild(square);
+                    item.appendChild(label);
+
+                    item.addEventListener("click", function () {
+                        toggleGroup(group);
+                    });
+                    item.addEventListener("keydown", function (e) {
+                        if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleGroup(group);
+                        }
+                    });
+                    legend.appendChild(item);
+                });
+            }
+
+            function updateLegendState() {
+                document.querySelectorAll(".legend-item").forEach(function (item) {
+                    var group = item.getAttribute("data-group");
+                    var isActive = activeGroups.has(group);
+                    item.classList.toggle("active", isActive);
+                    item.classList.toggle("inactive", !isActive);
+                    item.setAttribute("aria-pressed", isActive ? "true" : "false");
+                });
+            }
+
+            function toggleGroup(group) {
+                if (activeGroups.has(group)) {
+                    activeGroups.delete(group);
+                } else {
+                    activeGroups.add(group);
+                }
+                updateVisualization();
+            }
+
+            function displayNoData(msg) {
+                var el = document.getElementById("treemap");
+                if (el) el.innerHTML = "<div class='error-message'>" + msg + "</div>";
+            }
+
+            function renderToContainerSize() {
+                if (!dataReady) return;
+                treemap.render();
+            }
+
+            window.addEventListener("resize", function () {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(renderToContainerSize, 200);
+            });
+
+            init();
+
+        })();
+    </script>
+</body>
+
+</html>
