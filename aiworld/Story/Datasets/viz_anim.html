@@ -1704,9 +1704,11 @@
           const parent = sanitizeColumn(row.parent);
           const valueRaw = sanitizeColumn(row.count ?? row.amount ?? row.value ?? row.total ?? row.counts);
           const value = valueRaw !== null ? +valueRaw : NaN;
+          const amountWithoutFilterRaw = sanitizeColumn(row.amount_without_filter);
+          const amountWithoutFilter = amountWithoutFilterRaw !== null ? +amountWithoutFilterRaw : 0;
           const color = sanitizeColumn(row.color);
           const yearValue = yearRaw ? +yearRaw : NaN;
-          return { year: yearRaw, yearValue: Number.isFinite(yearValue) ? yearValue : null, label, parent, value: Number.isFinite(value) ? value : null, color };
+          return { year: yearRaw, yearValue: Number.isFinite(yearValue) ? yearValue : null, label, parent, value: Number.isFinite(value) ? value : null, amountWithoutFilter, color };
         }).filter(d => d.year && d.label && Number.isFinite(d.yearValue) && Number.isFinite(d.value));
         if (!parsed.length) { return null; }
         const yearValues = Array.from(new Set(parsed.map(d => d.yearValue))).sort((a, b) => a - b);
@@ -1715,6 +1717,7 @@
         const labelColorCandidates = new Map();
         const labelParentMap = new Map();
         const labelYearMap = new Map();
+        const labelYearUnfilteredMap = new Map();
         parsed.forEach(row => {
           if (!row.label) { return; }
           if (!labelColorCandidates.has(row.label) && row.color) { labelColorCandidates.set(row.label, row.color); }
@@ -1722,6 +1725,10 @@
           if (!labelYearMap.has(row.label)) { labelYearMap.set(row.label, new Map()); }
           const yearMap = labelYearMap.get(row.label);
           yearMap.set(row.yearValue, (yearMap.get(row.yearValue) || 0) + row.value);
+
+          if (!labelYearUnfilteredMap.has(row.label)) { labelYearUnfilteredMap.set(row.label, new Map()); }
+          const yearUnfilteredMap = labelYearUnfilteredMap.get(row.label);
+          yearUnfilteredMap.set(row.yearValue, (yearUnfilteredMap.get(row.yearValue) || 0) + row.amountWithoutFilter);
         });
         const latestYear = d3.max(yearValues);
         const labelMetrics = Array.from(labelYearMap.entries()).map(([label, yearMap]) => {
@@ -1762,6 +1769,7 @@
             yearValue,
             year: yearLabelMap.get(yearValue) || String(yearValue),
             value: (labelYearMap.get(labelName)?.get(yearValue)) || 0,
+            amountWithoutFilter: (labelYearUnfilteredMap.get(labelName)?.get(yearValue)) || 0,
             rank: rankingByYear.get(yearValue)?.get(labelName) ?? topLabels.length
           }));
           return { label: labelName, parent: parentName, color, values };
@@ -1818,7 +1826,7 @@
           handleLabelHover(d.label);
           tooltip.style("opacity", 1).html(() => {
             const parentLine = d.parent ? `Category: ${d.parent}<br/>` : "";
-            return `<strong>${d.label}</strong><br/>${parentLine}Year: ${d.year}<br/>Rank: ${d.rank}<br/>Datasets DL>200: ${d3.format(",.0f")(d.value)}`;
+            return `<strong>${d.label}</strong><br/>${parentLine}Year: ${d.year}<br/>Rank: ${d.rank}<br/>Datasets DL>200: ${d3.format(",.0f")(d.value)}<br/>Dataset: ${d3.format(",.0f")(d.amountWithoutFilter)}`;
           });
           moveTooltip(event);
         }).on("mousemove", moveTooltip).on("mouseleave", () => { tooltip.style("opacity", 0); handleLabelMouseLeave(); }).on("click", (event, d) => { event.stopPropagation(); toggleLabelSelection(d.label); });
