@@ -20,14 +20,29 @@
       height: 100vh;
     }
 
-    .viz-view {
-      width: 100%;
-      height: 100vh;
+    .chart-viz,
+    .chart-controls {
       display: none;
     }
 
-    .viz-view.active {
+    .chart-viz.active,
+    .chart-controls.active {
       display: block;
+    }
+
+    .chart-viz {
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+
+    .chart-viz.active {
+      display: flex;
+    }
+
+    #lineChartViz {
+      align-items: stretch;
+      column-gap: clamp(8px, 1.6vw, 16px);
     }
 
     .viz-layout {
@@ -43,8 +58,8 @@
 
     .viz-grid {
       display: grid;
-      grid-template-rows: 17.5fr 0.5fr 1fr;
-      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto 17.5fr 0.5fr 1fr;
+      grid-template-columns: 1fr 2fr 1fr;
       height: 100vh;
       width: 100vw;
       box-sizing: border-box;
@@ -52,9 +67,21 @@
       padding: 0 clamp(12px, 2vw, 20px) env(safe-area-inset-bottom) clamp(12px, 2vw, 20px);
     }
 
-    #container1 {
+    #containerMetric {
       grid-row: 1;
-      grid-column: 1 / span 2;
+      grid-column: 1 / span 3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(12px, 2vw, 20px);
+      min-width: 0;
+      padding: clamp(6px, 1vh, 10px) 0;
+      flex-wrap: nowrap;
+    }
+
+    #container1 {
+      grid-row: 2;
+      grid-column: 1 / span 3;
       display: flex;
       overflow: hidden;
       min-height: 0;
@@ -63,8 +90,8 @@
     }
 
     #container2 {
-      grid-row: 2;
-      grid-column: 1 / span 2;
+      grid-row: 3;
+      grid-column: 1 / span 3;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -76,17 +103,30 @@
     }
 
     #container3 {
-      grid-row: 3;
+      grid-row: 4;
       grid-column: 1;
       display: flex;
       align-items: center;
       justify-content: flex-start;
       min-width: 0;
+      margin-bottom: 2px;
+    }
+
+    #containerBetween {
+      grid-row: 4;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(10px, 2vw, 16px);
+      min-width: 0;
+      margin-bottom: 2px;
+      flex-wrap: nowrap;
     }
 
     #container4 {
-      grid-row: 3;
-      grid-column: 2;
+      grid-row: 4;
+      grid-column: 3;
       display: flex;
       align-items: center;
       justify-content: flex-end;
@@ -94,6 +134,7 @@
       min-width: 0;
       min-height: 0;
       height: 100%;
+      margin-bottom: 2px;
     }
 
     #container4 a {
@@ -289,7 +330,7 @@
       color: #26344f;
       padding: 6px 10px;
       border-radius: 8px;
-      font-size: clamp(11px, 1.2vw, 14px);
+      font-size: clamp(10px, 1.3vw, 14px);
       font-weight: 700;
       cursor: pointer;
       transition: all 0.15s ease;
@@ -322,7 +363,7 @@
       color: #26344f;
       padding: 6px 10px;
       border-radius: 8px;
-      font-size: clamp(10px, 1.1vw, 13px);
+      font-size: clamp(9px, 1.2vw, 13px);
       font-weight: 700;
       cursor: pointer;
       transition: all 0.15s ease;
@@ -339,6 +380,40 @@
       color: #fff;
       border-color: #2756d3;
       box-shadow: 0 4px 12px rgba(39, 86, 211, 0.28);
+    }
+
+    .selector-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(2px, 0.5vw, 6px);
+      padding: clamp(2px, 0.4vw, 4px);
+      border-radius: 6px;
+      border: 1px solid rgba(17, 24, 39, 0.15);
+      background: #f8fafc;
+      max-width: 100%;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+
+    .selector-button {
+      border: none;
+      background: transparent;
+      padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+      border-radius: 6px;
+      font-size: clamp(8px, 1.4vw, 13px);
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, font-size 0.2s ease;
+      white-space: nowrap;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+
+    .selector-button.active {
+      background: #2756d3;
+      color: #fff;
     }
 
     .story-btn {
@@ -371,15 +446,9 @@
       stroke-width: 4px;
     }
 
-    @media (max-width: 860px) {
-      .logo-note {
-        font-size: clamp(7px, 0.9vw, 10px);
-      }
-    }
-
     @media (max-width: 640px) {
-      #container3 {
-        display: none;
+      .viz-grid {
+        grid-template-rows: auto 17.5fr 0.5fr 1fr;
       }
 
       .logo-note {
@@ -391,49 +460,44 @@
         right: clamp(8px, 3vw, 14px);
         bottom: clamp(8px, 3vw, 14px);
       }
-    }
 
-    @media (max-width: 460px),
-    (max-height: 520px) {
-      #container2 {
-        display: none;
+      .selector-button {
+        font-size: clamp(7px, 1.2vw, 11px);
+        padding: clamp(3px, 0.6vh, 6px) clamp(6px, 1.2vw, 10px);
+      }
+
+      .metric-btn {
+        font-size: clamp(9px, 1.1vw, 12px);
+      }
+
+      .top-btn {
+        font-size: clamp(8px, 1vw, 11px);
       }
     }
+
+
 
     @media (max-height: 480px) {
       .viz-grid {
         grid-template-rows: 1fr;
       }
 
+      #container1 {
+        grid-row: 1;
+      }
+
+      #containerMetric,
       #container2,
       #container3,
+      #containerBetween,
       #container4,
       .corner-logo {
         display: none;
       }
     }
 
-    /* Bump chart view */
-    #bumpView .bump-grid {
-      display: grid;
-      grid-template-rows: 17fr 1fr 2fr 1fr;
-      grid-template-columns: 1fr 1fr;
-      height: 100vh;
-      width: 100vw;
-      box-sizing: border-box;
-      padding-bottom: clamp(8px, 2vh, 18px);
-    }
-
-    #bumpView #bumpContainer1 {
-      grid-row: 1;
-      grid-column: 1 / span 2;
-      display: flex;
-      overflow: hidden;
-      min-height: 0;
-      column-gap: 0;
-    }
-
-    #bumpView #bumpContainer1 .chart-wrapper {
+    /* Bump chart specific styles */
+    #bumpChartViz .chart-wrapper {
       flex: 1 1 auto;
       display: flex;
       min-width: 0;
@@ -441,100 +505,14 @@
       margin-left: 0;
     }
 
-    #bumpView #bumpContainer1 .chart-wrapper-inner {
+    #bumpChartViz .chart-wrapper-inner {
       flex: 1 1 auto;
       display: flex;
       min-width: 0;
       height: 100%;
     }
 
-    #bumpView #bumpContainer2 {
-      grid-row: 3;
-      grid-column: 1 / span 2;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      font-size: clamp(8px, 1.6vw, 16px);
-    }
-
-    #bumpView #bumpContainer3 {
-      grid-row: 4;
-      grid-column: 1;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      padding: 0 20px;
-      overflow: hidden;
-      min-width: 0;
-    }
-
-    #bumpView #bumpContainer4 {
-      grid-row: 4;
-      grid-column: 2;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      padding: 0 clamp(8px, 2vw, 20px);
-      overflow: hidden;
-      min-width: 0;
-      gap: clamp(4px, 1vw, 8px);
-    }
-
-    #bumpView #bumpContainer4 a {
-      height: 100%;
-      display: flex;
-      align-items: center;
-      flex-shrink: 0;
-      min-width: 0;
-    }
-
-    #bumpView #bumpContainer5 {
-      grid-row: 2;
-      grid-column: 1 / span 2;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      padding: 0 clamp(8px, 2vw, 20px);
-      overflow: hidden;
-      min-width: 0;
-    }
-
-    #bumpView .selector-group {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: clamp(2px, 0.5vw, 6px);
-      padding: clamp(2px, 0.4vw, 4px);
-      border-radius: 6px;
-      border: 1px solid rgba(17, 24, 39, 0.15);
-      background: #f8fafc;
-      max-width: 100%;
-      flex-shrink: 1;
-      min-width: 0;
-    }
-
-    #bumpView .selector-button {
-      border: none;
-      background: transparent;
-      padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
-      border-radius: 6px;
-      font-size: clamp(9px, 1.4vw, 13px);
-      font-weight: 600;
-      color: #475569;
-      cursor: pointer;
-      transition: background 0.2s ease, color 0.2s ease;
-      white-space: nowrap;
-      flex-shrink: 1;
-      min-width: 0;
-    }
-
-    #bumpView .selector-button.active {
-      background: #2756d3;
-      color: #fff;
-    }
-
-    #bumpView #bumpViz {
+    #bumpViz {
       position: relative;
       width: 100%;
       height: 100%;
@@ -546,20 +524,20 @@
       box-sizing: border-box;
     }
 
-    #bumpView .chart-body {
+    .chart-body {
       position: relative;
       flex: 1;
       min-height: 0;
       min-width: 0;
     }
 
-    #bumpView #bumpChart {
+    #bumpChart {
       display: block;
       width: 100%;
       height: 100%;
     }
 
-    #bumpView #bumpTooltip {
+    #bumpTooltip {
       position: absolute;
       background: #fff;
       border: 1px solid #d9d9df;
@@ -572,7 +550,7 @@
       transition: opacity 0.12s ease;
     }
 
-    #bumpView .custom-legend {
+    .custom-legend {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
@@ -586,7 +564,7 @@
       font-size: clamp(0.625rem, 1.4vw, 1rem);
     }
 
-    #bumpView .legend-item {
+    .legend-item {
       display: flex;
       align-items: center;
       gap: clamp(4px, 1vw, 8px);
@@ -598,23 +576,23 @@
       padding: 2px 6px;
     }
 
-    #bumpView .legend-item.dim {
+    .legend-item.dim {
       opacity: 0.35;
     }
 
-    #bumpView .legend-item:focus-visible {
+    .legend-item:focus-visible {
       outline: 2px solid rgba(0, 0, 0, 0.5);
       outline-offset: 2px;
     }
 
-    #bumpView .legend-square {
+    .legend-square {
       width: clamp(8px, 0.9vw, 12px);
       height: clamp(8px, 0.9vw, 12px);
       border-radius: 4px;
       flex-shrink: 0;
     }
 
-    #bumpView .series-label {
+    .series-label {
       font-size: clamp(7px, 1vw, 14px);
       font-weight: 400;
       fill: #111;
@@ -627,7 +605,7 @@
       font-size: clamp(5px, 0.85vw, 11px);
     }
 
-    #bumpView .series-line {
+    .series-line {
       fill: none;
       stroke-width: var(--lineWidth, 3.4);
       opacity: 0.9;
@@ -635,26 +613,26 @@
       cursor: pointer;
     }
 
-    #bumpView .series-point {
+    .series-point {
       stroke: #fff;
       stroke-width: 1.5;
       cursor: pointer;
       transition: r 0.2s ease;
     }
 
-    #bumpView .series.dim .series-line,
-    #bumpView .series.dim .series-point,
-    #bumpView .series.dim .series-label {
+    .series.dim .series-line,
+    .series.dim .series-point,
+    .series.dim .series-label {
       opacity: 0.15;
     }
 
-    #bumpView .series.highlighted .series-line {
+    .series.highlighted .series-line {
       stroke-width: calc(var(--lineWidth, 3.4) * 1.3);
       opacity: 1;
       filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.2));
     }
 
-    #bumpView .source-text {
+    .source-text {
       font-size: clamp(8px, 1.6vw, 16px);
       font-weight: 600;
       color: #333;
@@ -665,18 +643,18 @@
       font-style: normal;
     }
 
-    #bumpView .source-text a {
+    .source-text a {
       color: #2756d3;
       text-decoration: underline;
       cursor: pointer;
       font-style: normal;
     }
 
-    #bumpView .source-text a:visited {
+    .source-text a:visited {
       color: #2756d3;
     }
 
-    #bumpView .footnote-text {
+    .footnote-text {
       font-size: clamp(8px, 1.6vw, 16px);
       font-style: italic;
       color: #333;
@@ -687,7 +665,7 @@
       max-width: 100%;
     }
 
-    #bumpView .logo {
+    .logo {
       height: 100%;
       width: auto;
       max-height: 100%;
@@ -697,65 +675,69 @@
       flex-shrink: 0;
     }
 
-    #bumpView .axis path,
-    #bumpView .axis line {
+    .logo-container {
+      gap: clamp(8px, 1.5vw, 18px);
+    }
+
+    .logo-multiply {
+      font-weight: 700;
+      font-size: clamp(7px, 2vw, 14px);
+      color: #111;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .axis path,
+    .axis line {
       stroke: #cfd2d7;
     }
 
-    #bumpView .tick text {
+    .tick text {
       font-size: clamp(8px, 1.2vw, 18px);
       font-weight: 600;
     }
 
-    #bumpView .axis--y text {
+    .axis--y text {
       font-style: italic;
     }
 
     @media (max-height: 500px) {
-      #bumpView .bump-grid {
+      .viz-grid {
         grid-template-rows: 1fr;
-        grid-template-columns: 1fr;
-        padding-bottom: 0;
       }
 
-      #bumpContainer1 {
+      #containerMetric,
+      #container2,
+      #container3,
+      #containerBetween,
+      #container4 {
+        display: none !important;
+      }
+
+      #container1 {
         grid-row: 1;
-        grid-column: 1;
       }
 
-      #bumpContainer2,
-      #bumpContainer3,
-      #bumpContainer4,
-      #bumpContainer5 {
-        display: none !important;
-      }
-
-      #bumpViz {
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-      }
-
-      #bumpView .axis--y,
-      #bumpView .axis--x {
+      .axis--y,
+      .axis--x {
         display: none;
       }
 
-      #bumpView .grid-lines {
+      .grid-lines {
         display: none;
-      }
-
-      #bumpView .footnote-text {
-        display: none !important;
       }
     }
   </style>
 </head>
 
 <body>
-  <div id="lineView" class="viz-view active">
-    <div class="viz-layout" id="vizLayout">
-      <div class="viz-grid">
-        <div id="container1" class="container chart-container">
+  <div class="viz-layout" id="vizLayout">
+    <div class="viz-grid">
+      <div id="containerMetric" class="container metric-container">
+        <div id="metricButtons" class="selector-group" aria-label="Metric filter"></div>
+      </div>
+      <div id="container1" class="container chart-container">
+        <div id="lineChartViz" class="chart-viz active">
           <div class="y-axis-container">
             <div class="y-axis-label" id="yLabel">Datasets</div>
           </div>
@@ -768,75 +750,59 @@
             </div>
           </div>
         </div>
-        <div id="container2" class="container note-container">
-          <div class="metric-controls">
-            <div id="metricButtons" class="metric-buttons" aria-label="Metric filter"></div>
-            <div id="dateDisplay" class="date-display"></div>
-          </div>
-          <span class="logo-note">* Weekly HF task metrics (top 10 shown)</span>
-        </div>
-        <div id="container3" class="container source-container">
-          <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank"
-              rel="noopener">HuggingFace</a></div>
-        </div>
-        <div id="container4" class="container logo-container">
-          <div id="topButtons" class="top-filter-buttons" aria-label="Top results filter"></div>
-          <button id="aiWorldStoryButton" class="top-btn story-btn" type="button">Bumpchart</button>
-          <a href="https://huggingface.co" target="_blank" rel="noopener">
-            <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo"
-              alt="Hugging Face logo" crossorigin="anonymous">
-          </a>
-          <a href="https://aiworld.eu/" target="_blank" rel="noopener">
-            <img src="logo.svg" class="logo" alt="AI World logo" crossorigin="anonymous">
-          </a>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="bumpView" class="viz-view">
-    <div class="bump-grid">
-      <div id="bumpContainer1">
-        <div class="chart-wrapper">
-          <div class="chart-wrapper-inner">
-            <div id="bumpViz">
-              <div class="chart-body">
-                <svg id="bumpChart" role="img" aria-label="AI task ranking bump chart"></svg>
-                <div id="bumpTooltip"></div>
+        <div id="bumpChartViz" class="chart-viz">
+          <div class="chart-wrapper">
+            <div class="chart-wrapper-inner">
+              <div id="bumpViz">
+                <div class="chart-body">
+                  <svg id="bumpChart" role="img" aria-label="AI task ranking bump chart"></svg>
+                  <div id="bumpTooltip"></div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <div id="bumpContainer5">
-        <div class="footnote-text">
-          * Datasets displayed are the top datasets in 2025
+      <div id="container2" class="container note-container">
+        <div id="lineControls" class="chart-controls active">
+          <div class="metric-controls">
+            <div id="dateDisplay" class="date-display"></div>
+          </div>
+          <span class="logo-note">* Weekly HF task metrics (top 10 shown)</span>
+        </div>
+        <div id="bumpControls" class="chart-controls">
+          <span class="logo-note">* Datasets displayed are the top datasets in 2025</span>
+          <div id="bumpLegend" class="custom-legend"></div>
         </div>
       </div>
-      <div id="bumpContainer2">
-        <div id="bumpLegend" class="custom-legend"></div>
+      <div id="container3" class="container source-container">
+        <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank"
+            rel="noopener">HuggingFace</a></div>
       </div>
-      <div id="bumpContainer3">
-        <div class="source-text">
-          Source:
-          <a href="https://huggingface.co/" target="_blank" rel="noopener">
-            Hugging Face
-          </a>
+      <div id="containerBetween" class="container controls-container">
+        <div id="lineTopButtons" class="chart-controls active">
+          <div id="topButtons" class="selector-group" aria-label="Top results filter"></div>
+        </div>
+        <div id="bumpTopButtonsWrapper" class="chart-controls">
+          <div id="bumpTopButtons" class="selector-group" aria-label="Top results filter">
+            <button type="button" class="selector-button active" data-mode="top10">Top 10</button>
+            <button type="button" class="selector-button" data-mode="top25">Top 25</button>
+            <button type="button" class="selector-button" data-mode="top50">Top 50</button>
+          </div>
+        </div>
+        <div id="chartSelector" class="selector-group" role="group" aria-label="Select chart type">
+          <button type="button" class="selector-button active" data-chart="line">Linechart</button>
+          <button type="button" class="selector-button" data-chart="bump">Bump Chart</button>
         </div>
       </div>
-      <div id="bumpContainer4">
-        <button id="bumpBackButton" class="top-btn story-btn" type="button">Racechart</button>
-        <div class="selector-group" role="group" aria-label="Select number of labels">
-          <button type="button" class="selector-button active" data-mode="top10">Top 10</button>
-          <button type="button" class="selector-button" data-mode="top25">Top 25</button>
-          <button type="button" class="selector-button" data-mode="top50">Top 50</button>
-        </div>
-        <a href="https://huggingface.co/" target="_blank" rel="noopener">
+      <div id="container4" class="container logo-container">
+        <a href="https://huggingface.co" target="_blank" rel="noopener">
           <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo"
-            alt="Hugging Face logo">
+            alt="Hugging Face logo" crossorigin="anonymous">
         </a>
+        <span class="logo-multiply" aria-hidden="true">×</span>
         <a href="https://aiworld.eu/" target="_blank" rel="noopener">
-          <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+          <img src="logo.svg" class="logo" alt="AI World logo" crossorigin="anonymous">
         </a>
       </div>
     </div>
@@ -850,13 +816,14 @@
     const dateDisplayEl = document.getElementById("dateDisplay");
     const metricButtonsEl = document.getElementById("metricButtons");
     const topButtonsEl = document.getElementById("topButtons");
-    const storyButtonEl = document.getElementById("aiWorldStoryButton");
-    const bumpBackButtonEl = document.getElementById("bumpBackButton");
+    const chartSelectorEl = document.getElementById("chartSelector");
     const logoNoteEl = document.querySelector(".logo-note");
-    const lineViewEl = document.getElementById("lineView");
-    const bumpViewEl = document.getElementById("bumpView");
-    const LINE_TO_BUMP_LABEL = "Bumpchart";
-    const BUMP_TO_LINE_LABEL = "Racechart";
+    const lineChartVizEl = document.getElementById("lineChartViz");
+    const bumpChartVizEl = document.getElementById("bumpChartViz");
+    const lineControlsEl = document.getElementById("lineControls");
+    const bumpControlsEl = document.getElementById("bumpControls");
+    const lineTopButtonsEl = document.getElementById("lineTopButtons");
+    const bumpTopButtonsWrapperEl = document.getElementById("bumpTopButtonsWrapper");
     const TARGET_YEAR = 2025;
     const METRIC_OPTIONS = [
       { key: "datasets_total", label: "Datasets", type: "cumulative" },
@@ -957,6 +924,7 @@
     let animDefaultEnd = 0;
     let animWindowSize = 1;
     let animTargetEnd = 0;
+    let labelScaleFactor = 1;
 
     init();
 
@@ -1002,7 +970,7 @@
       METRIC_OPTIONS.forEach(option => {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.className = "metric-btn";
+        btn.className = "selector-button";
         btn.textContent = option.label;
         btn.dataset.metric = option.key;
         btn.addEventListener("click", () => { if (currentMetric.key !== option.key) { applyMetric(option); } });
@@ -1013,7 +981,7 @@
 
     function updateMetricButtonsState() {
       if (!metricButtonsEl) { return; }
-      const buttons = metricButtonsEl.querySelectorAll("button.metric-btn");
+      const buttons = metricButtonsEl.querySelectorAll("button.selector-button");
       buttons.forEach(btn => {
         const key = btn.getAttribute("data-metric");
         btn.classList.toggle("active", !!currentMetric && key === currentMetric.key);
@@ -1026,7 +994,7 @@
       TOP_OPTIONS.forEach(limit => {
         const btn = document.createElement("button");
         btn.type = "button";
-        btn.className = "top-btn";
+        btn.className = "selector-button";
         btn.textContent = `Top ${limit}`;
         btn.dataset.top = limit;
         btn.addEventListener("click", () => {
@@ -1046,7 +1014,7 @@
 
     function updateTopButtonsState() {
       if (!topButtonsEl) { return; }
-      const buttons = topButtonsEl.querySelectorAll("button.top-btn");
+      const buttons = topButtonsEl.querySelectorAll("button.selector-button");
       buttons.forEach(btn => {
         const value = Number(btn.dataset.top);
         btn.classList.toggle("active", Number.isFinite(value) && value === currentTopLimit);
@@ -1058,40 +1026,72 @@
     }
 
     function bindStoryButton() {
-      updateStoryButtonLabel();
-      if (storyButtonEl) {
-        storyButtonEl.addEventListener("click", () => {
-          if (isBumpVisible) { showLineView(); } else { showBumpView(); }
+      if (chartSelectorEl) {
+        const buttons = chartSelectorEl.querySelectorAll("button.selector-button");
+        buttons.forEach(btn => {
+          btn.addEventListener("click", () => {
+            const chartType = btn.dataset.chart;
+            if (chartType === "line" && isBumpVisible) {
+              showLineView();
+            } else if (chartType === "bump" && !isBumpVisible) {
+              showBumpView();
+            }
+          });
         });
       }
-      if (bumpBackButtonEl) {
-        bumpBackButtonEl.addEventListener("click", () => { showLineView(); });
-      }
+      updateChartSelectorState();
     }
 
-    function updateStoryButtonLabel() {
-      const primaryLabel = isBumpVisible ? BUMP_TO_LINE_LABEL : LINE_TO_BUMP_LABEL;
-      if (storyButtonEl) { storyButtonEl.textContent = primaryLabel; }
-      if (bumpBackButtonEl) { bumpBackButtonEl.textContent = BUMP_TO_LINE_LABEL; }
+    function updateChartSelectorState() {
+      if (chartSelectorEl) {
+        const buttons = chartSelectorEl.querySelectorAll("button.selector-button");
+        buttons.forEach(btn => {
+          const chartType = btn.dataset.chart;
+          const shouldBeActive = (chartType === "line" && !isBumpVisible) || (chartType === "bump" && isBumpVisible);
+          btn.classList.toggle("active", shouldBeActive);
+        });
+      }
     }
 
     function showLineView() {
-      if (!lineViewEl || !bumpViewEl) { return; }
+      if (!lineChartVizEl || !bumpChartVizEl) { return; }
       isBumpVisible = false;
-      bumpViewEl.classList.remove("active");
-      lineViewEl.classList.add("active");
+
+      // Toggle chart visualizations
+      bumpChartVizEl.classList.remove("active");
+      lineChartVizEl.classList.add("active");
+
+      // Toggle controls
+      if (bumpControlsEl) bumpControlsEl.classList.remove("active");
+      if (lineControlsEl) lineControlsEl.classList.add("active");
+
+      // Toggle top buttons
+      if (bumpTopButtonsWrapperEl) bumpTopButtonsWrapperEl.classList.remove("active");
+      if (lineTopButtonsEl) lineTopButtonsEl.classList.add("active");
+
       hideTooltip();
-      updateStoryButtonLabel();
+      updateChartSelectorState();
       startTimer();
     }
 
     function showBumpView() {
-      if (!lineViewEl || !bumpViewEl) { return; }
+      if (!lineChartVizEl || !bumpChartVizEl) { return; }
       isBumpVisible = true;
-      lineViewEl.classList.remove("active");
-      bumpViewEl.classList.add("active");
+
+      // Toggle chart visualizations
+      lineChartVizEl.classList.remove("active");
+      bumpChartVizEl.classList.add("active");
+
+      // Toggle controls
+      if (lineControlsEl) lineControlsEl.classList.remove("active");
+      if (bumpControlsEl) bumpControlsEl.classList.add("active");
+
+      // Toggle top buttons
+      if (lineTopButtonsEl) lineTopButtonsEl.classList.remove("active");
+      if (bumpTopButtonsWrapperEl) bumpTopButtonsWrapperEl.classList.add("active");
+
       hideTooltip();
-      updateStoryButtonLabel();
+      updateChartSelectorState();
       stopTimer();
       if (replayTimeout) { window.clearTimeout(replayTimeout); replayTimeout = null; }
       ensureBumpView();
@@ -1246,15 +1246,37 @@
       return 1;
     }
 
+    function getDynamicMargins(containerWidth) {
+      const width = Number(containerWidth) || 0;
+      const top = 32;
+      const baseRight = (() => {
+        if (!width || width >= 1180) { return 220; }
+        if (width >= 960) { return 195; }
+        if (width >= 820) { return 175; }
+        if (width >= 680) { return 155; }
+        return 130;
+      })();
+      const right = Math.max(120, baseRight);
+      const left = width && width < 620 ? 58 : 74;
+      const bottom = width && width < 620 ? 48 : 56;
+      return { top, right, bottom, left };
+    }
+
     function render() {
       if (!chartSeries.length) {
         svg.selectAll("*").remove();
         return;
       }
-      const margin = { top: 32, right: 220, bottom: 56, left: 74 };
       const rect = vizEl.getBoundingClientRect();
-      const width = Math.max(margin.left + margin.right + 360, rect.width || 960);
-      const height = Math.max(margin.top + margin.bottom + 280, rect.height || 560);
+      const measuredWidth = rect.width || vizEl.clientWidth || 0;
+      const margin = getDynamicMargins(measuredWidth);
+      const minWidth = margin.left + margin.right + 360;
+      const minHeight = margin.top + margin.bottom + 280;
+      const measuredHeight = rect.height || vizEl.clientHeight || 0;
+      const mediaCapable = typeof window !== "undefined" && typeof window.matchMedia === "function";
+      const compactLayout = mediaCapable && (window.matchMedia("(max-height: 520px)").matches || window.matchMedia("(max-width: 520px)").matches);
+      const width = compactLayout ? (measuredWidth > 0 ? measuredWidth : minWidth) : Math.max(minWidth, measuredWidth || minWidth);
+      const height = compactLayout ? (measuredHeight > 0 ? measuredHeight : minHeight) : Math.max(minHeight, measuredHeight || minHeight);
       svg.attr("viewBox", `0 0 ${width} ${height}`);
       svg.attr("aria-label", `${currentMetric.label} line chart for ${TARGET_YEAR}`);
       const defs = svg.selectAll("defs").data([null]).join("defs");
@@ -1277,6 +1299,8 @@
       xScale = d3.scaleUtc().domain(xDomain).range([0, Math.max(120, width - margin.left - margin.right)]);
       yScale = d3.scaleLinear().domain([0, domainMax]).nice().range([Math.max(120, height - margin.top - margin.bottom), 0]);
       const innerW = xScale.range()[1];
+      const widthFactor = innerW > 0 ? Math.min(1, innerW / 1040) : 1;
+      labelScaleFactor = Math.max(0.28, widthFactor);
       const isTiny = innerW < 420;
       const compact = innerW < 720 && !isTiny;
       const dotR = isTiny ? Math.max(1, Math.min(3, Math.round(innerW / 360))) : compact ? Math.round(Math.max(2, Math.min(4, innerW / 300))) : Math.round(Math.max(3, Math.min(6, innerW / 250)));
@@ -1377,8 +1401,9 @@
           const imageEl = node.select("image.final-logo");
           const textEl = node.select("text.final-emoji");
           const labelEl = node.select("text.final-label");
-          const labelPad = Math.max(6, Math.round(r * 0.45));
-          const labelFont = Math.max(11, Math.round(logoSize * 0.32));
+          const labelPad = Math.max(3, Math.round(r * 0.35 * Math.max(0.65, labelScaleFactor)));
+          const labelBase = Math.min(logoSize * 0.26, 18);
+          const labelFont = Math.max(4, Math.round(labelBase * (labelScaleFactor || 1)));
           const labelX = cx + r + labelPad;
           const labelAnchor = "start";
           node.raise();
@@ -1601,7 +1626,7 @@
       const tooltip = d3.select("#bumpTooltip");
       const legendContainer = d3.select("#bumpLegend");
       const vizContainer = document.getElementById("bumpViz");
-      const selectorButtons = Array.from(document.querySelectorAll("#bumpView .selector-button"));
+      const selectorButtons = Array.from(document.querySelectorAll("#bumpTopButtons .selector-button"));
       let preparedData = null;
       let rawRows = [];
       let currentLimitMode = DEFAULT_LIMIT_MODE;
@@ -1921,19 +1946,25 @@
       }
 
       function applyFullScreenMode() {
-        const vizGrid = document.querySelector("#bumpView .bump-grid");
-        const container3 = document.getElementById("bumpContainer3");
-        const container4 = document.getElementById("bumpContainer4");
-        const container5 = document.getElementById("bumpContainer5");
+        const vizGrid = document.querySelector(".viz-grid");
+        const containerMetric = document.getElementById("containerMetric");
+        const container2 = document.getElementById("container2");
+        const container3 = document.getElementById("container3");
+        const containerBetween = document.getElementById("containerBetween");
+        const container4 = document.getElementById("container4");
         if (isFullScreen) {
+          if (containerMetric) { containerMetric.style.display = "none"; }
+          if (container2) { container2.style.display = "none"; }
           if (container3) { container3.style.display = "none"; }
+          if (containerBetween) { containerBetween.style.display = "none"; }
           if (container4) { container4.style.display = "none"; }
-          if (container5) { container5.style.display = "none"; }
-          if (vizGrid) { vizGrid.style.gridTemplateRows = "1fr auto"; }
+          if (vizGrid) { vizGrid.style.gridTemplateRows = "1fr"; }
         } else {
+          if (containerMetric) { containerMetric.style.display = ""; }
+          if (container2) { container2.style.display = ""; }
           if (container3) { container3.style.display = ""; }
+          if (containerBetween) { containerBetween.style.display = ""; }
           if (container4) { container4.style.display = ""; }
-          if (container5) { container5.style.display = ""; }
           if (vizGrid) { vizGrid.style.gridTemplateRows = ""; }
         }
       }
