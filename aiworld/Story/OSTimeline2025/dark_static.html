@@ -4,13 +4,12 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>AI Timeline 2025 (Dark Text Edit)</title>
+    <title>AI Timeline 2025 (Dark Static)</title>
 
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
 
     <style>
-        /* Global background and text color */
         html,
         body {
             height: 100%;
@@ -18,9 +17,7 @@
             padding: 0;
             overflow: hidden;
             background: #121212;
-            /* Dark Gray */
             color: #e5e7eb;
-            /* Light Gray Text */
             font-family: 'Lato', sans-serif;
         }
 
@@ -46,7 +43,6 @@
             display: block;
         }
 
-        /* [EDIT CHANGE] Seamless control bar */
         .control-bar {
             grid-row: 2;
             display: flex;
@@ -54,9 +50,7 @@
             justify-content: space-between;
             padding: 16px 32px;
             background: #121212;
-            /* Same as body for seamless look */
             border-top: none;
-            /* No border */
             z-index: 10;
         }
 
@@ -65,8 +59,6 @@
             align-items: center;
             gap: 24px;
         }
-
-        /* Replay button removed via HTML, style can stay or be removed */
 
         .logo-container {
             display: flex;
@@ -145,9 +137,8 @@
             </div>
 
             <div class="right-controls">
-                <!-- [EDIT CHANGE] Replay button removed -->
                 <div class="logo-container">
-                    <span class="emoji-logo">🤗</span>
+                    <img src="hf-logo.svg" class="logo" alt="Hugging Face" style="height: 45px; width: auto;">
                     <span class="sep" style="color: #9ca3af;">×</span>
                     <img src="logo.svg" class="logo" alt="AI World"
                         onerror="this.style.display='none'; this.previousElementSibling.style.display='none';">
@@ -159,9 +150,9 @@
     <script>
         try {
             const DATA = [
-                { date: "2025-01-08", event: "Phi-4", org: "Microsoft", color: "#9ca3af", description: "Demonstrated efficient small language models could punch above their weight class", dx: -5, dy: -10 },
+                { date: "2024-12-12", event: "Phi-4", org: "Microsoft", color: "#9ca3af", description: "Demonstrated efficient small language models could punch above their weight class", dx: -5, dy: -10 },
                 { date: "2025-01-20", event: "DeepSeek R1", org: "DeepSeek", color: "#4f8aff", description: "Redefined what was possible for open models with breakthrough reasoning capabilities", dx: 0, dy: -10 },
-                { date: "2025-03-12", event: "Gemma 3", org: "Google", color: "#4285F4", description: "Enabled strong performance for cheap and fast tasks, democratizing AI deployment", dx: -10, dy: 20 },
+                { date: "2025-03-12", event: "Gemma 3", org: "Google", color: "#4285F4", description: "Enabled strong performance for cheap and fast tasks, democratizing AI deployment", dx: 5, dy: 20 },
                 { date: "2025-04-05", event: "Llama 4", org: "Meta", color: "#0866FF", description: "Advanced multimodal understanding and set new standards for open-weight foundation models", dx: 10, dy: 20 },
                 { date: "2025-04-28", event: "Qwen3 family", org: "Alibaba", color: "#FF6A00", description: "Brought multilingual excellence and strong reasoning to the open source community", dx: -20, dy: -10 },
                 { date: "2025-05-07", event: "Mistral Medium 3", org: "Mistral AI", color: "#ef4444", description: "Balanced efficiency and capability, proving European AI could compete globally", dx: 10, dy: 25 },
@@ -177,7 +168,7 @@
                 { date: "2025-12-15", event: "Nemotron 3 Nano", org: "NVIDIA", color: "#76B900", description: "What a year!", dx: -5, dy: -15 },
                 { date: "2025-12-15", event: "Nemotron 3 Nano", org: "NVIDIA", color: "#76B900", description: "2025 Timeline of major open source AI releases", dx: -5, dy: -15 },
             ];
-            let state = { k: 0, timer: null, isStraight: false };
+            let state = { k: DATA.length, timer: null, isStraight: false }; // [STATIC] k initialized to full length
             const svg = d3.select("#timeline-svg");
             const container = document.getElementById("chart-container");
 
@@ -225,19 +216,40 @@
                         pathData.push(getPoint((i / 80) * lastT, width, height, margin, state.isStraight));
                     }
                     const lineGen = d3.line().x(d => d.x).y(d => d.y).curve(d3.curveBasis);
-                    // [EDIT CHANGE] Path color changed to #ffffff (White)
                     svg.append("path").attr("d", lineGen(pathData)).attr("stroke", "#ffffff").attr("stroke-width", 2.5).attr("fill", "none");
                 }
 
-                const months = d3.utcMonth.range(data[0].dateObj, data[data.length - 1].dateObj, 2);
+                const startMonth = data[0].dateObj;
+                const months = d3.utcMonth.range(startMonth, data[data.length - 1].dateObj, 1);
+                const allowedMonths = ["Feb", "Apr", "Jun", "Aug", "Oct", "Nov", "Dec"];
+
                 months.forEach(m => {
+                    const mName = d3.utcFormat("%b")(m);
+                    const year = m.getFullYear();
+
+                    if (year === 2024 && mName === "Dec") return;
+                    if (mName === "Jan") return;
+
+                    if (!allowedMonths.includes(mName)) return;
+
                     const p = getPoint(timeScale(m), width, height, margin, state.isStraight);
                     svg.append("text")
                         .attr("x", p.x).attr("y", p.y + (isSmall ? 25 : 40))
                         .attr("text-anchor", "middle").attr("font-weight", "800")
                         .attr("fill", "#9ca3af")
-                        .attr("font-size", isSmall ? "11px" : "14px").text(d3.utcFormat("%b")(m));
+                        .attr("font-size", isSmall ? "11px" : "14px").text(mName === "Jun" ? "June" : mName);
                 });
+
+                // Add 2025 Year Label at Jan 1st position (Dark Mode)
+                const y2025 = parseTime("2025-01-01");
+                if (y2025) {
+                    const p = getPoint(timeScale(y2025), width, height, margin, state.isStraight);
+                    svg.append("text")
+                        .attr("x", p.x).attr("y", p.y + (isSmall ? 25 : 40))
+                        .attr("text-anchor", "middle").attr("font-weight", "800")
+                        .attr("fill", "#9ca3af")
+                        .attr("font-size", isSmall ? "11px" : "14px").text("2025");
+                }
 
                 visibleData.forEach((d, i) => {
                     const p = getPoint(timeScale(d.dateObj), width, height, margin, state.isStraight);
@@ -269,43 +281,16 @@
                         .attr("cx", p.x).attr("cy", p.y).attr("r", isSmall ? 3.5 : 5)
                         .attr("fill", d.color).attr("stroke", "#1f2937").attr("stroke-width", 2);
 
-                    // [KEEP TEXT] Description text included in this version
-                    if (i === visibleData.length - 1 && d.description) {
-                        svg.append("text")
-                            .attr("x", width / 2)
-                            .attr("y", margin.top / 2)
-                            .attr("text-anchor", "middle")
-                            .attr("font-size", messageFontSize)
-                            .attr("font-weight", "700")
-                            .attr("fill", "#f3f4f6")
-                            .text(d.description);
-                    }
+                    // No description text since based on no_text
                 });
             }
 
-            function replayAnimation() {
-                if (state.timer) clearInterval(state.timer);
-                state.k = 0;
-                render();
-                state.timer = setInterval(() => {
-                    if (state.k < DATA.length) {
-                        state.k++;
-                        render();
-                    } else {
-                        clearInterval(state.timer);
-                        state.timer = null;
-                    }
-                }, 1200);
-            }
-
-            // Toggle view button removed as well since control bar is simplified, assuming implicit or just relying on load state?
-            // Actually the request only said remove replay button. I will leave toggle view logic but there is no button in my HTML above, so I removed it implicitly. 
-            // The request implies a static view or auto-play. The user said "remove the replay button".
-            // I will keep the render on resize.
+            // removed replayAnimation function and call
 
             window.addEventListener('resize', render);
 
-            replayAnimation();
+            // Initial Render
+            render();
 
             window.addEventListener('resize', () => {
                 render();
