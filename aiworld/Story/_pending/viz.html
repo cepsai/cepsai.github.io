@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>HF Weekly Stats — 2025</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg-color);
+      color: var(--text-color);
+      font-family: system-ui,
+        -apple-system,
+        Segoe UI,
+        Roboto,
+        Ubuntu,
+        Helvetica,
+        Arial,
+        sans-serif;
+      height: 100vh;
+      transition: background 0.3s ease,
+        color 0.3s ease;
+    }
+
+    :root {
+      --bg-color: #ffffff;
+      --text-color: #111;
+      --axis-color: #cfd2d7;
+      --grid-color: rgba(230, 232, 239, 0.45);
+      --tooltip-bg: rgba(255, 255, 255, 0.96);
+      --tooltip-text: #333;
+      --tooltip-shadow: rgba(0, 0, 0, 0.08);
+      --selector-bg: #f8fafc;
+      --selector-border: rgba(17, 24, 39, 0.15);
+      --selector-text: #475569;
+      --selector-active-bg: #fff;
+      --selector-active-text: #2756d3;
+      --selector-active-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      --play-btn-bg: #fff;
+      --play-btn-text: #2756d3;
+      --play-btn-border: #e2e8f0;
+    }
+
+    [data-theme="dark"] {
+      --bg-color: #0a0f14;
+      --text-color: #f1f5f9;
+      --axis-color: #334155;
+      --grid-color: rgba(51, 65, 85, 0.5);
+      --tooltip-bg: rgba(30, 41, 59, 0.98);
+      --tooltip-text: #f1f5f9;
+      --tooltip-shadow: rgba(0, 0, 0, 0.5);
+      --selector-bg: #1e293b;
+      --selector-border: rgba(148, 163, 184, 0.2);
+      --selector-text: #94a3b8;
+      --selector-active-bg: #334155;
+      --selector-active-text: #60a5fa;
+      --selector-active-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --play-btn-bg: #1e293b;
+      --play-btn-text: #60a5fa;
+      --play-btn-border: #334155;
+    }
+
+    .viz-layout {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+      display: flex;
+      align-items: stretch;
+      justify-content: flex-start;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 1fr auto auto auto;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      row-gap: clamp(6px, 1.5vh, 12px);
+      padding: 0 clamp(12px, 2vw, 20px) env(safe-area-inset-bottom) clamp(12px, 2vw, 20px);
+    }
+
+    #container1 {
+      grid-row: 1;
+      grid-column: 1 / span 2;
+      display: flex;
+      overflow: hidden;
+      min-height: 0;
+      column-gap: 0;
+      padding: 0;
+    }
+
+    #container2 {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(12px, 2vw, 20px);
+      min-width: 0;
+      padding: clamp(4px, 0.5vh, 8px) 0;
+      position: relative;
+    }
+
+    #container3 {
+      grid-row: 3;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(20px, 4vw, 40px);
+      min-width: 0;
+      padding: clamp(4px, 0.5vh, 8px) 0;
+    }
+
+    #container4 {
+      grid-row: 4;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      min-width: 0;
+      padding-bottom: 2px;
+    }
+
+    #container5 {
+      grid-row: 4;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: clamp(10px, 2vw, 16px);
+      min-width: 0;
+      padding-bottom: 2px;
+    }
+
+    .source-text {
+      font-size: clamp(10px, 1.6vw, 16px);
+      font-weight: 600;
+      color: var(--text-color);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      font-style: normal;
+    }
+
+    .source-text a {
+      color: var(--selector-active-text);
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .source-text a:visited {
+      color: #2756d3;
+    }
+
+    .logo-note {
+      font-size: clamp(8px, 1vw, 12px);
+      color: #777;
+      font-style: italic;
+      white-space: nowrap;
+      position: absolute;
+      right: 0;
+    }
+
+    .logo {
+      height: 100%;
+      width: auto;
+      max-height: 100%;
+      max-width: 100%;
+      pointer-events: auto;
+      object-fit: contain;
+    }
+
+    .y-axis-container {
+      flex: 0 0 clamp(28px, 3vw, 46px);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      min-width: 0;
+      border-right: 1px solid rgba(0, 0, 0, 0.1);
+      box-sizing: border-box;
+      padding: 0 6px;
+    }
+
+    .y-axis-label {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      text-align: center;
+      font-weight: 600;
+      font-size: clamp(10px, 1.2vw, 16px);
+      color: var(--text-color);
+      line-height: 1.2;
+      letter-spacing: 0.04em;
+    }
+
+    .chart-wrapper {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+      margin-left: -6px;
+    }
+
+    .chart-wrapper-inner {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+    }
+
+    #viz {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #chart {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #tooltip {
+      position: absolute;
+      background: #fff;
+      border: 1px solid #d9d9df;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      transition: opacity .12s ease;
+      max-width: 220px;
+    }
+
+    .axis path,
+    .axis line {
+      stroke: var(--axis-color);
+    }
+
+    .axis text {
+      fill: var(--text-color);
+      font-size: 12px;
+    }
+
+    .x-axis text {
+      font-size: clamp(12px, 1.2vw, 18px);
+    }
+
+    .grid line {
+      stroke: var(--grid-color);
+    }
+
+    .grid .domain {
+      display: none;
+    }
+
+    .final-node {
+      cursor: pointer;
+    }
+
+    .date-display {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border: 1px solid #cfd2d7;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, .92);
+      font-weight: 700;
+      color: #26344f;
+      font-size: clamp(12px, 1.4vw, 16px);
+      line-height: 1;
+      min-width: clamp(160px, 20vw, 220px);
+      width: clamp(160px, 20vw, 220px);
+      box-sizing: border-box;
+    }
+
+    .selector-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(2px, 0.5vw, 6px);
+      padding: clamp(2px, 0.4vw, 4px);
+      border-radius: 6px;
+      border: 1px solid var(--selector-border);
+      background: var(--selector-bg);
+      max-width: 100%;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+
+    .selector-button {
+      border: none;
+      background: transparent;
+      padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+      border-radius: 6px;
+      font-size: clamp(9px, 1.4vw, 13px);
+      font-weight: 600;
+      color: #475569;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+      white-space: nowrap;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+
+    .selector-button.active {
+      background: #2756d3;
+      color: #fff;
+    }
+
+    .play-button-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 1;
+      min-width: 0;
+    }
+
+    .play-button {
+      border: 1px solid rgba(17, 24, 39, 0.15);
+      background: #fff;
+      padding: clamp(4px, 0.8vh, 8px) clamp(10px, 1.8vw, 16px);
+      border-radius: 6px;
+      font-size: clamp(9px, 1.4vw, 13px);
+      font-weight: 600;
+      color: #2756d3;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .play-button:hover {
+      background: #f8fafc;
+      border-color: #2756d3;
+    }
+
+    @media (max-width: 860px) {
+      .logo-note {
+        font-size: clamp(7px, 0.9vw, 10px);
+      }
+    }
+
+    @media (max-width: 500px),
+    (max-height: 520px) {
+
+      #container2,
+      #container3,
+      #container4,
+      #container5 {
+        display: none !important;
+      }
+    }
+
+    .force-hidden {
+      display: none !important;
+    }
+
+    @media (max-height: 480px) {
+      .viz-grid {
+        grid-template-rows: 1fr;
+      }
+
+      #container2,
+      #container3,
+      #container4,
+      #container5 {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="viz-layout" id="vizLayout">
+    <div class="viz-grid">
+      <div id="container1" class="container chart-container">
+        <div class="y-axis-container">
+          <div class="y-axis-label" id="yLabel">Total (Likes + Downloads)</div>
+        </div>
+        <div class="chart-wrapper">
+          <div class="chart-wrapper-inner">
+            <div id="viz">
+              <svg id="chart" role="img"></svg>
+              <div id="tooltip"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="container2" class="container note-container">
+        <div id="dateDisplay" class="date-display"></div>
+      </div>
+      <div id="container3" class="container selector-container">
+        <div class="selector-group">
+          <button class="selector-button active" data-source="all">All</button>
+          <button class="selector-button" data-source="datasets">Datasets</button>
+          <button class="selector-button" data-source="models">Models</button>
+        </div>
+        <div class="play-button-wrapper">
+          <button class="play-button" id="playButton">▶ Play</button>
+        </div>
+        <div class="selector-group">
+          <button class="selector-button active" data-metric="all">All</button>
+          <button class="selector-button" data-metric="likes">Likes</button>
+          <button class="selector-button" data-metric="downloads">Downloads</button>
+        </div>
+        <div class="selector-group" style="position: absolute; right: 4px;">
+          <button class="selector-button" data-theme-val="dark">Dark</button>
+          <button class="selector-button active" data-theme-val="light">Light</button>
+        </div>
+      </div>
+      <div id="container4" class="container source-container">
+        <div class="source-text">Source: <a href="https://huggingface.co" target="_blank" rel="noopener">Hugging
+            Face</a></div>
+      </div>
+      <div id="container5" class="container logo-container">
+        <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+          <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const svg = d3.select("#chart");
+    const tooltip = d3.select("#tooltip");
+    const yLabelEl = document.getElementById("yLabel");
+    const vizEl = document.getElementById("viz");
+    const dateDisplayEl = document.getElementById("dateDisplay");
+    const playButtonEl = document.getElementById("playButton");
+    const themeToggleEl = document.getElementById("themeToggle");
+    const TARGET_YEAR = 2025;
+    const INCLUDED_PERCENT = 100;
+    const METRICS = {
+      all: { key: "all", label: "Total (Likes + Downloads)" },
+      likes: { key: "likes", label: "Likes" },
+      downloads: { key: "downloads", label: "Downloads" }
+    };
+    let METRIC = METRICS.all;
+    let currentDataSource = "all";
+    const STEP_MIN = 0.01;
+    const STEP_MAX = 16;
+    const DELAY_MIN = 10;
+    const DELAY_MAX = 4000;
+    const REPLAY_DELAY = 4000;
+    let autoStep = 0.04;
+    let autoDelay = 16;
+    let isPlayingMode = true;
+    const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
+    const formatComma = d3.format(",.0f");
+    const formatShort = d3.format(".2s");
+    const dateFormatter = d3.utcFormat("%B %-d, %Y");
+    let orgMeta = new Map();
+    let cachedDatasetsData = null;
+    let cachedModelsData = null;
+    let chartSeries = [];
+    let timelineDates = [];
+    let xScale = null;
+    let yScale = null;
+    let lineGenerator = null;
+    let currentStart = 0;
+    let currentEnd = 0;
+    let autoTimer = null;
+    let replayTimeout = null;
+    let animDefaultStart = 0;
+    let animDefaultEnd = 0;
+    let animWindowSize = 1;
+    let animTargetEnd = 0;
+
+    init();
+
+    async function init() {
+      try {
+        const [datasetsData, modelsData, orgs] = await Promise.all([
+          fetchCSV("./datasets_stats_filtered.csv"),
+          fetchCSV("./models_stats_filtered.csv"),
+          fetchJSON("./orgs_test.json")
+        ]);
+        cachedModelsData = modelsData;
+        orgMeta = buildOrgMeta(orgs);
+
+        applyThemeFromURL();
+
+        const currentData = getCurrentData();
+        const processed = buildSeriesAll(currentData);
+        chartSeries = processed.series;
+        timelineDates = processed.timeline;
+        yLabelEl.textContent = METRIC.label;
+        render();
+        setupAnimation();
+        bindSpeedKeys();
+        bindSelectors();
+        bindPlayButton();
+        bindThemeToggle();
+        updatePlayButtonText();
+      } catch (err) {
+        console.error("Failed to load visualization data:", err);
+      }
+    }
+
+    function getCurrentData() {
+      if (currentDataSource === "datasets") {
+        return cachedDatasetsData || [];
+      } else if (currentDataSource === "models") {
+        return cachedModelsData || [];
+      } else {
+        const datasets = cachedDatasetsData || [];
+        const models = cachedModelsData || [];
+
+        const mergedMap = new Map();
+
+        [...datasets, ...models].forEach(entry => {
+          const key = `${entry.author}|${entry.date}`;
+          if (!mergedMap.has(key)) {
+            mergedMap.set(key, {
+              author: entry.author,
+              date: entry.date,
+              likes: 0,
+              downloads: 0,
+              repo_count: 0
+            });
+          }
+          const merged = mergedMap.get(key);
+          merged.likes += Number(entry.likes) || 0;
+          merged.downloads += Number(entry.downloads) || 0;
+          merged.repo_count += Number(entry.repo_count) || 0;
+        });
+
+        return Array.from(mergedMap.values());
+      }
+    }
+
+    function bindSelectors() {
+      const metricButtons = document.querySelectorAll('.selector-button[data-metric]');
+      metricButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const metricKey = button.getAttribute('data-metric');
+          if (metricKey && METRICS[metricKey] && METRIC.key !== metricKey) {
+            switchMetric(metricKey);
+            metricButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+          }
+        });
+      });
+
+      const sourceButtons = document.querySelectorAll('.selector-button[data-source]');
+      sourceButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const sourceKey = button.getAttribute('data-source');
+          if (sourceKey && currentDataSource !== sourceKey) {
+            switchDataSource(sourceKey);
+            sourceButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+          }
+        });
+      });
+    }
+
+    function bindPlayButton() {
+      if (!playButtonEl) { return; }
+      playButtonEl.addEventListener('click', () => {
+        if (autoTimer) {
+          skipToEnd();
+        } else {
+          playAnimation();
+        }
+      });
+    }
+
+    function bindThemeToggle() {
+      const themeButtons = document.querySelectorAll('.selector-button[data-theme-val]');
+      themeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+          const themeVal = button.getAttribute('data-theme-val');
+          const root = document.documentElement;
+          if (themeVal === 'dark') {
+            root.setAttribute('data-theme', 'dark');
+          } else {
+            root.removeAttribute('data-theme');
+          }
+          themeButtons.forEach(btn => btn.classList.remove('active'));
+          button.classList.add('active');
+          render();
+        });
+      });
+    }
+
+    function applyThemeFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      const mode = params.get('mode');
+      const themeButtons = document.querySelectorAll('.selector-button[data-theme-val]');
+
+      if (mode === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        themeButtons.forEach(btn => {
+          if (btn.getAttribute('data-theme-val') === 'dark') btn.classList.add('active');
+          else btn.classList.remove('active');
+        });
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+        themeButtons.forEach(btn => {
+          if (btn.getAttribute('data-theme-val') === 'light') btn.classList.add('active');
+          else btn.classList.remove('active');
+        });
+      }
+    }
+
+    function updatePlayButtonText() {
+      if (!playButtonEl) { return; }
+      if (autoTimer) {
+        playButtonEl.textContent = "⏭ Skip";
+      } else {
+        playButtonEl.textContent = "▶ Play";
+      }
+    }
+
+    function playAnimation() {
+      if (!timelineDates.length) { return; }
+      isPlayingMode = true;
+      const hardStop = Math.min(animTargetEnd, timelineDates.length - 1);
+
+      if (currentEnd >= hardStop) {
+        currentEnd = animDefaultEnd;
+        currentStart = 0;
+        updateFrameRange(currentStart, currentEnd);
+      }
+
+      startTimer();
+      updatePlayButtonText();
+    }
+
+    function skipToEnd() {
+      if (!timelineDates.length) { return; }
+      isPlayingMode = false;
+      stopTimer();
+
+      const hardStop = Math.min(animTargetEnd, timelineDates.length - 1);
+      currentEnd = hardStop;
+      currentStart = 0;
+      updateFrameRange(currentStart, currentEnd);
+      updatePlayButtonText();
+    }
+
+    function switchMetric(metricKey) {
+      if (!METRICS[metricKey]) { return; }
+      METRIC = METRICS[metricKey];
+      const currentData = getCurrentData();
+      const processed = buildSeriesAll(currentData);
+      chartSeries = processed.series;
+      timelineDates = processed.timeline;
+      yLabelEl.textContent = METRIC.label;
+      svg.attr("aria-label", `${METRIC.label} line chart for ${TARGET_YEAR}`);
+      render();
+      setupAnimation(isPlayingMode);
+      updatePlayButtonText();
+    }
+
+    function switchDataSource(sourceKey) {
+      currentDataSource = sourceKey;
+      const currentData = getCurrentData();
+      const processed = buildSeriesAll(currentData);
+      chartSeries = processed.series;
+      timelineDates = processed.timeline;
+      render();
+      setupAnimation(isPlayingMode);
+      updatePlayButtonText();
+    }
+
+    async function fetchCSV(url) {
+      const response = await fetch(url);
+      if (!response.ok) { throw new Error(`HTTP ${response.status} while fetching ${url}`); }
+      const text = await response.text();
+      return d3.csvParse(text);
+    }
+
+    async function fetchJSON(url) {
+      const response = await fetch(url);
+      if (!response.ok) { throw new Error(`HTTP ${response.status} while fetching ${url}`); }
+      return response.json();
+    }
+
+    function buildOrgMeta(list) {
+      const map = new Map();
+      if (Array.isArray(list)) {
+        list.forEach(item => {
+          if (!item || !item.id) { return; }
+          map.set(item.id, { ...item, company: item.company === true });
+        });
+      }
+      return map;
+    }
+
+    function buildSeriesAll(rawData) {
+      if (!Array.isArray(rawData)) {
+        return { series: [], timeline: [] };
+      }
+
+      const groups = d3.group(rawData, d => d.author);
+
+      const perOrgAll = [];
+
+      groups.forEach((entries, author) => {
+        if (!entries || !entries.length) return;
+
+        const all = entries.map(entry => {
+          const date = parseDate(entry.date);
+          let total = 0;
+
+          if (METRIC.key === "all") {
+            const likes = Number(entry.likes);
+            const downloads = Number(entry.downloads);
+            total = (Number.isFinite(likes) ? likes : 0) + (Number.isFinite(downloads) ? downloads : 0);
+          } else {
+            const raw = Number(entry[METRIC.key]);
+            total = Number.isFinite(raw) ? raw : 0;
+          }
+
+          return { id: author, date, total };
+        })
+          .filter(p => p.date instanceof Date && !Number.isNaN(p.date.valueOf()))
+          .sort((a, b) => a.date - b.date);
+
+        if (!all.length) return;
+        perOrgAll.push({ id: author, all });
+      });
+
+      if (!perOrgAll.length) {
+        return { series: [], timeline: [] };
+      }
+
+      let globalMin = null;
+      let globalMax = null;
+      perOrgAll.forEach(({ all }) => {
+        const a0 = all[0].date;
+        const a1 = all[all.length - 1].date;
+        if (!globalMin || a0 < globalMin) globalMin = a0;
+        if (!globalMax || a1 > globalMax) globalMax = a1;
+      });
+
+      const weekStepDates = [];
+      const allDates = new Set();
+      perOrgAll.forEach(({ all }) => {
+        all.forEach(({ date }) => {
+          allDates.add(date.getTime());
+        });
+      });
+
+      const sortedDates = Array.from(allDates).sort((a, b) => a - b).map(t => new Date(t));
+      weekStepDates.push(...sortedDates);
+
+      const dummy0 = weekStepDates[0]
+        ? new Date(weekStepDates[0].getTime() - 7 * 24 * 60 * 60 * 1000)
+        : new Date(globalMin.getTime());
+
+      const timeline = [dummy0, ...weekStepDates];
+
+      const series = [];
+
+      perOrgAll.forEach(({ id, all }) => {
+        const pts = [];
+
+        for (let i = 0; i < weekStepDates.length; i++) {
+          const d = weekStepDates[i];
+          const entry = all.find(p => p.date.getTime() === d.getTime());
+          const end = entry ? entry.total : (pts.length > 0 ? pts[pts.length - 1].end : 0);
+          const idx = i + 1;
+          pts.push({ id, date: d, end, delta: 0, index: idx });
+        }
+
+        const ptsWithZero = [
+          { id, date: dummy0, end: 0, delta: 0, index: 0 },
+          ...pts
+        ];
+
+        for (let k = 1; k < ptsWithZero.length; k++) {
+          ptsWithZero[k].delta = ptsWithZero[k].end - ptsWithZero[k - 1].end;
+        }
+
+        const finalValue = ptsWithZero.length
+          ? ptsWithZero[ptsWithZero.length - 1].end
+          : 0;
+
+        series.push({ id, values: ptsWithZero, finalValue });
+      });
+
+      series.sort((a, b) => (b.finalValue || 0) - (a.finalValue || 0));
+
+      const totalOrgs = series.length;
+      const keepCount = totalOrgs
+        ? Math.max(1, Math.round((totalOrgs * INCLUDED_PERCENT) / 100))
+        : 0;
+      const kept = keepCount ? series.slice(0, keepCount) : [];
+
+      return { series: kept, timeline };
+    }
+
+    function parseDate(input) {
+      if (!input) { return null; }
+      const text = String(input).trim();
+      if (!text) { return null; }
+      const iso = text.includes("T") ? text : `${text}T00:00:00Z`;
+      const date = new Date(iso);
+      return Number.isNaN(date.valueOf()) ? null : date;
+    }
+
+    function formatValue(value) {
+      if (!Number.isFinite(value)) { return "0"; }
+      const abs = Math.abs(value);
+      if (abs >= 1e9) { return formatShort(value).replace("G", "B"); }
+      if (abs >= 1e6) { return formatShort(value); }
+      if (abs >= 1e3) { return formatShort(value); }
+      return formatComma(value);
+    }
+
+    function getOrgColor(id) {
+      const meta = orgMeta.get(id);
+      if (meta && meta.color) { return meta.color; }
+      return colorScale(id);
+    }
+
+    function getOrgLogo(id) {
+      const meta = orgMeta.get(id);
+      if (!meta) { return null; }
+      return meta.logo || meta.logo_url || meta.avatar || meta.icon || null;
+    }
+
+    function getWeekTickStep(innerW) {
+      if (innerW < 360) { return 8; }
+      if (innerW < 680) { return 4; }
+      if (innerW < 900) { return 2; }
+      return 1;
+    }
+
+    function render() {
+      if (!chartSeries.length) {
+        svg.selectAll("*").remove();
+        return;
+      }
+      const margin = { top: 32, right: 40, bottom: 56, left: 74 };
+      const rect = vizEl.getBoundingClientRect();
+      const width = Math.max(margin.left + margin.right + 360, rect.width || 960);
+      const height = Math.max(margin.top + margin.bottom + 280, rect.height || 560);
+      svg.attr("viewBox", `0 0 ${width} ${height}`);
+      svg.attr("aria-label", `${METRIC.label} line chart for ${TARGET_YEAR}`);
+      const defs = svg.selectAll("defs").data([null]).join("defs");
+      const logoClip = defs.selectAll("clipPath#logoCircleClip").data([null]).join("clipPath").attr("id", "logoCircleClip").attr("clipPathUnits", "objectBoundingBox");
+      logoClip.selectAll("circle").data([null]).join("circle").attr("cx", 0.5).attr("cy", 0.5).attr("r", 0.5);
+      const root = svg.selectAll("g.chart-root").data([null]).join("g").attr("class", "chart-root").attr("transform", `translate(${margin.left},${margin.top})`);
+      const allDates = timelineDates.length ? timelineDates : chartSeries.flatMap(s => s.values.map(p => p.date));
+      if (!allDates.length) {
+        svg.selectAll("*").remove();
+        return;
+      }
+      let xDomain = d3.extent(allDates);
+      if (!xDomain[0] || !xDomain[1] || xDomain[0].getTime() === xDomain[1].getTime()) {
+        const base = xDomain[0] || new Date(Date.UTC(TARGET_YEAR, 0, 1));
+        xDomain = [d3.utcDay.offset(base, -3), d3.utcDay.offset(base, 3)];
+      }
+      const valuesFlat = chartSeries.flatMap(s => s.values.map(p => p.end));
+      const maxValue = valuesFlat.length ? Math.max(...valuesFlat) : 100;
+      xScale = d3.scaleUtc().domain(xDomain).range([0, Math.max(120, width - margin.left - margin.right)]);
+      yScale = d3.scaleLinear().domain([0, Math.max(1, maxValue)])
+        .range([Math.max(120, height - margin.top - margin.bottom), 0]);
+      const innerW = xScale.range()[1];
+      const isTiny = innerW < 420;
+      const compact = innerW < 720 && !isTiny;
+      const dotR = isTiny ? Math.max(1, Math.min(3, Math.round(innerW / 360))) : compact ? Math.round(Math.max(2, Math.min(4, innerW / 300))) : Math.round(Math.max(3, Math.min(6, innerW / 250)));
+      const xAxis = d3.axisBottom(xScale).ticks(Math.max(2, innerW / 80)).tickFormat(d3.utcFormat("%b %-d"));
+      const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
+      const grid = root.selectAll("g.grid-y").data([null]).join("g").attr("class", "grid grid-y").call(d3.axisLeft(yScale).ticks(6).tickSize(-xScale.range()[1]).tickFormat(""));
+
+      const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--grid-color').trim();
+      const axisColor = getComputedStyle(document.documentElement).getPropertyValue('--axis-color').trim();
+
+      grid.select(".domain").remove();
+      grid.selectAll("line").attr("stroke", gridColor);
+      const xAxisGroup = root.selectAll("g.x-axis").data([null]).join("g").attr("class", "axis x-axis").attr("transform", `translate(0,${yScale.range()[0]})`).call(xAxis);
+      const yAxisGroup = root.selectAll("g.y-axis").data([null]).join("g").attr("class", "axis y-axis").call(yAxis);
+      yAxisGroup.select(".domain").remove();
+      xAxisGroup.select(".domain").attr("stroke", axisColor);
+      xAxisGroup.selectAll("line").attr("stroke", axisColor);
+      yAxisGroup.selectAll("line").attr("stroke", axisColor);
+      lineGenerator = d3.line().defined(point => Number.isFinite(point.end)).x(point => xScale(point.date)).y(point => yScale(point.end));
+      const seriesGroups = root.selectAll("g.series-group").data(chartSeries, d => d.id);
+      const seriesEnter = seriesGroups.enter().append("g").attr("class", "series-group");
+      seriesEnter.append("path").attr("class", "series-line").attr("fill", "none").attr("stroke-width", 2);
+      seriesEnter.append("g").attr("class", "series-dots");
+      const finalNode = seriesEnter.append("g").attr("class", "final-node");
+      finalNode.append("circle").attr("class", "final-outline");
+      finalNode.append("image").attr("class", "final-logo");
+      const seriesMerged = seriesEnter.merge(seriesGroups);
+      seriesMerged.each(function (series) {
+        d3.select(this).select("path.series-line").attr("stroke", getOrgColor(series.id));
+        d3.select(this).select("g.series-dots").attr("data-dot-r", dotR);
+      });
+      seriesGroups.exit().remove();
+      updateFrameRange(currentStart, currentEnd);
+    }
+
+    function getDateAt(index) {
+      const len = timelineDates.length;
+      if (!len) return new Date();
+      const i = Math.floor(index);
+      const t = index - i;
+      const d1 = timelineDates[Math.max(0, Math.min(i, len - 1))];
+      const d2 = timelineDates[Math.max(0, Math.min(i + 1, len - 1))];
+      if (!d1 || !d2) return d1 || new Date();
+      return new Date(d1.getTime() + (d2.getTime() - d1.getTime()) * t);
+    }
+
+    function getInterpolatedValue(values, index) {
+      const i = Math.floor(index);
+      const t = index - i;
+      const v1 = values[i] ? values[i].end : 0;
+      const v2 = values[i + 1] ? values[i + 1].end : v1;
+      return v1 + (v2 - v1) * t;
+    }
+
+    function updateFrameRange(startIndex, endIndex) {
+      if (!chartSeries.length || !timelineDates.length || !xScale || !yScale || !lineGenerator) { return; }
+      const maxIdx = timelineDates.length - 1;
+      currentStart = Math.max(0, Math.min(startIndex, maxIdx));
+      currentEnd = Math.max(currentStart, Math.min(endIndex, maxIdx));
+
+      const root = svg.select("g.chart-root");
+      const innerWidth = xScale.range()[1];
+      const isTinyW = innerWidth < 420;
+      const compact = innerWidth < 720 && !isTinyW;
+      const logoSize = isTinyW ? Math.round(Math.max(14, Math.min(22, innerWidth / 40))) : compact ? Math.round(Math.max(16, Math.min(28, innerWidth / 36))) : Math.round(Math.max(22, Math.min(42, innerWidth / 26)));
+      const r = Math.round(logoSize / 2 + 2);
+      const recomputedDotR = (() => { if (isTinyW) { return Math.max(1, Math.min(3, Math.round(innerWidth / 360))); } if (compact) { return Math.round(Math.max(2, Math.min(4, innerWidth / 300))); } return Math.round(Math.max(3, Math.min(6, innerWidth / 250))); })();
+      const domainStartDate = getDateAt(currentStart);
+      const domainEndDate = getDateAt(currentEnd);
+      xScale.domain([domainStartDate, domainEndDate]);
+
+      const xTickStep = getWeekTickStep(innerWidth);
+      const xAxis = d3.axisBottom(xScale).ticks(Math.max(2, innerWidth / 80)).tickFormat(d3.utcFormat("%b %-d"));
+      root.select("g.x-axis").attr("transform", `translate(0,${yScale.range()[0]})`).call(xAxis);
+      const axisColor = getComputedStyle(document.documentElement).getPropertyValue('--axis-color').trim();
+      root.select("g.x-axis .domain").attr("stroke", axisColor);
+      root.selectAll("g.x-axis line").attr("stroke", axisColor);
+
+      const adjustedById = new Map();
+
+      chartSeries.forEach(s => {
+        const segment = [];
+        const iStart = Math.ceil(currentStart);
+        const iEnd = Math.floor(currentEnd);
+
+        segment.push({
+          index: currentStart,
+          date: domainStartDate,
+          end: getInterpolatedValue(s.values, currentStart),
+          id: s.id,
+          delta: 0
+        });
+
+        for (let i = iStart; i <= iEnd; i++) {
+          if (i > currentStart && i < currentEnd) {
+            segment.push(s.values[i]);
+          }
+        }
+
+        if (currentEnd > currentStart) {
+          const valEnd = getInterpolatedValue(s.values, currentEnd);
+          segment.push({
+            index: currentEnd,
+            date: domainEndDate,
+            end: valEnd,
+            id: s.id,
+            delta: 0
+          });
+        }
+
+        const baselineIndex = Math.max(0, currentStart - 1);
+        const baselineVal = getInterpolatedValue(s.values, baselineIndex);
+
+        const adj = segment.map(v => ({ ...v, end: Math.max(0, v.end - baselineVal) }));
+        adjustedById.set(s.id, { adj, last: adj[adj.length - 1] || null });
+      });
+
+      const visibleValues = Array.from(adjustedById.values()).flatMap(({ adj }) => adj.map(v => v.end));
+      const maxVisible = visibleValues.length ? Math.max(...visibleValues) : 100;
+      yScale.domain([0, Math.max(1, maxVisible)]);
+      const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
+      root.select("g.y-axis").call(yAxis);
+
+      const gridCall = d3.axisLeft(yScale).ticks(6).tickSize(-xScale.range()[1]).tickFormat("");
+      const grid = root.select("g.grid-y").call(gridCall);
+      grid.select(".domain").remove();
+      grid.selectAll("line").attr("stroke", "rgba(230,232,239,0.45)");
+
+      const seriesMerged = root.selectAll("g.series-group");
+      seriesMerged.each(function (series) {
+        const rec = adjustedById.get(series.id) || { adj: [], last: null };
+        const drawValues = rec.adj;
+
+        d3.select(this).select("path.series-line").attr("d", lineGenerator(drawValues));
+
+        const dotsSel = d3.select(this).select("g.series-dots").selectAll("circle.dot").data(drawValues, d => d.date.getTime());
+        dotsSel.enter().append("circle").attr("class", "dot")
+          .attr("fill", getOrgColor(series.id))
+          .attr("stroke", "#fff")
+          .attr("stroke-width", 1)
+          .merge(dotsSel)
+          .attr("r", recomputedDotR)
+          .attr("cx", point => xScale(point.date))
+          .attr("cy", point => yScale(point.end))
+          .on("mouseenter", function (event, point) {
+            const seriesGroup = d3.select(this.parentNode.parentNode);
+            seriesGroup.raise();
+            d3.select(this).transition().duration(120).attr("r", recomputedDotR + 3).attr("stroke-width", 2);
+            showTooltip(event, { ...point, seriesId: series.id });
+          })
+          .on("mousemove", function (event, point) { moveTooltip(event, { ...point, seriesId: series.id }); })
+          .on("mouseleave", function () { d3.select(this).transition().duration(120).attr("r", recomputedDotR).attr("stroke-width", 1); hideTooltip(); });
+        dotsSel.exit().remove();
+
+        const lastPoint = rec.last;
+        const node = d3.select(this).select("g.final-node");
+        if (lastPoint) {
+          const cx = xScale(lastPoint.date);
+          const cy = yScale(lastPoint.end);
+          const logoUrl = getOrgLogo(series.id) || "";
+          node.raise();
+          node.style("display", null);
+          node.select("circle.final-outline").attr("cx", cx).attr("cy", cy).attr("r", r)
+            .attr("fill", "#ffffff").attr("stroke", getOrgColor(series.id)).attr("stroke-width", 2);
+          node.select("image.final-logo").attr("href", logoUrl)
+            .attr("x", cx - logoSize / 2).attr("y", cy - logoSize / 2)
+            .attr("width", logoSize).attr("height", logoSize)
+            .attr("preserveAspectRatio", "xMidYMid slice")
+            .attr("clip-path", "url(#logoCircleClip)");
+          node.style("pointer-events", "all")
+            .on("mouseenter", (event) => { showTooltip(event, { ...lastPoint, seriesId: series.id }); })
+            .on("mousemove", (event) => { moveTooltip(event, { ...lastPoint, seriesId: series.id }); })
+            .on("mouseleave", () => { hideTooltip(); });
+        } else {
+          node.style("display", "none");
+        }
+      });
+      updateDateUI();
+    }
+
+    function showTooltip(event, point) {
+      tooltip.style("opacity", 1);
+      moveTooltip(event, point);
+    }
+
+    function moveTooltip(event, point) {
+      const [x, y] = d3.pointer(event, vizEl);
+
+      let dateText = "Week";
+      if (point.date) {
+        dateText = dateFormatter(point.date);
+      }
+
+      const deltaText = Number.isFinite(point.delta) ? formatValue(point.delta) : "0";
+
+      tooltip.html(
+        `<strong>${point.id}</strong><br>` +
+        `${dateText}<br>` +
+        `${METRIC.label} so far: ${formatValue(point.end)}<br>` +
+        `This week: ${deltaText}`
+      );
+
+      const ttNode = tooltip.node();
+      const ttWidth = ttNode ? ttNode.offsetWidth : 0;
+      const left = Math.max(6, x - ttWidth - 14);
+      const top = Math.max(6, y - 28);
+      tooltip.style("left", `${left}px`);
+      tooltip.style("top", `${top}px`);
+    }
+
+    function hideTooltip() { tooltip.style("opacity", 0); }
+
+    function updateDateUI() {
+      if (!timelineDates.length || !dateDisplayEl) return;
+      const d = getDateAt(currentEnd);
+      dateDisplayEl.textContent = dateFormatter(d);
+    }
+
+    function setupAnimation(shouldPlay = true) {
+      if (!timelineDates.length) return;
+
+      const clampIndex = v => Math.max(0, Math.min(v, timelineDates.length - 1));
+
+      const startIdx = 0;
+      const initialWindow = 3;
+
+      const endIdx = clampIndex(startIdx + initialWindow);
+
+      animDefaultStart = startIdx;
+      animDefaultEnd = endIdx;
+
+      animWindowSize = Math.max(1, animDefaultEnd - animDefaultStart);
+
+      currentEnd = animDefaultEnd;
+      currentStart = 0;
+
+      animTargetEnd = clampIndex(timelineDates.length - 1);
+
+      currentStart = 0;
+
+      if (shouldPlay) {
+        currentEnd = animDefaultEnd;
+        updateFrameRange(currentStart, currentEnd);
+        startTimer();
+      } else {
+        currentEnd = animTargetEnd;
+        updateFrameRange(currentStart, currentEnd);
+        stopTimer();
+      }
+    }
+
+    function tick() {
+      const hardStop = Math.min(animTargetEnd, timelineDates.length - 1);
+      if (currentEnd >= hardStop) {
+        stopTimer();
+        isPlayingMode = false;
+        return;
+      }
+      const nextEnd = Math.min(hardStop, currentEnd + autoStep);
+      const nextStart = 0;
+      currentStart = nextStart;
+      currentEnd = nextEnd;
+      updateFrameRange(currentStart, currentEnd);
+    }
+
+    function startTimer() {
+      stopTimer();
+      autoTimer = window.setInterval(tick, autoDelay);
+      updatePlayButtonText();
+    }
+
+    function stopTimer() {
+      if (autoTimer) { window.clearInterval(autoTimer); autoTimer = null; }
+      updatePlayButtonText();
+    }
+
+    function restartTimerIfPlaying() {
+      if (autoTimer) { startTimer(); }
+    }
+
+    function setAutoStep(n) {
+      const v = Math.max(STEP_MIN, Math.min(STEP_MAX, n));
+      autoStep = v;
+      restartTimerIfPlaying();
+    }
+
+    function setAutoDelay(ms) {
+      const v = Math.max(DELAY_MIN, Math.min(DELAY_MAX, Math.round(ms)));
+      autoDelay = v;
+      restartTimerIfPlaying();
+    }
+
+    function bindSpeedKeys() {
+      window.addEventListener("keydown", e => {
+        if (e.key === "-" || e.key === "_") { setAutoDelay(autoDelay + 150); }
+        else if (e.key === "=" || e.key === "+") { setAutoDelay(autoDelay - 120); }
+        else if (e.key === "[") { setAutoStep(autoStep - 1); }
+        else if (e.key === "]") { setAutoStep(autoStep + 1); }
+        else if (e.key.toLowerCase() === "h") {
+          if (window.innerWidth > 500) {
+            const c3 = document.getElementById("container3");
+            if (c3) c3.classList.toggle("force-hidden");
+          }
+        }
+      });
+      window.AnimationSpeed = { setAutoStep, setAutoDelay };
+    }
+
+    if (typeof ResizeObserver !== "undefined" && vizEl) {
+      const chartObserver = new ResizeObserver(() => { render(); updateFrameRange(currentStart, currentEnd); });
+      chartObserver.observe(vizEl);
+    }
+    window.addEventListener("resize", () => { render(); updateFrameRange(currentStart, currentEnd); });
+    svg.on("mouseleave", hideTooltip);
+  </script>
+</body>
+
+</html>
