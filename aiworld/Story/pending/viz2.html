@@ -278,12 +278,20 @@
     }
 
     .final-label {
-      font-size: 0.75rem;
+      font-size: 0.65rem;
       font-weight: 600;
       fill: var(--text-color);
       alignment-baseline: middle;
       pointer-events: none;
       text-shadow: 0 0.0625rem 0.125rem var(--bg-color), 0 -0.0625rem 0.125rem var(--bg-color), 0.0625rem 0 0.125rem var(--bg-color), -0.0625rem 0 0.125rem var(--bg-color);
+    }
+
+    .connector {
+      fill: none;
+      stroke-width: 1.5;
+      stroke-dasharray: 4 3;
+      opacity: 0.8;
+      pointer-events: none;
     }
 
     .date-display {
@@ -936,7 +944,7 @@
         return;
       }
       const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
-      const margin = { top: 2 * rem, right: 10 * rem, bottom: 3.5 * rem, left: 4.625 * rem };
+      const margin = { top: 2 * rem, right: 12 * rem, bottom: 3.5 * rem, left: 4.625 * rem };
       const rect = vizEl.getBoundingClientRect();
       const width = Math.max(margin.left + margin.right + 360, rect.width || 960);
       const height = Math.max(margin.top + margin.bottom + 280, rect.height || 560);
@@ -986,6 +994,7 @@
       seriesEnter.append("path").attr("class", "series-line").attr("fill", "none").attr("stroke-width", 2);
       seriesEnter.append("g").attr("class", "series-dots");
       const finalNode = seriesEnter.append("g").attr("class", "final-node");
+      finalNode.append("line").attr("class", "connector");
       finalNode.append("circle").attr("class", "final-outline");
       finalNode.append("image").attr("class", "final-logo");
       finalNode.append("text").attr("class", "final-label");
@@ -1092,6 +1101,8 @@
       grid.selectAll("line").attr("stroke", "rgba(230,232,239,0.45)");
 
       const seriesMerged = root.selectAll("g.series-group");
+      const activeNodes = [];
+
       seriesMerged.each(function (series) {
         const rec = adjustedById.get(series.id) || { adj: [], last: null };
         const drawValues = rec.adj;
@@ -1120,31 +1131,65 @@
         const lastPoint = rec.last;
         const node = d3.select(this).select("g.final-node");
         if (lastPoint) {
-          const cx = xScale(lastPoint.date);
-          const cy = yScale(lastPoint.end);
-          const logoUrl = getOrgLogo(series.id) || "";
-          node.raise();
-          node.style("display", null);
-          node.select("circle.final-outline").attr("cx", cx).attr("cy", cy).attr("r", r)
-            .attr("fill", "#ffffff").attr("stroke", getOrgColor(series.id)).attr("stroke-width", 2);
-          node.select("image.final-logo").attr("href", logoUrl)
-            .attr("x", cx - logoSize / 2).attr("y", cy - logoSize / 2)
-            .attr("width", logoSize).attr("height", logoSize)
-            .attr("preserveAspectRatio", "xMidYMid slice")
-            .attr("clip-path", "url(#logoCircleClip)");
-
-          node.select("text.final-label")
-            .text(getOrgName(series.id))
-            .attr("x", cx + r + 6)
-            .attr("y", cy);
-
-          node.style("pointer-events", "all")
-            .on("mouseenter", (event) => { showTooltip(event, { ...lastPoint, seriesId: series.id }); })
-            .on("mousemove", (event) => { moveTooltip(event, { ...lastPoint, seriesId: series.id }); })
-            .on("mouseleave", () => { hideTooltip(); });
+          activeNodes.push({
+            id: series.id,
+            dataY: yScale(lastPoint.end),
+            dataX: xScale(lastPoint.date),
+            element: this,
+            series: series
+          });
         } else {
           node.style("display", "none");
         }
+      });
+
+      const spacing = r * 2.2;
+
+      const positions = avoidCollisions(activeNodes.map(n => ({ id: n.id, y: n.dataY })), spacing, yScale.range()[0]);
+      const posMap = new Map(positions.map(p => [p.id, p.y]));
+
+      const labelOffset = r * 2.5;
+
+      activeNodes.forEach(node => {
+        const targetY = posMap.get(node.id);
+        const group = d3.select(node.element).select("g.final-node");
+
+        const tx = node.dataX + labelOffset;
+        const ty = targetY;
+
+        group.style("display", null)
+          .attr("transform", `translate(${tx},${ty})`);
+
+        const color = getOrgColor(node.id);
+
+        group.select("circle.final-outline")
+          .attr("cx", 0).attr("cy", 0).attr("r", r)
+          .attr("fill", "#ffffff").attr("stroke", color).attr("stroke-width", 2);
+
+        const logoUrl = getOrgLogo(node.id) || "";
+        group.select("image.final-logo")
+          .attr("href", logoUrl)
+          .attr("x", -logoSize / 2).attr("y", -logoSize / 2)
+          .attr("width", logoSize).attr("height", logoSize)
+          .attr("preserveAspectRatio", "xMidYMid slice")
+          .attr("clip-path", "url(#logoCircleClip)");
+
+        group.select("text.final-label")
+          .text(getOrgName(node.id))
+          .attr("x", r + 6)
+          .attr("y", 0);
+
+        group.select("line.connector")
+          .attr("x1", node.dataX - tx)
+          .attr("y1", node.dataY - ty)
+          .attr("x2", 0)
+          .attr("y2", 0)
+          .attr("stroke", color);
+
+        group.style("pointer-events", "all")
+          .on("mouseenter", (event) => { showTooltip(event, { ...{ date: getDateAt(currentEnd), end: yScale.invert(node.dataY), delta: 0 }, seriesId: node.id }); })
+          .on("mousemove", (event) => { moveTooltip(event, { ...{ date: getDateAt(currentEnd), end: yScale.invert(node.dataY), delta: 0 }, seriesId: node.id }); })
+          .on("mouseleave", () => { hideTooltip(); });
       });
       updateDateUI();
     }
@@ -1165,7 +1210,7 @@
       const deltaText = Number.isFinite(point.delta) ? formatValue(point.delta) : "0";
 
       tooltip.html(
-        `<strong>${point.id}</strong><br>` +
+        `<strong>${getOrgName(point.id || point.seriesId)}</strong><br>` +
         `${dateText}<br>` +
         `${getMetricLabel(METRIC.key)} so far: ${formatValue(point.end)}<br>` +
         `This week: ${deltaText}`
@@ -1259,6 +1304,27 @@
       const v = Math.max(DELAY_MIN, Math.min(DELAY_MAX, Math.round(ms)));
       autoDelay = v;
       restartTimerIfPlaying();
+    }
+
+    function avoidCollisions(nodes, spacing, maxY) {
+      if (!nodes.length) return [];
+
+      const result = nodes.map(n => ({ ...n }));
+      result.sort((a, b) => b.y - a.y);
+
+      if (typeof maxY === 'number' && result[0].y > maxY) {
+        result[0].y = maxY;
+      }
+      for (let i = 1; i < result.length; i++) {
+        const lower = result[i - 1];
+        const current = result[i];
+
+        if (current.y > lower.y - spacing) {
+          current.y = lower.y - spacing;
+        }
+      }
+
+      return result;
     }
 
     function bindSpeedKeys() {
