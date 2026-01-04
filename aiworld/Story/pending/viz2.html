@@ -490,8 +490,8 @@
     async function init() {
       try {
         const [datasetsData, modelsData, orgs] = await Promise.all([
-          fetchCSV("./datasets_stats_filtered.csv"),
-          fetchCSV("./models_stats_filtered.csv"),
+          fetchCSV("./datasets_stats_interpolated.csv"),
+          fetchCSV("./models_stats_interpolated.csv"),
           fetchJSON("./orgs_test.json")
         ]);
         cachedDatasetsData = datasetsData;
@@ -499,6 +499,7 @@
         orgMeta = buildOrgMeta(orgs);
 
         applyThemeFromURL();
+        applyURLParams();
 
         const currentData = getCurrentData();
         const processed = buildSeriesAll(currentData);
@@ -506,7 +507,7 @@
         timelineDates = processed.timeline;
         yLabelEl.textContent = METRIC.label;
         render();
-        setupAnimation();
+        setupAnimation(isPlayingMode);
         bindSpeedKeys();
         bindSelectors();
         bindPlayButton();
@@ -621,6 +622,53 @@
           if (btn.getAttribute('data-theme-val') === 'light') btn.classList.add('active');
           else btn.classList.remove('active');
         });
+      }
+    }
+
+    function applyURLParams() {
+      const params = new URLSearchParams(window.location.search);
+
+      // Apply x param (data source: "all", "datasets", "models")
+      const xParam = params.get('x');
+      if (xParam && ['all', 'datasets', 'models'].includes(xParam)) {
+        currentDataSource = xParam;
+        const sourceButtons = document.querySelectorAll('.selector-button[data-source]');
+        sourceButtons.forEach(btn => {
+          if (btn.getAttribute('data-source') === xParam) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+      }
+
+      // Apply y param (metric: "all", "likes", "downloads")
+      const yParam = params.get('y');
+      if (yParam && ['all', 'likes', 'downloads'].includes(yParam)) {
+        METRIC = METRICS[yParam];
+        const metricButtons = document.querySelectorAll('.selector-button[data-metric]');
+        metricButtons.forEach(btn => {
+          if (btn.getAttribute('data-metric') === yParam) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+      }
+
+      // Apply show param (0 or 1 - show/hide buttons)
+      const showParam = params.get('show');
+      if (showParam === '0') {
+        const c3 = document.getElementById("container3");
+        if (c3) c3.classList.add("force-hidden");
+      }
+
+      // Apply animation param (0 or 1 - default 1)
+      const animParam = params.get('animation');
+      if (animParam === '0') {
+        isPlayingMode = false;
+      } else {
+        isPlayingMode = true;
       }
     }
 
