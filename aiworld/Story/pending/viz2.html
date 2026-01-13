@@ -85,8 +85,8 @@
       height: 100vh;
       width: 100vw;
       box-sizing: border-box;
-      row-gap: clamp(6px, 1.5vh, 12px);
-      padding: 0 clamp(12px, 2vw, 20px) env(safe-area-inset-bottom) clamp(12px, 2vw, 20px);
+      row-gap: clamp(0.375rem, 1.5vh, 0.75rem);
+      padding: 0 clamp(0.75rem, 2vw, 1.25rem) env(safe-area-inset-bottom) clamp(0.75rem, 2vw, 1.25rem);
     }
 
     #container1 {
@@ -238,16 +238,17 @@
 
     #tooltip {
       position: absolute;
-      background: #fff;
-      border: 1px solid #d9d9df;
+      background: var(--tooltip-bg);
+      color: var(--tooltip-text);
+      border: 1px solid var(--axis-color);
       border-radius: 6px;
-      padding: 6px 8px;
-      font-size: 12px;
+      padding: 0.375rem 0.5rem;
+      font-size: 0.75rem;
       pointer-events: none;
       opacity: 0;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 0.25rem 0.875rem var(--tooltip-shadow);
       transition: opacity .12s ease;
-      max-width: 220px;
+      max-width: 13.75rem;
     }
 
     .axis path,
@@ -274,6 +275,23 @@
 
     .final-node {
       cursor: pointer;
+    }
+
+    .final-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      fill: var(--text-color);
+      alignment-baseline: middle;
+      pointer-events: none;
+      text-shadow: 0 0.0625rem 0.125rem var(--bg-color), 0 -0.0625rem 0.125rem var(--bg-color), 0.0625rem 0 0.125rem var(--bg-color), -0.0625rem 0 0.125rem var(--bg-color);
+    }
+
+    .connector {
+      fill: none;
+      stroke-width: 1.5;
+      stroke-dasharray: 4 3;
+      opacity: 0.8;
+      pointer-events: none;
     }
 
     .date-display {
@@ -450,10 +468,24 @@
     const TARGET_YEAR = 2025;
     const INCLUDED_PERCENT = 100;
     const METRICS = {
-      all: { key: "all", label: "Total (Likes + Downloads)" },
-      likes: { key: "likes", label: "Likes" },
-      downloads: { key: "downloads", label: "Downloads" }
+      all: { key: "all", baseLabel: "Likes + Downloads" },
+      likes: { key: "likes", baseLabel: "Likes" },
+      downloads: { key: "downloads", baseLabel: "Downloads" }
     };
+
+    function getMetricLabel(metricKey) {
+      const metric = METRICS[metricKey];
+      if (!metric) return "";
+
+      let sourceLabel = "";
+      if (currentDataSource === "datasets") {
+        sourceLabel = "Datasets ";
+      } else if (currentDataSource === "models") {
+        sourceLabel = "Models ";
+      }
+
+      return `Robotics ${sourceLabel}${metric.baseLabel}`;
+    }
     let METRIC = METRICS.all;
     let currentDataSource = "all";
     const STEP_MIN = 0.01;
@@ -490,8 +522,8 @@
     async function init() {
       try {
         const [datasetsData, modelsData, orgs] = await Promise.all([
-          fetchCSV("./datasets_stats_filtered.csv"),
-          fetchCSV("./models_stats_filtered.csv"),
+          fetchCSV("./datasets_stats_interpolated.csv"),
+          fetchCSV("./models_stats_interpolated.csv"),
           fetchJSON("./orgs_test.json")
         ]);
         cachedDatasetsData = datasetsData;
@@ -499,14 +531,15 @@
         orgMeta = buildOrgMeta(orgs);
 
         applyThemeFromURL();
+        applyURLParams();
 
         const currentData = getCurrentData();
         const processed = buildSeriesAll(currentData);
         chartSeries = processed.series;
         timelineDates = processed.timeline;
-        yLabelEl.textContent = METRIC.label;
+        yLabelEl.textContent = getMetricLabel(METRIC.key);
         render();
-        setupAnimation();
+        setupAnimation(isPlayingMode);
         bindSpeedKeys();
         bindSelectors();
         bindPlayButton();
@@ -624,6 +657,53 @@
       }
     }
 
+    function applyURLParams() {
+      const params = new URLSearchParams(window.location.search);
+
+      // Apply x param (data source: "all", "datasets", "models")
+      const xParam = params.get('x');
+      if (xParam && ['all', 'datasets', 'models'].includes(xParam)) {
+        currentDataSource = xParam;
+        const sourceButtons = document.querySelectorAll('.selector-button[data-source]');
+        sourceButtons.forEach(btn => {
+          if (btn.getAttribute('data-source') === xParam) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+      }
+
+      // Apply y param (metric: "all", "likes", "downloads")
+      const yParam = params.get('y');
+      if (yParam && ['all', 'likes', 'downloads'].includes(yParam)) {
+        METRIC = METRICS[yParam];
+        const metricButtons = document.querySelectorAll('.selector-button[data-metric]');
+        metricButtons.forEach(btn => {
+          if (btn.getAttribute('data-metric') === yParam) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+      }
+
+      // Apply show param (0 or 1 - show/hide buttons)
+      const showParam = params.get('show');
+      if (showParam === '0') {
+        const c3 = document.getElementById("container3");
+        if (c3) c3.classList.add("force-hidden");
+      }
+
+      // Apply animation param (0 or 1 - default 1)
+      const animParam = params.get('animation');
+      if (animParam === '0') {
+        isPlayingMode = false;
+      } else {
+        isPlayingMode = true;
+      }
+    }
+
     function updatePlayButtonText() {
       if (!playButtonEl) { return; }
       if (autoTimer) {
@@ -667,8 +747,9 @@
       const processed = buildSeriesAll(currentData);
       chartSeries = processed.series;
       timelineDates = processed.timeline;
-      yLabelEl.textContent = METRIC.label;
-      svg.attr("aria-label", `${METRIC.label} line chart for ${TARGET_YEAR}`);
+      const label = getMetricLabel(METRIC.key);
+      yLabelEl.textContent = label;
+      svg.attr("aria-label", `${label} line chart for ${TARGET_YEAR}`);
       render();
       setupAnimation(isPlayingMode);
       updatePlayButtonText();
@@ -680,6 +761,7 @@
       const processed = buildSeriesAll(currentData);
       chartSeries = processed.series;
       timelineDates = processed.timeline;
+      yLabelEl.textContent = getMetricLabel(METRIC.key);
       render();
       setupAnimation(isPlayingMode);
       updatePlayButtonText();
@@ -837,6 +919,12 @@
       return colorScale(id);
     }
 
+    function getOrgName(id) {
+      const meta = orgMeta.get(id);
+      if (meta && meta.name) { return meta.name; }
+      return id;
+    }
+
     function getOrgLogo(id) {
       const meta = orgMeta.get(id);
       if (!meta) { return null; }
@@ -855,12 +943,13 @@
         svg.selectAll("*").remove();
         return;
       }
-      const margin = { top: 32, right: 40, bottom: 56, left: 74 };
+      const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+      const margin = { top: 2 * rem, right: 12 * rem, bottom: 3.5 * rem, left: 4.625 * rem };
       const rect = vizEl.getBoundingClientRect();
       const width = Math.max(margin.left + margin.right + 360, rect.width || 960);
       const height = Math.max(margin.top + margin.bottom + 280, rect.height || 560);
       svg.attr("viewBox", `0 0 ${width} ${height}`);
-      svg.attr("aria-label", `${METRIC.label} line chart for ${TARGET_YEAR}`);
+      svg.attr("aria-label", `${getMetricLabel(METRIC.key)} line chart for ${TARGET_YEAR}`);
       const defs = svg.selectAll("defs").data([null]).join("defs");
       const logoClip = defs.selectAll("clipPath#logoCircleClip").data([null]).join("clipPath").attr("id", "logoCircleClip").attr("clipPathUnits", "objectBoundingBox");
       logoClip.selectAll("circle").data([null]).join("circle").attr("cx", 0.5).attr("cy", 0.5).attr("r", 0.5);
@@ -905,8 +994,10 @@
       seriesEnter.append("path").attr("class", "series-line").attr("fill", "none").attr("stroke-width", 2);
       seriesEnter.append("g").attr("class", "series-dots");
       const finalNode = seriesEnter.append("g").attr("class", "final-node");
+      finalNode.append("line").attr("class", "connector");
       finalNode.append("circle").attr("class", "final-outline");
       finalNode.append("image").attr("class", "final-logo");
+      finalNode.append("text").attr("class", "final-label");
       const seriesMerged = seriesEnter.merge(seriesGroups);
       seriesMerged.each(function (series) {
         d3.select(this).select("path.series-line").attr("stroke", getOrgColor(series.id));
@@ -1010,6 +1101,8 @@
       grid.selectAll("line").attr("stroke", "rgba(230,232,239,0.45)");
 
       const seriesMerged = root.selectAll("g.series-group");
+      const activeNodes = [];
+
       seriesMerged.each(function (series) {
         const rec = adjustedById.get(series.id) || { adj: [], last: null };
         const drawValues = rec.adj;
@@ -1038,25 +1131,65 @@
         const lastPoint = rec.last;
         const node = d3.select(this).select("g.final-node");
         if (lastPoint) {
-          const cx = xScale(lastPoint.date);
-          const cy = yScale(lastPoint.end);
-          const logoUrl = getOrgLogo(series.id) || "";
-          node.raise();
-          node.style("display", null);
-          node.select("circle.final-outline").attr("cx", cx).attr("cy", cy).attr("r", r)
-            .attr("fill", "#ffffff").attr("stroke", getOrgColor(series.id)).attr("stroke-width", 2);
-          node.select("image.final-logo").attr("href", logoUrl)
-            .attr("x", cx - logoSize / 2).attr("y", cy - logoSize / 2)
-            .attr("width", logoSize).attr("height", logoSize)
-            .attr("preserveAspectRatio", "xMidYMid slice")
-            .attr("clip-path", "url(#logoCircleClip)");
-          node.style("pointer-events", "all")
-            .on("mouseenter", (event) => { showTooltip(event, { ...lastPoint, seriesId: series.id }); })
-            .on("mousemove", (event) => { moveTooltip(event, { ...lastPoint, seriesId: series.id }); })
-            .on("mouseleave", () => { hideTooltip(); });
+          activeNodes.push({
+            id: series.id,
+            dataY: yScale(lastPoint.end),
+            dataX: xScale(lastPoint.date),
+            element: this,
+            series: series
+          });
         } else {
           node.style("display", "none");
         }
+      });
+
+      const spacing = r * 2.2;
+
+      const positions = avoidCollisions(activeNodes.map(n => ({ id: n.id, y: n.dataY })), spacing, yScale.range()[0]);
+      const posMap = new Map(positions.map(p => [p.id, p.y]));
+
+      const labelOffset = r * 2.5;
+
+      activeNodes.forEach(node => {
+        const targetY = posMap.get(node.id);
+        const group = d3.select(node.element).select("g.final-node");
+
+        const tx = node.dataX + labelOffset;
+        const ty = targetY;
+
+        group.style("display", null)
+          .attr("transform", `translate(${tx},${ty})`);
+
+        const color = getOrgColor(node.id);
+
+        group.select("circle.final-outline")
+          .attr("cx", 0).attr("cy", 0).attr("r", r)
+          .attr("fill", "#ffffff").attr("stroke", color).attr("stroke-width", 2);
+
+        const logoUrl = getOrgLogo(node.id) || "";
+        group.select("image.final-logo")
+          .attr("href", logoUrl)
+          .attr("x", -logoSize / 2).attr("y", -logoSize / 2)
+          .attr("width", logoSize).attr("height", logoSize)
+          .attr("preserveAspectRatio", "xMidYMid slice")
+          .attr("clip-path", "url(#logoCircleClip)");
+
+        group.select("text.final-label")
+          .text(getOrgName(node.id))
+          .attr("x", r + 6)
+          .attr("y", 0);
+
+        group.select("line.connector")
+          .attr("x1", node.dataX - tx)
+          .attr("y1", node.dataY - ty)
+          .attr("x2", 0)
+          .attr("y2", 0)
+          .attr("stroke", color);
+
+        group.style("pointer-events", "all")
+          .on("mouseenter", (event) => { showTooltip(event, { ...{ date: getDateAt(currentEnd), end: yScale.invert(node.dataY), delta: 0 }, seriesId: node.id }); })
+          .on("mousemove", (event) => { moveTooltip(event, { ...{ date: getDateAt(currentEnd), end: yScale.invert(node.dataY), delta: 0 }, seriesId: node.id }); })
+          .on("mouseleave", () => { hideTooltip(); });
       });
       updateDateUI();
     }
@@ -1077,9 +1210,9 @@
       const deltaText = Number.isFinite(point.delta) ? formatValue(point.delta) : "0";
 
       tooltip.html(
-        `<strong>${point.id}</strong><br>` +
+        `<strong>${getOrgName(point.id || point.seriesId)}</strong><br>` +
         `${dateText}<br>` +
-        `${METRIC.label} so far: ${formatValue(point.end)}<br>` +
+        `${getMetricLabel(METRIC.key)} so far: ${formatValue(point.end)}<br>` +
         `This week: ${deltaText}`
       );
 
@@ -1171,6 +1304,27 @@
       const v = Math.max(DELAY_MIN, Math.min(DELAY_MAX, Math.round(ms)));
       autoDelay = v;
       restartTimerIfPlaying();
+    }
+
+    function avoidCollisions(nodes, spacing, maxY) {
+      if (!nodes.length) return [];
+
+      const result = nodes.map(n => ({ ...n }));
+      result.sort((a, b) => b.y - a.y);
+
+      if (typeof maxY === 'number' && result[0].y > maxY) {
+        result[0].y = maxY;
+      }
+      for (let i = 1; i < result.length; i++) {
+        const lower = result[i - 1];
+        const current = result[i];
+
+        if (current.y > lower.y - spacing) {
+          current.y = lower.y - spacing;
+        }
+      }
+
+      return result;
     }
 
     function bindSpeedKeys() {
