@@ -1,0 +1,1337 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style type="text/css">
+/* --- CSS STYLES (UNCHANGED) --- */
+.knitr .inline { background-color: #F7F7F7; border: solid 1px #B0B0B0; }
+.error { font-weight: bold; color: #FF0000; }
+.warning { font-weight: bold; }
+.message { font-style: italic; }
+.source, .output, .warning, .error, .message { padding: 0 1em; border: solid 1px #F7F7F7; }
+.source { background-color: #F5F5F5; }
+.rimage .left { text-align: left; }
+.rimage .right { text-align: right; }
+.rimage .center { text-align: center; }
+.hl.num { color: #AF0F91; }
+.hl.str { color: #317ECC; }
+.hl.com { color: #AD95AF; font-style: italic; }
+.hl.opt { color: #000000; }
+.hl.std { color: #585858; }
+.hl.kwa { color: #295F94; font-weight: bold; }
+.hl.kwb { color: #B05A65; }
+.hl.kwc { color: #55AA55; }
+.hl.kwd { color: #BC5A65; font-weight: bold; }
+body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-serif; background: #ffffff; }
+
+.viz-grid { display: grid; grid-template-rows: 16fr 2fr 2fr 1fr; grid-template-columns: 1fr 1fr; height: 100vh; width: 100vw; box-sizing: border-box; }
+#container1 { grid-row: 1; grid-column: 1 / span 2; overflow: hidden; min-height: 0; }
+#container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+#container2-5 { grid-row: 3; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; gap: clamp(20px, 3vw, 40px); padding: clamp(6px, 1.2vh, 10px) 20px; overflow: hidden; }
+#container3 { grid-row: 4; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 20px; overflow: hidden; min-width: 0; }
+#container4 { grid-row: 4; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; padding: 0 20px; overflow: hidden; min-width: 0; }
+#container4 a { height: 100%; display: flex; align-items: center; }
+
+#treemap { width: 100%; height: 100%; min-height: 0; min-width: 0; }
+.logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
+.source-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.source-text a {
+  color: #2756d3;
+  text-decoration: underline;
+}
+.custom-legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: clamp(6px, 1.5vw, 14px); background: #ffffff; padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 16px); border-radius: clamp(6px, 1.2vw, 12px); box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: auto; max-width: 100%; max-height: 100%; font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; }
+.legend-item { display: flex; align-items: center; gap: 6px; cursor: pointer; transition: opacity 0.2s ease; font-weight: 600; color: #333; position: relative; }
+.legend-item.inactive { opacity: 0.35; }
+.legend-square { width: clamp(10px, 1.2vw, 14px); height: clamp(10px, 1.2vw, 14px); border-radius: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+.legend-item:focus-visible { outline: 2px solid rgba(0,0,0,0.5); outline-offset: 2px; }
+
+.slider-container { display: flex; flex-direction: column; align-items: center; gap: clamp(3px, 0.64vh, 6px); padding: clamp(3px, 0.64vh, 6px) clamp(6px, 1.28vw, 12px); background: #ffffff; border-radius: clamp(3px, 0.64vw, 6px); box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+/* .year-slider { width: clamp(120px, 20vw, 200px); height: clamp(4px, 0.8vh, 6px); -webkit-appearance: none; appearance: none; background: #e0e0e0; outline: none; border-radius: 3px; cursor: pointer; }
+.year-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: clamp(14px, 2.4vw, 18px); height: clamp(14px, 2.4vw, 18px); background: #4169E1; border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
+.year-slider::-webkit-slider-thumb:hover { background: #315bb5; transform: scale(1.1); }
+.year-slider::-moz-range-thumb { width: clamp(14px, 2.4vw, 18px); height: clamp(14px, 2.4vw, 18px); background: #4169E1; border: none; border-radius: 50%; cursor: pointer; transition: all 0.2s ease; }
+.year-slider::-moz-range-thumb:hover { background: #315bb5; transform: scale(1.1); } */
+
+.button-group { display: flex; align-items: center; gap: 0; border-radius: 2px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+.control-btn { padding: clamp(3.6px, 0.6vh, 6px) clamp(7.2px, 1.2vw, 12px); font-size: clamp(6.6px, 0.84vw, 8.4px); font-weight: 600; border: none; background: #ffffff; color: #333; cursor: pointer; transition: all 0.2s ease; font-family: Arial, sans-serif; }
+.control-btn:not(:last-child) { border-right: 1px solid #e0e0e0; }
+.control-btn:hover:not(.active) { background: #f5f5f5; }
+.control-btn.active { background: #4169E1; color: #ffffff; }
+.control-btn:focus-visible { outline: 2px solid rgba(65, 105, 225, 0.5); outline-offset: -2px; z-index: 1; }
+
+/* Hide d3plus automatic percentage sublabels */
+.d3plus-textBox tspan:last-child {
+  display: none !important;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  border: 6px solid #f3f3f3;
+  border-top: 6px solid #4169E1;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  z-index: 9999;
+}
+
+.loading-spinner.active {
+  display: block;
+}
+
+@keyframes spin {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+.loading-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.7);
+  z-index: 9998;
+}
+
+.loading-overlay.active {
+  display: block;
+}
+
+@media (max-height: 500px) {
+  .viz-grid { grid-template-rows: 12fr 1.5fr 1.5fr 0.8fr; }
+  #container2 { padding: clamp(2px, 0.4vh, 4px) clamp(4px, 0.8vw, 8px); }
+  #container2-5 { gap: clamp(8px, 1.5vw, 16px); padding: clamp(2px, 0.4vh, 4px) clamp(8px, 1vw, 12px); }
+  #container3, #container4 { padding: 0 clamp(8px, 1vw, 12px); }
+  .custom-legend { font-size: clamp(7px, 1.2vw, 10px); gap: clamp(3px, 0.8vw, 6px); padding: clamp(2px, 0.4vh, 4px) clamp(4px, 0.8vw, 6px); }
+  .legend-square { width: clamp(6px, 0.8vw, 8px); height: clamp(6px, 0.8vw, 8px); }
+  .slider-container { gap: clamp(1px, 0.3vh, 2px); padding: clamp(1px, 0.3vh, 2px) clamp(3px, 0.6vw, 6px); }
+  .range-wrapper { width: clamp(100px, 25vw, 200px); height: 18px; }
+  .year-value { font-size: clamp(5px, 1vw, 8px); min-width: 20px; }
+  .control-btn { padding: clamp(2px, 0.3vh, 3px) clamp(4px, 0.6vw, 6px); font-size: clamp(5px, 0.6vw, 6px); }
+  .source-text { font-size: clamp(8px, 1.2vw, 10px); }
+  .logo { max-height: clamp(16px, 3vh, 24px); }
+}
+/* === YEAR RANGE SLIDER (dual handle) === */
+
+.range-wrapper {
+  position: relative;
+  width: clamp(220px, 40vw, 420px);
+  height: 28px;
+}
+
+.year-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  margin: 0;
+  width: 100%;
+  background: transparent;      /* track drawn separately */
+  pointer-events: none;         /* only thumbs handle input */
+}
+
+/* grey track behind both knobs */
+.range-wrapper::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 5px;
+  background: #e0e0e0;
+  border-radius: 3px;
+}
+
+/* END slider thumb needs to be on top */
+.year-slider-top {
+  z-index: 2;
+}
+
+/* WebKit thumbs (Chrome/Safari/Edge) */
+.year-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4169E1;
+  cursor: pointer;
+  pointer-events: auto;         /* now draggable */
+  margin-top: -5px;             /* puts dot fully ON TOP of bar */
+  transition: transform 0.2s ease;
+}
+.year-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+/* Firefox thumbs */
+.year-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4169E1;
+  border: none;
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translateY(-2px);  /* lift dot onto bar */
+  transition: transform 0.2s ease;
+}
+.year-slider::-moz-range-thumb:hover {
+  transform: translateY(-3px) scale(1.1);
+}
+
+/* hide built-in track in Firefox */
+.year-slider::-moz-range-track {
+  background: transparent;
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: clamp(6px, 1.2vw, 12px);
+  width: 100%;
+  justify-content: center;
+}
+
+.year-value {
+  font-size: clamp(7px, 1.6vw, 12px);
+  font-weight: 700;
+  color: #4169E1;
+  min-width: 34px;
+  text-align: center;
+}
+
+
+</style>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+<body>
+<div class="loading-overlay" id="loading-overlay"></div>
+<div class="loading-spinner" id="loading-spinner"></div>
+<div class="viz-grid">
+  <div id="container1" class="container treemap-container">
+    <div id="treemap"></div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div class="custom-legend" id="legend"></div>
+  </div>
+  <div id="container2-5" class="container controls-container">
+    <div class="slider-container" id="year-slider-container">
+      <div class="slider-row">
+        <span class="year-value" id="year-start-value">2000</span>
+        <div class="range-wrapper">
+          <input type="range" id="year-start-slider"
+                class="year-slider"
+                min="2000" max="2025" value="2000" step="1">
+          <input type="range" id="year-end-slider"
+                class="year-slider year-slider-top"
+                min="2000" max="2025" value="2025" step="1">
+        </div>
+        <span class="year-value" id="year-end-value">2025</span>
+      </div>
+    </div>
+    <!-- <div class="slider-container" id="year-slider-container">
+      <label class="slider-label" id="year-range-label">2000–2025</label>
+
+      <input type="range" id="year-start-slider"
+            class="year-slider"
+            min="2000" max="2025" value="2000" step="1">
+
+      <input type="range" id="year-end-slider"
+            class="year-slider"
+            min="2000" max="2025" value="2025" step="1">
+</div> -->
+    <!-- <div class="slider-container" id="year-slider-container">
+      <label class="slider-label" id="year-range-label">2025</label>
+      <input type="range" id="year-start-slider" class="year-slider" min="2020" max="2025" value="2025" step="1">
+      <input type="range" id="year-end-slider" class="year-slider" min="2020" max="2025" value="2025" step="1">
+    </div> -->
+    <!-- <div class="slider-container" id="year-slider-container">
+      <label for="year-slider" class="slider-label" id="year-label">2025</label>
+      <input type="range" id="year-slider" class="year-slider" min="2020" max="2025" value="2025" step="1">
+    </div> -->
+    <div class="button-group" id="limit-group">
+      <button class="control-btn" data-limit="50">50</button>
+      <button class="control-btn" data-limit="100">100</button>
+      <button class="control-btn active" data-limit="all">ALL</button>
+    </div>
+    <div class="button-group" id="category-group">
+      <button class="control-btn active" data-category="countries">COUNTRIES</button>
+      <button class="control-btn" data-category="cities">CITIES</button>
+    </div>
+    <div class="button-group" id="metric-group">
+      <button class="control-btn active" data-metric="investments">INVESTMENTS</button>
+      <button class="control-btn" data-metric="patents">PATENTS</button>
+      <button class="control-btn" data-metric="publications">PUBLICATIONS</button>
+    </div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank">Crunchbase</a></div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+    </a>
+  </div>
+</div>
+<script>
+var originalData = [];
+var rawOriginalData = [];
+var countriesData = {};
+var citiesData = {};
+var cityToContinentMap = {};
+var cityIdToContinentMap = {};
+var countryToContinentMap = {};
+var currentLimit = 'all';
+var currentView = 'count';
+var currentCategory = 'countries';
+var currentYear = '2025';
+var currentMetric = 'investments';
+var currentYearStart = '2025';
+var currentYearEnd = '2025';
+
+var metricConfig = {
+  investments: {
+    label: 'Crunchbase',
+    sourceUrl: 'https://www.crunchbase.com/',
+    basePathCountry: 'country/crunchbase/update',
+    basePathCity: 'urban/crunchbase/update'
+  }
+};
+var buttonsDisabled = false;
+
+function formatNumber(num){
+  var value = Number(num);
+  if(!isFinite(value)) value = 0;
+  if(value >= 1e9){
+    return (value / 1e9).toFixed(1) + 'B';
+  } else if(value >= 1e6){
+    return (value / 1e6).toFixed(1) + 'M';
+  } else if(value >= 1e3){
+    return (value / 1e3).toFixed(1) + 'K';
+  }
+  return Math.round(value).toString();
+}
+
+function normalizeData(arr){
+  return arr.map(function(d){
+    var parent = d.parent || d.parentName || d.group || d.domain || d.category || d.type || d.class;
+    var name = d.name || d.id || d.label || d.title;
+    var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+    if(!isFinite(value)) value = 0;
+    return { parent: parent, name: name, value: value };
+  }).filter(function(d){
+    return d.parent && d.name;
+  });
+}
+var data = [];
+var groups = [];
+var inferredColors = {};
+var regionColorMap = {
+  "US": "#ec787a",
+  "US": "#ec787a",
+  "China": "#fadb56",
+  "EU": "#f5ae6c",
+  "Europe": "#f5ae6c",
+  "United Kingdom": "#887aa5",
+  "Unknown": "#7a98ad",
+  "Rest of the world": "#81b29a"
+};
+
+// ISO2 codes of EU Member States
+var euCountryCodes = new Set([
+  "AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR",
+  "DE","GR","HU","IE","IT","LV","LT","LU","MT","NL",
+  "PL","PT","RO","SK","SI","ES","SE"
+]);
+
+var fallbackPalette = ["#1F77B4","#FF7F0E","#2CA02C","#9467BD","#D62728","#17BECF","#8C564B","#E377C2","#7F7F7F","#BCBD22"];
+var groupColors = {};
+var activeGroups = new Set();
+function getGroupColor(parent){ return groupColors[parent] || "#666666"; }
+function buildLegend(){
+  var legend = document.getElementById('legend');
+  if(!legend) return;
+  legend.innerHTML = '';
+  groups.forEach(function(g){
+    var item = document.createElement('div');
+    item.className = 'legend-item active';
+    item.setAttribute('data-group', g);
+    item.setAttribute('role','button');
+    item.setAttribute('tabindex','0');
+    item.setAttribute('aria-pressed','true');
+    var square = document.createElement('div');
+    square.className = 'legend-square';
+    square.style.backgroundColor = getGroupColor(g);
+    var label = document.createElement('span');
+    label.textContent = g;
+    item.appendChild(square);
+    item.appendChild(label);
+    item.addEventListener('click', function(){
+      var grp = this.getAttribute('data-group');
+      if(activeGroups.has(grp)){ activeGroups.delete(grp); } else { activeGroups.add(grp); }
+      updateVisualization();
+    });
+    item.addEventListener('keydown', function(e){
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        var grp = this.getAttribute('data-group');
+        if(activeGroups.has(grp)){ activeGroups.delete(grp); } else { activeGroups.add(grp); }
+        updateVisualization();
+      }
+    });
+    legend.appendChild(item);
+  });
+}
+// var whiteTextRegions = ["United States & Canada", "North America", "Africa", "Oceania"];
+// function getLabelColor(d){
+//   var parent = d.parent || d.id;
+//   return whiteTextRegions.indexOf(parent) !== -1 ? "#FFFFFF" : "#000000";
+// }
+
+var percentageMap = {};
+
+function cleanGeoName(name){
+  return (name || '').replace(/\s*\([^)]+\)\s*$/, '');
+}
+
+function getLabelText(d){
+  if (d.depth === 0) return d.id;
+
+  var baseName = cleanGeoName(d.name);
+  var label = baseName;
+  label += '\n' + formatNumber(d.value || 0);
+
+  return label;
+}
+
+// function getLabelText(d){
+//   if(d.depth === 0) return d.id;
+
+//   var label = d.name;
+
+//   if(currentView === 'percent') {
+//     var key = (d.parent || d.id) + '|' + d.name;
+//     var percentage = percentageMap[key] || 0;
+//     label += '\n' + percentage.toFixed(1) + "%";
+//   } else {
+//     label += '\n' + formatNumber(d.value || 0);
+//   }
+
+//   return label;
+// }
+
+var treemap = new d3plus.Treemap()
+  .select("#treemap")
+  .data(data)
+  .groupBy(["parent","name"])
+  .tooltipConfig({
+    title:function(d){ return d.name; },
+    body:function(d){
+      var formattedCount = formatNumber(d.value || 0);
+      return "<strong>Sector:</strong> " + (d.parent || d.id) + "<br><strong>Count:</strong> " + formattedCount;
+    }
+  })
+  .sum("value")
+  .layoutPadding(2)
+  .legend(false)
+  .color(function(d){ return getGroupColor(d.parent || d.id); })
+  .shapeConfig({
+    stroke:function(d){ if(d.depth===0){ return getGroupColor(d.id); } return "transparent"; },
+    strokeWidth:function(d){ if(d.depth===0){ return 3; } return 0; },
+    // labelConfig: {
+    //   fontColor: "#FFFFFF" 
+    // }
+  });
+
+function applyLimit(arr, limit){
+  if(limit === 'all') return arr;
+
+  var limitNum = parseInt(limit);
+
+  var sorted = arr.slice().sort(function(a, b){ return b.value - a.value; });
+  return sorted.slice(0, limitNum);
+}
+
+function calculatePercentages(arr){
+  var globalTotal = arr.reduce(function(sum, d){
+    var val = Number(d.value);
+    if(!isFinite(val)) val = 0;
+    return sum + val;
+  }, 0);
+
+  var map = {};
+  arr.forEach(function(d){
+    var key = d.parent + '|' + d.name;
+    var val = Number(d.value);
+    if(!isFinite(val)) val = 0;
+    map[key] = globalTotal > 0 ? (val / globalTotal) * 100 : 0;
+  });
+
+  return map;
+}
+
+function updateVisualization(){
+  rawOriginalData = normalizeData(originalData);
+  var filteredData = rawOriginalData.filter(function(d){ return activeGroups.has(d.parent); });
+  var limitedData = applyLimit(filteredData, currentLimit);
+
+  percentageMap = calculatePercentages(limitedData);
+
+  data = limitedData;
+
+  treemap.label(function(d){ return getLabelText(d); });
+  treemap.data(data);
+  treemap.render();
+
+  if (buttonsDisabled) {
+    setTimeout(function(){
+      enableAllButtons();
+    }, 300);
+  }
+  document.querySelectorAll('#metric-group .control-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if (buttonsDisabled) return;
+      document.querySelectorAll('#metric-group .control-btn').forEach(function(b){
+        b.classList.remove('active');
+      });
+      this.classList.add('active');
+
+      currentMetric = this.getAttribute('data-metric');
+      var cfg = metricConfig[currentMetric];
+      var srcEl = document.querySelector('.source-text');
+      if (srcEl && cfg) {
+        srcEl.innerHTML =
+          'Source: <a href="' + cfg.sourceUrl +
+          '" target="_blank" rel="noopener">' + cfg.label + '</a>';
+      }
+
+      disableAllButtons();
+      loadAllData(currentMetric);
+    });
+  });
+
+  // document.querySelectorAll('.legend-item').forEach(function(item){
+  //   var grp = item.getAttribute('data-group');
+  //   var isActive = activeGroups.has(grp);
+  //   item.classList.toggle('inactive', !isActive);
+  //   item.classList.toggle('active', isActive);
+  //   item.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  // });
+}
+function disableAllButtons(){
+  buttonsDisabled = true;
+
+  var spinner = document.getElementById('loading-spinner');
+  var overlay = document.getElementById('loading-overlay');
+  if(spinner) spinner.classList.add('active');
+  if(overlay) overlay.classList.add('active');
+
+  document.querySelectorAll('.control-btn').forEach(function(btn){
+    btn.style.pointerEvents = 'none';
+    if(btn.classList.contains('active')){
+      btn.style.opacity = '0.6';
+    } else {
+      btn.style.opacity = '0.35';
+    }
+  });
+
+  var startSlider = document.getElementById('year-start-slider');
+  var endSlider = document.getElementById('year-end-slider');
+  if(startSlider){
+    startSlider.disabled = true;
+    startSlider.style.opacity = '0.6';
+  }
+  if(endSlider){
+    endSlider.disabled = true;
+    endSlider.style.opacity = '0.6';
+  }
+}
+
+function enableAllButtons(){
+  buttonsDisabled = false;
+
+  var spinner = document.getElementById('loading-spinner');
+  var overlay = document.getElementById('loading-overlay');
+  if(spinner) spinner.classList.remove('active');
+  if(overlay) overlay.classList.remove('active');
+
+  document.querySelectorAll('.control-btn').forEach(function(btn){
+    btn.style.pointerEvents = 'auto';
+    btn.style.opacity = '1';
+  });
+
+  var startSlider = document.getElementById('year-start-slider');
+  var endSlider = document.getElementById('year-end-slider');
+  if(startSlider){
+    startSlider.disabled = false;
+    startSlider.style.opacity = '1';
+  }
+  if(endSlider){
+    endSlider.disabled = false;
+    endSlider.style.opacity = '1';
+  }
+}
+
+function initializeControls() {
+  var startSlider = document.getElementById('year-start-slider');
+  var endSlider = document.getElementById('year-end-slider');
+  var startValueEl = document.getElementById('year-start-value');
+  var endValueEl = document.getElementById('year-end-value');
+
+  function updateYearLabel(){
+    if (startValueEl) startValueEl.textContent = currentYearStart;
+    if (endValueEl) endValueEl.textContent = currentYearEnd;
+  }
+
+  if (startSlider && endSlider){
+    currentYearStart = startSlider.value;
+    currentYearEnd = endSlider.value;
+    updateYearLabel();
+
+    startSlider.addEventListener('input', function(){
+      var v = parseInt(this.value, 10);
+      if (v > parseInt(currentYearEnd, 10)){
+        v = parseInt(currentYearEnd, 10);
+        this.value = v;
+      }
+      currentYearStart = v;
+      updateYearLabel();
+    });
+
+    endSlider.addEventListener('input', function(){
+      var v = parseInt(this.value, 10);
+      if (v < parseInt(currentYearStart, 10)){
+        v = parseInt(currentYearStart, 10);
+        this.value = v;
+      }
+      currentYearEnd = v;
+      updateYearLabel();
+    });
+
+    startSlider.addEventListener('change', function(){
+      if (buttonsDisabled) return;
+      disableAllButtons();
+      switchToCategory(currentCategory);
+    });
+
+    endSlider.addEventListener('change', function(){
+      if (buttonsDisabled) return;
+      disableAllButtons();
+      switchToCategory(currentCategory);
+    });
+  }
+
+  document.querySelectorAll('#limit-group .control-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if (buttonsDisabled) return;
+      document.querySelectorAll('#limit-group .control-btn')
+          .forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      currentLimit = this.dataset.limit;
+      disableAllButtons();
+      updateVisualization();
+    });
+  });
+
+  document.querySelectorAll('#category-group .control-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if (buttonsDisabled) return;
+      document.querySelectorAll('#category-group .control-btn')
+          .forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      currentCategory = this.dataset.category;
+      disableAllButtons();
+      switchToCategory(currentCategory);
+    });
+  });
+}
+
+// function initializeControls(){
+//   var yearSlider = document.getElementById('year-slider');
+//   var yearLabel = document.getElementById('year-label');
+
+//   if(yearSlider && yearLabel){
+//     yearSlider.addEventListener('input', function(){
+//       yearLabel.textContent = this.value;
+//     });
+
+//     yearSlider.addEventListener('change', function(){
+//       if(buttonsDisabled) return;
+//       currentYear = this.value;
+//       disableAllButtons();
+//       switchToCategory(currentCategory);
+//     });
+//   }
+
+//   document.querySelectorAll('#limit-group .control-btn').forEach(function(btn){
+//     btn.addEventListener('click', function(){
+//       if(buttonsDisabled) return;
+//       document.querySelectorAll('#limit-group .control-btn').forEach(function(b){ b.classList.remove('active'); });
+//       this.classList.add('active');
+//       currentLimit = this.getAttribute('data-limit');
+//       disableAllButtons();
+//       updateVisualization();
+//     });
+//   });
+//   document.querySelectorAll('#view-group .control-btn').forEach(function(btn){
+//     btn.addEventListener('click', function(){
+//       if(buttonsDisabled) return;
+//       document.querySelectorAll('#view-group .control-btn').forEach(function(b){ b.classList.remove('active'); });
+//       this.classList.add('active');
+//       currentView = this.getAttribute('data-view');
+//       disableAllButtons();
+//       updateVisualization();
+//     });
+//   });
+//   document.querySelectorAll('#category-group .control-btn').forEach(function(btn){
+//     btn.addEventListener('click', function(){
+//       if(buttonsDisabled) return;
+//       document.querySelectorAll('#category-group .control-btn').forEach(function(b){ b.classList.remove('active'); });
+//       this.classList.add('active');
+//       currentCategory = this.getAttribute('data-category');
+//       disableAllButtons();
+//       switchToCategory(currentCategory);
+//     });
+//   });
+// }
+
+function initializeVisualization(){
+  data = normalizeData(originalData);
+  groups = Array.from(new Set(data.map(function(d){ return d.parent; })));
+  inferredColors = {};
+  groups.forEach(function(g){
+    var item = originalData.find(function(x){ var p = x.parent || x.parentName || x.group || x.domain || x.category || x.type || x.class; return p === g; });
+    inferredColors[g] = item && item.color ? item.color : null;
+  });
+  groupColors = {};
+  groups.forEach(function(g, i){
+    groupColors[g] = inferredColors[g] || regionColorMap[g] || fallbackPalette[i % fallbackPalette.length];
+  });
+  activeGroups = new Set(groups);
+  
+  buildLegend();
+  updateVisualization();
+}
+
+function buildCityToContinentMap(){
+  cityToContinentMap = {};
+  cityIdToContinentMap = {};
+  countryToContinentMap = {};
+  cityIdToCountryCode = {};
+
+  return fetch('crosswalk.json')
+    .then(function(r){ return r.text(); })
+    .then(function(text){
+      var cleanedText = text.replace(/:\s*NaN\s*,/g, ': null,').replace(/:\s*NaN\s*}/g, ': null}');
+      var geoData = JSON.parse(cleanedText);
+
+      function addCountryMapping(key, continent){
+        if(!key || !continent) return;
+        var cleanKey = key.toString().trim();
+        if(!cleanKey) return;
+        if(!countryToContinentMap[cleanKey]){
+          countryToContinentMap[cleanKey] = continent;
+        }
+      }
+
+      geoData.forEach(function(city){
+        var cityName = city.urban_name ? city.urban_name.trim() : '';
+        var urbanId = city.urban_id;
+        var continent = city.parent || null;
+        var countryName = city.country_name ? city.country_name.trim() : '';
+        var countryNameUN = city.country_name_un ? city.country_name_un.trim() : '';
+        var countryCode = city.country_id ? city.country_id.toString().trim().toUpperCase() : '';
+
+        if(cityName && continent){
+          cityToContinentMap[cityName] = continent;
+        }
+
+        var numericId = parseInt(urbanId, 10);
+        if(!isNaN(numericId) && continent){
+          cityIdToContinentMap[numericId] = continent;
+          cityIdToCountryCode[numericId] = countryCode;
+        }
+
+        addCountryMapping(countryName, continent);
+        addCountryMapping(countryNameUN, continent);
+        addCountryMapping(countryCode, continent);
+        if(countryCode && countryName){
+          addCountryMapping(countryName + ' (' + countryCode + ')', continent);
+        }
+        if(countryCode && countryNameUN){
+          addCountryMapping(countryNameUN + ' (' + countryCode + ')', continent);
+        }
+      });
+
+      return geoData;
+    })
+    .catch(function(error){
+      console.warn('Could not load crosswalk data:', error);
+      return [];
+    });
+}
+
+// function buildCityToContinentMap(){
+//   cityToContinentMap = {};
+//   cityIdToContinentMap = {};
+//   countryToContinentMap = {};
+
+//   return fetch('crosswalk.json')
+//     .then(function(r){ return r.text(); })
+//     .then(function(text){
+//       var cleanedText = text.replace(/:\s*NaN\s*,/g, ': null,').replace(/:\s*NaN\s*}/g, ': null}');
+//       var geoData = JSON.parse(cleanedText);
+
+//       function addCountryMapping(key, continent){
+//         if(!key || !continent) return;
+//         var cleanKey = key.toString().trim();
+//         if(!cleanKey) return;
+//         if(!countryToContinentMap[cleanKey]){
+//           countryToContinentMap[cleanKey] = continent;
+//         }
+//       }
+
+//       geoData.forEach(function(city){
+//         var cityName = city.urban_name ? city.urban_name.trim() : '';
+//         var urbanId = city.urban_id;
+//         var continent = city.parent || null;
+//         var countryName = city.country_name ? city.country_name.trim() : '';
+//         var countryNameUN = city.country_name_un ? city.country_name_un.trim() : '';
+//         var countryCode = city.country_id ? city.country_id.toString().trim().toUpperCase() : '';
+
+//         if(cityName && continent){
+//           cityToContinentMap[cityName] = continent;
+//         }
+
+//         var numericId = parseInt(urbanId, 10);
+//         if(!isNaN(numericId) && continent){
+//           cityIdToContinentMap[numericId] = continent;
+//         }
+
+//         addCountryMapping(countryName, continent);
+//         addCountryMapping(countryNameUN, continent);
+//         addCountryMapping(countryCode, continent);
+//         if(countryCode && countryName){
+//           addCountryMapping(countryName + ' (' + countryCode + ')', continent);
+//         }
+//         if(countryCode && countryNameUN){
+//           addCountryMapping(countryNameUN + ' (' + countryCode + ')', continent);
+//         }
+//       });
+
+//       return geoData;
+//     })
+//     .catch(function(error){
+//       console.warn('Could not load crosswalk data:', error);
+//       return [];
+//     });
+// }
+
+function getCitiesDataWithContinents(yearData){
+  return yearData.map(function(city){
+    var cityName = city.name || '';
+    var continent = null;
+    var urbanId = null;
+
+    var idMatch = cityName.match(/\((\d+)\)$/);
+    if(idMatch){
+      urbanId = parseInt(idMatch[1]);
+      if(cityIdToContinentMap[urbanId]){
+        continent = cityIdToContinentMap[urbanId];
+      }
+    }
+    if(!continent){
+      var cleanName = cityName.replace(/\s*\(\d+\)$/, '').trim();
+
+      if(cityToContinentMap[cleanName]){
+        continent = cityToContinentMap[cleanName];
+      } else if(cityToContinentMap[cityName]){
+        continent = cityToContinentMap[cityName];
+      }
+    }
+    if(!continent){
+      continent = "Unknown";
+    }
+    if (cityName.startsWith("Herat")) {
+      continent = "Rest of the world";
+    }
+    // 🌍 Europe -> EU / UK / Rest-of-world
+    if (continent === "Europe" && urbanId && cityIdToCountryCode[urbanId]) {
+      var code = cityIdToCountryCode[urbanId];
+
+      if (code === "UK" || code === "GB") {
+        continent = "United Kingdom";
+      } else if (euCountryCodes.has(code)) {
+        continent = "EU";
+      } else {
+        continent = "Rest of the world";
+      }
+    }
+
+    var newCity = Object.assign({}, city);
+    newCity.parent = continent;
+    newCity.parentName = continent;
+    newCity.group = continent;
+    return newCity;
+  });
+}
+
+// function getCitiesDataWithContinents(yearData){
+//   return yearData.map(function(city){
+//     var cityName = city.name || '';
+//     var continent = null;
+
+//     var idMatch = cityName.match(/\((\d+)\)$/);
+//     if(idMatch){
+//       var urbanId = parseInt(idMatch[1]);
+//       if(cityIdToContinentMap[urbanId]){
+//         continent = cityIdToContinentMap[urbanId];
+//       }
+//     }
+//     if(!continent){
+//       var cleanName = cityName.replace(/\s*\(\d+\)$/, '').trim();
+
+//       if(cityToContinentMap[cleanName]){
+//         continent = cityToContinentMap[cleanName];
+//       } else if(cityToContinentMap[cityName]){
+//         continent = cityToContinentMap[cityName];
+//       }
+//     }
+//     if(!continent){
+//       continent = "Unknown";
+//     }
+
+//     var newCity = Object.assign({}, city);
+//     newCity.parent = continent;
+//     newCity.parentName = continent;
+//     newCity.group = continent;
+//     return newCity;
+//   });
+// }
+
+// function switchToCategory(category){
+//   var yearData;
+//   if(category === 'countries'){
+//     yearData = countriesData[currentYear] || [];
+//     originalData = yearData;
+//   } else if(category === 'cities'){
+//     yearData = citiesData[currentYear] || [];
+//     originalData = getCitiesDataWithContinents(yearData);
+//   }
+//   initializeVisualization();
+// }
+
+function aggregateYearRange(sourceByYear, startYear, endYear){
+  var acc = {};
+
+  for (var y = startYear; y <= endYear; y++){
+    var key = String(y);
+    var rows = sourceByYear[key] || [];
+    rows.forEach(function(d){
+      var id = (d.parent || "") + "|" + (d.name || "");
+      if (!acc[id]) {
+        acc[id] = Object.assign({}, d);
+      } else {
+        acc[id].value += d.value;
+        acc[id].count = acc[id].value;
+      }
+    });
+  }
+  return Object.values(acc);
+}
+
+function aggregateYearRange(sourceByYear, startYear, endYear){
+  var acc = {};
+
+  for (var y = startYear; y <= endYear; y++){
+    var yearKey = String(y);
+    var arr = sourceByYear[yearKey] || [];
+    arr.forEach(function(d){
+      var key = (d.parent || "") + "|" + (d.name || "");
+      if (!acc[key]){
+        acc[key] = Object.assign({}, d);
+      } else {
+        var add = Number(d.value) || 0;
+        acc[key].value = (acc[key].value || 0) + add;
+        acc[key].count = acc[key].value;
+      }
+    });
+  }
+  return Object.values(acc);
+}
+
+function switchToCategory(category){
+  var startY = parseInt(currentYearStart, 10);
+  var endY = parseInt(currentYearEnd, 10);
+
+  var list;
+  if (category === 'countries'){
+    list = aggregateYearRange(countriesData, startY, endY);
+    originalData = list;
+  } else {
+    list = aggregateYearRange(citiesData, startY, endY);
+    originalData = getCitiesDataWithContinents(list);
+  }
+  initializeVisualization();
+}
+
+// function switchToCategory(category){
+//   var startY = parseInt(currentYearStart, 10);
+//   var endY = parseInt(currentYearEnd, 10);
+//   if (isNaN(startY) || isNaN(endY)){
+//     startY = endY = parseInt(currentYear, 10) || 2025; // fallback
+//   }
+
+//   var yearData;
+//   if (category === 'countries'){
+//     yearData = aggregateYearRange(countriesData, startY, endY);
+//     originalData = yearData;
+//   } else if (category === 'cities'){
+//     yearData = aggregateYearRange(citiesData, startY, endY);
+//     originalData = getCitiesDataWithContinents(yearData);
+//   }
+
+//   initializeVisualization();
+// }
+
+  
+
+function parseCSV(text){
+  var lines = text.trim().split('\n');
+  var headers = lines[0].split(',').map(function(h){ return h.replace(/"/g, '').trim(); });
+  var data = [];
+
+  for(var i = 1; i < lines.length; i++){
+    var line = lines[i];
+    var values = [];
+    var inQuotes = false;
+    var currentValue = '';
+
+    for(var j = 0; j < line.length; j++){
+      var char = line[j];
+      if(char === '"'){
+        inQuotes = !inQuotes;
+      } else if(char === ',' && !inQuotes){
+        values.push(currentValue.trim());
+        currentValue = '';
+      } else {
+        currentValue += char;
+      }
+    }
+    values.push(currentValue.trim());
+
+    if(values.length === headers.length){
+      var obj = {};
+      headers.forEach(function(header, idx){
+        obj[header] = values[idx];
+      });
+      data.push(obj);
+    }
+  }
+  return data.filter(row => (row.domain || "").trim() === "Artificial Intelligence");
+}
+
+function getCountryContinent(geo){
+  var label = (geo || '').trim();
+  if (!label) return "Rest of the world";
+
+  var isoMatch = label.match(/\(([^)]+)\)\s*$/);
+  var code = isoMatch ? isoMatch[1].trim().toUpperCase() : null;
+
+  var baseName = label.replace(/\s*\([^)]+\)\s*$/, '').trim();
+
+  var continent = null;
+
+  // From code
+  if (code && countryToContinentMap[code]) {
+    continent = countryToContinentMap[code];
+  }
+  // From full label
+  else if (countryToContinentMap[label]) {
+    continent = countryToContinentMap[label];
+  }
+  // From name without code
+  else if (countryToContinentMap[baseName]) {
+    continent = countryToContinentMap[baseName];
+  }
+
+  // Fallback
+  continent = continent || "Rest of the world";
+
+  // 🌍 Europe special logic
+  if (continent === "Europe") {
+
+    // 🇬🇧 UK stays its own category
+    if (code === "UK" || code === "GB") {
+      return "United Kingdom";
+    }
+
+    // 🇪🇺 EU block (list from your earlier definition)
+    if (code && euCountryCodes.has(code)) {
+      return "EU";
+    }
+
+    // 🇨🇭🇳🇴🇮🇸 Switzerland, Norway, Iceland, etc.
+    return "Rest of the world";
+  }
+
+  // 🌎 Other continents remain unchanged
+  return continent;
+}
+
+
+function transformCSVToTreemapData(csvData, isCity){
+  
+  csvData = csvData.filter(function(row){
+    var geo = (row.geo || "").trim();
+    if (!geo) return false;
+    if (geo === "nan (NA) (NA)") return false;
+    if (geo === "(NA)") return false;
+    return true;
+  });
+
+  return csvData.map(function(row){
+    var geo = row.geo || '';
+    var count = parseFloat(row.count) || 0;
+
+    var continent;
+    if (isCity){
+      continent = "Other";
+    } else {
+      continent = getCountryContinent(geo);
+    }
+
+    return {
+      name: geo,
+      parent: continent,
+      parentName: continent,
+      value: count,
+      count: count
+    };
+  });
+}
+
+// function transformCSVToTreemapData(csvData, isCity){
+//   return csvData.map(function(row){
+//     var geo = row.geo || '';
+//     var count = parseFloat(row.count) || 0;
+
+//     var continent;
+//     if(isCity){
+//       continent = "Other";
+//     } else {
+//       continent = getCountryContinent(geo);
+//     }
+
+//     return {
+//       name: geo,
+//       parent: continent,
+//       parentName: continent,
+//       value: count,
+//       count: count
+//     };
+//   });
+// }
+
+// function loadAllData(){
+//   var years = ['2020', '2021', '2022', '2023', '2024', '2025'];
+//   var countryPromises = years.map(function(year){
+//     return fetch('country/' + year + '.csv')
+//       .then(function(r){ return r.text(); })
+//       .then(function(text){ return { year: year, data: parseCSV(text) }; });
+//   });
+
+//   var cityPromises = years.map(function(year){
+//     return fetch('urban/' + year + '.csv')
+//       .then(function(r){ return r.text(); })
+//       .then(function(text){ return { year: year, data: parseCSV(text) }; });
+//   });
+
+//   Promise.all([
+//     buildCityToContinentMap(),
+//     Promise.all(countryPromises),
+//     Promise.all(cityPromises)
+//   ])
+//     .then(function(results){
+//       var countryResults = results[1] || [];
+//       var cityResults = results[2] || [];
+
+//       countryResults.forEach(function(result){
+//         countriesData[result.year] = transformCSVToTreemapData(result.data, false);
+//       });
+
+//       cityResults.forEach(function(result){
+//         citiesData[result.year] = transformCSVToTreemapData(result.data, true);
+//       });
+
+//       switchToCategory(currentCategory);
+//     })
+//     .catch(function(error){
+//       console.error('Error loading data:', error);
+//     });
+// }
+
+function loadAllData(metric){
+  var m = metric || currentMetric;
+  var cfg = metricConfig[m];
+  if (!cfg) {
+    console.error('Unknown metric:', m);
+    return;
+  }
+
+  var startSlider = document.getElementById('year-start-slider');
+  var endSlider   = document.getElementById('year-end-slider');
+
+  var minYear = startSlider ? parseInt(startSlider.min, 10) : 2000;
+  var maxYear = endSlider   ? parseInt(endSlider.max, 10)   : 2025;
+
+  var years = [];
+  for (var y = minYear; y <= maxYear; y++){
+    years.push(String(y));
+  }
+
+  function fetchYear(pathPrefix, year){
+    return fetch(pathPrefix + '/' + year + '.csv')
+      .then(function(r){
+        if (!r.ok) return null;
+        return r.text();
+      })
+      .then(function(text){
+        if (!text) return { year: year, data: [] };
+        return { year: year, data: parseCSV(text) };
+      })
+      .catch(function(){
+        return { year: year, data: [] };
+      });
+  }
+
+  var countryPromises = years.map(function(year){
+    return fetchYear(cfg.basePathCountry, year);
+  });
+
+  var cityPromises = years.map(function(year){
+    return fetchYear(cfg.basePathCity, year);
+  });
+
+  Promise.all([
+    buildCityToContinentMap(),
+    Promise.all(countryPromises),
+    Promise.all(cityPromises)
+  ])
+    .then(function(results){
+      var countryResults = results[1] || [];
+      var cityResults    = results[2] || [];
+
+      countriesData = {};
+      citiesData = {};
+
+      countryResults.forEach(function(result){
+        countriesData[result.year] = transformCSVToTreemapData(result.data, false);
+      });
+
+      cityResults.forEach(function(result){
+        citiesData[result.year] = transformCSVToTreemapData(result.data, true);
+      });
+
+      switchToCategory(currentCategory);
+
+      enableAllButtons();
+    })
+    .catch(function(err){
+      console.error('Error loading data for metric', m, err);
+      // Re-enable buttons even if there's an error
+      enableAllButtons();
+    });
+}
+// function loadAllData(metric){
+//   var m = metric || currentMetric;
+//   var cfg = metricConfig[m];
+//   if (!cfg) {
+//     console.error('Unknown metric:', m);
+//     return;
+//   }
+
+//   var years = ['2020', '2021', '2022', '2023', '2024', '2025'];
+
+//   var countryPromises = years.map(function(year){
+//     return fetch(cfg.basePathCountry + '/' + year + '.csv')
+//       .then(function(r){ return r.text(); })
+//       .then(function(text){ return { year: year, data: parseCSV(text) }; });
+//   });
+
+//   var cityPromises = years.map(function(year){
+//     return fetch(cfg.basePathCity + '/' + year + '.csv')
+//       .then(function(r){ return r.text(); })
+//       .then(function(text){ return { year: year, data: parseCSV(text) }; });
+//   });
+
+//   Promise.all([
+//     buildCityToContinentMap(),
+//     Promise.all(countryPromises),
+//     Promise.all(cityPromises)
+//   ])
+//     .then(function(results){
+//       var countryResults = results[1] || [];
+//       var cityResults = results[2] || [];
+
+//       countriesData = {};
+//       citiesData = {};
+
+//       countryResults.forEach(function(result){
+//         countriesData[result.year] = transformCSVToTreemapData(result.data, false);
+//       });
+
+//       cityResults.forEach(function(result){
+//         citiesData[result.year] = transformCSVToTreemapData(result.data, true);
+//       });
+
+//       switchToCategory(currentCategory);  // will respect currentYear
+//     })
+//     .catch(function(error){
+//       console.error('Error loading data for metric', m, error);
+//     });
+// }
+
+initializeControls();
+loadAllData(currentMetric);
+
+function renderToContainerSize(){
+  var el = document.getElementById('treemap');
+  if(!el) return;
+  var rect = el.getBoundingClientRect();
+  try {
+    if(typeof treemap.width === 'function') treemap.width(rect.width);
+    if(typeof treemap.height === 'function') treemap.height(rect.height);
+  } catch(e) {}
+  treemap.render();
+}
+var _resizeTimer;
+window.addEventListener('resize', function(){
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(renderToContainerSize, 120);
+});
+if (typeof ResizeObserver !== 'undefined') {
+  var _ro = new ResizeObserver(function(){ renderToContainerSize(); });
+  _ro.observe(document.getElementById('treemap'));
+}
+</script>
+</body>
+</html>
