@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crystal Window Test</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Anton&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap"
+        rel="stylesheet">
+
+    <style>
+        html {
+            background-color: black;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            position: relative;
+        }
+
+        #bg-layer {
+            position: fixed;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1200px;
+            height: 100%;
+            background-image: url('./resources/background1.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+
+            -webkit-mask-image: linear-gradient(to right, transparent 0%, black 20%, black 80%, transparent 100%);
+            mask-image: linear-gradient(to right, transparent 0%, black 20%, black 80%, transparent 100%);
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .main-title {
+            font-family: 'Anton', sans-serif;
+            font-size: 2.5rem;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0;
+            line-height: 1;
+            text-align: center;
+        }
+
+        .subtitle {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 2rem;
+            font-weight: 300;
+            font-style: italic;
+            color: white;
+            text-transform: uppercase;
+            margin-top: 5px;
+            margin-bottom: 30px;
+        }
+
+        .crystal-window {
+            width: 90%;
+            max-width: 600px;
+            height: 600px;
+
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .row {
+            flex: 1;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+        }
+
+        .icon-container {
+            width: 15%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+        }
+
+        .title-container {
+            width: 85%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            padding-left: 15px;
+            padding-right: 15px;
+            box-sizing: border-box;
+            line-height: 1.3;
+        }
+
+        .paper-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+        }
+
+        .paper-authors {
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: rgba(255, 255, 255, 0.85);
+            text-shadow: none;
+        }
+
+        .paper-authors .author-name {
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="bg-layer"></div>
+
+    <div class="main-title">NOTABLE AI RESEARCH PAPERS</div>
+    <div class="subtitle">WEEKLY BRIEF</div>
+
+    <div class="crystal-window" id="crystal-window">
+    </div>
+
+    <script>
+        const week = "2026-1";
+        document.querySelector('.subtitle').textContent += ` #${week}`;
+        const data = [
+            {
+                "title": "Private physical AI for the edge: small, energy-efficient, and everywhere",
+                "authors": "Daniela Rus",
+                "icon": "fa-solid fa-bolt"
+            },
+            {
+                "title": "Private physical AI for the edge: small, energy-efficient, and everywhere",
+                "authors": "Daniela Rus",
+                "icon": "fa-solid fa-chart-column"
+            },
+            {
+                "title": "Private physical AI for the edge: small, energy-efficient, and everywhere",
+                "authors": "Daniela Rus",
+                "icon": "fa-regular fa-user"
+            },
+            {
+                "title": "Private physical AI for the edge: small, energy-efficient, and everywhere",
+                "authors": "Daniela Rus",
+                "icon": "fa-solid fa-gear"
+            },
+            {
+                "title": "Private physical AI for the edge: small, energy-efficient, and everywhere",
+                "authors": "Daniela Rus",
+                "icon": "fa-solid fa-shield-halved"
+            }
+        ];
+
+        const container = document.getElementById('crystal-window');
+
+        data.forEach(item => {
+            const row = document.createElement('div');
+            row.className = 'row';
+
+            const iconContainer = document.createElement('div');
+            iconContainer.className = 'icon-container';
+            iconContainer.innerHTML = `<i class="${item.icon}"></i>`;
+
+            const titleContainer = document.createElement('div');
+            titleContainer.className = 'title-container';
+            titleContainer.innerHTML = `
+                <div class="paper-title">${item.title}</div>
+                <div class="paper-authors">AUTHORS: <span class="author-name">${item.authors}</span></div>
+            `;
+
+            row.appendChild(iconContainer);
+            row.appendChild(titleContainer);
+            container.appendChild(row);
+        });
+    </script>
+</body>
+
+</html>
