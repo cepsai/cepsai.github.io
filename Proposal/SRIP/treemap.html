@@ -702,8 +702,31 @@
     var percentageMap = {};
 
     function cleanGeoName(name) {
-      return (name || '').replace(/\s*\([^)]+\)\s*$/, '');
+      if (!name) return '';
+
+      // 1. Create a dictionary of encoding fixes
+      const fixes = {
+        "M<fc>nchen (Munich) (745)": "Munich",
+        "Montr<e9>al (167)": "Montreal",
+        "Z<fc>rich (Zurich) (1543)": "Zurich"
+      };
+
+      let cleaned = name;
+
+      // 2. Apply the fixes
+      Object.keys(fixes).forEach(key => {
+        if (cleaned.includes(key)) {
+          cleaned = cleaned.replace(key, fixes[key]);
+        }
+      });
+
+      // 3. Keep your existing logic to remove (ISO) codes/parentheses
+      return cleaned.replace(/\s*\([^)]+\)\s*$/, '');
     }
+
+    // function cleanGeoName(name) {
+    //   return (name || '').replace(/\s*\([^)]+\)\s*$/, '');
+    // }
 
     function getLabelText(d) {
       if (d.depth === 0) return d.id;
