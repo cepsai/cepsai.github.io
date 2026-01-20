@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hugging Face Papers - Interactive Sunburst</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: white;
+            height: 100vh;
+            width: 100vw;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 1fr auto;
+            grid-template-columns: 1fr auto 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 3;
+            display: flex;
+            overflow: hidden;
+            min-height: 0;
+            column-gap: 0;
+            justify-content: center;
+            align-items: center;
+            align-items: center;
+            position: relative;
+            padding-top: 0.5rem;
+        }
+
+        #container1 .chart-wrapper {
+            flex: 1 1 auto;
+            display: flex;
+            min-width: 0;
+            height: 100%;
+            margin-left: 0;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-size: clamp(8px, 1.6vw, 16px);
+            position: relative;
+            gap: 12px;
+        }
+
+        #container3 {
+            grid-row: 2;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .source-text {
+            font-size: clamp(8px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .source-text a:visited {
+            color: #2756d3;
+        }
+
+        #container4 {
+            grid-row: 2;
+            grid-column: 3;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 clamp(8px, 2vw, 20px);
+            overflow: hidden;
+            min-width: 0;
+            gap: clamp(4px, 1vw, 8px);
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            min-width: 0;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: clamp(80px, 15vw, 200px);
+            pointer-events: auto;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+
+
+        .filter-buttons {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: nowrap;
+            gap: clamp(0.5px, 0.5vw, 6px);
+            padding: clamp(0.5px, 0.4vw, 4px);
+            border-radius: 4px;
+            border: 1px solid rgba(17, 24, 39, 0.15);
+            background: #f8fafc;
+            max-width: 100%;
+            flex-shrink: 2;
+            min-width: fit-content;
+            overflow: visible;
+        }
+
+        .filter-btn {
+            border: none;
+            background: transparent;
+            padding: clamp(2px, 0.8vh, 8px) clamp(4px, 1.5vw, 14px);
+            border-radius: 4px;
+            font-size: clamp(7px, 1.4vw, 13px);
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+            white-space: nowrap;
+            flex-shrink: 1;
+            min-width: fit-content;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .filter-btn:hover {
+            background: rgba(39, 86, 211, 0.1);
+        }
+
+        .filter-btn.active {
+            background: #2756d3;
+            color: #fff;
+        }
+
+        .filter-separator {
+            color: #cbd5e0;
+            margin: 0 4px;
+            font-weight: 300;
+        }
+
+        .export-btn-icon {
+            /* position: absolute; removed to sit in flow */
+            /* right: clamp(20px, 4vw, 40px); removed */
+
+            background: transparent !important;
+            color: #475569 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(4px, 1vh, 8px) !important;
+            border-radius: 4px;
+        }
+
+        .export-btn-icon:hover {
+            background: rgba(39, 86, 211, 0.1) !important;
+        }
+
+        .export-btn-icon svg {
+            width: 1.4em;
+            height: 1.4em;
+            fill: currentColor;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #718096;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            width: 100%;
+        }
+
+
+        #chart-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #sunburst {
+            cursor: pointer;
+        }
+
+
+        #tooltip {
+            position: absolute;
+            background: #fff;
+            border: 1px solid #d9d9df;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            transition: opacity 0.12s ease;
+            max-width: 350px;
+            z-index: 1000;
+            color: #333;
+        }
+
+        #tooltip.visible {
+            opacity: 1;
+        }
+
+        .tooltip-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 13px;
+            color: #111;
+        }
+
+        .tooltip-info {
+            font-size: 11px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .provider-label {
+            font-size: 11px;
+            font-weight: bold;
+            fill: white;
+            text-anchor: middle;
+            pointer-events: none;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+        }
+
+        .provider-percentage {
+            font-size: 10px;
+            fill: white;
+            text-anchor: middle;
+            pointer-events: none;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+        }
+
+        .provider-logo-sunburst {
+            pointer-events: none;
+        }
+
+
+        @media (max-width: 600px),
+        (max-height: 500px) {
+            .filter-btn {
+                padding: 3px 6px;
+                font-size: 9px;
+            }
+        }
+
+        @media (max-width: 400px),
+        (max-height: 350px) {
+
+            .filter-separator,
+            .export-btn-icon {
+                display: none;
+            }
+
+            .filter-btn {
+                padding: 2px 4px;
+                font-size: 8px;
+            }
+        }
+
+        @media (max-width: 500px),
+        (max-height: 500px) {
+
+            #container2,
+            #container3,
+            #container4 {
+                display: none !important;
+            }
+
+            .viz-grid {
+                grid-template-rows: 1fr !important;
+                padding-bottom: 0 !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1">
+            <div class="chart-wrapper">
+                <div id="chart-container">
+                    <div class="loading">Loading visualization...</div>
+                </div>
+            </div>
+            <div class="tooltip" id="tooltip"></div>
+        </div>
+
+        <div id="container2">
+            <div class="filter-buttons">
+                <button class="filter-btn active" data-filter="both">Overview</button>
+                <button class="filter-btn" data-filter="datasets">Datasets Only</button>
+                <button class="filter-btn" data-filter="models">Models Only</button>
+            </div>
+            <button class="filter-btn export-btn-icon" id="exportCSVBtn" title="Download CSV">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
+                    <path
+                        d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
+                    <path
+                        d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
+                </svg>
+            </button>
+        </div>
+
+        <div id="container3">
+            <span class="source-text">Source: <a href="https://huggingface.co" target="_blank">HuggingFace</a></span>
+        </div>
+
+        <div id="container4">
+            <a href="https://aiworld.eu" target="_blank">
+                <img src="https://aiworld.eu/logo-transparent.svg" alt="AI World" class="logo" />
+            </a>
+        </div>
+    </div>
+
+    <script>
+
+
+
+        const ORG_LOGOS = {
+            "meta llama": "https://cdn-avatars.huggingface.co/v1/production/uploads/646cf8084eefb026fb8fd8bc/oCTqufkdTkjyGodsx1vo1.png",
+            "hugging face": "https://huggingface.co/front/assets/huggingface_logo.svg",
+            "qwen": "https://cdn-avatars.huggingface.co/v1/production/uploads/63fc4c00a3c067e62899d32b/dfd_EcIfylvu3sdc2WMqX.png",
+            "opengvlab": "https://cdn-avatars.huggingface.co/v1/production/uploads/64006c09330a45b03605bba3/FvdxiTkTqH8rKDOzGZGUE.jpeg",
+            "bytedance": "https://cdn-avatars.huggingface.co/v1/production/uploads/6535c9e88bde2fae19b6fb25/0clr54wj5Ly-RkYU9OXPp.png",
+            "baidu": "https://aiworld.eu/logo-transparent.svg",
+            "inclusion ai": "https://aiworld.eu/logo-transparent.svg",
+            "cohere labs": "https://aiworld.eu/logo-transparent.svg",
+            "minimax": "https://aiworld.eu/logo-transparent.svg",
+            "ai2": "https://cdn-avatars.huggingface.co/v1/production/uploads/1593126474392-5e64858de6c7a3b1cad4d0f8.png",
+            "black forest labs": "https://cdn-avatars.huggingface.co/v1/production/uploads/64c14f6b10a930520e6618e8/L2e_rMfJiLMGb8XDUvwC4.png",
+            "stability ai": "https://cdn-avatars.huggingface.co/v1/production/uploads/1606138923181-5e62bcb857e214c8f30e2a39.png",
+            "xai": "https://aiworld.eu/logo-transparent.svg",
+            "z.ai": "https://aiworld.eu/logo-transparent.svg",
+            "deepseek": "https://cdn-avatars.huggingface.co/v1/production/uploads/64d9c40e3ccd73150c5d33e2/vHtgAJVrHiAWJJIRJIJJW.jpeg",
+            "mistral ai_": "https://cdn-avatars.huggingface.co/v1/production/uploads/620760a26e3b7210c2ff1943/fF_VHJb6MtL1GdgUvpM_k.png",
+            "ibm": "https://cdn-avatars.huggingface.co/v1/production/uploads/60e3f3db1a3f3b5633ad7bcb/qQwU2v8F4-bLnHJ1lCZCq.png",
+            "llm-jp": "https://cdn-avatars.huggingface.co/v1/production/uploads/649259b1b2bcb8358cf77958/WEl_gpGpAWQte_podstYD.png",
+            "meta-llama": "https://cdn-avatars.huggingface.co/v1/production/uploads/646cf8084eefb026fb8fd8bc/oCTqufkdTkjyGodsx1vo1.png",
+            "meta": "https://aiworld.eu/logo-transparent.svg",
+            "openai": "https://aiworld.eu/logo-transparent.svg",
+            "google": "https://aiworld.eu/logo-transparent.svg",
+            "microsoft": "https://aiworld.eu/logo-transparent.svg",
+            "anthropic": "https://aiworld.eu/logo-transparent.svg",
+            "mistralai": "https://aiworld.eu/logo-transparent.svg",
+            "facebook": "https://aiworld.eu/logo-transparent.svg",
+            "nvidia": "https://aiworld.eu/logo-transparent.svg",
+            "apple": "https://aiworld.eu/logo-transparent.svg",
+            "alibaba": "https://aiworld.eu/logo-transparent.svg",
+            "tencent": "https://aiworld.eu/logo-transparent.svg",
+            "openmed": "https://cdn-avatars.huggingface.co/v1/production/uploads/5fd5e18a90b6dc4633f6d292/QPiv8pt4JNxr0FdGnpFef.png",
+            "nvidia": "https://cdn-avatars.huggingface.co/v1/production/uploads/1613114437487-60262a8e0703121c822a80b6.png",
+            "default": "https://aiworld.eu/logo-transparent.svg",
+            "unsloth": "https://cdn-avatars.huggingface.co/v1/production/uploads/62ecdc18b72a69615d6bd857/E4lkPz1TZNLzIFr_dR273.png",
+            "mteb": "https://cdn-avatars.huggingface.co/v1/production/uploads/1664267264786-5f1eb362eec0ad2a071ad6e2.png",
+            "opengvlab": "https://cdn-avatars.huggingface.co/v1/production/uploads/64006c09330a45b03605bba3/FvdxiTkTqH8rKDOzGZGUE.jpeg",
+            "optimizerstudy": "https://www.gravatar.com/avatar/48325c63d3d7f6df18da25575997c46d?d=retro&size=100",
+            "mungert": "https://cdn-avatars.huggingface.co/v1/production/uploads/65edf8c933c27925395181d4/JTCVSaWrJEw2c66LvvXvx.png",
+            "llm-jp": "https://cdn-avatars.huggingface.co/v1/production/uploads/649259b1b2bcb8358cf77958/WEl_gpGpAWQte_podstYD.png",
+            "yiyangd": "https://huggingface.co/avatars/f8d2a4528050ff46326c18d46cd1a7b5.svg",
+            "ssu-project": "https://www.gravatar.com/avatar/ce208ae619ad7167d37fb0e422ff1afe?d=retro&size=100",
+            "facebook": "https://cdn-avatars.huggingface.co/v1/production/uploads/1592839207516-noauth.png",
+            "caiyuchen": "https://huggingface.co/avatars/e5351fb14997269d8d3b9539f6f27d9e.svg",
+            "timm": "https://cdn-avatars.huggingface.co/v1/production/uploads/1657564812787-5f10cb46636b661bdc42318b.png",
+            "tiger-lab": "https://cdn-avatars.huggingface.co/v1/production/uploads/6313a86154e6e5d9f0f94e04/Noi3Qq3RYz8Jdq6BaFteq.png",
+            "liumy2010": "https://huggingface.co/avatars/1f4e72981e05f9b79a78fae1171e2524.svg",
+            "parscale": "https://cdn-avatars.huggingface.co/v1/production/uploads/66d58df54b87a685ccb8e4a0/yQA6azAIDB_dC393h2wJJ.png",
+            "prithivmlmods": "https://cdn-avatars.huggingface.co/v1/production/uploads/65bb837dbfb878f46c77de4c/23gZ_lBEwyoqjexFy9QLD.jpeg",
+            "common-pile": "https://cdn-avatars.huggingface.co/v1/production/uploads/6079c29765b9d0165cb18392/6hckGiTrwioPYa14noanb.png",
+            "espnet": "https://cdn-avatars.huggingface.co/v1/production/uploads/1625224006560-60d28bba010d938bba5c6ae9.png"
+
+        };
+
+        const ORG_COLORS = {
+            "meta llama": "#3B82F6",
+            "hugging face": "#FFD21E",
+            "qwen": "#7C3AED",
+            "opengvlab": "#1E40AF",
+            "bytedance": "#3C8DBC",
+            "baidu": "#2932E1",
+            "inclusion ai": "#9333EA",
+            "cohere labs": "#39594D",
+            "minimax": "#FF4500",
+            "ai2": "#2563EB",
+            "black forest labs": "#000000",
+            "stability ai": "#6B21A8",
+            "xai": "#000000",
+            "z.ai": "#6366F1",
+            "deepseek": "#4299E1",
+            "mistral ai_": "#F2A73B",
+            "ibm": "#0F62FE",
+            "llm-jp": "#DC2626",
+            "meta-llama": "#0668E1",
+            "meta": "#0668E1",
+            "facebook": "#0668E1",
+            "openai": "#10A37F",
+            "google": "#4285F4",
+            "microsoft": "#00A4EF",
+            "anthropic": "#CC785C",
+            "mistralai": "#F2A73B",
+            "nvidia": "#76B900",
+            "qwen": "#7C3AED",
+            "apple": "#555555",
+            "huggingface": "#FFD21E",
+            "stabilityai": "#6B21A8",
+            "cohere": "#39594D",
+            "alibaba": "#FF6A00",
+            "tencent": "#2A5BD7",
+            "ibm": "#0F62FE",
+            "salesforce": "#00A1E0",
+            "deepmind": "#8AB4F8",
+            "baai": "#E53935",
+            "together": "#8B5CF6",
+            "openmed": "#38BDF8",
+            "unsloth": "#059669",
+            "mteb": "#1E3A8A",
+            "optimizerstudy": "#9333EA",
+            "mungert": "#86EFAC",
+            "yiyangd": "#22C55E",
+            "ssu-project": "#7C2D12",
+            "tiger-lab": "#F97316",
+            "timm": "#6366F1",
+            "parscale": "#7DD3FC",
+            "prithivmlmods": "#EC4899"
+        };
+
+        const ORG_MAPPING = {
+            "acvlab": "Qwen",
+            "agents-course": "Hugging Face",
+            "aidc-ai": "Qwen",
+            "alibaba-aaig": "Qwen",
+            "alibaba-damo": "Qwen",
+            "alibaba-damo-academy": "Qwen",
+            "alibaba-nlp": "Qwen",
+            "alibaba-pai": "Qwen",
+            "alibaba-research-intelligence-computing": "Qwen",
+            "alibabacloud": "Qwen",
+            "allenai": "Ai2",
+            "amazon": "Amazon",
+            "amd": "AMD",
+            "anthropic": "Anthropic",
+            "apple": "Apple",
+            "aq-medai": "Inclusion AI",
+            "baidu": "BAIDU",
+            "black-forest-labs": "Black Forest Labs",
+            "bytedance": "ByteDance",
+            "bytedance-research": "ByteDance",
+            "bytedance-seed": "ByteDance",
+            "coherelabs": "Cohere Labs",
+            "damo-nlp": "Qwen",
+            "damo-nlp-mt": "Qwen",
+            "damo-nlp-sg": "Qwen",
+            "damo-vision": "Qwen",
+            "deepmind": "Google",
+            "deepseek-ai": "DeepSeek",
+            "distilbert": "Hugging Face",
+            "docling": "IBM",
+            "ernie-research": "BAIDU",
+            "facebook": "Meta Llama",
+            "google": "Google",
+            "google-bert": "Google",
+            "huggingface": "Hugging Face",
+            "huggingfacefv": "Hugging Face",
+            "huggingfacefw": "Hugging Face",
+            "huggingfaceh4": "Hugging Face",
+            "huggingfacem4": "Hugging Face",
+            "huggingfacetb": "Hugging Face",
+            "huggingfacevla": "Hugging Face",
+            "ibm-granite": "IBM",
+            "ibm-nasa-geospatial": "IBM",
+            "ibm-research": "IBM",
+            "inclusionai": "Inclusion AI",
+            "internlm": "OpenGVLab",
+            "lerobot": "Hugging Face",
+            "lingshu-medical-mllm": "Qwen",
+            "meta-llama": "Meta Llama",
+            "microsoft": "Microsoft",
+            "minimaxai": "MiniMax",
+            "mistralai": "Mistral AI_",
+            "nanotron": "Hugging Face",
+            "nveagle": "NVIDIA",
+            "nvidia": "NVIDIA",
+            "nvidia-cmu25": "NVIDIA",
+            "open-r1": "Hugging Face",
+            "openai": "OpenAI",
+            "opendatalab": "OpenGVLab",
+            "opendilabcommunity": "OpenGVLab",
+            "openevals": "Hugging Face",
+            "opengvlab": "OpenGVLab",
+            "openmmlab": "OpenGVLab",
+            "paddlepaddle": "BAIDU",
+            "parler-tts": "Hugging Face",
+            "qwen": "Qwen",
+            "stabilityai": "Stability AI",
+            "tencent": "Tencent",
+            "tencent-hunyuan": "Tencent",
+            "tencentarc": "Tencent",
+            "tencentmedicalnet": "Tencent",
+            "tmelyralab": "Tencent",
+            "tongyi-zhiwen": "Qwen",
+            "wan-ai": "Qwen",
+            "xai-org": "xAI",
+            "zai-org": "Z.ai"
+        };
+        const ORG_LINK_MAPPING = {
+            "Meta Llama": "meta-llama",
+            "Hugging Face": "huggingface",
+            "NVIDIA": "Nvidia",
+            "ByteDance": "ByteDance",
+            "IBM": "ibm-research",
+            "Qwen": "alibaba-nlp",
+            "OpenGVLab": "OpenGVLab",
+            "Inclusion AI": "inclusionAI",
+            "BAIDU": "baidu",
+            "Google": "deepmind",
+            "Tencent": "tencent",
+            "Cohere Labs": "CohereLabs",
+            "MiniMax": "MiniMaxAI",
+            "Ai2": "allenai",
+            "Amazon": "amazon",
+            "AMD": "amd",
+            "Black Forest Labs": "black-forest-labs",
+            "Microsoft": "microsoft",
+            "Mistral AI_": "mistralai",
+            "OpenAI": "openai",
+            "Stability AI": "stabilityai",
+            "xAI": "xai-org",
+            "Z.ai": "zai-org",
+            "Anthropic": "Anthropic",
+            "Apple": "apple",
+            "DeepSeek": "deepseek-ai"
+        };
+
+
+        const DEFAULT_COLORS = [
+            '#4299e1', '#9f7aea', '#48bb78', '#f56565', '#ed8936',
+            '#38b2ac', '#667eea', '#f687b3', '#4fd1c5', '#fc8181',
+            '#63b3ed', '#b794f4', '#68d391', '#f6ad55', '#4db8bf',
+            '#7f9cf5', '#f093fb', '#81e6d9', '#feb2b2', '#fbd38d'
+        ];
+
+
+
+        function getOrgLogo(providerName) {
+            const normalized = providerName.toLowerCase().trim();
+            return ORG_LOGOS[normalized] || ORG_LOGOS['default'];
+        }
+
+        function getOrgColor(providerName, defaultColor) {
+            const normalized = providerName.toLowerCase().trim();
+            return ORG_COLORS[normalized] || defaultColor;
+        }
+
+        var globalData = null;
+        var currentFilter = 'both';
+        var colorScale = null;
+        var topN = 20;
+        var filteredExportData = [];
+        function getChartSize() {
+            var container = document.getElementById('chart-container');
+            var rect = container.getBoundingClientRect();
+            var size = Math.min(rect.width, rect.height);
+            return Math.max(size, 250);
+        }
+        var width;
+        var height;
+        var radius = Math.min(width, height) / 2;
+
+
+
+        function mapProvider(providerName) {
+            var key = providerName.toLowerCase().replace(/ /g, '');
+            return ORG_MAPPING[key] || providerName;
+        }
+
+        function getProviderLink(providerName) {
+            var linkOrg = ORG_LINK_MAPPING[providerName] || providerName;
+            return 'https://huggingface.co/' + linkOrg;
+        }
+
+
+
+        function processData(rawData) {
+            var providerMap = new Map();
+            var totalDatasetOcc = 0;
+            var totalModelOcc = 0;
+
+            for (var p = 0; p < rawData.length; p++) {
+                var paper = rawData[p];
+
+                if (paper.datasets_list && paper.datasets_list.trim()) {
+                    var datasets = paper.datasets_list.split(',');
+                    var datasetLinks = paper.datasets_links ? paper.datasets_links.split(',') : [];
+
+                    for (var d = 0; d < datasets.length; d++) {
+                        var dataset = datasets[d].trim();
+                        if (!dataset) continue;
+
+                        var cleanDataset = dataset.replace(/\\/g, '/');
+                        var parts = cleanDataset.split('/');
+                        var provider = mapProvider(parts[0]);
+                        var name = parts.slice(1).join('/') || cleanDataset;
+                        var link = datasetLinks[d] ? datasetLinks[d].trim().replace(/\\/g, '/') : 'https://huggingface.co/datasets/' + cleanDataset;
+
+                        if (!providerMap.has(provider)) {
+                            providerMap.set(provider, { datasets: new Map(), models: new Map() });
+                        }
+                        var providerData = providerMap.get(provider);
+
+                        if (providerData.datasets.has(cleanDataset)) {
+                            var existing = providerData.datasets.get(cleanDataset);
+                            existing.count += 1;
+                            existing.papers.push(paper.arxiv_id || 'Unknown');
+                        } else {
+                            providerData.datasets.set(cleanDataset, {
+                                name: name,
+                                fullName: cleanDataset,
+                                link: link,
+                                type: 'dataset',
+                                count: 1,
+                                papers: [paper.arxiv_id || 'Unknown']
+                            });
+                        }
+                        totalDatasetOcc++;
+                    }
+                }
+
+                if (paper.models_list && paper.models_list.trim()) {
+                    var models = paper.models_list.split(',');
+                    var modelLinks = paper.models_links ? paper.models_links.split(',') : [];
+
+                    for (var m = 0; m < models.length; m++) {
+                        var model = models[m].trim();
+                        if (!model) continue;
+
+                        var cleanModel = model.replace(/\\/g, '/');
+                        var mparts = cleanModel.split('/');
+                        var mprovider = mapProvider(mparts[0]);
+                        var mname = mparts.slice(1).join('/') || cleanModel;
+                        var mlink = modelLinks[m] ? modelLinks[m].trim().replace(/\\/g, '/') : 'https://huggingface.co/' + cleanModel;
+
+                        if (!providerMap.has(mprovider)) {
+                            providerMap.set(mprovider, { datasets: new Map(), models: new Map() });
+                        }
+                        var mproviderData = providerMap.get(mprovider);
+
+                        if (mproviderData.models.has(cleanModel)) {
+                            var mexisting = mproviderData.models.get(cleanModel);
+                            mexisting.count += 1;
+                            mexisting.papers.push(paper.arxiv_id || 'Unknown');
+                        } else {
+                            mproviderData.models.set(cleanModel, {
+                                name: mname,
+                                fullName: cleanModel,
+                                link: mlink,
+                                type: 'model',
+                                count: 1,
+                                papers: [paper.arxiv_id || 'Unknown']
+                            });
+                        }
+                        totalModelOcc++;
+                    }
+                }
+            }
+
+            return {
+                providers: providerMap,
+                totalPapers: rawData.length,
+                totalDatasetOccurrences: totalDatasetOcc,
+                totalModelOccurrences: totalModelOcc,
+                rawData: rawData
+            };
+        }
+
+        function getTopProviders(data, filter) {
+            var providerOccurrences = [];
+            data.providers.forEach(function (items, provider) {
+                var occurrences = 0;
+                if (filter === 'both' || filter === 'all' || filter === 'datasets') {
+                    items.datasets.forEach(function (ds) { occurrences += ds.count; });
+                }
+                if (filter === 'both' || filter === 'all' || filter === 'models') {
+                    items.models.forEach(function (m) { occurrences += m.count; });
+                }
+                if (occurrences > 0) {
+                    providerOccurrences.push({ provider: provider, occurrences: occurrences, items: items });
+                }
+            });
+            providerOccurrences.sort(function (a, b) { return b.occurrences - a.occurrences; });
+
+            var topProvidersMap = new Map();
+            var limit = (filter === 'all') ? providerOccurrences.length : Math.min(topN, providerOccurrences.length);
+            for (var i = 0; i < limit; i++) {
+                topProvidersMap.set(providerOccurrences[i].provider, providerOccurrences[i].items);
+            }
+            return topProvidersMap;
+        }
+
+        function buildHierarchy(data, filter) {
+            var root = { name: 'root', children: [] };
+            var providers = getTopProviders(data, filter);
+
+            providers.forEach(function (items, provider) {
+                if (filter === 'both' || filter === 'all') {
+                    var totalOcc = 0;
+                    items.datasets.forEach(function (ds) { totalOcc += ds.count; });
+                    items.models.forEach(function (m) { totalOcc += m.count; });
+                    root.children.push({
+                        name: provider,
+                        isProvider: true,
+                        value: totalOcc,
+                        datasetCount: items.datasets.size,
+                        modelCount: items.models.size,
+                        link: getProviderLink(provider)
+                    });
+                } else {
+
+                    var totalItems = filter === 'datasets' ? items.datasets.size : items.models.size;
+
+
+                    var itemsArray = filter === 'datasets'
+                        ? Array.from(items.datasets.values())
+                        : Array.from(items.models.values());
+                    var sorted = itemsArray.sort(function (a, b) { return b.count - a.count; });
+                    var top10 = sorted.slice(0, 10);
+
+
+                    var top10Total = top10.reduce(function (sum, item) { return sum + 1; }, 0);
+
+                    var providerNode = {
+                        name: provider,
+                        children: [],
+                        isProvider: true,
+                        value: totalItems,
+                        link: getProviderLink(provider)
+                    };
+
+                    top10.forEach(function (item) {
+                        providerNode.children.push({
+                            name: item.name,
+                            fullName: item.fullName,
+                            link: item.link,
+                            type: filter === 'datasets' ? 'dataset' : 'model',
+                            provider: provider,
+                            count: item.count,
+                            value: 1,
+                            papers: item.papers
+                        });
+                    });
+
+                    if (totalItems > 0) {
+                        root.children.push(providerNode);
+                    }
+                }
+            });
+
+            return root;
+        }
+
+        function buildExportData(data, filter) {
+            var providers = getTopProviders(data, filter);
+            var items = [];
+            providers.forEach(function (provItems, provider) {
+                if (filter === 'both' || filter === 'all' || filter === 'datasets') {
+                    provItems.datasets.forEach(function (ds) {
+                        items.push({
+                            provider: provider,
+                            type: 'dataset',
+                            name: ds.fullName,
+                            link: ds.link,
+                            occurrences: ds.count,
+                            papers: ds.papers.join('; ')
+                        });
+                    });
+                }
+                if (filter === 'both' || filter === 'all' || filter === 'models') {
+                    provItems.models.forEach(function (m) {
+                        items.push({
+                            provider: provider,
+                            type: 'model',
+                            name: m.fullName,
+                            link: m.link,
+                            occurrences: m.count,
+                            papers: m.papers.join('; ')
+                        });
+                    });
+                }
+            });
+            items.sort(function (a, b) { return b.occurrences - a.occurrences; });
+            return items;
+        }
+
+        function renderVisualization() {
+            if (!globalData) return;
+
+            var container = document.getElementById('chart-container');
+            container.innerHTML = '';
+
+            var chartSize = getChartSize();
+            width = chartSize;
+            height = chartSize;
+            var maxRadius = chartSize / 2;
+            radius = (currentFilter === 'both' || currentFilter === 'all') ? maxRadius * 0.85 : maxRadius * 0.98;
+            var fixedInnerRadius = maxRadius * 0.17;
+
+            var hierarchyData = buildHierarchy(globalData, currentFilter);
+            var root = d3.hierarchy(hierarchyData);
+
+            if (currentFilter === 'both' || currentFilter === 'all') {
+                root.sum(function (d) { return d.value || 0; });
+            } else {
+
+                root.eachBefore(function (node) {
+                    if (node.depth === 0) {
+
+                        node.value = 0;
+                        if (node.children) {
+                            node.children.forEach(function (child) {
+                                node.value += child.data.value || 0;
+                            });
+                        }
+                    } else if (node.depth === 1) {
+
+                        node.value = node.data.value || 0;
+                    } else {
+
+                        var siblings = node.parent.children.length;
+                        node.value = node.parent.value / siblings;
+                    }
+                });
+            }
+
+            root.sort(function (a, b) { return b.value - a.value; });
+
+
+            var maxValDepth1 = 0;
+            var maxValDepth2 = 0;
+            root.each(function (d) {
+                if (d.depth === 1) {
+                    if (d.value > maxValDepth1) maxValDepth1 = d.value;
+                }
+                if (d.depth === 2) {
+
+                    var val = d.data.count || 0;
+                    if (val > maxValDepth2) maxValDepth2 = val;
+                }
+            });
+
+            var providers = getTopProviders(globalData, currentFilter);
+            var allProviders = getTopProviders(globalData, 'all');
+            var providerArray = Array.from(allProviders.keys());
+
+            var finalColors = providerArray.map(function (provider, i) {
+                return getOrgColor(provider, DEFAULT_COLORS[i % DEFAULT_COLORS.length]);
+            });
+            colorScale = d3.scaleOrdinal().domain(providerArray).range(finalColors);
+
+            filteredExportData = buildExportData(globalData, currentFilter);
+
+            var totalValue = 0;
+            if (root.children) {
+                for (var i = 0; i < root.children.length; i++) {
+                    totalValue += root.children[i].value;
+                }
+            }
+
+            var partition = d3.partition().size([2 * Math.PI, radius]);
+            partition(root);
+
+            var svg = d3.select('#chart-container')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('id', 'sunburst');
+
+            var g = svg.append('g')
+                .attr('transform', 'translate(' + (width / 2) + ',' + (height / 2) + ')');
+
+            var isBothView = (currentFilter === 'both' || currentFilter === 'all');
+
+            var arc = d3.arc()
+                .startAngle(function (d) { return d.x0; })
+                .endAngle(function (d) { return d.x1; })
+                .padAngle(function (d) {
+                    return d.depth === 2 ? 0 : 0.001;
+                })
+                .padRadius(radius / 3)
+                .innerRadius(function (d) {
+                    if (d.depth === 0) return 0;
+                    if (d.depth === 1) return fixedInnerRadius;
+                    return radius * 0.5;
+                })
+                .outerRadius(function (d) {
+                    if (d.depth === 0) return 0;
+
+                    var baseInner = d.depth === 1 ? fixedInnerRadius : radius * 0.5;
+                    var baseOuter = d.depth === 1 ? (isBothView ? radius : radius * 0.5) : radius;
+                    var available = baseOuter - baseInner;
+
+                    if (d.depth === 1 && isBothView) {
+                        var ratio = d.value / maxValDepth1;
+                        return baseInner + available * (0.2 + 0.8 * ratio);
+                    }
+                    if (d.depth === 2 && !isBothView) {
+                        var val = d.data.count || 0;
+                        var ratio = val / maxValDepth2;
+                        return baseInner + available * (0.2 + 0.8 * ratio);
+                    }
+                    return baseOuter;
+                });
+
+            var allNodes = root.descendants().filter(function (d) { return d.depth > 0; });
+            var depth2Nodes = allNodes.filter(function (d) { return d.depth === 2; });
+            console.log('Filter:', currentFilter, '| Total nodes:', allNodes.length, '| Depth 2 nodes:', depth2Nodes.length);
+
+            g.selectAll('path')
+                .data(allNodes)
+                .join('path')
+                .attr('d', arc)
+                .attr('fill', function (d) {
+                    if (d.depth === 1) {
+                        return colorScale(d.data.name);
+                    } else {
+                        return colorScale(d.parent.data.name);
+                    }
+                })
+                .attr('fill-opacity', function (d) {
+                    return d.depth === 2 ? 0.5 : 1;
+                })
+                .attr('stroke', function (d) {
+                    return d.depth === 2 ? 'white' : 'none';
+                })
+                .attr('stroke-width', function (d) {
+                    return d.depth === 2 ? 0.5 : 0;
+                })
+                .style('cursor', function (d) { return d.data.link ? 'pointer' : 'default'; })
+                .on('mouseover', function (event, d) {
+                    d3.select(this).style('opacity', 0.8);
+                    showTooltip(event, d, providers, totalValue);
+                })
+                .on('mousemove', function (event) {
+                    d3.select('#tooltip')
+                        .style('left', (event.pageX + 15) + 'px')
+                        .style('top', (event.pageY - 15) + 'px');
+                })
+                .on('mouseout', function (event, d) {
+                    d3.select(this).style('opacity', 1);
+                    d3.select('#tooltip').classed('visible', false);
+                })
+                .on('click', function (event, d) {
+                    if (d.data.link) window.open(d.data.link, '_blank');
+                });
+
+
+            function calculateOuterRadius(d) {
+                if (d.depth === 0) return 0;
+
+                var baseInner = d.depth === 1 ? (isBothView ? radius * 0.2 : radius * 0.25) : radius * 0.5;
+                var baseOuter = d.depth === 1 ? (isBothView ? radius * 0.85 : radius * 0.5) : radius * 0.9;
+                var available = baseOuter - baseInner;
+
+                if (d.depth === 1 && isBothView) {
+                    var ratio = d.value / maxValDepth1;
+                    return baseInner + available * (0.2 + 0.8 * ratio);
+                }
+                if (d.depth === 2 && !isBothView) {
+                    var val = d.data.count || 0;
+                    var ratio = val / maxValDepth2;
+                    return baseInner + available * (0.2 + 0.8 * ratio);
+                }
+                return baseOuter;
+            }
+
+
+
+
+
+            var providerNodes = root.descendants().filter(function (d) { return d.depth === 1; });
+
+
+            var scaleFactor = radius / 450;
+
+            for (var p = 0; p < providerNodes.length; p++) {
+                var d = providerNodes[p];
+                var angle = (d.x0 + d.x1) / 2;
+                var arcSize = d.x1 - d.x0;
+
+
+                var pctShare = (d.value / totalValue) * 100;
+
+                var innerR = fixedInnerRadius;
+                var baseOuter = isBothView ? radius : radius * 0.5;
+                var available = baseOuter - innerR;
+                var outerR = baseOuter;
+
+                if (isBothView) {
+                    var ratio = d.value / maxValDepth1;
+                    outerR = innerR + available * (0.2 + 0.8 * ratio);
+                }
+                var pct = ((d.value / totalValue) * 100).toFixed(1);
+
+
+                var logoRFactor = isBothView ? 0.38 : 0.30;
+                var logoR = innerR + (outerR - innerR) * logoRFactor;
+                var logoX = Math.sin(angle) * logoR;
+                var logoY = -Math.cos(angle) * logoR;
+
+
+                var textRFactor = isBothView ? 0.75 : 0.60;
+                var textR = innerR + (outerR - innerR) * textRFactor;
+                var textX = Math.sin(angle) * textR;
+                var textY = -Math.cos(angle) * textR;
+
+
+                var baseLogoSize = isBothView ?
+                    (arcSize > 0.15 ? 38 : (arcSize > 0.10 ? 32 : 26)) :
+                    (arcSize > 0.15 ? 32 : (arcSize > 0.10 ? 26 : 22));
+                var logoSize = Math.max(8, baseLogoSize * scaleFactor);
+
+
+                if (isBothView) {
+                    var logoR = outerR + 25;
+                    var logoX = Math.sin(angle) * logoR;
+                    var logoY = -Math.cos(angle) * logoR;
+
+
+                    var minL = 15 * scaleFactor;
+                    var maxL = 55 * scaleFactor;
+                    var currentRatio = d.value / maxValDepth1;
+
+                    var adjustedLogoSize = minL + (maxL - minL) * currentRatio;
+                    var logoUrl = getOrgLogo(d.data.name);
+                    var providerColor = colorScale(d.data.name);
+
+                    g.append('line')
+                        .attr('x1', Math.sin(angle) * outerR)
+                        .attr('y1', -Math.cos(angle) * outerR)
+                        .attr('x2', logoX)
+                        .attr('y2', logoY)
+                        .attr('stroke', providerColor)
+                        .attr('stroke-width', 1.5)
+                        .style('opacity', 0.8);
+
+                    g.append('image')
+                        .attr('class', 'provider-logo-sunburst')
+                        .attr('xlink:href', logoUrl)
+                        .attr('x', logoX - adjustedLogoSize / 2)
+                        .attr('y', logoY - adjustedLogoSize / 2)
+                        .attr('width', adjustedLogoSize)
+                        .attr('height', adjustedLogoSize)
+                        .style('opacity', pctShare >= 3 ? 0.95 : 0.8)
+                        .style('clip-path', 'circle(50%)');
+
+                    g.append('circle')
+                        .attr('cx', logoX)
+                        .attr('cy', logoY)
+                        .attr('r', adjustedLogoSize / 2)
+                        .attr('fill', 'none')
+                        .attr('stroke', providerColor)
+                        .attr('stroke-width', 2);
+                }
+
+
+                var angleDeg = (angle * 180 / Math.PI) - 90;
+
+                var flip = angle > Math.PI;
+
+                var labelPadding = 12 * scaleFactor;
+                var labelR = outerR - labelPadding;
+
+                var labelX = Math.sin(angle) * labelR;
+                var labelY = -Math.cos(angle) * labelR;
+
+
+                var baseFontSize;
+                if (isBothView) {
+
+                    baseFontSize = Math.max(5, Math.min(13, 5 + arcSize * 14));
+                } else {
+
+                    baseFontSize = Math.max(4, Math.min(11, 4 + arcSize * 9));
+                }
+
+
+                var arcWidth = arcSize * labelR;
+                var maxFontByArc = arcWidth / 2.5;
+                baseFontSize = Math.min(baseFontSize, maxFontByArc);
+
+
+                baseFontSize = Math.max(5, baseFontSize * scaleFactor);
+
+                var maxNameLength = arcSize > 0.25 ? 25 : (arcSize > 0.15 ? 18 : (arcSize > 0.08 ? 12 : 8));
+
+
+                var minArcSize = scaleFactor < 0.6 ? 0.08 : 0.04;
+                if (arcSize >= minArcSize) {
+
+
+                    var labelName = d.data.name.length > maxNameLength ?
+                        d.data.name.substring(0, maxNameLength - 2) + '..' :
+                        d.data.name;
+
+
+                    var finalFontSize = baseFontSize;
+                    if (d.data.name.length > 10) {
+                        finalFontSize = Math.max(5, baseFontSize * 0.9);
+                    }
+                    if (d.data.name.length > 16) {
+                        finalFontSize = Math.max(5, baseFontSize * 0.85);
+                    }
+
+
+                    if (p < 10 && (currentFilter === 'both' || currentFilter === 'all' || currentFilter === 'models' || currentFilter === 'datasets')) {
+                        finalFontSize *= 1.8;
+                    }
+
+                    if (p < 10) {
+                        var anchor = flip ? 'start' : 'end';
+                        var nameFontSize = finalFontSize * 0.75;
+                        var pctFontSize = finalFontSize * 1.44;
+                        var lineWidth = finalFontSize * 4.8;
+                        var labelGroup = g.append('g')
+                            .attr('class', 'provider-label-group')
+                            .attr('transform', 'translate(' + labelX + ',' + labelY + ') rotate(' + (angleDeg + (flip ? 180 : 0)) + ')');
+
+                        labelGroup.append('text')
+                            .attr('class', 'provider-label')
+                            .style('text-anchor', anchor)
+                            .attr('dominant-baseline', 'auto')
+                            .attr('x', 0)
+                            .attr('y', '-0.4em')
+                            .style('font-size', pctFontSize + 'px')
+                            .text(pct + '%');
+
+                        labelGroup.append('line')
+                            .attr('x1', flip ? 0 : -lineWidth)
+                            .attr('x2', flip ? lineWidth : 0)
+                            .attr('y1', 0)
+                            .attr('y2', 0)
+                            .attr('stroke', 'white')
+                            .attr('stroke-width', Math.max(1, finalFontSize / 12))
+                            .style('opacity', 0.9);
+
+                        labelGroup.append('text')
+                            .attr('class', 'provider-label')
+                            .style('text-anchor', anchor)
+                            .attr('dominant-baseline', 'hanging')
+                            .attr('x', 0)
+                            .attr('y', '0.4em')
+                            .style('font-size', nameFontSize + 'px')
+                            .text(labelName);
+                    } else {
+                        var anchor = flip ? 'start' : 'end';
+
+                        g.append('text')
+                            .attr('class', 'provider-label')
+                            .attr('transform', 'translate(' + labelX + ',' + labelY + ') rotate(' + (angleDeg + (flip ? 180 : 0)) + ')')
+                            .style('text-anchor', anchor)
+                            .attr('dominant-baseline', 'middle')
+                            .style('font-size', finalFontSize + 'px')
+                            .text(labelName);
+                    }
+                }
+            }
+
+
+            var centerLogoSize = Math.max(30, 100 * (maxRadius * 0.85 / 450));
+            g.append('image')
+                .attr('xlink:href', './huggingface_logo-noborder.svg')
+                .attr('x', -centerLogoSize / 2)
+                .attr('y', -centerLogoSize / 2)
+                .attr('width', centerLogoSize)
+                .attr('height', centerLogoSize)
+                .style('pointer-events', 'none');
+        }
+
+        function showTooltip(event, d, providers, totalValue) {
+            var tooltip = d3.select('#tooltip');
+            tooltip.classed('visible', true);
+
+            var html = '<div class="tooltip-title">' + d.data.name + '</div>';
+
+            if (d.depth === 1) {
+                var items = providers.get(d.data.name);
+                if (items) {
+                    var dsCount = items.datasets.size;
+                    var mdCount = items.models.size;
+                    var dsOcc = 0, mdOcc = 0;
+                    items.datasets.forEach(function (ds) { dsOcc += ds.count; });
+                    items.models.forEach(function (m) { mdOcc += m.count; });
+                    html += '<div class="tooltip-info">';
+                    html += '📦 ' + dsCount + ' datasets (' + dsOcc + ' occurrences)<br>';
+                    html += '🤖 ' + mdCount + ' models (' + mdOcc + ' occurrences)';
+                    html += '</div>';
+                }
+            } else {
+                var typeIcon = d.data.type === 'dataset' ? '📦 Dataset' : '🤖 Model';
+                html += '<div class="tooltip-info">';
+                html += typeIcon + '<br>';
+                html += 'Provider: ' + d.data.provider + '<br>';
+                html += 'Full: ' + d.data.fullName + '<br>';
+                html += 'In ' + d.data.count + ' papers<br>';
+                html += '<b>Click to open</b>';
+                html += '</div>';
+            }
+            tooltip.html(html);
+        }
+
+        function updateStats(providers) {
+            var totalDs = 0, totalMd = 0;
+            providers.forEach(function (items) {
+                totalDs += items.datasets.size;
+                totalMd += items.models.size;
+            });
+            document.getElementById('statPapers').textContent = globalData.totalPapers.toLocaleString();
+            document.getElementById('statProviders').textContent = providers.size;
+            document.getElementById('statDatasets').textContent = totalDs.toLocaleString();
+            document.getElementById('statModels').textContent = totalMd.toLocaleString();
+        }
+
+        function updateLegend(providers) {
+            var legendItems = document.getElementById('legendItems');
+            legendItems.innerHTML = '';
+
+            var arr = [];
+            providers.forEach(function (items, name) {
+                var dsOcc = 0, mdOcc = 0;
+                items.datasets.forEach(function (ds) { dsOcc += ds.count; });
+                items.models.forEach(function (m) { mdOcc += m.count; });
+
+                var totalOcc = 0;
+                if (currentFilter === 'both' || currentFilter === 'all' || currentFilter === 'datasets') {
+                    totalOcc += dsOcc;
+                }
+                if (currentFilter === 'both' || currentFilter === 'all' || currentFilter === 'models') {
+                    totalOcc += mdOcc;
+                }
+
+                arr.push({
+                    name: name,
+                    occ: totalOcc,
+                    dsSize: items.datasets.size,
+                    mdSize: items.models.size,
+                    dsOcc: dsOcc,
+                    mdOcc: mdOcc
+                });
+            });
+            arr.sort(function (a, b) { return b.occ - a.occ; });
+
+            document.querySelector('.legend-title').textContent = 'Top ' + arr.length + ' Providers';
+
+            for (var i = 0; i < arr.length; i++) {
+                var prov = arr[i];
+
+
+                var item = document.createElement('a');
+                item.className = 'legend-item';
+                item.href = 'https://huggingface.co/' + prov.name;
+                item.target = '_blank';
+                item.rel = 'noopener noreferrer';
+
+                var logoImg = document.createElement('img');
+                logoImg.className = 'legend-logo';
+                logoImg.src = getOrgLogo(prov.name);
+                logoImg.onerror = function () {
+                    this.src = ORG_LOGOS['default'];
+                };
+
+                var textDiv = document.createElement('div');
+                textDiv.className = 'legend-text';
+                textDiv.textContent = prov.name;
+
+
+                var tooltipDiv = document.createElement('div');
+                tooltipDiv.className = 'legend-item-tooltip';
+                tooltipDiv.textContent = prov.dsSize + ' datasets, ' + prov.mdSize + ' models | ' + prov.occ + ' occurrences';
+
+                item.appendChild(logoImg);
+                item.appendChild(textDiv);
+                item.appendChild(tooltipDiv);
+                legendItems.appendChild(item);
+            }
+        }
+
+        var filterBtns = document.querySelectorAll('.filter-btn[data-filter]');
+        for (var i = 0; i < filterBtns.length; i++) {
+            filterBtns[i].addEventListener('click', function () {
+                var allFilterBtns = document.querySelectorAll('.filter-btn[data-filter]');
+                for (var j = 0; j < allFilterBtns.length; j++) {
+                    allFilterBtns[j].classList.remove('active');
+                }
+                this.classList.add('active');
+                currentFilter = this.getAttribute('data-filter');
+                renderVisualization();
+            });
+        }
+
+        document.getElementById('exportCSVBtn').addEventListener('click', function () {
+            if (!filteredExportData || filteredExportData.length === 0) {
+                alert('No data available to export!');
+                return;
+            }
+            var csv = 'provider,type,name,link,occurrences,papers\n';
+            for (var i = 0; i < filteredExportData.length; i++) {
+                var item = filteredExportData[i];
+                var papers = item.papers.replace(/"/g, '""');
+                csv += item.provider + ',' + item.type + ',"' + item.name + '","' + item.link + '",' + item.occurrences + ',"' + papers + '"\n';
+            }
+            downloadFile(csv, 'hf_papers_' + currentFilter + '_export.csv', 'text/csv');
+        });
+
+
+        function downloadFile(content, filename, type) {
+            var blob = new Blob([content], { type: type });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        var resizeTimeout;
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(function () {
+                if (globalData) {
+                    renderVisualization();
+                }
+            }, 150);
+        });
+
+        window.addEventListener('DOMContentLoaded', function () {
+            fetch('hf_papers_2025_FINAL.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    try {
+                        globalData = processData(data);
+                        renderVisualization();
+                        document.querySelector('.loading').style.display = 'none';
+                    } catch (error) {
+                        console.error('Error processing data:', error);
+                        document.querySelector('.loading').textContent = 'Error processing data: ' + error.message;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading data:', error);
+                    document.querySelector('.loading').innerHTML = 'Error loading data: ' + error.message + '<br><br>Note: If you are opening this file directly in a browser (file://), you typically cannot fetch local JSON files due to CORS security policies. Please run a local web server (e.g., "python3 -m http.server" or "npx serve") in the directory containing these files.';
+                });
+        });
+    </script>
+</body>
+
+</html>
