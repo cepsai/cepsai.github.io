@@ -1,0 +1,658 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style type="text/css">
+        .knitr .inline {
+            background-color: #F7F7F7;
+            border: solid 1px #B0B0B0;
+        }
+
+        .error {
+            font-weight: bold;
+            color: #FF0000;
+        }
+
+        .warning {
+            font-weight: bold;
+        }
+
+        .message {
+            font-style: italic;
+        }
+
+        .source,
+        .output,
+        .warning,
+        .error,
+        .message {
+            padding: 0 1em;
+            border: solid 1px #F7F7F7;
+        }
+
+        .source {
+            background-color: #F5F5F5;
+        }
+
+        .rimage .left {
+            text-align: left;
+        }
+
+        .rimage .right {
+            text-align: right;
+        }
+
+        .rimage .center {
+            text-align: center;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            background-color: white;
+        }
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 16fr 1fr 2fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        #container5 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+        }
+
+        #container2 {
+            grid-row: 3;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #container3 {
+            grid-row: 4;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 4;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        #viz {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        .custom-legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(4px, 1vw, 10px);
+            padding: clamp(2px, 0.5vh, 4px) clamp(4px, 0.8vw, 8px);
+            overflow: auto;
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(8px, 1.3vw, 13px);
+            font-weight: 600;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            font-weight: 600;
+            color: #333;
+            position: relative;
+        }
+
+        .legend-item.inactive {
+            opacity: 0.35;
+        }
+
+        .legend-square {
+            width: clamp(10px, 1.2vw, 14px);
+            height: clamp(10px, 1.2vw, 14px);
+            border-radius: 4px;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset;
+        }
+
+        .legend-item:focus-visible {
+            outline: 2px solid rgba(0, 0, 0, 0.5);
+            outline-offset: 2px;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: 100%;
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .source-text a:visited {
+            color: #2756d3;
+        }
+
+        .footnote-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-style: italic;
+            color: #333;
+            text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr;
+                grid-template-columns: 1fr;
+            }
+
+            #container1 {
+                grid-row: 1;
+                grid-column: 1;
+            }
+
+            #container2,
+            #container3,
+            #container4,
+            #container5 {
+                display: none !important;
+            }
+
+            .custom-legend,
+            .source-text,
+            .logo,
+            .footnote-text {
+                display: none !important;
+            }
+        }
+    </style>
+
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1" class="container viz-container">
+            <div id="viz"></div>
+        </div>
+        <div id="container5" class="container footnote-container">
+            <div class="footnote-text" id="footnote-text">
+                This is a footnote example
+            </div>
+        </div>
+        <div id="container2" class="container legend-container">
+            <div class="custom-legend" id="legend"></div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-text" id="source-text">
+                Source:
+                <a href="https://aiworld.eu" target="_blank">
+                    AI World
+                </a>
+            </div>
+        </div>
+        <div id="container4" class="container logo-container"></div>
+    </div>
+
+    <script>
+        const SHOW_CONTAINER_2 = 1;
+        const SHOW_CONTAINER_3 = 0;
+        const SHOW_CONTAINER_4 = 0;
+        const SHOW_CONTAINER_5 = 0;
+
+        const VIZ_CONTAINER_ID = 'viz';
+        const SOURCE_CONTAINER_ID = 'source-text';
+        const LOGO_CONTAINER_ID = 'logo-link';
+        const FOOTNOTE_CONTAINER_ID = 'footnote-text';
+
+        const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
+        const sourceContainer = document.getElementById(SOURCE_CONTAINER_ID);
+        const logoContainer = document.getElementById(LOGO_CONTAINER_ID);
+        const footnoteContainer = document.getElementById(FOOTNOTE_CONTAINER_ID);
+
+        (function applyContainerVisibility() {
+            const vizGrid = document.querySelector('.viz-grid');
+            const container1 = document.getElementById('container1');
+            const container2 = document.getElementById('container2');
+            const container3 = document.getElementById('container3');
+            const container4 = document.getElementById('container4');
+            const container5 = document.getElementById('container5');
+
+            if (!SHOW_CONTAINER_2) {
+                container2.style.display = 'none';
+            }
+            if (!SHOW_CONTAINER_3) {
+                container3.style.display = 'none';
+            }
+            if (!SHOW_CONTAINER_4) {
+                container4.style.display = 'none';
+            }
+            if (!SHOW_CONTAINER_5) {
+                container5.style.display = 'none';
+            }
+
+            const row2Visible = SHOW_CONTAINER_5;
+            const row3Visible = SHOW_CONTAINER_2;
+            const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+            let gridRows = [];
+            let currentRow = 1;
+
+            const container1Height = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 2 : 0) - (row4Visible ? 1 : 0);
+            gridRows.push(`${container1Height}fr`);
+
+            if (row2Visible) {
+                gridRows.push('1fr');
+                currentRow++;
+                container5.style.gridRow = currentRow.toString();
+            }
+
+            if (row3Visible) {
+                gridRows.push('2fr');
+                currentRow++;
+                container2.style.gridRow = currentRow.toString();
+            }
+
+            if (row4Visible) {
+                gridRows.push('1fr');
+                currentRow++;
+                if (SHOW_CONTAINER_3) container3.style.gridRow = currentRow.toString();
+                if (SHOW_CONTAINER_4) container4.style.gridRow = currentRow.toString();
+            }
+
+            vizGrid.style.gridTemplateRows = gridRows.join(' ');
+            container1.style.gridRow = '1';
+
+            if (row4Visible) {
+                if (SHOW_CONTAINER_3 && !SHOW_CONTAINER_4) {
+                    container3.style.gridColumn = '1 / span 2';
+                } else if (!SHOW_CONTAINER_3 && SHOW_CONTAINER_4) {
+                    container4.style.gridColumn = '1 / span 2';
+                }
+            }
+        })();
+
+        const originalData = [
+  {
+    "id": "Corporate Functions",
+    "value": 62,
+    "parent": "Anthropic",
+    "name": "Corporate Functions"
+  },
+  {
+    "id": "Go-to-Market & Sales",
+    "value": 115,
+    "parent": "Anthropic",
+    "name": "Go-to-Market & Sales"
+  },
+  {
+    "id": "Infrastructure & Security",
+    "value": 41,
+    "parent": "Anthropic",
+    "name": "Infrastructure & Security"
+  },
+  {
+    "id": "Product & Engineering",
+    "value": 81,
+    "parent": "Anthropic",
+    "name": "Product & Engineering"
+  },
+  {
+    "id": "Research & AI Development",
+    "value": 44,
+    "parent": "Anthropic",
+    "name": "Research & AI Development"
+  },
+  {
+    "id": "Corporate Functions",
+    "value": 20,
+    "parent": "DeepMind",
+    "name": "Corporate Functions"
+  },
+  {
+    "id": "Go-to-Market & Sales",
+    "value": 1,
+    "parent": "DeepMind",
+    "name": "Go-to-Market & Sales"
+  },
+  {
+    "id": "Infrastructure & Security",
+    "value": 4,
+    "parent": "DeepMind",
+    "name": "Infrastructure & Security"
+  },
+  {
+    "id": "Product & Engineering",
+    "value": 66,
+    "parent": "DeepMind",
+    "name": "Product & Engineering"
+  },
+  {
+    "id": "Research & AI Development",
+    "value": 40,
+    "parent": "DeepMind",
+    "name": "Research & AI Development"
+  },
+  {
+    "id": "Corporate Functions",
+    "value": 74,
+    "parent": "OpenAI",
+    "name": "Corporate Functions"
+  },
+  {
+    "id": "Go-to-Market & Sales",
+    "value": 133,
+    "parent": "OpenAI",
+    "name": "Go-to-Market & Sales"
+  },
+  {
+    "id": "Infrastructure & Security",
+    "value": 42,
+    "parent": "OpenAI",
+    "name": "Infrastructure & Security"
+  },
+  {
+    "id": "Product & Engineering",
+    "value": 186,
+    "parent": "OpenAI",
+    "name": "Product & Engineering"
+  },
+  {
+    "id": "Research & AI Development",
+    "value": 44,
+    "parent": "OpenAI",
+    "name": "Research & AI Development"
+  }
+];
+        const TREEMAP_BORDER_RADIUS = 0;
+        const TREEMAP_SHOW_VALUES = 0;
+        const SHOW_TOOLTIP = 1;
+        const PALETTE_MODE = "none";
+
+        function normalizeData(arr) {
+            return arr.map(function (d) {
+                var parent = d.parent || d.group || d.domain || d.category || d.type || d.class;
+                var name = d.name || d.id || d.label || d.title;
+                var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+                var color = d.color != null ? d.color : null;
+                return { parent: parent, name: name, value: value, color: color };
+            });
+        }
+
+        let treemapData = normalizeData(originalData);
+        const groups = Array.from(new Set(treemapData.map(function (d) { return d.parent; })));
+        const inferredColors = {};
+        groups.forEach(function (g) {
+            var item = originalData.find(function (x) {
+                var p = x.parent || x.group || x.domain || x.category || x.type || x.class;
+                return p === g;
+            });
+            inferredColors[g] = item && item.color ? item.color : null;
+        });
+
+        const fallbackPalette = ["#1F77B4", "#FF7F0E", "#2CA02C", "#9467BD", "#D62728", "#17BECF", "#8C564B", "#E377C2", "#7F7F7F", "#BCBD22"];
+        const groupColors = {};
+        groups.forEach(function (g, i) {
+            var baseColor;
+            if (inferredColors[g]) baseColor = inferredColors[g];
+            else if (PALETTE_MODE === "aiw") baseColor = "#2756d3";
+            else if (PALETTE_MODE === "ceps") baseColor = "#207164";
+            else baseColor = fallbackPalette[i % fallbackPalette.length];
+            groupColors[g] = baseColor;
+        });
+
+        const activeGroups = new Set(groups);
+
+        function getGroupColor(parent) {
+            var c = groupColors[parent];
+            if (!c && (PALETTE_MODE === "aiw" || PALETTE_MODE === "ceps")) {
+                return PALETTE_MODE === "aiw" ? "#2756d3" : "#207164";
+            }
+            return c || "#666666";
+        }
+
+        let legendInitialized = false;
+
+        function getLegendElement() {
+            var legend = document.getElementById("legend");
+            if (legend) return legend;
+            var legendContainer = document.getElementById("container2");
+            if (!legendContainer) return null;
+            legend = document.createElement("div");
+            legend.id = "legend";
+            legend.className = "custom-legend";
+            legendContainer.appendChild(legend);
+            return legend;
+        }
+
+        function buildLegend() {
+            if (legendInitialized) return;
+            var legend = getLegendElement();
+            if (!legend) return;
+            legend.innerHTML = "";
+            groups.forEach(function (g) {
+                var item = document.createElement("div");
+                item.className = "legend-item active";
+                item.setAttribute("data-group", g);
+                item.setAttribute("role", "button");
+                item.setAttribute("tabindex", "0");
+                item.setAttribute("aria-pressed", "true");
+
+                var square = document.createElement("div");
+                square.className = "legend-square";
+                square.style.backgroundColor = getGroupColor(g);
+                square.style.borderRadius = TREEMAP_BORDER_RADIUS + "px";
+
+                var label = document.createElement("span");
+                label.textContent = g;
+
+                item.appendChild(square);
+                item.appendChild(label);
+
+                var toggleGroup = function () {
+                    if (activeGroups.has(g)) {
+                        activeGroups.delete(g);
+                    } else {
+                        activeGroups.add(g);
+                    }
+                    updateVisualization();
+                };
+
+                item.addEventListener("click", toggleGroup);
+                item.addEventListener("keydown", function (e) {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleGroup();
+                    }
+                });
+
+                legend.appendChild(item);
+            });
+            legendInitialized = true;
+        }
+
+        function updateLegendStyles() {
+            var legend = document.getElementById("legend");
+            if (!legend) return;
+            var items = legend.querySelectorAll(".legend-item");
+            items.forEach(function (item) {
+                var grp = item.getAttribute("data-group");
+                var isActive = activeGroups.has(grp);
+                item.classList.toggle("inactive", !isActive);
+                item.classList.toggle("active", isActive);
+                item.setAttribute("aria-pressed", isActive ? "true" : "false");
+            });
+        }
+
+        let treemapInstance = null;
+
+        function ensureTreemapInstance(width, height) {
+            if (!vizContainer) return null;
+            if (!treemapInstance) {
+                treemapInstance = new d3plus.Treemap()
+                    .select("#" + VIZ_CONTAINER_ID)
+                    .data(treemapData)
+                    .groupBy(["parent", "name"])
+                    .tooltip(!!SHOW_TOOLTIP)
+                    .tooltipConfig({
+                        title: function (d) { return d.name; },
+                        body: function (d) {
+                            var sector = d.parent || d.id;
+                            var count = d.value || 0;
+                            return "<strong>Sector:</strong> " + sector + "<br><strong>Count:</strong> " + count;
+                        }
+                    })
+                    .sum("value")
+                    .layoutPadding(2)
+                    .legend(false)
+                    .color(function (d) {
+                        return getGroupColor(d.parent || d.id);
+                    })
+                    .shapeConfig({
+                        rx: TREEMAP_BORDER_RADIUS,
+                        ry: TREEMAP_BORDER_RADIUS,
+                        stroke: function (d) {
+                            if (d.depth === 0) return getGroupColor(d.id);
+                            return "transparent";
+                        },
+                        strokeWidth: function (d) {
+                            if (d.depth === 0) return 3;
+                            return 0;
+                        }
+                    })
+                    .config({
+                        label: function (d) {
+                            if (!TREEMAP_SHOW_VALUES) return d.name;
+                            var value = (d && typeof d.value === "number") ? d.value : (d && d.value != null ? +d.value : 0);
+                            return d.name + " (" + value + ")";
+                        }
+                    });
+            }
+
+            if (typeof treemapInstance.width === "function" && width) {
+                treemapInstance.width(width);
+            }
+            if (typeof treemapInstance.height === "function" && height) {
+                treemapInstance.height(height);
+            }
+
+            return treemapInstance;
+        }
+
+        function updateVisualization(width, height) {
+            treemapData = normalizeData(originalData).filter(function (d) {
+                return activeGroups.has(d.parent);
+            });
+
+            var instance = ensureTreemapInstance(width, height);
+            if (!instance) return;
+            instance.data(treemapData).render();
+
+            updateLegendStyles();
+        }
+
+        const renderVisualization = function (currentData, width, height) {
+            buildLegend();
+            updateVisualization(width, height);
+        };
+
+        const renderVisualizationForContainer = function () {
+            if (!vizContainer) {
+                return
+            }
+            const rect = vizContainer.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+            renderVisualization(null, width, height);
+        };
+
+        let resizeTimer;
+
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(renderVisualizationForContainer, 120);
+        });
+
+        if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+            const resizeObserver = new ResizeObserver(function () {
+                renderVisualizationForContainer();
+            });
+            resizeObserver.observe(vizContainer);
+        }
+
+        renderVisualizationForContainer();
+    </script>
+</body>
+
+</html>

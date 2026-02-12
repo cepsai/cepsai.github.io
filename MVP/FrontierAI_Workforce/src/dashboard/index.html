@@ -1,0 +1,648 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+
+    <style type="text/css">
+        * {
+            box-sizing: border-box;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #ffffff;
+            color: #111;
+            display: flex;
+        }
+
+        #sidebar {
+            width: 260px;
+            background-color: #fafafa;
+            border-right: 1px solid #eaeaea;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        #main-view {
+            flex-grow: 1;
+            height: 100%;
+            position: relative;
+            background: #fff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            border-bottom: 1px solid #eaeaea;
+            background: #f5f5f5;
+            text-transform: uppercase;
+            cursor: pointer;
+        }
+
+        .section-title {
+            padding: 20px 24px 10px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+        }
+
+        .file-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .file-item {
+            padding: 12px 24px;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid transparent;
+            transition: all 0.1s ease;
+            color: #444;
+        }
+
+        .file-item:hover {
+            background-color: #eaeaea;
+            color: #000;
+        }
+
+        .file-item.active {
+            background-color: #000;
+            color: #fff;
+        }
+
+        .file-icon {
+            margin-right: 12px;
+            opacity: 0.5;
+            font-size: 16px;
+        }
+
+        .file-item.active .file-icon {
+            opacity: 1;
+        }
+
+        /* TREEMAP STYLES */
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 1fr auto;
+            height: 100%;
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        #viz-wrapper {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        #container1 {
+            grid-row: 1;
+            overflow: hidden;
+            min-height: 0;
+            position: relative;
+        }
+
+        #container2 {
+            grid-row: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 0;
+            background: white;
+            border-top: 1px solid #eaeaea;
+            z-index: 5;
+        }
+
+        #viz {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* LEGEND */
+        .custom-legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 8px 16px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            color: #333;
+            padding: 4px 8px;
+            border: 1px solid transparent;
+        }
+
+        .legend-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .legend-item.inactive {
+            opacity: 0.4;
+        }
+
+        .legend-square {
+            width: 12px;
+            height: 12px;
+        }
+
+        /* DATA TABLE STYLES */
+        #data-view {
+            display: none;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: white;
+            padding: 0;
+        }
+
+        #loading-message {
+            display: none;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f5f5f5;
+            position: sticky;
+            top: 0;
+            padding: 12px 16px;
+            font-weight: 600;
+            border-bottom: 2px solid #eaeaea;
+            z-index: 2;
+        }
+
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid #eee;
+            color: #333;
+        }
+
+        tr:hover td {
+            background-color: #fafafa;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="sidebar">
+        <div class="sidebar-header" onclick="showOverview()">Frontier AI</div>
+
+        <div class="section-title">Views</div>
+        <ul class="file-list">
+            <li class="file-item active" id="btn-overview" onclick="showOverview()">
+                <span class="file-icon">📊</span>
+                <div>Overview</div>
+            </li>
+        </ul>
+
+        <div class="section-title">Scraper Outputs</div>
+        <ul class="file-list" id="file-list-el">
+        </ul>
+    </div>
+
+    <div id="main-view">
+
+        <div id="viz-wrapper">
+            <div class="viz-grid">
+                <div id="container1" class="container viz-container">
+                    <div id="viz"></div>
+                </div>
+
+                <div id="container2" class="container legend-container">
+                    <div class="custom-legend" id="legend"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="data-view">
+            <div id="loading-message">Loading data...</div>
+            <table id="csv-table">
+                <thead id="csv-head"></thead>
+                <tbody id="csv-body"></tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        const files = [
+            { name: "anthropic.csv", size: "36KB" },
+            { name: "google.csv", size: "15KB" },
+            { name: "openai.csv", size: "34KB" }
+        ];
+
+        const fileListEl = document.getElementById('file-list-el');
+        const vizWrapper = document.getElementById('viz-wrapper');
+        const dataView = document.getElementById('data-view');
+        const btnOverview = document.getElementById('btn-overview');
+        const loadingMessage = document.getElementById('loading-message');
+
+        function renderFiles() {
+            files.forEach((file) => {
+                const li = document.createElement('li');
+                li.className = 'file-item';
+                li.innerHTML = `
+                    <span class="file-icon">📄</span>
+                    <div>
+                        <div>${file.name}</div>
+                        <div style="font-size: 10px; color: #888; margin-top:2px;">${file.size}</div>
+                    </div>
+                `;
+
+                li.addEventListener('click', () => {
+                    openFile(file.name, li);
+                });
+
+                fileListEl.appendChild(li);
+            });
+        }
+        renderFiles();
+
+        function showOverview() {
+            document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
+            btnOverview.classList.add('active');
+
+            vizWrapper.style.display = 'block';
+            dataView.style.display = 'none';
+
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+            }, 10);
+        }
+
+        function openFile(filename, element) {
+            document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
+            if (element) element.classList.add('active');
+
+            vizWrapper.style.display = 'none';
+            dataView.style.display = 'block';
+
+            loadingMessage.style.display = 'block';
+            document.getElementById('csv-head').innerHTML = '';
+            document.getElementById('csv-body').innerHTML = '';
+
+            const url = '../scraper/output/' + filename;
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Network response was not ok");
+                    }
+                    return response.text();
+                })
+                .then(text => {
+                    loadingMessage.style.display = 'none';
+                    renderTable(text);
+                })
+                .catch(error => {
+                    loadingMessage.style.display = 'block';
+                    loadingMessage.textContent = "Error loading file: " + error.message;
+                    console.error('There has been a problem with your fetch operation:', error);
+                });
+        }
+
+        function renderTable(csv) {
+            const tableHead = document.getElementById('csv-head');
+            const tableBody = document.getElementById('csv-body');
+
+            const parseCSV = (str) => {
+                const arr = [];
+                let quote = false;
+                let col, c;
+                for (let row = col = c = 0; c < str.length; c++) {
+                    let cc = str[c], nc = str[c + 1];
+                    arr[row] = arr[row] || [];
+                    arr[row][col] = arr[row][col] || '';
+
+                    if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; }
+                    else if (cc == '"') { quote = !quote; }
+                    else if (cc == ',' && !quote) { ++col; }
+                    else if (cc == '\n' && !quote) { ++row; col = 0; }
+                    else { arr[row][col] += cc; }
+                }
+                return arr;
+            };
+
+            const data = parseCSV(csv);
+
+            tableHead.innerHTML = '';
+            tableBody.innerHTML = '';
+
+            if (data.length > 0) {
+                const headers = data[0];
+                const trH = document.createElement('tr');
+                headers.forEach(h => {
+                    const th = document.createElement('th');
+                    th.textContent = h;
+                    trH.appendChild(th);
+                });
+                tableHead.appendChild(trH);
+
+                for (let i = 1; i < data.length; i++) {
+                    const row = data[i];
+                    if (row.length <= 1 && !row[0]) continue;
+                    const tr = document.createElement('tr');
+                    row.forEach(cell => {
+                        const td = document.createElement('td');
+                        td.textContent = cell;
+                        tr.appendChild(td);
+                    });
+                    tableBody.appendChild(tr);
+                }
+            }
+        }
+
+        const originalData = [
+            {
+                "id": "Corporate Functions",
+                "value": 62,
+                "parent": "Anthropic",
+                "name": "Corporate Functions"
+            },
+            {
+                "id": "Go-to-Market & Sales",
+                "value": 115,
+                "parent": "Anthropic",
+                "name": "Go-to-Market & Sales"
+            },
+            {
+                "id": "Infrastructure & Security",
+                "value": 41,
+                "parent": "Anthropic",
+                "name": "Infrastructure & Security"
+            },
+            {
+                "id": "Product & Engineering",
+                "value": 81,
+                "parent": "Anthropic",
+                "name": "Product & Engineering"
+            },
+            {
+                "id": "Research & AI Development",
+                "value": 44,
+                "parent": "Anthropic",
+                "name": "Research & AI Development"
+            },
+            {
+                "id": "Corporate Functions",
+                "value": 20,
+                "parent": "DeepMind",
+                "name": "Corporate Functions"
+            },
+            {
+                "id": "Go-to-Market & Sales",
+                "value": 1,
+                "parent": "DeepMind",
+                "name": "Go-to-Market & Sales"
+            },
+            {
+                "id": "Infrastructure & Security",
+                "value": 4,
+                "parent": "DeepMind",
+                "name": "Infrastructure & Security"
+            },
+            {
+                "id": "Product & Engineering",
+                "value": 66,
+                "parent": "DeepMind",
+                "name": "Product & Engineering"
+            },
+            {
+                "id": "Research & AI Development",
+                "value": 40,
+                "parent": "DeepMind",
+                "name": "Research & AI Development"
+            },
+            {
+                "id": "Corporate Functions",
+                "value": 74,
+                "parent": "OpenAI",
+                "name": "Corporate Functions"
+            },
+            {
+                "id": "Go-to-Market & Sales",
+                "value": 133,
+                "parent": "OpenAI",
+                "name": "Go-to-Market & Sales"
+            },
+            {
+                "id": "Infrastructure & Security",
+                "value": 42,
+                "parent": "OpenAI",
+                "name": "Infrastructure & Security"
+            },
+            {
+                "id": "Product & Engineering",
+                "value": 186,
+                "parent": "OpenAI",
+                "name": "Product & Engineering"
+            },
+            {
+                "id": "Research & AI Development",
+                "value": 44,
+                "parent": "OpenAI",
+                "name": "Research & AI Development"
+            }
+        ];
+
+        const vizContainer = document.getElementById("viz");
+        const SHOW_TOOLTIP = 1;
+
+        function normalizeData(arr) {
+            return arr.map(function (d) {
+                var parent = d.parent || d.group || d.domain || d.category || d.type || d.class;
+                var name = d.name || d.id || d.label || d.title;
+                var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+                var color = d.color != null ? d.color : null;
+                return { parent: parent, name: name, value: value, color: color };
+            });
+        }
+
+        let treemapData = normalizeData(originalData);
+        const groups = Array.from(new Set(treemapData.map(function (d) { return d.parent; })));
+
+        const groupColors = {
+            "Anthropic": "#d97757",
+            "DeepMind": "#4285F4",
+            "OpenAI": "#10a37f"
+        };
+
+        const activeGroups = new Set(groups);
+
+        function getGroupColor(parent) {
+            return groupColors[parent] || "#333";
+        }
+
+        let legendInitialized = false;
+
+        function buildLegend() {
+            if (legendInitialized) return;
+            var legend = document.getElementById("legend");
+            if (!legend) return;
+            legend.innerHTML = "";
+            groups.forEach(function (g) {
+                var item = document.createElement("div");
+                item.className = "legend-item active";
+                item.setAttribute("data-group", g);
+
+                var square = document.createElement("div");
+                square.className = "legend-square";
+                square.style.backgroundColor = getGroupColor(g);
+
+                var label = document.createElement("span");
+                label.textContent = g;
+
+                item.appendChild(square);
+                item.appendChild(label);
+
+                var toggleGroup = function () {
+                    if (activeGroups.has(g)) {
+                        activeGroups.delete(g);
+                    } else {
+                        activeGroups.add(g);
+                    }
+                    if (vizWrapper.style.display !== 'none') {
+                        updateVisualization();
+                    }
+                };
+
+                item.addEventListener("click", toggleGroup);
+                legend.appendChild(item);
+            });
+            legendInitialized = true;
+        }
+
+        function updateLegendStyles() {
+            var legend = document.getElementById("legend");
+            if (!legend) return;
+            var items = legend.querySelectorAll(".legend-item");
+            items.forEach(function (item) {
+                var grp = item.getAttribute("data-group");
+                var isActive = activeGroups.has(grp);
+                item.classList.toggle("inactive", !isActive);
+                item.classList.toggle("active", isActive);
+            });
+        }
+
+        let treemapInstance = null;
+
+        function ensureTreemapInstance(width, height) {
+            if (!vizContainer) return null;
+            if (!treemapInstance) {
+                treemapInstance = new d3plus.Treemap()
+                    .select("#viz")
+                    .data(treemapData)
+                    .groupBy(["parent", "name"])
+                    .tooltip(!!SHOW_TOOLTIP)
+                    .sum("value")
+                    .layoutPadding(0)
+                    .legend(false)
+                    .color(function (d) {
+                        return getGroupColor(d.parent || d.id);
+                    })
+                    .shapeConfig({
+                        rx: 0,
+                        ry: 0,
+                        stroke: "#ffffff",
+                        strokeWidth: 2
+                    });
+            }
+
+            if (width) treemapInstance.width(width);
+            if (height) treemapInstance.height(height);
+
+            return treemapInstance;
+        }
+
+        function updateVisualization(width, height) {
+            treemapData = normalizeData(originalData).filter(function (d) {
+                return activeGroups.has(d.parent);
+            });
+
+            var instance = ensureTreemapInstance(width, height);
+            if (!instance) return;
+            instance.data(treemapData).render();
+
+            updateLegendStyles();
+        }
+
+        const renderVisualizationForContainer = function () {
+            if (!vizContainer || vizWrapper.style.display === 'none') return;
+
+            const rect = document.getElementById('container1').getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                renderVisualization(null, rect.width, rect.height);
+            }
+        };
+
+        function renderVisualization(data, w, h) {
+            buildLegend();
+            updateVisualization(w, h);
+        }
+
+        let resizeTimer;
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(renderVisualizationForContainer, 120);
+        });
+
+        const resizeObserver = new ResizeObserver(function () {
+            renderVisualizationForContainer();
+        });
+        resizeObserver.observe(document.getElementById('container1'));
+
+        setTimeout(renderVisualizationForContainer, 100);
+
+    </script>
+</body>
+
+</html>
