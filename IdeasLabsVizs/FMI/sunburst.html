@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EU27 FDI - Interactive Sunburst</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: white;
+            height: 100vh;
+            width: 100vw;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+
+        .viz-grid {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding: 0;
+            overflow: hidden;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #container1 {
+            flex: 1;
+            display: flex;
+            overflow: visible;
+            min-height: 0;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+        }
+
+        #container1 .chart-wrapper {
+            flex: 1 1 auto;
+            display: flex;
+            min-width: 0;
+            height: 100%;
+            margin-left: 0;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-size: clamp(8px, 1.6vw, 16px);
+            position: relative;
+            gap: 12px;
+        }
+
+        #container3 {
+            grid-row: 2;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .source-text {
+            font-size: clamp(8px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .source-text a:visited {
+            color: #2756d3;
+        }
+
+        #container4 {
+            grid-row: 2;
+            grid-column: 3;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 clamp(8px, 2vw, 20px);
+            overflow: hidden;
+            min-width: 0;
+            gap: clamp(4px, 1vw, 8px);
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            min-width: 0;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: clamp(80px, 15vw, 200px);
+            pointer-events: auto;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        .legend-container {
+            display: flex;
+            align-items: center;
+            gap: clamp(8px, 2vw, 24px);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-swatch {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .legend-label {
+            font-size: clamp(8px, 1.4vw, 14px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 18px;
+            color: #718096;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            width: 100%;
+        }
+
+
+        #chart-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #sunburst {
+            cursor: pointer;
+        }
+
+
+        #tooltip {
+            position: absolute;
+            background: #fff;
+            border: 1px solid #d9d9df;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            transition: opacity 0.12s ease;
+            max-width: 350px;
+            z-index: 1000;
+            color: #333;
+        }
+
+        #tooltip.visible {
+            opacity: 1;
+        }
+
+        .tooltip-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 13px;
+            color: #111;
+        }
+
+        .tooltip-info {
+            font-size: 11px;
+            color: #666;
+            line-height: 1.4;
+        }
+
+        .provider-label {
+            font-size: 11px;
+            font-weight: bold;
+            fill: white;
+            text-anchor: middle;
+            pointer-events: none;
+            text-shadow: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1">
+            <div class="chart-wrapper">
+                <div id="chart-container">
+                    <div class="loading">Loading visualization...</div>
+                </div>
+            </div>
+            <div class="tooltip" id="tooltip"></div>
+        </div>
+    </div>
+
+    <script>
+
+        const INTRA_COLOR = '#118AB2';
+        const EXTRA_COLOR = '#EF476F';
+
+        var globalData = null;
+
+        function getChartSize() {
+            var container = document.getElementById('chart-container');
+            var rect = container.getBoundingClientRect();
+            var size = Math.min(rect.width, rect.height);
+            return Math.max(size, 250);
+        }
+
+        function normalizeAngle(a) {
+            while (a < 0) a += 2 * Math.PI;
+            while (a >= 2 * Math.PI) a -= 2 * Math.PI;
+            return a;
+        }
+
+        function renderVisualization() {
+            if (!globalData) return;
+
+            var urlParams = new URLSearchParams(window.location.search);
+            // Default is numbers (undefined -> '1'), explicit '0' is percent.
+            var showNumbers = urlParams.get('decimal') !== '0';
+
+            var container = document.getElementById('chart-container');
+            container.innerHTML = '';
+
+            var chartSize = getChartSize();
+            var width = chartSize;
+            var height = chartSize;
+            var maxRadius = chartSize / 2;
+            var radius = maxRadius * 0.95;
+            var fixedInnerRadius = maxRadius * 0.20;
+            var innerRingOuter = radius * 0.45;
+            var outerRingInner = radius * 0.48;
+            var outerRingOuter = radius;
+
+            var raw = globalData;
+
+            var euCountries = [];
+            var nonEuCountries = [];
+
+            Object.keys(raw.external).forEach(function (country) {
+                var entry = raw.external[country];
+                var item = { name: country, value: entry.value, forceOutside: entry.forceOutside };
+                if (entry.isEU27) {
+                    euCountries.push(item);
+                } else {
+                    nonEuCountries.push(item);
+                }
+            });
+
+            // Calculate current sums from the detailed list
+            var currentEuSum = euCountries.reduce(function (s, c) { return s + c.value; }, 0);
+            var currentNonEuSum = nonEuCountries.reduce(function (s, c) { return s + c.value; }, 0);
+
+            // Fetch target totals from 'internal' section
+            var targetEu = (raw.internal && raw.internal['Intra-EU27']) ? raw.internal['Intra-EU27'] : currentEuSum;
+            var targetNonEu = (raw.internal && raw.internal['Extra-EU27']) ? raw.internal['Extra-EU27'] : currentNonEuSum;
+
+            // Add 'Other' category if there is a gap between total and sum of details
+            if (targetEu > currentEuSum + 0.0001) {
+                euCountries.push({ name: 'Other', value: targetEu - currentEuSum });
+            }
+            if (targetNonEu > currentNonEuSum + 0.0001) {
+                nonEuCountries.push({ name: 'Other', value: targetNonEu - currentNonEuSum });
+            }
+
+            euCountries.sort(function (a, b) { return b.value - a.value; });
+            nonEuCountries.sort(function (a, b) { return b.value - a.value; });
+
+            var euTotal = euCountries.reduce(function (s, c) { return s + c.value; }, 0);
+            var nonEuTotal = nonEuCountries.reduce(function (s, c) { return s + c.value; }, 0);
+            var grandTotal = euTotal + nonEuTotal;
+
+            var euMaxValue = euCountries.length > 0 ? euCountries[0].value : 1;
+            var nonEuMaxValue = nonEuCountries.length > 0 ? nonEuCountries[0].value : 1;
+
+            var euSpan = (euTotal / grandTotal) * 2 * Math.PI;
+            var nonEuSpan = 2 * Math.PI - euSpan;
+
+            var allArcs = [];
+
+            allArcs.push({
+                depth: 1, name: 'Intra-EU27', value: euTotal,
+                color: INTRA_COLOR,
+                x0: -euSpan / 2, x1: euSpan / 2,
+                countryCount: euCountries.length
+            });
+            allArcs.push({
+                depth: 1, name: 'Extra-EU27', value: nonEuTotal,
+                color: EXTRA_COLOR,
+                x0: euSpan / 2, x1: euSpan / 2 + nonEuSpan,
+                countryCount: nonEuCountries.length
+            });
+
+            var a = -euSpan / 2;
+            euCountries.forEach(function (c) {
+                var span = (c.value / euTotal) * euSpan;
+                allArcs.push({
+                    depth: 2, name: c.name, value: c.value,
+                    forceOutside: c.forceOutside,
+                    color: INTRA_COLOR,
+                    x0: a, x1: a + span,
+                    maxGroupValue: euMaxValue
+                });
+                a += span;
+            });
+
+            a = euSpan / 2;
+            nonEuCountries.forEach(function (c) {
+                var span = (c.value / nonEuTotal) * nonEuSpan;
+                allArcs.push({
+                    depth: 2, name: c.name, value: c.value,
+                    forceOutside: c.forceOutside,
+                    color: EXTRA_COLOR,
+                    x0: a, x1: a + span,
+                    maxGroupValue: nonEuMaxValue
+                });
+                a += span;
+            });
+
+            var svg = d3.select('#chart-container')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr('id', 'sunburst')
+                .style('overflow', 'visible');
+
+            var g = svg.append('g')
+                .attr('transform', 'translate(' + (width / 2) + ',' + (height / 2) + ')');
+
+            var scaleFactor = radius / 450;
+
+            allArcs.forEach(function (node) {
+                var innerR, outerR;
+                if (node.depth === 1) {
+                    innerR = fixedInnerRadius;
+                    outerR = innerRingOuter;
+                } else {
+                    innerR = outerRingInner;
+                    var ratio = node.value / node.maxGroupValue;
+                    outerR = outerRingInner + (outerRingOuter - outerRingInner) * ratio;
+                }
+
+                var arcGen = d3.arc()
+                    .innerRadius(innerR)
+                    .outerRadius(outerR)
+                    .startAngle(node.x0)
+                    .endAngle(node.x1)
+                    .padAngle(node.depth === 1 ? 0.008 : 0.003)
+                    .padRadius(radius / 3);
+
+                g.append('path')
+                    .attr('d', arcGen())
+                    .attr('fill', node.color)
+                    .attr('fill-opacity', node.depth === 1 ? 1 : 0.7)
+                    .attr('stroke', 'white')
+                    .attr('stroke-width', node.depth === 1 ? 1.5 : 0.5)
+                    .on('mouseover', (function (n) {
+                        return function (event) {
+                            d3.select(this).style('opacity', 0.8);
+                            showTooltip(event, n, grandTotal);
+                        };
+                    })(node))
+                    .on('mousemove', function (event) {
+                        d3.select('#tooltip')
+                            .style('left', (event.pageX + 15) + 'px')
+                            .style('top', (event.pageY - 15) + 'px');
+                    })
+                    .on('mouseout', function () {
+                        d3.select(this).style('opacity', 1);
+                        d3.select('#tooltip').classed('visible', false);
+                    });
+            });
+
+            var centerFontSize = Math.max(12, fixedInnerRadius * 0.35);
+            // "Total" Label on top
+            g.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('dominant-baseline', 'ideographic')
+                .attr('y', '-0.2em')
+                .style('font-size', (centerFontSize * 0.55) + 'px')
+                .style('font-weight', '500')
+                .style('fill', '#888')
+                .text('Total');
+
+            // Value below
+            var centerValueText = grandTotal.toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+            g.append('text')
+                .attr('text-anchor', 'middle')
+                .attr('dominant-baseline', 'hanging')
+                .attr('y', '0.1em')
+                .style('font-size', centerFontSize + 'px')
+                .style('font-weight', '700')
+                .style('fill', '#333')
+                .text(centerValueText);
+
+            var depth1Arcs = allArcs.filter(function (n) { return n.depth === 1; });
+            depth1Arcs.forEach(function (node) {
+                var angle = (node.x0 + node.x1) / 2;
+                var arcSize = node.x1 - node.x0;
+                var innerR = fixedInnerRadius;
+                var outerR = innerRingOuter;
+                var labelR = innerR + (outerR - innerR) * 0.5;
+                var labelX = Math.sin(angle) * labelR;
+                var labelY = -Math.cos(angle) * labelR;
+
+                var pct = ((node.value / grandTotal) * 100).toFixed(1);
+
+                var baseFontSize = Math.max(10, Math.min(22, 10 + arcSize * 15)) * scaleFactor;
+
+                var labelGroup = g.append('g')
+                    .attr('transform', 'translate(' + labelX + ',' + labelY + ')');
+
+                labelGroup.append('text')
+                    .attr('class', 'provider-label')
+                    .style('text-anchor', 'middle')
+                    .attr('dominant-baseline', 'middle')
+                    .style('font-size', (baseFontSize * 1.5) + 'px')
+                    .text(pct + '%');
+
+                // Using a slightly different layout for horizontal depth1
+                labelGroup.append('text')
+                    .attr('class', 'provider-label')
+                    .style('text-anchor', 'middle')
+                    .attr('dominant-baseline', 'hanging')
+                    .attr('y', (baseFontSize * 0.8) + 'px')
+                    .style('font-size', (baseFontSize * 0.8) + 'px')
+                    .text(node.name);
+            });
+
+            var depth2Arcs = allArcs.filter(function (n) { return n.depth === 2; });
+            depth2Arcs.forEach(function (node) {
+                var arcSize = node.x1 - node.x0;
+                var minArc = scaleFactor < 0.6 ? 0.06 : 0.035;
+                if (arcSize < minArc) return;
+
+                var angle = (node.x0 + node.x1) / 2;
+                var ratio = node.value / node.maxGroupValue;
+                var outerR = outerRingInner + (outerRingOuter - outerRingInner) * ratio;
+                var labelR = outerRingInner + (outerR - outerRingInner) * 0.5;
+
+                // Font size calculation (bigger)
+                var baseFontSize = Math.max(9, Math.min(16, 9 + arcSize * 15)) * scaleFactor;
+
+                // Estimate widths
+                var charWidth = baseFontSize * 0.6;
+                var textWidth = node.name.length * charWidth;
+                var arcWidthAtLabel = labelR * arcSize;
+
+                var showOutside = node.forceOutside || (textWidth > arcWidthAtLabel * 0.85); // Heuristic
+
+                if (showOutside) {
+                    labelR = outerR + 12 * scaleFactor;
+                }
+
+                var labelX = Math.sin(angle) * labelR;
+                var labelY = -Math.cos(angle) * labelR;
+
+                var labelName = node.name; // Full name if horizontal/outside, usually fits better
+
+                var txtGroup = g.append('text')
+                    .attr('class', 'provider-label')
+                    .attr('transform', 'translate(' + labelX + ',' + labelY + ')')
+                    .style('text-anchor', 'middle')
+                    .style('dominant-baseline', 'middle')
+                    .style('font-size', baseFontSize + 'px')
+                    .style('fill', showOutside ? 'black' : 'white');
+
+                txtGroup.append('tspan')
+                    .attr('x', 0)
+                    .attr('dy', '-0.6em')
+                    .text(labelName);
+
+                var pct = ((node.value / grandTotal) * 100).toFixed(1) + '%';
+                var valStr = node.value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+                var subText = showNumbers ? valStr : pct;
+
+                txtGroup.append('tspan')
+                    .attr('x', 0)
+                    .attr('dy', '1.2em')
+                    .style('font-weight', 'normal')
+                    .style('font-size', (baseFontSize * 0.85) + 'px')
+                    .text(subText);
+            });
+        }
+
+        function showTooltip(event, node, grandTotal) {
+            var tooltip = d3.select('#tooltip');
+            tooltip.classed('visible', true);
+
+            var pct = ((node.value / grandTotal) * 100).toFixed(2);
+            var html = '<div class="tooltip-title">' + node.name + '</div>';
+            html += '<div class="tooltip-info">';
+            html += 'Value: ' + node.value.toLocaleString(undefined, { maximumFractionDigits: 0 }) + '<br>';
+            html += 'Share: ' + pct + '%';
+            if (node.depth === 1) {
+                html += '<br>Countries: ' + node.countryCount;
+            }
+            html += '</div>';
+            tooltip.html(html);
+        }
+
+        var resizeTimeout;
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(function () {
+                if (globalData) {
+                    renderVisualization();
+                }
+            }, 150);
+        });
+
+        window.addEventListener('DOMContentLoaded', function () {
+            fetch('data.json')
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok ' + response.statusText);
+                    }
+                    return response.json();
+                })
+                .then(function (data) {
+                    globalData = data;
+                    renderVisualization();
+                    var loadingEl = document.querySelector('.loading');
+                    if (loadingEl) loadingEl.style.display = 'none';
+                })
+                .catch(function (error) {
+                    console.error('Error loading data:', error);
+                    document.querySelector('.loading').innerHTML = 'Error loading data: ' + error.message;
+                });
+        });
+    </script>
+</body>
+
+</html>
