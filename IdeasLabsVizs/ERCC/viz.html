@@ -1,0 +1,262 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3-tip/0.9.1/d3-tip.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #ffffff;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            position: relative;
+        }
+
+        #chart {
+            flex: 1 1 auto;
+            z-index: 2;
+        }
+
+        .legend {
+            display: flex;
+            justify-content: center;
+            padding: 12px 0;
+            background: #fff;
+            z-index: 3;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 0 20px;
+            font-size: 14px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .symbol {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-right: 8px;
+            width: 20px;
+            height: 20px;
+        }
+
+        .sym-cross::before {
+            content: "✖";
+            font-size: 18px;
+            color: #666;
+        }
+
+        .sym-rect {
+            background: #F9A725;
+            width: 15px;
+            height: 15px;
+        }
+
+        .sym-circle {
+            background: #598E34;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+        }
+
+        .d3plus-tooltip {
+            font-family: Arial, sans-serif !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div id="chart"></div>
+        <div class="legend">
+            <div class="legend-item">
+                <div class="symbol sym-cross"></div>
+                <span>Pre-Construction</span>
+            </div>
+            <div class="legend-item">
+                <div class="symbol sym-rect"></div>
+                <span>In Construction</span>
+            </div>
+            <div class="legend-item">
+                <div class="symbol sym-circle"></div>
+                <span>Operating</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        d3.csv("data.csv").then(function (rawData) {
+            var cleanData = [];
+
+            rawData.forEach(function (d, i) {
+                var status = d["Status"] ? d["Status"].toLowerCase().trim() : "";
+                var speed = parseFloat(d["Wind Speed"]);
+                var cap = parseFloat(d["Capacity (MW)"]);
+
+                if (!isNaN(speed) && !isNaN(cap)) {
+                    var finalStatus = null;
+                    var color = null;
+
+                    if (status === "pre-construction") {
+                        finalStatus = "Pre-Construction";
+                        color = "#70766D";
+                    } else if (status === "construction") {
+                        finalStatus = "In Construction";
+                        color = "#F9A725";
+                    } else if (status === "operating") {
+                        finalStatus = "Operating";
+                        color = "#598E34";
+                    }
+
+                    if (finalStatus) {
+                        cleanData.push({
+                            x: speed,
+                            y: cap,
+                            status: finalStatus,
+                            color: color,
+                            name: d["Project Name"] || ""
+                        });
+                    }
+                }
+            });
+
+            var container = document.getElementById("chart");
+            var rect = container.getBoundingClientRect();
+            var totalW = rect.width || window.innerWidth;
+            var totalH = rect.height || (window.innerHeight - 60);
+            var margin = { top: 30, right: 30, bottom: 50, left: 70 };
+            var width = totalW - margin.left - margin.right;
+            var height = totalH - margin.top - margin.bottom;
+
+            var svg = d3.select("#chart").append("svg")
+                .attr("width", totalW)
+                .attr("height", totalH);
+
+            var g = svg.append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            var xScale = d3.scaleLinear().domain([2.5, 14]).range([0, width]);
+            var yScale = d3.scaleLinear().domain([0, 4400]).range([height, 0]);
+
+            var classBounds = [
+                { x0: 2.5, x1: 7.5, label: "Class III", fill: "#FFF3C7" },
+                { x0: 7.5, x1: 8.5, label: "Class II", fill: "#FDE4BB" },
+                { x0: 8.5, x1: 14, label: "Class I", fill: "#CBDDC0" }
+            ];
+
+            classBounds.forEach(function (c) {
+                g.append("rect")
+                    .attr("x", xScale(c.x0))
+                    .attr("y", 0)
+                    .attr("width", xScale(c.x1) - xScale(c.x0))
+                    .attr("height", height)
+                    .attr("fill", c.fill);
+
+                g.append("text")
+                    .attr("x", xScale((c.x0 + c.x1) / 2))
+                    .attr("y", 30)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "20px")
+                    .attr("font-weight", "600")
+                    .attr("fill", "#888")
+                    .text(c.label);
+            });
+
+            g.append("g")
+                .attr("transform", "translate(0," + height + ")")
+                .call(d3.axisBottom(xScale).ticks(12));
+
+            g.append("g")
+                .call(d3.axisLeft(yScale).ticks(8).tickFormat(function (d) {
+                    return d >= 1000 ? (d / 1000) + "k" : d;
+                }));
+
+            g.append("rect")
+                .attr("x", 0)
+                .attr("y", 0)
+                .attr("width", width)
+                .attr("height", height)
+                .attr("fill", "none")
+                .attr("stroke", "black")
+                .attr("stroke-width", 1);
+
+            svg.append("text")
+                .attr("x", margin.left + width / 2)
+                .attr("y", totalH - 8)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "14px")
+                .attr("fill", "#555")
+                .text("Wind Speed (m/s)");
+
+            svg.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("x", -(margin.top + height / 2))
+                .attr("y", 16)
+                .attr("text-anchor", "middle")
+                .attr("font-size", "14px")
+                .attr("fill", "#555")
+                .text("Capacity (MW)");
+
+
+
+            function drawShape(sel, d) {
+                if (d.status === "Pre-Construction") {
+                    return sel.append("path")
+                        .attr("d", d3.symbol().type(d3.symbolCross).size(64)())
+                        .attr("transform", "translate(" + xScale(d.x) + "," + yScale(d.y) + ") rotate(45)")
+                        .attr("fill", d.color)
+                        .attr("opacity", 0.45)
+                        .attr("stroke", "none");
+                } else if (d.status === "In Construction") {
+                    return sel.append("rect")
+                        .attr("x", xScale(d.x) - 3.75)
+                        .attr("y", yScale(d.y) - 3.75)
+                        .attr("width", 7.5)
+                        .attr("height", 7.5)
+                        .attr("fill", d.color)
+                        .attr("opacity", 0.95)
+                        .attr("stroke", "none");
+                } else {
+                    return sel.append("circle")
+                        .attr("cx", xScale(d.x))
+                        .attr("cy", yScale(d.y))
+                        .attr("r", 4.4)
+                        .attr("fill", d.color)
+                        .attr("opacity", 0.95)
+                        .attr("stroke", "none");
+                }
+            }
+
+            cleanData.sort(function (a, b) {
+                var priority = {
+                    "Pre-Construction": 0,
+                    "In Construction": 1,
+                    "Operating": 2
+                };
+                return priority[a.status] - priority[b.status];
+            });
+
+            cleanData.forEach(function (d) {
+                if (d.y > 4400) return;
+                drawShape(g, d);
+            });
+
+        }).catch(function (error) {
+            console.error("Error loading data:", error);
+            document.getElementById("chart").innerText = "Error loading data: " + error.message;
+        });
+    </script>
+</body>
+
+</html>
