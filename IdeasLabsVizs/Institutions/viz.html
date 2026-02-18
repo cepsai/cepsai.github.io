@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>European Commission Composition</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #ffffff;
+            color: #111;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            height: 100vh;
+        }
+
+        /* Containers */
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 1fr auto;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            display: flex;
+            overflow: hidden;
+            min-height: 0;
+            column-gap: 0;
+        }
+
+        #container1 .chart-wrapper {
+            flex: 1 1 auto;
+            display: flex;
+            min-width: 0;
+            height: 100%;
+            margin-left: 0;
+        }
+
+        #container1 .chart-wrapper-inner {
+            flex: 1 1 auto;
+            display: flex;
+            min-width: 0;
+            height: 100%;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-size: clamp(8px, 1.6vw, 16px);
+        }
+
+        /* 
+           Container 3 and 4 removed 
+        */
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            min-width: 0;
+        }
+
+        /* Switch button */
+
+        .selector-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(2px, 0.5vw, 6px);
+            padding: clamp(2px, 0.4vw, 4px);
+            border-radius: 6px;
+            border: 1px solid rgba(17, 24, 39, 0.15);
+            background: #f8fafc;
+            max-width: 100%;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        .selector-button {
+            border: none;
+            background: transparent;
+            padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+            border-radius: 6px;
+            font-size: clamp(9px, 1.4vw, 13px);
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+            white-space: nowrap;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        .selector-button.active {
+            background: #2756d3;
+            color: #fff;
+        }
+
+        /* No idea */
+
+        #viz {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            padding: clamp(8px, 1vw, 12px) clamp(12px, 2vw, 24px) 0 clamp(12px, 2vw, 24px);
+            box-sizing: border-box;
+        }
+
+        .chart-body {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        #chart {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Tooltip */
+
+        #tooltip {
+            position: absolute;
+            background: #fff;
+            border: 1px solid #d9d9df;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            transition: opacity 0.12s ease;
+        }
+
+        /* Legend */
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1vw, 14px);
+            background: rgba(255, 255, 255, 1);
+            padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+            border-radius: clamp(6px, 1vw, 12px);
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(0.625rem, 1.4vw, 1rem);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 8px);
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            font-weight: 600;
+            color: #333;
+            font-size: inherit;
+            padding: 2px 6px;
+        }
+
+        .legend-item.dim {
+            opacity: 0.35;
+        }
+
+        .legend-item:focus-visible {
+            outline: 2px solid rgba(0, 0, 0, 0.5);
+            outline-offset: 2px;
+        }
+
+        .legend-square {
+            width: clamp(8px, 0.9vw, 12px);
+            height: clamp(8px, 0.9vw, 12px);
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        /* Source */
+
+        .source-text {
+            font-size: clamp(8px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .source-text a:visited {
+            color: #2756d3;
+        }
+
+        /* Logo */
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: clamp(80px, 15vw, 200px);
+            pointer-events: auto;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        .axis path,
+        .axis line {
+            stroke: #cfd2d7;
+        }
+
+        .tick text {
+            font-size: 16px;
+            font-weight: normal;
+            font-family: Arial, Helvetica, sans-serif;
+            fill: #000;
+        }
+
+        .axis--y text {
+            font-style: normal;
+        }
+
+        .grid-lines {
+            display: none;
+        }
+
+        /* Small screen */
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr;
+                grid-template-columns: 1fr;
+                padding-bottom: 0;
+            }
+
+            #container1 {
+                grid-row: 1;
+                grid-column: 1;
+            }
+
+            #container2,
+            #container3,
+            #container4 {
+                display: none !important;
+            }
+
+            #viz {
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
+            }
+
+            .axis--y,
+            .axis--x {
+                display: none;
+            }
+
+            .grid-lines {
+                display: none;
+            }
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1">
+            <div class="chart-wrapper">
+                <div class="chart-wrapper-inner">
+                    <div id="viz">
+                        <div id="chart"></div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="container2">
+            <div class="legend" id="legend">
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const rawData = [
+            {
+                "commission": "Hallstein I (1958-62)",
+                "Independent": 2,
+                "Communists and Allies": 0,
+                "Social Democrats": 3,
+                "Greens": 0,
+                "Liberals": 1,
+                "Conservatives/ Christian Democrats": 6,
+                "Conservatives/ Reformists": 0,
+                "Total": 12
+            },
+            {
+                "commission": "Hallstein II (1962-67)",
+                "Independent": 2,
+                "Communists and Allies": 0,
+                "Social Democrats": 2,
+                "Greens": 0,
+                "Liberals": 1,
+                "Conservatives/ Christian Democrats": 5,
+                "Conservatives/ Reformists": 0,
+                "Total": 10
+            },
+            {
+                "commission": "Rey (1967-70)",
+                "Independent": 2,
+                "Communists and Allies": 0,
+                "Social Democrats": 4,
+                "Greens": 0,
+                "Liberals": 2,
+                "Conservatives/ Christian Democrats": 6,
+                "Conservatives/ Reformists": 0,
+                "Total": 14
+            },
+            {
+                "commission": "Malfatti (1970-73)",
+                "Independent": 1,
+                "Communists and Allies": 1,
+                "Social Democrats": 2,
+                "Greens": 0,
+                "Liberals": 2,
+                "Conservatives/ Christian Democrats": 4,
+                "Conservatives/ Reformists": 0,
+                "Total": 10
+            },
+            {
+                "commission": "Ortoli (1973-77)",
+                "Independent": 4,
+                "Communists and Allies": 1,
+                "Social Democrats": 4,
+                "Greens": 0,
+                "Liberals": 3,
+                "Conservatives/ Christian Democrats": 5,
+                "Conservatives/ Reformists": 0,
+                "Total": 17
+            },
+            {
+                "commission": "Jenkins (1977-81)",
+                "Independent": 3,
+                "Communists and Allies": 0,
+                "Social Democrats": 5,
+                "Greens": 0,
+                "Liberals": 1,
+                "Conservatives/ Christian Democrats": 4,
+                "Conservatives/ Reformists": 0,
+                "Total": 13
+            },
+            {
+                "commission": "Thorn (1981-85)",
+                "Independent": 3,
+                "Communists and Allies": 0,
+                "Social Democrats": 5,
+                "Greens": 0,
+                "Liberals": 2,
+                "Conservatives/ Christian Democrats": 7,
+                "Conservatives/ Reformists": 0,
+                "Total": 17
+            },
+            {
+                "commission": "Delors I (1985-89)",
+                "Independent": 0,
+                "Communists and Allies": 0,
+                "Social Democrats": 7,
+                "Greens": 0,
+                "Liberals": 2,
+                "Conservatives/ Christian Democrats": 9,
+                "Conservatives/ Reformists": 0,
+                "Total": 18
+            },
+            {
+                "commission": "Delors II (1989-93)",
+                "Independent": 1,
+                "Communists and Allies": 0,
+                "Social Democrats": 6,
+                "Greens": 0,
+                "Liberals": 3,
+                "Conservatives/ Christian Democrats": 7,
+                "Conservatives/ Reformists": 0,
+                "Total": 17
+            },
+            {
+                "commission": "Delors III (1993-95)",
+                "Independent": 1,
+                "Communists and Allies": 0,
+                "Social Democrats": 5,
+                "Greens": 0,
+                "Liberals": 3,
+                "Conservatives/ Christian Democrats": 9,
+                "Conservatives/ Reformists": 0,
+                "Total": 18
+            },
+            {
+                "commission": "Santer (1995-99)",
+                "Independent": 2,
+                "Communists and Allies": 0,
+                "Social Democrats": 10,
+                "Greens": 0,
+                "Liberals": 3,
+                "Conservatives/ Christian Democrats": 6,
+                "Conservatives/ Reformists": 0,
+                "Total": 21
+            },
+            {
+                "commission": "Prodi (1999-2004)",
+                "Independent": 6,
+                "Communists and Allies": 0,
+                "Social Democrats": 11,
+                "Greens": 1,
+                "Liberals": 6,
+                "Conservatives/ Christian Democrats": 11,
+                "Conservatives/ Reformists": 0,
+                "Total": 35
+            },
+            {
+                "commission": "Barroso I (2004-10)",
+                "Independent": 3,
+                "Communists and Allies": 0,
+                "Social Democrats": 8,
+                "Greens": 0,
+                "Liberals": 13,
+                "Conservatives/ Christian Democrats": 9,
+                "Conservatives/ Reformists": 0,
+                "Total": 34
+            },
+            {
+                "commission": "Barroso II (2010-14)",
+                "Independent": 4,
+                "Communists and Allies": 0,
+                "Social Democrats": 6,
+                "Greens": 0,
+                "Liberals": 8,
+                "Conservatives/ Christian Democrats": 11,
+                "Conservatives/ Reformists": 0,
+                "Total": 29
+            },
+            {
+                "commission": "Juncker (2014-2019)",
+                "Independent": 1,
+                "Communists and Allies": 0,
+                "Social Democrats": 8,
+                "Greens": 0,
+                "Liberals": 5,
+                "Conservatives/ Christian Democrats": 14,
+                "Conservatives/ Reformists": 1,
+                "Total": 29
+            },
+            {
+                "commission": "v.d. Leyen I (2019-2024)",
+                "Independent": 3,
+                "Communists and Allies": 0,
+                "Social Democrats": 9,
+                "Greens": 1,
+                "Liberals": 4,
+                "Conservatives/ Christian Democrats": 12,
+                "Conservatives/ Reformists": 1,
+                "Total": 30
+            },
+            {
+                "commission": "v.d. Leyen II (2024- )",
+                "Independent": 4,
+                "Communists and Allies": 0,
+                "Social Democrats": 6,
+                "Greens": 0,
+                "Liberals": 4,
+                "Conservatives/ Christian Democrats": 12,
+                "Conservatives/ Reformists": 1,
+                "Total": 27
+            }
+        ];
+
+        const colors = {
+            "Independent": "#adb5bd",
+            "Communists and Allies": "#5a189a",
+            "Social Democrats": "#c1121f",
+            "Greens": "#6a994e",
+            "Liberals": "#ffbd00",
+            "Conservatives/ Christian Democrats": "#0096c7",
+            "Conservatives/ Reformists": "#1f497d"
+        };
+
+        const keyOrder = [
+            "Communists and Allies",
+            "Social Democrats",
+            "Greens",
+            "Liberals",
+            "Independent",
+            "Conservatives/ Christian Democrats",
+            "Conservatives/ Reformists"
+        ].reverse();
+
+        const parseRange = (str) => {
+            const match = str.match(/(.+?)\s*\((\d{4})-(\d{2,4}|\s*)\)/);
+            if (!match) return { name: str, start: null, end: null };
+
+            const name = match[1].trim();
+            const start = parseInt(match[2]);
+            let endStr = match[3].trim();
+            let end;
+
+            if (!endStr) {
+                end = 2029;
+            } else if (endStr.length === 2) {
+                const startPrefix = Math.floor(start / 100);
+                const endSuffix = parseInt(endStr);
+                const startSuffix = start % 100;
+                if (endSuffix < startSuffix) {
+                    end = (startPrefix + 1) * 100 + endSuffix;
+                } else {
+                    end = startPrefix * 100 + endSuffix;
+                }
+            } else {
+                end = parseInt(endStr);
+            }
+
+            return { name, start, end };
+        };
+
+        const dataProcessed = rawData.map(d => {
+            const { name, start, end } = parseRange(d.commission);
+            return {
+                ...d,
+                year: (start + end) / 2,
+                parsedName: name,
+                startYear: start,
+                endYear: end
+            };
+        });
+
+        const chartContainer = document.getElementById('chart');
+
+        function drawChart() {
+            chartContainer.innerHTML = '';
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const style = parseInt(urlParams.get('style')) || 0;
+
+            const rect = chartContainer.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+            const margin = { top: 20, right: 30, bottom: 100, left: 40 };
+
+            const svg = d3.select("#chart")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("viewBox", [0, 0, width, height])
+                .attr("preserveAspectRatio", "none");
+
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const minYear = d3.min(dataProcessed, d => d.startYear);
+            const maxYear = d3.max(dataProcessed, d => d.endYear);
+
+            const x = d3.scaleLinear()
+                .domain([minYear, maxYear])
+                .range([0, innerWidth]);
+
+            let y;
+            if (style === 1) {
+                y = d3.scaleLinear()
+                    .domain([0, 1])
+                    .range([innerHeight, 0]);
+            } else {
+                const maxY = d3.max(dataProcessed, d => d.Total);
+                y = d3.scaleLinear()
+                    .domain([0, maxY * 1.05])
+                    .range([innerHeight, 0]);
+            }
+
+            const stack = d3.stack()
+                .keys(keyOrder);
+
+            if (style === 1) {
+                stack.offset(d3.stackOffsetExpand);
+            }
+
+            dataProcessed.sort((a, b) => a.year - b.year);
+
+            const extendedData = [
+                { ...dataProcessed[0], year: dataProcessed[0].startYear },
+                ...dataProcessed,
+                { ...dataProcessed[dataProcessed.length - 1], year: dataProcessed[dataProcessed.length - 1].endYear }
+            ];
+
+            const series = stack(extendedData);
+
+            const area = d3.area()
+                .x(d => x(d.data.year))
+                .y0(d => y(d[0]))
+                .y1(d => y(d[1]))
+                .curve(d3.curveMonotoneX);
+
+            g.selectAll("path")
+                .data(series)
+                .join("path")
+                .attr("fill", d => colors[d.key])
+                .attr("d", area)
+                .attr("opacity", 0.9);
+
+            const tickValues = Array.from(new Set(
+                dataProcessed.flatMap(d => [d.startYear, d.endYear])
+            )).sort((a, b) => a - b);
+
+            g.append("g")
+                .attr("class", "axis axis--x")
+                .attr("transform", `translate(0,${innerHeight})`)
+                .call(d3.axisBottom(x)
+                    .tickValues(tickValues)
+                    .tickFormat(d3.format("d"))
+                )
+                .selectAll("text")
+                .style("text-anchor", "middle")
+                .attr("dy", "1em");
+
+            const yAxis = d3.axisLeft(y).ticks(5);
+            if (style === 1) {
+                yAxis.tickFormat(d3.format(".0%"));
+            }
+
+            g.append("g")
+                .attr("class", "axis axis--y")
+                .call(yAxis);
+
+            g.append("g")
+                .attr("class", "grid-lines")
+                .attr("opacity", 0.1)
+                .call(d3.axisLeft(y).tickSize(-innerWidth).tickFormat(""))
+                .select(".domain").remove();
+
+            const periodGroup = g.append("g")
+                .attr("class", "period-labels")
+                .attr("transform", `translate(0, ${innerHeight + 30})`);
+
+            dataProcessed.forEach((d, i) => {
+                const x0 = x(d.startYear);
+                const x1 = x(d.endYear);
+                const width = x1 - x0;
+
+                const sepHeight = 10;
+                periodGroup.append("line").attr("x1", x0).attr("x2", x0).attr("y1", -sepHeight / 2).attr("y2", sepHeight / 2).attr("stroke", "#ccc");
+                if (i === dataProcessed.length - 1) {
+                    periodGroup.append("line").attr("x1", x1).attr("x2", x1).attr("y1", -sepHeight / 2).attr("y2", sepHeight / 2).attr("stroke", "#ccc");
+                }
+
+                const stagger = i % 2;
+                const yText = 15 + (stagger * 12);
+
+                periodGroup.append("text")
+                    .attr("x", x0 + width / 2)
+                    .attr("y", yText)
+                    .attr("text-anchor", "middle")
+                    .attr("font-size", "10px")
+                    .attr("font-weight", "bold")
+                    .attr("fill", "#555")
+                    .text(d.parsedName);
+            });
+
+        }
+
+
+
+        const legendContainer = document.getElementById("legend");
+        keyOrder.slice().reverse().forEach(key => {
+            const item = document.createElement("div");
+            item.className = "legend-item";
+
+            const square = document.createElement("div");
+            square.className = "legend-square";
+            square.style.backgroundColor = colors[key];
+
+            const label = document.createElement("span");
+            label.textContent = key;
+
+            item.appendChild(square);
+            item.appendChild(label);
+
+
+
+            legendContainer.appendChild(item);
+        });
+
+        drawChart();
+
+        window.addEventListener('resize', drawChart);
+
+    </script>
+</body>
+
+</html>

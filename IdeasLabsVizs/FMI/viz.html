@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EU Financial Markets Tax Revenue</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #ffffff;
+            color: #111;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            height: 100vh;
+        }
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 1fr auto;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            display: flex;
+            overflow: hidden;
+            min-height: 0;
+            column-gap: 0;
+        }
+
+        #container1 .chart-wrapper {
+            flex: 1 1 auto;
+            display: flex;
+            min-width: 0;
+            height: 100%;
+            margin-left: 0;
+        }
+
+        #container1 .chart-wrapper-inner {
+            flex: 1 1 auto;
+            display: flex;
+            min-width: 0;
+            height: 100%;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-size: clamp(8px, 1.6vw, 16px);
+        }
+
+        #viz {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            padding: clamp(8px, 1vw, 12px) clamp(12px, 2vw, 24px) 0 clamp(12px, 2vw, 24px);
+            box-sizing: border-box;
+        }
+
+        .chart-body {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        #chart {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(12px, 2vw, 28px);
+            background: rgba(255, 255, 255, 1);
+            padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+            border-radius: clamp(6px, 1vw, 12px);
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(0.625rem, 1.4vw, 1rem);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 8px);
+            font-weight: 600;
+            color: #333;
+            font-size: inherit;
+            padding: 2px 6px;
+        }
+
+        .legend-circle {
+            width: clamp(7px, 0.8vw, 10px);
+            height: clamp(7px, 0.8vw, 10px);
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .legend-dots-overlap {
+            position: relative;
+            width: clamp(12px, 1.2vw, 17px);
+            height: clamp(12px, 1.2vw, 17px);
+            flex-shrink: 0;
+        }
+
+        .legend-dots-overlap .dot {
+            position: absolute;
+            width: clamp(7px, 0.8vw, 10px);
+            height: clamp(7px, 0.8vw, 10px);
+            border-radius: 50%;
+        }
+
+        .legend-dots-overlap .dot-green {
+            top: 0;
+            left: 0;
+            background-color: #38b000;
+        }
+
+        .legend-dots-overlap .dot-red {
+            bottom: 0;
+            right: 0;
+            background-color: #e74c3c;
+        }
+
+        .source-text {
+            font-size: clamp(8px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .source-text a:visited {
+            color: #2756d3;
+        }
+
+        .axis path,
+        .axis line {
+            stroke: #cfd2d7;
+        }
+
+        .tick text {
+            font-size: 16px;
+            font-weight: normal;
+            font-family: Arial, Helvetica, sans-serif;
+            fill: #000;
+        }
+
+        .axis--y text {
+            font-style: normal;
+        }
+
+        .grid-lines line {
+            stroke: #e5e7eb;
+            stroke-dasharray: 3 3;
+        }
+
+        .grid-lines .domain {
+            display: none;
+        }
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr;
+                grid-template-columns: 1fr;
+                padding-bottom: 0;
+            }
+
+            #container1 {
+                grid-row: 1;
+                grid-column: 1;
+            }
+
+            #container2,
+            #container3,
+            #container4 {
+                display: none !important;
+            }
+
+            #viz {
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
+            }
+
+            .axis--y,
+            .axis--x {
+                display: none;
+            }
+
+            .grid-lines {
+                display: none;
+            }
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1">
+            <div class="chart-wrapper">
+                <div class="chart-wrapper-inner">
+                    <div id="viz">
+                        <div id="chart"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="container2">
+            <div class="legend" id="legend"></div>
+        </div>
+    </div>
+
+    <script>
+        const chartContainer = document.getElementById('chart');
+
+        const baseColor = "#adb5bd";
+        const upColor = "#38b000";
+        const downColor = "#e74c3c";
+
+        const rawData = [
+            { "country": "France", "tax_revenue": { "2024": 5590, "2035_forecast": 10200, "difference_percent": 82 } },
+            { "country": "Germany", "tax_revenue": { "2024": 4640, "2035_forecast": 7950, "difference_percent": 71 } },
+            { "country": "Spain", "tax_revenue": { "2024": 5670, "2035_forecast": 7350, "difference_percent": 30 } },
+            { "country": "Italy", "tax_revenue": { "2024": 1740, "2035_forecast": 2640, "difference_percent": 52 } },
+            { "country": "Sweden", "tax_revenue": { "2024": 1020, "2035_forecast": 1600, "difference_percent": 57 } },
+            { "country": "Austria", "tax_revenue": { "2024": 712, "2035_forecast": 1210, "difference_percent": 70 } },
+            { "country": "Denmark", "tax_revenue": { "2024": 454, "2035_forecast": 887, "difference_percent": 95 } },
+            { "country": "Belgium", "tax_revenue": { "2024": 542, "2035_forecast": 843, "difference_percent": 56 } },
+            { "country": "Czechia", "tax_revenue": { "2024": 408, "2035_forecast": 713, "difference_percent": 75 } },
+            { "country": "Netherlands", "tax_revenue": { "2024": 254, "2035_forecast": 428, "difference_percent": 69 } },
+            { "country": "Poland", "tax_revenue": { "2024": 192, "2035_forecast": 275, "difference_percent": 43 } },
+            { "country": "Finland", "tax_revenue": { "2024": 138, "2035_forecast": 272, "difference_percent": 97 } },
+            { "country": "Ireland", "tax_revenue": { "2024": 117, "2035_forecast": 247, "difference_percent": 111 } },
+            { "country": "Luxembourg", "tax_revenue": { "2024": 44, "2035_forecast": 166, "difference_percent": 282 } },
+            { "country": "Cyprus", "tax_revenue": { "2024": 98, "2035_forecast": 155, "difference_percent": 58 } },
+            { "country": "Greece", "tax_revenue": { "2024": 147, "2035_forecast": 116, "difference_percent": -21 } },
+            { "country": "Slovakia", "tax_revenue": { "2024": 31, "2035_forecast": 82, "difference_percent": 160 } },
+            { "country": "Romania", "tax_revenue": { "2024": 51, "2035_forecast": 73, "difference_percent": 43 } },
+            { "country": "Hungary", "tax_revenue": { "2024": 63, "2035_forecast": 68, "difference_percent": 8 } },
+            { "country": "Latvia", "tax_revenue": { "2024": 40, "2035_forecast": 50, "difference_percent": 25 } },
+            { "country": "Portugal", "tax_revenue": { "2024": 105, "2035_forecast": 36, "difference_percent": -66 } }
+        ];
+
+        const data = rawData.map(d => {
+            const v2024 = d.tax_revenue["2024"];
+            const v2035 = d.tax_revenue["2035_forecast"];
+            const delta = v2035 - v2024;
+            return {
+                country: d.country,
+                v2024,
+                v2035,
+                delta,
+                pct: d.tax_revenue.difference_percent,
+                inc: delta > 0,
+                dec: delta < 0,
+                same: Math.abs(delta) < 0.01
+            };
+        });
+
+        data.sort((a, b) => b.v2035 - a.v2035);
+
+        const legendContainer = document.getElementById("legend");
+
+        const item2024 = document.createElement("div");
+        item2024.className = "legend-item";
+        const circle2024 = document.createElement("div");
+        circle2024.className = "legend-circle";
+        circle2024.style.backgroundColor = baseColor;
+        const label2024 = document.createElement("span");
+        label2024.textContent = "2024";
+        item2024.appendChild(circle2024);
+        item2024.appendChild(label2024);
+        legendContainer.appendChild(item2024);
+
+        const item2035 = document.createElement("div");
+        item2035.className = "legend-item";
+        const dotsWrap = document.createElement("div");
+        dotsWrap.className = "legend-dots-overlap";
+        const dotGreen = document.createElement("div");
+        dotGreen.className = "dot dot-green";
+        const dotRed = document.createElement("div");
+        dotRed.className = "dot dot-red";
+        dotsWrap.appendChild(dotGreen);
+        dotsWrap.appendChild(dotRed);
+        const label2035 = document.createElement("span");
+        label2035.textContent = "2035 forecast";
+        item2035.appendChild(dotsWrap);
+        item2035.appendChild(label2035);
+        legendContainer.appendChild(item2035);
+
+        const params = new URLSearchParams(window.location.search);
+        const layout = parseInt(params.get('layout')) || 0;
+        const showChange = parseInt(params.get('change')) || 0;
+        const prio = parseInt(params.get('prio')) || 0;
+
+
+        function drawChart() {
+            chartContainer.innerHTML = '';
+
+            const rect = chartContainer.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+            const rNode = 12;
+
+            if (layout === 1) {
+                drawHorizontal(width, height, rNode);
+            } else {
+                drawVertical(width, height, rNode);
+            }
+        }
+
+        function pctToColor(pct) {
+            if (pct >= 130) return "#38b000";
+            if (pct <= -30) return "#e74c3c";
+            if (pct >= 0) {
+                if (pct < 50) return "#adb5bd";
+                const t = Math.min((pct - 50) / (130 - 50), 1);
+                return d3.interpolateRgb("#adb5bd", "#38b000")(t);
+            } else {
+                const t = Math.min(Math.abs(pct) / 30, 1);
+                return d3.interpolateRgb("#adb5bd", "#e74c3c")(t);
+            }
+        }
+
+        function getFontSize(pct, minSize, maxSize, maxVal) {
+            if (pct < 0) return maxSize;
+            const t = Math.min(pct / maxVal, 1);
+            return minSize + t * (maxSize - minSize);
+        }
+
+        function drawSegmentedLine(g, svg, points) {
+            const defs = svg.select("defs").empty() ? svg.append("defs") : svg.select("defs");
+            let segIdx = 0;
+
+            function drawSeg(a, b) {
+                const segId = `seg-grad-${segIdx++}`;
+                const grad = defs.append("linearGradient")
+                    .attr("id", segId)
+                    .attr("gradientUnits", "userSpaceOnUse")
+                    .attr("x1", a.px).attr("y1", a.py)
+                    .attr("x2", b.px).attr("y2", b.py);
+                grad.append("stop").attr("offset", "0%").attr("stop-color", pctToColor(a.pct));
+                grad.append("stop").attr("offset", "100%").attr("stop-color", pctToColor(b.pct));
+                g.append("line")
+                    .attr("x1", a.px).attr("y1", a.py)
+                    .attr("x2", b.px).attr("y2", b.py)
+                    .attr("stroke", `url(#${segId})`)
+                    .attr("stroke-width", 2.5)
+                    .attr("stroke-dasharray", "6 4")
+                    .attr("stroke-linecap", "round");
+            }
+
+            for (let i = 0; i < points.length - 1; i++) {
+                const a = points[i];
+                const b = points[i + 1];
+                const crossesZero = (a.pct > 0 && b.pct < 0) || (a.pct < 0 && b.pct > 0);
+                if (crossesZero) {
+                    const t = Math.abs(a.pct) / (Math.abs(a.pct) + Math.abs(b.pct));
+                    const mid = {
+                        px: a.px + (b.px - a.px) * t,
+                        py: a.py + (b.py - a.py) * t,
+                        pct: 0
+                    };
+                    drawSeg(a, mid);
+                    drawSeg(mid, b);
+                } else {
+                    drawSeg(a, b);
+                }
+            }
+
+            g.selectAll("circle.change-dot").data(points).enter().append("circle")
+                .attr("class", "change-dot")
+                .attr("cx", d => d.px)
+                .attr("cy", d => d.py)
+                .attr("r", 5)
+                .attr("fill", d => pctToColor(d.pct))
+                .attr("stroke", "#fff")
+                .attr("stroke-width", 1.5);
+        }
+
+        function drawChangeLineVertical(g, svg, x, innerWidth, innerHeight, margin) {
+            const yChange = d3.scaleLinear()
+                .domain([-100, 300])
+                .range([innerHeight, 0]);
+
+            g.append("g")
+                .attr("class", "axis axis--y-right")
+                .attr("transform", `translate(${innerWidth},0)`)
+                .call(d3.axisRight(yChange).ticks(8).tickFormat(d => d + "%"));
+
+            g.append("text")
+                .attr("x", innerWidth)
+                .attr("y", -12)
+                .attr("text-anchor", "middle")
+                .attr("fill", "#000")
+                .style("font-size", "15.6px")
+                .style("font-weight", "600")
+                .style("font-family", "Arial, Helvetica, sans-serif")
+                .text("Difference %");
+
+            g.append("line")
+                .attr("class", "zero-line")
+                .attr("x1", 0)
+                .attr("y1", yChange(0))
+                .attr("x2", innerWidth)
+                .attr("y2", yChange(0))
+                .attr("stroke", "#888")
+                .attr("stroke-width", 1.5)
+                .attr("stroke-dasharray", "8 4");
+
+            const points = data.map(d => ({
+                px: x(d.country) + x.bandwidth() / 2,
+                py: yChange(d.pct),
+                pct: d.pct
+            }));
+
+            drawSegmentedLine(g, svg, points);
+        }
+
+        function drawChangeLineHorizontal(g, svg, y, innerWidth, innerHeight, margin) {
+            const xChange = d3.scaleLinear()
+                .domain([-100, 300])
+                .range([0, innerWidth]);
+
+            g.append("g")
+                .attr("class", "axis axis--x-top")
+                .call(d3.axisTop(xChange).ticks(8).tickFormat(d => d + "%"));
+
+            g.append("line")
+                .attr("class", "zero-line")
+                .attr("x1", xChange(0))
+                .attr("y1", 0)
+                .attr("x2", xChange(0))
+                .attr("y2", innerHeight)
+                .attr("stroke", "#888")
+                .attr("stroke-width", 1.5)
+                .attr("stroke-dasharray", "8 4");
+
+            const points = data.map(d => ({
+                px: xChange(d.pct),
+                py: y(d.country) + y.bandwidth() / 2,
+                pct: d.pct
+            }));
+
+            drawSegmentedLine(g, svg, points);
+        }
+
+        const BREAK_VALUE = 1100;
+        const LOWER_RATIO = 0.75;
+
+        function makeBifocalScale(breakVal, yMax, innerHeight) {
+            const lowerPixels = innerHeight * LOWER_RATIO;
+            const upperPixels = innerHeight * (1 - LOWER_RATIO);
+
+            return function (val) {
+                if (val <= breakVal) {
+                    return innerHeight - (val / breakVal) * lowerPixels;
+                } else {
+                    return upperPixels - ((val - breakVal) / (yMax - breakVal)) * upperPixels;
+                }
+            };
+        }
+
+        function drawVertical(width, height, rNode) {
+            const margin = { top: 50, right: showChange ? 70 : 30, bottom: 80, left: 55 };
+
+            const svg = d3.select("#chart")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("viewBox", [0, 0, width, height])
+                .attr("preserveAspectRatio", "none");
+
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const x = d3.scaleBand()
+                .domain(data.map(d => d.country))
+                .range([0, innerWidth])
+                .padding(0.4);
+
+            const yMax = d3.max(data, d => Math.max(d.v2024, d.v2035)) * 1.15;
+
+            const yMap = makeBifocalScale(BREAK_VALUE, yMax, innerHeight);
+
+            const gridG = g.append("g").attr("class", "grid-lines");
+            const axisYG = g.append("g").attr("class", "axis axis--y");
+
+            g.append("g")
+                .attr("class", "axis axis--x")
+                .attr("transform", `translate(0,${innerHeight})`)
+                .call(d3.axisBottom(x))
+                .selectAll("text")
+                .style("text-anchor", "end")
+                .attr("dx", "-0.5em")
+                .attr("dy", "0.3em")
+                .attr("transform", "rotate(-35)");
+
+            const breakGroup = g.append("g").attr("class", "break-indicator").attr("opacity", 0);
+
+            const breakBand = breakGroup.append("rect")
+                .attr("x", -margin.left)
+                .attr("width", innerWidth + margin.left)
+                .attr("fill", "#f8f9fa")
+                .attr("opacity", 0.85);
+
+            const breakWaveTop = breakGroup.append("path")
+                .attr("fill", "none")
+                .attr("stroke", "#adb5bd")
+                .attr("stroke-width", 1.5);
+
+            const breakWaveBottom = breakGroup.append("path")
+                .attr("fill", "none")
+                .attr("stroke", "#adb5bd")
+                .attr("stroke-width", 1.5);
+
+            const breakSlashes = breakGroup.append("g").attr("class", "break-slashes");
+
+            const breakAxisZig = breakGroup.append("path")
+                .attr("fill", "#f8f9fa")
+                .attr("stroke", "#6c757d")
+                .attr("stroke-width", 1.5);
+
+            const stickData = data.filter(d => !d.same);
+            g.selectAll("line.stick").data(stickData).enter().append("line")
+                .attr("class", "stick")
+                .attr("x1", d => x(d.country) + x.bandwidth() / 2)
+                .attr("x2", d => x(d.country) + x.bandwidth() / 2)
+                .attr("stroke", d => d.inc ? upColor : downColor)
+                .attr("stroke-width", 3)
+                .attr("stroke-linecap", "round");
+
+            const draw2024 = () => {
+                g.selectAll("circle.c2024").data(data).enter().append("circle")
+                    .attr("class", "c2024")
+                    .attr("cx", d => x(d.country) + x.bandwidth() / 2)
+                    .attr("r", rNode)
+                    .attr("fill", baseColor);
+            };
+
+            const draw2035 = () => {
+                g.selectAll("circle.c2035").data(data).enter().append("circle")
+                    .attr("class", "c2035")
+                    .attr("cx", d => x(d.country) + x.bandwidth() / 2)
+                    .attr("r", rNode)
+                    .attr("fill", d => d.same ? baseColor : (d.inc ? upColor : downColor));
+            };
+
+            if (prio === 1) {
+                draw2035();
+                draw2024();
+            } else {
+                draw2024();
+                draw2035();
+            }
+
+            const maxPct = d3.max(data, d => d.pct);
+
+            g.selectAll("text.pct-label").data(data).enter().append("text")
+                .attr("class", "pct-label")
+                .attr("x", d => x(d.country) + x.bandwidth() / 2)
+                .attr("text-anchor", "middle")
+                .attr("fill", d => d.inc ? upColor : downColor)
+                .attr("font-size", d => getFontSize(d.pct, 12, 17, maxPct) + "px")
+                .attr("font-weight", "600")
+                .text(d => {
+                    const sign = d.pct >= 0 ? "+" : "";
+                    return `${sign}${d.pct}%`;
+                });
+
+            if (showChange) drawChangeLineVertical(g, svg, x, innerWidth, innerHeight, margin);
+
+            function updatePositions(yFn, breakVal) {
+                g.selectAll("line.stick")
+                    .attr("y1", d => yFn(d.v2024))
+                    .attr("y2", d => yFn(d.v2035));
+
+                g.selectAll("circle.c2024")
+                    .attr("cy", d => yFn(d.v2024));
+
+                g.selectAll("circle.c2035")
+                    .attr("cy", d => yFn(d.v2035));
+
+                g.selectAll("text.pct-label")
+                    .attr("y", d => {
+                        const topVal = Math.max(d.v2024, d.v2035);
+                        return yFn(topVal) - rNode - 10;
+                    });
+
+                axisYG.selectAll("*").remove();
+                gridG.selectAll("*").remove();
+
+                const lowerTicks = d3.scaleLinear().domain([0, breakVal]).ticks(5);
+                const upperTicks = d3.scaleLinear().domain([breakVal, yMax]).ticks(6);
+                const merged = [...new Set([...lowerTicks, ...upperTicks])];
+                merged.sort((a, b) => a - b);
+                const tickData = merged.map(v => ({ val: v, px: yFn(v) }));
+
+                axisYG.append("line")
+                    .attr("x1", 0).attr("y1", 0)
+                    .attr("x2", 0).attr("y2", innerHeight)
+                    .attr("stroke", "#cfd2d7");
+
+                tickData.forEach(t => {
+                    axisYG.append("line")
+                        .attr("x1", -6).attr("y1", t.px)
+                        .attr("x2", 0).attr("y2", t.px)
+                        .attr("stroke", "#cfd2d7");
+                    axisYG.append("text")
+                        .attr("x", -9).attr("y", t.px)
+                        .attr("dy", "0.32em")
+                        .attr("text-anchor", "end")
+                        .attr("fill", "#000")
+                        .style("font-size", "16px")
+                        .style("font-family", "Arial, Helvetica, sans-serif")
+                        .text(t.val >= 1000 ? (t.val / 1000).toFixed(0) + "k" : t.val);
+                });
+
+                axisYG.append("text")
+                    .attr("x", 0)
+                    .attr("y", -12)
+                    .attr("text-anchor", "middle")
+                    .attr("fill", "#000")
+                    .style("font-size", "15.6px")
+                    .style("font-weight", "600")
+                    .style("font-family", "Arial, Helvetica, sans-serif")
+                    .text("Tax Revenue");
+
+                tickData.forEach(t => {
+                    gridG.append("line")
+                        .attr("x1", 0).attr("y1", t.px)
+                        .attr("x2", innerWidth).attr("y2", t.px)
+                        .attr("stroke", "#e5e7eb")
+                        .attr("stroke-dasharray", "3 3");
+                });
+
+                const dividerY = yFn(breakVal);
+                const bandH = 16;
+                const bandTop = dividerY - bandH / 2;
+
+                breakGroup.attr("opacity", 1);
+
+                breakBand
+                    .attr("y", bandTop)
+                    .attr("height", bandH);
+
+                const waveAmp = 3;
+                const waveLen = 20;
+                const waveStart = -margin.left;
+                const waveEnd = innerWidth;
+                let topWave = `M ${waveStart} ${bandTop}`;
+                let botWave = `M ${waveStart} ${bandTop + bandH}`;
+                for (let wx = waveStart; wx <= waveEnd; wx += waveLen / 2) {
+                    const flip = ((wx - waveStart) / (waveLen / 2)) % 2 < 1 ? 1 : -1;
+                    topWave += ` Q ${wx + waveLen / 4} ${bandTop + waveAmp * flip}, ${wx + waveLen / 2} ${bandTop}`;
+                    botWave += ` Q ${wx + waveLen / 4} ${bandTop + bandH - waveAmp * flip}, ${wx + waveLen / 2} ${bandTop + bandH}`;
+                }
+                breakWaveTop.attr("d", topWave);
+                breakWaveBottom.attr("d", botWave);
+
+                breakSlashes.selectAll("*").remove();
+                const slashSpacing = 30;
+                const slashW = 6;
+                for (let sx = 0; sx <= innerWidth; sx += slashSpacing) {
+                    breakSlashes.append("line")
+                        .attr("x1", sx - slashW).attr("y1", bandTop + 2)
+                        .attr("x2", sx + slashW).attr("y2", bandTop + bandH - 2)
+                        .attr("stroke", "#ced4da")
+                        .attr("stroke-width", 1.2);
+                }
+
+                const zigW = 12;
+                const zigH = bandH / 2;
+                const zigPath = `M ${-zigW} ${bandTop} L 0 ${dividerY} L ${-zigW} ${bandTop + bandH}`;
+                breakAxisZig.attr("d", zigPath);
+            }
+
+            updatePositions(yMap, BREAK_VALUE);
+        }
+
+        function drawHorizontal(width, height, rNode) {
+            const margin = { top: showChange ? 50 : 20, right: 100, bottom: 30, left: 100 };
+
+            const svg = d3.select("#chart")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("viewBox", [0, 0, width, height])
+                .attr("preserveAspectRatio", "none");
+
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const y = d3.scaleBand()
+                .domain(data.map(d => d.country))
+                .range([0, innerHeight])
+                .padding(0.4);
+
+            const xMax = d3.max(data, d => Math.max(d.v2024, d.v2035)) * 1.15;
+            const x = d3.scaleLinear()
+                .domain([0, xMax])
+                .range([0, innerWidth]);
+
+            g.append("g")
+                .attr("class", "grid-lines")
+                .call(d3.axisBottom(x)
+                    .ticks(6)
+                    .tickSize(innerHeight)
+                    .tickFormat("")
+                )
+                .select(".domain").remove();
+
+            g.append("g")
+                .attr("class", "axis axis--y")
+                .call(d3.axisLeft(y));
+
+            g.append("g")
+                .attr("class", "axis axis--x")
+                .attr("transform", `translate(0,${innerHeight})`)
+                .call(d3.axisBottom(x).ticks(6).tickFormat(d => d >= 1000 ? (d / 1000).toFixed(0) + "k" : d));
+
+            g.selectAll("line.stick").data(data.filter(d => !d.same)).enter().append("line")
+                .attr("class", "stick")
+                .attr("y1", d => y(d.country) + y.bandwidth() / 2)
+                .attr("y2", d => y(d.country) + y.bandwidth() / 2)
+                .attr("x1", d => x(d.v2024))
+                .attr("x2", d => x(d.v2035))
+                .attr("stroke", d => d.inc ? upColor : downColor)
+                .attr("stroke-width", 3)
+                .attr("stroke-linecap", "round");
+
+            const draw2024 = () => {
+                g.selectAll("circle.c2024").data(data).enter().append("circle")
+                    .attr("class", "c2024")
+                    .attr("cx", d => x(d.v2024))
+                    .attr("cy", d => y(d.country) + y.bandwidth() / 2)
+                    .attr("r", rNode)
+                    .attr("fill", baseColor);
+            };
+
+            const draw2035 = () => {
+                g.selectAll("circle.c2035").data(data).enter().append("circle")
+                    .attr("class", "c2035")
+                    .attr("cx", d => x(d.v2035))
+                    .attr("cy", d => y(d.country) + y.bandwidth() / 2)
+                    .attr("r", rNode)
+                    .attr("fill", d => d.same ? baseColor : (d.inc ? upColor : downColor));
+            };
+
+            if (prio === 1) {
+                draw2035();
+                draw2024();
+            } else {
+                draw2024();
+                draw2035();
+            }
+
+            const maxPct = d3.max(data, d => d.pct);
+
+            g.selectAll("text.pct-label").data(data).enter().append("text")
+                .attr("class", "pct-label")
+                .attr("x", d => {
+                    const rightVal = Math.max(d.v2024, d.v2035);
+                    return x(rightVal) + rNode + 8;
+                })
+                .attr("y", d => y(d.country) + y.bandwidth() / 2 + 5)
+                .attr("text-anchor", "start")
+                .attr("fill", d => d.inc ? upColor : downColor)
+                .attr("font-size", d => getFontSize(d.pct, 10, 14, maxPct) + "px")
+                .attr("font-weight", "600")
+                .text(d => {
+                    const sign = d.pct >= 0 ? "+" : "";
+                    return `${sign}${d.pct}%`;
+                });
+
+            if (showChange) drawChangeLineHorizontal(g, svg, y, innerWidth, innerHeight, margin);
+        }
+
+
+
+        drawChart();
+        window.addEventListener('resize', drawChart);
+    </script>
+</body>
+
+</html>
