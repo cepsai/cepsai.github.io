@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Occupational AI Exposure Heatmap</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #fff;
+            padding: 20px;
+            color: #222;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #main {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+            gap: 30px;
+        }
+
+        #heatmap-wrapper {
+            display: flex;
+            align-items: flex-start;
+            flex: 1;
+            min-width: 0;
+        }
+
+        #y-axis {
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .y-label {
+            font-size: 11px;
+            text-align: right;
+            padding-right: 10px;
+            line-height: 1.25;
+            color: #333;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            max-width: 30ch;
+            overflow-wrap: break-word;
+        }
+
+        #sections {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .section-title {
+            font-size: clamp(13px, 2vw, 26px);
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 6px;
+            color: #111;
+        }
+
+        .section-grid {
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .group-block {
+            display: flex;
+        }
+
+        .group-separator {
+            width: 2px;
+            background: #000;
+            margin: 0 1px;
+        }
+
+        .col-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .cell {
+            border: 0.5px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .x-label {
+            font-size: 9.5px;
+            text-align: center;
+            color: #333;
+            line-height: 1.3;
+            margin-top: 5px;
+        }
+
+        #legend {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        #legend-title {
+            font-size: 12px;
+            text-align: center;
+            line-height: 1.4;
+            margin-bottom: 6px;
+        }
+
+        #legend-body {
+            display: flex;
+            gap: 6px;
+        }
+
+        #legend-bar {
+            width: 14px;
+            background: linear-gradient(to bottom, #2D1B8E, #9B89C4, #FFFFFF);
+            border: 1px solid #ccc;
+        }
+
+        #legend-ticks {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .legend-tick {
+            font-size: 10px;
+            color: #444;
+            line-height: 1;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="main">
+        <div id="heatmap-wrapper">
+            <div id="y-axis"></div>
+            <div id="sections"></div>
+        </div>
+        <div id="legend">
+            <div id="legend-title">Exposure<br>(percentile rank)</div>
+            <div id="legend-body">
+                <div id="legend-bar"></div>
+                <div id="legend-ticks">
+                    <span class="legend-tick">1</span>
+                    <span class="legend-tick">0.75</span>
+                    <span class="legend-tick">0.50</span>
+                    <span class="legend-tick">0.25</span>
+                    <span class="legend-tick">0</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const rows = [{ "label": "1 Managers", "values": { "2017_Frey_autom": 0.1111, "2018_Brynjolfsson_mSML": 0.8889, "2020_Webb_AI": 0.6667, "2021_Tolan_AI": 0.7778, "2021_Felten_AIOE": 0.8889, "2024_Engberg_DAIOE": 0.6667, "2024_Loaiza_augm": 0.7778, "2024_Loaiza_autom": 0.1111, "2023_Felten_genAIOE": 0.8889, "2023_Gmyrek_LLM": 0.6667, "2024_Eloundou_GPT": 0.8889, "2020_Webb_robot": 0.1111, "2020_Webb_software": 0.4444, "2024_Autor_augm": 0.8889, "2024_Autor_autom": 0.5556, "2024_Prytkova_digital": 0.6667 } }, { "label": "2 Professionals", "values": { "2017_Frey_autom": 0.2222, "2018_Brynjolfsson_mSML": 0.4444, "2020_Webb_AI": 0.7778, "2021_Tolan_AI": 1.0, "2021_Felten_AIOE": 1.0, "2024_Engberg_DAIOE": 0.8889, "2024_Loaiza_augm": 0.8889, "2024_Loaiza_autom": 0.2222, "2023_Felten_genAIOE": 1.0, "2023_Gmyrek_LLM": 0.8889, "2024_Eloundou_GPT": 0.7778, "2020_Webb_robot": 0.3333, "2020_Webb_software": 0.3333, "2024_Autor_augm": 0.1111, "2024_Autor_autom": 0.3333, "2024_Prytkova_digital": 0.5556 } }, { "label": "3 Technicians and associate professionals", "values": { "2017_Frey_autom": 0.3333, "2018_Brynjolfsson_mSML": 0.6667, "2020_Webb_AI": 0.4444, "2021_Tolan_AI": 0.8889, "2021_Felten_AIOE": 0.6667, "2024_Engberg_DAIOE": 0.7778, "2024_Loaiza_augm": 0.5556, "2024_Loaiza_autom": 0.4444, "2023_Felten_genAIOE": 0.6667, "2023_Gmyrek_LLM": 0.7778, "2024_Eloundou_GPT": 0.6667, "2020_Webb_robot": 0.5556, "2020_Webb_software": 0.5556, "2024_Autor_augm": 0.5556, "2024_Autor_autom": 0.7778, "2024_Prytkova_digital": 0.7778 } }, { "label": "4 Clerical support workers", "values": { "2017_Frey_autom": 1.0, "2018_Brynjolfsson_mSML": 1.0, "2020_Webb_AI": 0.2222, "2021_Tolan_AI": 0.6667, "2021_Felten_AIOE": 0.7778, "2024_Engberg_DAIOE": 1.0, "2024_Loaiza_augm": 0.6667, "2024_Loaiza_autom": 0.5556, "2023_Felten_genAIOE": 0.7778, "2023_Gmyrek_LLM": 1.0, "2024_Eloundou_GPT": 1.0, "2020_Webb_robot": 0.2222, "2020_Webb_software": 0.2222, "2024_Autor_augm": 0.6667, "2024_Autor_autom": 0.6667, "2024_Prytkova_digital": 0.8889 } }, { "label": "5 Service and sales workers", "values": { "2017_Frey_autom": 0.4444, "2018_Brynjolfsson_mSML": 0.7778, "2020_Webb_AI": 0.1111, "2021_Tolan_AI": 0.2222, "2021_Felten_AIOE": 0.5556, "2024_Engberg_DAIOE": 0.5556, "2024_Loaiza_augm": 1.0, "2024_Loaiza_autom": 0.3333, "2023_Felten_genAIOE": 0.5556, "2023_Gmyrek_LLM": 0.5556, "2024_Eloundou_GPT": 0.5556, "2020_Webb_robot": 0.4444, "2020_Webb_software": 0.1111, "2024_Autor_augm": 0.2222, "2024_Autor_autom": 0.2222, "2024_Prytkova_digital": 0.4444 } }, { "label": "6 Skilled agricultural, forestry and fishery workers", "values": { "2017_Frey_autom": 0.6667, "2018_Brynjolfsson_mSML": 0.5556, "2020_Webb_AI": 1.0, "2021_Tolan_AI": 0.5556, "2021_Felten_AIOE": 0.4444, "2024_Engberg_DAIOE": 0.2222, "2024_Loaiza_augm": 0.4444, "2024_Loaiza_autom": 0.6667, "2023_Felten_genAIOE": 0.3333, "2023_Gmyrek_LLM": 0.3333, "2024_Eloundou_GPT": 0.4444, "2020_Webb_robot": 0.7778, "2020_Webb_software": 1.0, "2024_Autor_augm": 0.3333, "2024_Autor_autom": 0.1111, "2024_Prytkova_digital": 0.2222 } }, { "label": "7 Craft and related trades workers", "values": { "2017_Frey_autom": 0.5556, "2018_Brynjolfsson_mSML": 0.2222, "2020_Webb_AI": 0.5556, "2021_Tolan_AI": 0.4444, "2021_Felten_AIOE": 0.3333, "2024_Engberg_DAIOE": 0.4444, "2024_Loaiza_augm": 0.2222, "2024_Loaiza_autom": 0.8889, "2023_Felten_genAIOE": 0.4444, "2023_Gmyrek_LLM": 0.2222, "2024_Eloundou_GPT": 0.3333, "2020_Webb_robot": 0.6667, "2020_Webb_software": 0.6667, "2024_Autor_augm": 0.4444, "2024_Autor_autom": 0.8889, "2024_Prytkova_digital": 0.1111 } }, { "label": "8 Plant and machine operators, and assemblers", "values": { "2017_Frey_autom": 0.8889, "2018_Brynjolfsson_mSML": 0.3333, "2020_Webb_AI": 0.8889, "2021_Tolan_AI": 0.3333, "2021_Felten_AIOE": 0.2222, "2024_Engberg_DAIOE": 0.3333, "2024_Loaiza_augm": 0.3333, "2024_Loaiza_autom": 0.7778, "2023_Felten_genAIOE": 0.2222, "2023_Gmyrek_LLM": 0.4444, "2024_Eloundou_GPT": 0.2222, "2020_Webb_robot": 0.8889, "2020_Webb_software": 0.8889, "2024_Autor_augm": 1.0, "2024_Autor_autom": 1.0, "2024_Prytkova_digital": 1.0 } }, { "label": "9 Elementary occupations", "values": { "2017_Frey_autom": 0.7778, "2018_Brynjolfsson_mSML": 0.1111, "2020_Webb_AI": 0.3333, "2021_Tolan_AI": 0.1111, "2021_Felten_AIOE": 0.1111, "2024_Engberg_DAIOE": 0.1111, "2024_Loaiza_augm": 0.1111, "2024_Loaiza_autom": 1.0, "2023_Felten_genAIOE": 0.1111, "2023_Gmyrek_LLM": 0.1111, "2024_Eloundou_GPT": 0.1111, "2020_Webb_robot": 1.0, "2020_Webb_software": 0.7778, "2024_Autor_augm": 0.7778, "2024_Autor_autom": 0.4444, "2024_Prytkova_digital": 0.3333 } }];
+
+        const labels = { "2017_Frey_autom": ["2017", "Frey", "autom"], "2018_Brynjolfsson_mSML": ["2018", "Brynjolfsson", "mSML"], "2020_Webb_AI": ["2020", "Webb", "AI"], "2021_Tolan_AI": ["2021", "Tolan", "AI"], "2021_Felten_AIOE": ["2021/3", "Felten", "AIOE"], "2024_Engberg_DAIOE": ["2024", "Engberg", "DAIOE"], "2024_Loaiza_augm": ["2024", "Loaiza", "augm"], "2024_Loaiza_autom": ["2024", "Loaiza", "autom"], "2023_Felten_genAIOE": ["2021/3", "Felten", "genAIOE"], "2023_Gmyrek_LLM": ["2023", "Gmyrek", "LLM"], "2024_Eloundou_GPT": ["2024", "Eloundou", "GPT"], "2020_Webb_robot": ["2020", "Webb", "robot"], "2020_Webb_software": ["2020", "Webb", "software"], "2024_Autor_augm": ["2024", "Autor", "augm"], "2024_Autor_autom": ["2024", "Autor", "autom"], "2024_Prytkova_digital": ["2024", "Prytkova", "digital"] };
+
+        const sections = [{ "title": "AI", "groups": [["2017_Frey_autom", "2018_Brynjolfsson_mSML", "2020_Webb_AI"], ["2021_Tolan_AI", "2021_Felten_AIOE", "2024_Engberg_DAIOE"], ["2024_Loaiza_augm", "2024_Loaiza_autom"]] }, { "title": "GenAI", "groups": [["2023_Felten_genAIOE", "2023_Gmyrek_LLM", "2024_Eloundou_GPT"]] }, { "title": "Wider-Tech", "groups": [["2020_Webb_robot", "2020_Webb_software"], ["2024_Autor_augm", "2024_Autor_autom", "2024_Prytkova_digital"]] }];
+
+        function valToColor(v) {
+            if (v === null || v === undefined) return '#e0e0e0';
+            let r, g, b;
+            if (v <= 0.5) {
+                const t = v / 0.5;
+                r = Math.round(255 + (155 - 255) * t);
+                g = Math.round(255 + (137 - 255) * t);
+                b = Math.round(255 + (196 - 255) * t);
+            } else {
+                const t = (v - 0.5) / 0.5;
+                r = Math.round(155 + (45 - 155) * t);
+                g = Math.round(137 + (27 - 137) * t);
+                b = Math.round(196 + (142 - 196) * t);
+            }
+            return `rgb(${r},${g},${b})`;
+        }
+
+        const yAxis = document.getElementById('y-axis');
+        rows.forEach(row => {
+            const div = document.createElement('div');
+            div.className = 'y-label';
+            div.textContent = row.label;
+            yAxis.appendChild(div);
+        });
+
+        const sectionsEl = document.getElementById('sections');
+        sections.forEach(sec => {
+            const secDiv = document.createElement('div');
+            secDiv.className = 'section';
+
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'section-title';
+            titleDiv.textContent = sec.title;
+            secDiv.appendChild(titleDiv);
+
+            const gridDiv = document.createElement('div');
+            gridDiv.className = 'section-grid';
+
+            sec.groups.forEach((group, gi) => {
+                if (gi > 0) {
+                    const sep = document.createElement('div');
+                    sep.className = 'group-separator';
+                    gridDiv.appendChild(sep);
+                }
+
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'group-block';
+
+                group.forEach(colKey => {
+                    const colDiv = document.createElement('div');
+                    colDiv.className = 'col-block';
+
+                    rows.forEach(row => {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.style.backgroundColor = valToColor(row.values[colKey]);
+                        colDiv.appendChild(cell);
+                    });
+
+                    const xl = document.createElement('div');
+                    xl.className = 'x-label';
+                    const parts = labels[colKey];
+                    xl.innerHTML = `<span style="font-weight:bold;font-size:120%">${parts[0]}</span><br>${parts.slice(1).join('<br>')}`;
+                    colDiv.appendChild(xl);
+
+                    groupDiv.appendChild(colDiv);
+                });
+
+                gridDiv.appendChild(groupDiv);
+            });
+
+            secDiv.appendChild(gridDiv);
+            sectionsEl.appendChild(secDiv);
+        });
+
+        const wrapper = document.getElementById('heatmap-wrapper');
+        const legendBar = document.getElementById('legend-bar');
+        const legendBody = document.getElementById('legend-body');
+        const legend = document.getElementById('legend');
+        const totalCols = sections.reduce((s, sec) => s + sec.groups.reduce((s2, g) => s2 + g.length, 0), 0);
+        const totalSeparators = sections.reduce((s, sec) => s + Math.max(0, sec.groups.length - 1), 0);
+        const sectionGap = 16;
+
+        function updateSizes() {
+            const wrapperW = wrapper.clientWidth;
+            const wrapperH = wrapper.clientHeight;
+            const yAxisW = yAxis.offsetWidth;
+            const titleH = document.querySelector('.section-title').offsetHeight + 6;
+            const xLabelEl = document.querySelector('.x-label');
+            const xLabelH = xLabelEl ? xLabelEl.offsetHeight + 5 : 45;
+            const totalGaps = (sections.length - 1) * sectionGap + totalSeparators * 4;
+
+            const maxW = Math.floor((wrapperW - yAxisW - totalGaps) / totalCols);
+            const maxH = Math.floor((wrapperH - titleH - xLabelH) / rows.length);
+            const cellSize = Math.min(maxW, maxH);
+            const cellW = cellSize;
+            const cellH = cellSize;
+            const gridH = rows.length * cellH;
+
+            document.querySelectorAll('.cell').forEach(c => {
+                c.style.width = cellW + 'px';
+                c.style.height = cellH + 'px';
+            });
+            document.querySelectorAll('.x-label').forEach(l => {
+                l.style.width = cellW + 'px';
+            });
+            document.querySelectorAll('.y-label').forEach(l => {
+                l.style.height = cellH + 'px';
+            });
+            document.querySelectorAll('.group-separator').forEach(s => {
+                s.style.height = gridH + 'px';
+            });
+            yAxis.style.paddingTop = titleH + 'px';
+
+            const contentH = titleH + gridH + xLabelH;
+            const vertOffset = Math.max(0, Math.floor((wrapperH - contentH) / 2));
+            yAxis.style.transform = `translateY(${vertOffset}px)`;
+            sectionsEl.style.transform = `translateY(${vertOffset}px)`;
+
+            const barH = Math.round(gridH * 0.6);
+            const legendTitleH = document.getElementById('legend-title').offsetHeight + 6;
+            const legendOffset = vertOffset + titleH + Math.round((gridH - barH) / 2) - legendTitleH;
+            legend.style.transform = `translateY(${Math.max(0, legendOffset)}px)`;
+            legendBar.style.height = barH + 'px';
+            legendBody.style.height = barH + 'px';
+        }
+
+        requestAnimationFrame(updateSizes);
+        window.addEventListener('resize', updateSizes);
+    </script>
+</body>
+
+</html>
