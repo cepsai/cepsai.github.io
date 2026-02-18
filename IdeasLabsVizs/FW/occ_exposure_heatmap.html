@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Occupational AI Exposure Heatmap</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #fff;
+    padding: 30px 20px 40px 20px;
+    color: #222;
+  }
+  h2 {
+    text-align: center;
+    font-size: 14px;
+    font-weight: normal;
+    margin-bottom: 20px;
+    color: #333;
+  }
+
+  /* Legend */
+  #legend {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 30px;
+  }
+  #legend-title {
+    font-size: 12px;
+    margin-bottom: 6px;
+    text-align: center;
+    line-height: 1.4;
+  }
+  #legend-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #legend-bar {
+    width: 200px;
+    height: 14px;
+    background: linear-gradient(to right, #FFFFFF, #9B89C4, #2D1B8E);
+    border: 1px solid #ccc;
+  }
+  .legend-tick {
+    font-size: 10px;
+    color: #444;
+  }
+
+  /* Main grid wrapper */
+  #heatmap-wrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  /* Y-axis labels */
+  #y-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    flex-shrink: 0;
+    padding-top: 28px;   /* align with section title row */
+    padding-bottom: 60px; /* space for x-axis labels */
+  }
+  .y-label {
+    font-size: 11px;
+    text-align: right;
+    padding-right: 10px;
+    line-height: 1.25;
+    color: #333;
+  }
+
+  /* Sections wrapper */
+  #sections {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .section-title {
+    font-size: 13px;
+    text-align: center;
+    margin-bottom: 6px;
+    color: #111;
+  }
+  .section-grid {
+    display: flex;
+    gap: 0;
+    align-items: flex-end;
+  }
+  /* sub-group: columns separated by black vertical bar */
+  .group-block {
+    display: flex;
+    gap: 0;
+    position: relative;
+  }
+  .group-separator {
+    width: 2px;
+    background: #000;
+    align-self: stretch;
+    margin: 0 1px;
+  }
+
+  .col-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .cell {
+    width: 36px;
+    height: 36px;
+    border: 0.5px solid rgba(255,255,255,0.3);
+  }
+
+  .x-label {
+    font-size: 9.5px;
+    text-align: center;
+    color: #333;
+    line-height: 1.3;
+    margin-top: 5px;
+    width: 36px;
+  }
+</style>
+</head>
+<body>
+
+<div id="legend">
+  <div id="legend-title">Exposure<br>(percentile rank)</div>
+  <div id="legend-bar-row">
+    <div id="legend-bar"></div>
+  </div>
+  <div id="legend-bar-row" style="width:212px; display:flex; justify-content:space-between; margin-top:3px;">
+    <span class="legend-tick">0</span>
+    <span class="legend-tick">0.25</span>
+    <span class="legend-tick">0.50</span>
+    <span class="legend-tick">0.75</span>
+    <span class="legend-tick">1</span>
+  </div>
+</div>
+
+<div id="heatmap-wrapper">
+  <div id="y-axis"></div>
+  <div id="sections"></div>
+</div>
+
+<script>
+const rows     = [{"label": "1 Managers", "values": {"2017_Frey_autom": 0.1111, "2018_Brynjolfsson_mSML": 0.8889, "2020_Webb_AI": 0.6667, "2021_Tolan_AI": 0.7778, "2021_Felten_AIOE": 0.8889, "2024_Engberg_DAIOE": 0.6667, "2024_Loaiza_augm": 0.7778, "2024_Loaiza_autom": 0.1111, "2023_Felten_genAIOE": 0.8889, "2023_Gmyrek_LLM": 0.6667, "2024_Eloundou_GPT": 0.8889, "2020_Webb_robot": 0.1111, "2020_Webb_software": 0.4444, "2024_Autor_augm": 0.8889, "2024_Autor_autom": 0.5556, "2024_Prytkova_digital": 0.6667}}, {"label": "2 Professionals", "values": {"2017_Frey_autom": 0.2222, "2018_Brynjolfsson_mSML": 0.4444, "2020_Webb_AI": 0.7778, "2021_Tolan_AI": 1.0, "2021_Felten_AIOE": 1.0, "2024_Engberg_DAIOE": 0.8889, "2024_Loaiza_augm": 0.8889, "2024_Loaiza_autom": 0.2222, "2023_Felten_genAIOE": 1.0, "2023_Gmyrek_LLM": 0.8889, "2024_Eloundou_GPT": 0.7778, "2020_Webb_robot": 0.3333, "2020_Webb_software": 0.3333, "2024_Autor_augm": 0.1111, "2024_Autor_autom": 0.3333, "2024_Prytkova_digital": 0.5556}}, {"label": "3 Technicians and associate professionals", "values": {"2017_Frey_autom": 0.3333, "2018_Brynjolfsson_mSML": 0.6667, "2020_Webb_AI": 0.4444, "2021_Tolan_AI": 0.8889, "2021_Felten_AIOE": 0.6667, "2024_Engberg_DAIOE": 0.7778, "2024_Loaiza_augm": 0.5556, "2024_Loaiza_autom": 0.4444, "2023_Felten_genAIOE": 0.6667, "2023_Gmyrek_LLM": 0.7778, "2024_Eloundou_GPT": 0.6667, "2020_Webb_robot": 0.5556, "2020_Webb_software": 0.5556, "2024_Autor_augm": 0.5556, "2024_Autor_autom": 0.7778, "2024_Prytkova_digital": 0.7778}}, {"label": "4 Clerical support workers", "values": {"2017_Frey_autom": 1.0, "2018_Brynjolfsson_mSML": 1.0, "2020_Webb_AI": 0.2222, "2021_Tolan_AI": 0.6667, "2021_Felten_AIOE": 0.7778, "2024_Engberg_DAIOE": 1.0, "2024_Loaiza_augm": 0.6667, "2024_Loaiza_autom": 0.5556, "2023_Felten_genAIOE": 0.7778, "2023_Gmyrek_LLM": 1.0, "2024_Eloundou_GPT": 1.0, "2020_Webb_robot": 0.2222, "2020_Webb_software": 0.2222, "2024_Autor_augm": 0.6667, "2024_Autor_autom": 0.6667, "2024_Prytkova_digital": 0.8889}}, {"label": "5 Service and sales workers", "values": {"2017_Frey_autom": 0.4444, "2018_Brynjolfsson_mSML": 0.7778, "2020_Webb_AI": 0.1111, "2021_Tolan_AI": 0.2222, "2021_Felten_AIOE": 0.5556, "2024_Engberg_DAIOE": 0.5556, "2024_Loaiza_augm": 1.0, "2024_Loaiza_autom": 0.3333, "2023_Felten_genAIOE": 0.5556, "2023_Gmyrek_LLM": 0.5556, "2024_Eloundou_GPT": 0.5556, "2020_Webb_robot": 0.4444, "2020_Webb_software": 0.1111, "2024_Autor_augm": 0.2222, "2024_Autor_autom": 0.2222, "2024_Prytkova_digital": 0.4444}}, {"label": "6 Skilled agricultural, forestry and fishery workers", "values": {"2017_Frey_autom": 0.6667, "2018_Brynjolfsson_mSML": 0.5556, "2020_Webb_AI": 1.0, "2021_Tolan_AI": 0.5556, "2021_Felten_AIOE": 0.4444, "2024_Engberg_DAIOE": 0.2222, "2024_Loaiza_augm": 0.4444, "2024_Loaiza_autom": 0.6667, "2023_Felten_genAIOE": 0.3333, "2023_Gmyrek_LLM": 0.3333, "2024_Eloundou_GPT": 0.4444, "2020_Webb_robot": 0.7778, "2020_Webb_software": 1.0, "2024_Autor_augm": 0.3333, "2024_Autor_autom": 0.1111, "2024_Prytkova_digital": 0.2222}}, {"label": "7 Craft and related trades workers", "values": {"2017_Frey_autom": 0.5556, "2018_Brynjolfsson_mSML": 0.2222, "2020_Webb_AI": 0.5556, "2021_Tolan_AI": 0.4444, "2021_Felten_AIOE": 0.3333, "2024_Engberg_DAIOE": 0.4444, "2024_Loaiza_augm": 0.2222, "2024_Loaiza_autom": 0.8889, "2023_Felten_genAIOE": 0.4444, "2023_Gmyrek_LLM": 0.2222, "2024_Eloundou_GPT": 0.3333, "2020_Webb_robot": 0.6667, "2020_Webb_software": 0.6667, "2024_Autor_augm": 0.4444, "2024_Autor_autom": 0.8889, "2024_Prytkova_digital": 0.1111}}, {"label": "8 Plant and machine operators, and assemblers", "values": {"2017_Frey_autom": 0.8889, "2018_Brynjolfsson_mSML": 0.3333, "2020_Webb_AI": 0.8889, "2021_Tolan_AI": 0.3333, "2021_Felten_AIOE": 0.2222, "2024_Engberg_DAIOE": 0.3333, "2024_Loaiza_augm": 0.3333, "2024_Loaiza_autom": 0.7778, "2023_Felten_genAIOE": 0.2222, "2023_Gmyrek_LLM": 0.4444, "2024_Eloundou_GPT": 0.2222, "2020_Webb_robot": 0.8889, "2020_Webb_software": 0.8889, "2024_Autor_augm": 1.0, "2024_Autor_autom": 1.0, "2024_Prytkova_digital": 1.0}}, {"label": "9 Elementary occupations", "values": {"2017_Frey_autom": 0.7778, "2018_Brynjolfsson_mSML": 0.1111, "2020_Webb_AI": 0.3333, "2021_Tolan_AI": 0.1111, "2021_Felten_AIOE": 0.1111, "2024_Engberg_DAIOE": 0.1111, "2024_Loaiza_augm": 0.1111, "2024_Loaiza_autom": 1.0, "2023_Felten_genAIOE": 0.1111, "2023_Gmyrek_LLM": 0.1111, "2024_Eloundou_GPT": 0.1111, "2020_Webb_robot": 1.0, "2020_Webb_software": 0.7778, "2024_Autor_augm": 0.7778, "2024_Autor_autom": 0.4444, "2024_Prytkova_digital": 0.3333}}];
+const labels   = {"2017_Frey_autom": ["2017", "Frey", "autom"], "2018_Brynjolfsson_mSML": ["2018", "Brynjolfsson", "mSML"], "2020_Webb_AI": ["2020", "Webb", "AI"], "2021_Tolan_AI": ["2021", "Tolan", "AI"], "2021_Felten_AIOE": ["2021/3", "Felten", "AIOE"], "2024_Engberg_DAIOE": ["2024", "Engberg", "DAIOE"], "2024_Loaiza_augm": ["2024", "Loaiza", "augm"], "2024_Loaiza_autom": ["2024", "Loaiza", "autom"], "2023_Felten_genAIOE": ["2021/3", "Felten", "genAIOE"], "2023_Gmyrek_LLM": ["2023", "Gmyrek", "LLM"], "2024_Eloundou_GPT": ["2024", "Eloundou", "GPT"], "2020_Webb_robot": ["2020", "Webb", "robot"], "2020_Webb_software": ["2020", "Webb", "software"], "2024_Autor_augm": ["2024", "Autor", "augm"], "2024_Autor_autom": ["2024", "Autor", "autom"], "2024_Prytkova_digital": ["2024", "Prytkova", "digital"]};
+const sections = [{"title": "AI", "groups": [["2017_Frey_autom", "2018_Brynjolfsson_mSML", "2020_Webb_AI"], ["2021_Tolan_AI", "2021_Felten_AIOE", "2024_Engberg_DAIOE"], ["2024_Loaiza_augm", "2024_Loaiza_autom"]]}, {"title": "GenAI", "groups": [["2023_Felten_genAIOE", "2023_Gmyrek_LLM", "2024_Eloundou_GPT"]]}, {"title": "wider-tech", "groups": [["2020_Webb_robot", "2020_Webb_software"], ["2024_Autor_augm", "2024_Autor_autom", "2024_Prytkova_digital"]]}];
+
+// Color interpolation: white -> medium purple -> dark indigo
+function valToColor(v) {
+  if (v === null || v === undefined) return '#e0e0e0'; // grey for missing
+  // stops: 0→#FFFFFF, 0.5→#9B89C4, 1→#2D1B8E
+  let r, g, b;
+  if (v <= 0.5) {
+    const t = v / 0.5;
+    r = Math.round(255 + (155 - 255) * t);
+    g = Math.round(255 + (137 - 255) * t);
+    b = Math.round(255 + (196 - 255) * t);
+  } else {
+    const t = (v - 0.5) / 0.5;
+    r = Math.round(155 + (45 - 155) * t);
+    g = Math.round(137 + (27 - 137) * t);
+    b = Math.round(196 + (142 - 196) * t);
+  }
+  return `rgb(${r},${g},${b})`;
+}
+
+// Build Y-axis
+const yAxis = document.getElementById('y-axis');
+const cellH = 36; // px per row
+rows.forEach(row => {
+  const div = document.createElement('div');
+  div.className = 'y-label';
+  div.style.height = cellH + 'px';
+  div.style.display = 'flex';
+  div.style.alignItems = 'center';
+  div.style.justifyContent = 'flex-end';
+  // Format: "1 Managers" → "1 Managers" with number bold
+  const parts = row.label.match(/^(\d+)\s+(.+)$/);
+  if (parts) {
+    div.innerHTML = `${parts[1]} ${parts[2]}`;
+  } else {
+    div.textContent = row.label;
+  }
+  yAxis.appendChild(div);
+});
+
+// Build sections
+const sectionsEl = document.getElementById('sections');
+
+sections.forEach(sec => {
+  const secDiv = document.createElement('div');
+  secDiv.className = 'section';
+
+  const titleDiv = document.createElement('div');
+  titleDiv.className = 'section-title';
+  titleDiv.textContent = sec.title;
+  secDiv.appendChild(titleDiv);
+
+  const gridDiv = document.createElement('div');
+  gridDiv.className = 'section-grid';
+  gridDiv.style.alignItems = 'flex-start';
+
+  sec.groups.forEach((group, gi) => {
+    // Separator before groups after the first
+    if (gi > 0) {
+      const sep = document.createElement('div');
+      sep.className = 'group-separator';
+      sep.style.height = (rows.length * cellH) + 'px';
+      gridDiv.appendChild(sep);
+    }
+
+    const groupDiv = document.createElement('div');
+    groupDiv.className = 'group-block';
+
+    group.forEach(colKey => {
+      const colDiv = document.createElement('div');
+      colDiv.className = 'col-block';
+
+      // Cells
+      rows.forEach(row => {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        const v = row.values[colKey];
+        cell.style.backgroundColor = valToColor(v);
+        if (v !== null && v !== undefined) {
+          cell.title = `${row.label}: ${v.toFixed(3)}`;
+        } else {
+          cell.title = `${row.label}: N/A`;
+        }
+        colDiv.appendChild(cell);
+      });
+
+      // X-axis label
+      const xl = document.createElement('div');
+      xl.className = 'x-label';
+      const parts = labels[colKey] || [colKey];
+      xl.innerHTML = parts.join('<br>');
+      colDiv.appendChild(xl);
+
+      groupDiv.appendChild(colDiv);
+    });
+
+    gridDiv.appendChild(groupDiv);
+  });
+
+  secDiv.appendChild(gridDiv);
+  sectionsEl.appendChild(secDiv);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resilience Index 2025 – Sub-pillar Ranks</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f0f2f7;
+    color: #222;
+    padding: 20px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 18px;
+  }
+  header h1 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #003399;
+  }
+  header p {
+    font-size: 0.8rem;
+    color: #555;
+    margin-top: 4px;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 14px;
+    margin-bottom: 16px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.73rem;
+    color: #333;
+  }
+  .legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .legend-swatch.eu {
+    border: 2px solid #003399;
+    background: #003399;
+  }
+  .legend-ref {
+    width: 20px;
+    height: 2px;
+    border-top: 2px dashed #b8860b;
+  }
+
+  /* Grid of panels */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+  }
+  .grid .panel:first-child {
+    grid-column: span 5;   /* Overall spans full width */
+  }
+  /* Sub-pillars: 3+3+3 = 9 in three rows of 3, but we have 9,
+     let's do 5+4 but the first row is already the Overall.
+     Actually let's do: Overall full width, then 3 rows of 3 */
+  .panel {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    padding: 10px 12px 8px;
+  }
+  .panel h3 {
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .panel svg {
+    display: block;
+    width: 100%;
+    overflow: visible;
+  }
+  .best-eu-label {
+    font-size: 0.62rem;
+    fill: #b8860b;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Resilience Index 2025 – Candidate Countries &amp; EU-27 Average</h1>
+  <p>Global ranks (out of 130 countries) across overall index and 9 sub-pillars &nbsp;|&nbsp; Lower rank = better performance</p>
+</header>
+
+<div class="legend" id="legend"></div>
+<div class="grid" id="grid"></div>
+
+<script>
+const PANELS = [{"dim": "Overall", "label": "Overall Index", "bars": [{"country": "Albania", "abbr": "ALB", "rank": 82, "color": "#e6194b", "isEU": false}, {"country": "Bosnia and Herzegovina", "abbr": "BiH", "rank": 83, "color": "#3cb44b", "isEU": false}, {"country": "Georgia", "abbr": "GEO", "rank": 62, "color": "#4363d8", "isEU": false}, {"country": "Moldova", "abbr": "MDA", "rank": 87, "color": "#f58231", "isEU": false}, {"country": "Montenegro", "abbr": "MNE", "rank": 63, "color": "#911eb4", "isEU": false}, {"country": "North Macedonia", "abbr": "MKD", "rank": 71, "color": "#42d4f4", "isEU": false}, {"country": "Serbia", "abbr": "SRB", "rank": 61, "color": "#f032e6", "isEU": false}, {"country": "Türkiye", "abbr": "TUR", "rank": 53, "color": "#a9a900", "isEU": false}, {"country": "Ukraine", "abbr": "UKR", "rank": 79, "color": "#fabed4", "isEU": false}, {"country": "EU-27 Average", "abbr": "EU avg", "rank": 25, "color": "#003399", "isEU": true}], "bestEURank": 1, "bestEUCountry": "Denmark"}, {"dim": "Productivity", "label": "Productivity", "bars": [{"country": "Albania", "abbr": "ALB", "rank": 76, "color": "#e6194b", "isEU": false}, {"country": "Bosnia and Herzegovina", "abbr": "BiH", "rank": 74, "color": "#3cb44b", "isEU": false}, {"country": "Georgia", "abbr": "GEO", "rank": 65, "color": "#4363d8", "isEU": false}, {"country": "Moldova", "abbr": "MDA", "rank": 82, "color": "#f58231", "isEU": false}, {"country": "Montenegro", "abbr": "MNE", "rank": 60, "color": "#911eb4", "isEU": false}, {"country": "North Macedonia", "abbr": "MKD", "rank": 66, "color": "#42d4f4", "isEU": false}, {"country": "Serbia", "abbr": "SRB", "rank": 62, "color": "#f032e6", "isEU": false}, {"country": "Türkiye", "abbr": "TUR", "rank": 55, "color": "#a9a900", "isEU": false}, {"country": "Ukraine", "abbr": "UKR", "rank": 80, "color": "#fabed4", "isEU": false}, {"country": "EU-27 Average", "abbr": "EU avg", "rank": 25, "color": "#003399", "isEU": true}], "bestEURank": 1, "bestEUCountry": "Luxembourg"}, {"dim": "Health Expenditure", "label": "Health Expenditure", "bars": [{"country": "Albania", "abbr": "ALB", "rank": 70, "color": "#e6194b", "isEU": false}, {"country": "Bosnia and Herzegovina", "abbr": "BiH", "rank": 56, "color": "#3cb44b", "isEU": false}, {"country": "Georgia", "abbr": "GEO", "rank": 62, "color": "#4363d8", "isEU": false}, {"country": "Moldova", "abbr": "MDA", "rank": 80, "color": "#f58231", "isEU": false}, {"country": "Montenegro", "abbr": "MNE", "rank": 43, "color": "#911eb4", "isEU": false}, {"country": "North Macedonia", "abbr": "MKD", "rank": 58, "color": "#42d4f4", "isEU": false}, {"country": "Serbia", "abbr": "SRB", "rank": 52, "color": "#f032e6", "isEU": false}, {"country": "Türkiye", "abbr": "TUR", "rank": 63, "color": "#a9a900", "isEU": false}, {"country": "Ukraine", "abbr": "UKR", "rank": 81, "color": "#fabed4", "isEU": false}, {"country": "EU-27 Average", "abbr": "EU avg", "rank": 23, "color": "#003399", "isEU": true}], "bestEURank": 1, "bestEUCountry": "Croatia"}, {"dim": "Political Risk", "label": "Political Risk", "bars": [{"country": "Albania", "abbr": "ALB", "rank": 57, "color": "#e6194b", "isEU": false}, {"country": "Bosnia and Herzegovina", "abbr": "BiH", "rank": 86, "color": "#3cb44b", "isEU": false}, {"country": "Georgia", "abbr": "GEO", "rank": 83, "color": "#4363d8", "isEU": false}, {"country": "Moldova", "abbr": "MDA", "rank": 108, "color": "#f58231", "isEU": false}, {"country": "Montenegro", "abbr": "MNE", "rank": 63, "color": "#911eb4", "isEU": false}, {"country": "North Macedonia", "abbr": "MKD", "rank": 58, "color": "#42d4f4", "isEU": false}, {"country": "Serbia", "abbr": "SRB", "rank": 71, "color": "#f032e6", "isEU": false}, {"country": "Türkiye", "abbr": "TUR", "rank": 118, "color": "#a9a900", "isEU": false}, {"country": "Ukraine", "abbr": "UKR", "rank": 122, "color": "#fabed4", "isEU": false}, {"country": "EU-27 Average", "abbr": "EU avg", "rank": 34, "color": "#003399", "isEU": true}], "bestEURank": 5, "bestEUCountry": "Luxembourg"}, {"dim": "Control of Corruption", "label": "Control of Corruption", "bars": [{"country": "Albania", "abbr": "ALB", "rank": 76, "color": "#e6194b", "isEU": false}, {"country": "Bosnia and Herzegovina", "abbr": "BiH", "rank": 97, "color": "#3cb44b", "isEU": false}, {"country": "Georgia", "abbr": "GEO", "rank": 43, "color": "#4363d8", "isEU": false}, {"country": "Moldova", "abbr": "MDA", "rank": 72, "color": "#f58231", "isEU": false}, {"country": "Montenegro", "abbr": "MNE", "rank": 67, "color": "#911eb4", "isEU": false}, {"country": "North Macedonia", "abbr": "MKD", "rank": 78, "color": "#42d4f4", "isEU": false}, {"country": "Serbia", "abbr": "SRB", "rank": 85, "color": "#f032e6", "isEU": false}, {"country": "Türkiye", "abbr": "TUR", "rank": 91, "color": "#a9a900", "isEU": false}, {"country": "Ukraine", "abbr": "UKR", "rank": 102, "color": "#fabed4", "isEU": false}, {"country": "EU-27 Average", "abbr": "EU avg", "rank": 31, "color": "#003399", "isEU": true}], "bestEURank": 1, "bestEUCountry": "Denmark"}, {"dim": "Energy Intensity", "label": "Energy Intensity", "bars": [{"country": "Albania", "abbr": "ALB", "rank": 25, "color": "#e6194b", "isEU": false}, {"country": "Bosnia and Herzegovina", "abbr": "BiH", "rank": 110, "color": "#3cb44b", "isEU": false}, {"country": "Georgia", "abbr": "GEO", "rank": 79, "color": "#4363d8", "isEU": false}, {"country": "Moldova", "abbr": "MDA", "rank": 94, "color": "#f58231", "isEU": false}, {"country": "Montenegro", "abbr": "MNE", "rank": 69, "color": "#911eb4", "isEU": false}, {"country": "North Macedonia", "abbr": "MKD", "rank": 66, "color": "#42d4f4", "isEU": false}, {"country": "Serbia", "abbr": "SRB", "rank": 97, "color": "#f032e6", "isEU": false}, {"country": "Türkiye", "abbr": "TUR", "rank": 33, "color": "#a9a900", "isEU": false}, {"country": "Ukraine", "abbr": "UKR", "rank": 113, "color": "#fabed4", "isEU": false}, {"country": "EU-27 Average", "abbr": "EU avg", "rank": 59, "color": "#003399", "isEU": true}], "bestEURank": 4, "bestEUCountry": "Ireland"}, {"dim": "GHG Emissions", "label": "GHG Emissions", "bars": [{"country": "Albania", "abbr": "ALB", "rank": 25, "color": "#e6194b", "isEU": false}, {"country": "Bosnia and Herzegovina", "abbr": "BiH", "rank": 109, "color": "#3cb44b", "isEU": false}, {"country": "Georgia", "abbr": "GEO", "rank": 52, "color": "#4363d8", "isEU": false}, {"country": "Moldova", "abbr": "MDA", "rank": 88, "color": "#f58231", "isEU": false}, {"country": "Montenegro", "abbr": "MNE", "rank": 80, "color": "#911eb4", "isEU": false}, {"country": "North Macedonia", "abbr": "MKD", "rank": 61, "color": "#42d4f4", "isEU": false}, {"country": "Serbia", "abbr": "SRB", "rank": 80, "color": "#f032e6", "isEU": false}, {"country": "Türkiye", "abbr": "TUR", "rank": 44, "color": "#a9a900", "isEU": false}, {"country": "Ukraine", "abbr": "UKR", "rank": 95, "color": "#fabed4", "isEU": false}, {"country": "EU-27 Average", "abbr": "EU avg", "rank": 24, "color": "#003399", "isEU": true}], "bestEURank": 2, "bestEUCountry": "Malta"}, {"dim": "Urbanization Rate", "label": "Urbanization Rate", "bars": [{"country": "Albania", "abbr": "ALB", "rank": 110, "color": "#e6194b", "isEU": false}, {"country": "Bosnia and Herzegovina", "abbr": "BiH", "rank": 94, "color": "#3cb44b", "isEU": false}, {"country": "Georgia", "abbr": "GEO", "rank": 86, "color": "#4363d8", "isEU": false}, {"country": "Moldova", "abbr": "MDA", "rank": 68, "color": "#f58231", "isEU": false}, {"country": "Montenegro", "abbr": "MNE", "rank": 71, "color": "#911eb4", "isEU": false}, {"country": "North Macedonia", "abbr": "MKD", "rank": 78, "color": "#42d4f4", "isEU": false}, {"country": "Serbia", "abbr": "SRB", "rank": 61, "color": "#f032e6", "isEU": false}, {"country": "Türkiye", "abbr": "TUR", "rank": 75, "color": "#a9a900", "isEU": false}, {"country": "Ukraine", "abbr": "UKR", "rank": 34, "color": "#fabed4", "isEU": false}, {"country": "EU-27 Average", "abbr": "EU avg", "rank": 49, "color": "#003399", "isEU": true}], "bestEURank": 5, "bestEUCountry": "Belgium"}, {"dim": "Climate Risk Exposure", "label": "Climate Risk Exposure", "bars": [{"country": "Albania", "abbr": "ALB", "rank": 83, "color": "#e6194b", "isEU": false}, {"country": "Bosnia and Herzegovina", "abbr": "BiH", "rank": 48, "color": "#3cb44b", "isEU": false}, {"country": "Georgia", "abbr": "GEO", "rank": 29, "color": "#4363d8", "isEU": false}, {"country": "Moldova", "abbr": "MDA", "rank": 55, "color": "#f58231", "isEU": false}, {"country": "Montenegro", "abbr": "MNE", "rank": 41, "color": "#911eb4", "isEU": false}, {"country": "North Macedonia", "abbr": "MKD", "rank": 44, "color": "#42d4f4", "isEU": false}, {"country": "Serbia", "abbr": "SRB", "rank": 82, "color": "#f032e6", "isEU": false}, {"country": "Türkiye", "abbr": "TUR", "rank": 21, "color": "#a9a900", "isEU": false}, {"country": "Ukraine", "abbr": "UKR", "rank": 59, "color": "#fabed4", "isEU": false}, {"country": "EU-27 Average", "abbr": "EU avg", "rank": 75, "color": "#003399", "isEU": true}], "bestEURank": 4, "bestEUCountry": "Malta"}, {"dim": "Cybersecurity", "label": "Cybersecurity", "bars": [{"country": "Albania", "abbr": "ALB", "rank": 76, "color": "#e6194b", "isEU": false}, {"country": "Bosnia and Herzegovina", "abbr": "BiH", "rank": 123, "color": "#3cb44b", "isEU": false}, {"country": "Georgia", "abbr": "GEO", "rank": 52, "color": "#4363d8", "isEU": false}, {"country": "Moldova", "abbr": "MDA", "rank": 107, "color": "#f58231", "isEU": false}, {"country": "Montenegro", "abbr": "MNE", "rank": 94, "color": "#911eb4", "isEU": false}, {"country": "North Macedonia", "abbr": "MKD", "rank": 102, "color": "#42d4f4", "isEU": false}, {"country": "Serbia", "abbr": "SRB", "rank": 21, "color": "#f032e6", "isEU": false}, {"country": "Türkiye", "abbr": "TUR", "rank": 38, "color": "#a9a900", "isEU": false}, {"country": "Ukraine", "abbr": "UKR", "rank": 81, "color": "#fabed4", "isEU": false}, {"country": "EU-27 Average", "abbr": "EU avg", "rank": 63, "color": "#003399", "isEU": true}], "bestEURank": 6, "bestEUCountry": "Greece"}];
+const TOTAL  = 130;
+const Y_MIN  = 1;
+const Y_MAX  = 130;
+
+// Build legend
+const legendEl = document.getElementById('legend');
+const legendItems = [
+  ...PANELS[0].bars.map(b => ({ label: b.country === 'EU-27 Average' ? 'EU-27 Average' : b.country, color: b.color, isEU: b.isEU })),
+  { label: 'Best EU Performer (per dimension)', isRef: true }
+];
+legendItems.forEach(item => {
+  const div = document.createElement('div');
+  div.className = 'legend-item';
+  if (item.isRef) {
+    const ref = document.createElement('div');
+    ref.className = 'legend-ref';
+    div.appendChild(ref);
+  } else {
+    const sw = document.createElement('div');
+    sw.className = 'legend-swatch' + (item.isEU ? ' eu' : '');
+    sw.style.background = item.color;
+    if (item.isEU) sw.style.border = '2px solid #001f80';
+    div.appendChild(sw);
+  }
+  const span = document.createElement('span');
+  span.textContent = item.label;
+  div.appendChild(span);
+  legendEl.appendChild(div);
+});
+
+// Draw panels
+const gridEl = document.getElementById('grid');
+
+PANELS.forEach((panel, pi) => {
+  const isOverall = pi === 0;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'panel';
+  if (isOverall) wrapper.style.gridColumn = 'span 5';
+
+  const h3 = document.createElement('h3');
+  h3.textContent = panel.label;
+  wrapper.appendChild(h3);
+
+  const bars   = panel.bars;
+  const nBars  = bars.length;
+
+  // Dimensions
+  const svgH   = isOverall ? 120 : 160;
+  const padL   = 28;
+  const padR   = 8;
+  const padT   = 6;
+  const padB   = isOverall ? 22 : 30;
+  const plotH  = svgH - padT - padB;
+
+  // We'll set width via CSS; use viewBox
+  const svgW   = isOverall ? 900 : 220;
+  const plotW  = svgW - padL - padR;
+
+  const bGap   = isOverall ? 6 : 4;
+  const bW     = (plotW - (nBars - 1) * bGap) / nBars;
+
+  function yPx(rank) {
+    return padT + ((rank - Y_MIN) / (Y_MAX - Y_MIN)) * plotH;
+  }
+  function barH(rank) {
+    return plotH - ((rank - Y_MIN) / (Y_MAX - Y_MIN)) * plotH;
+  }
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg   = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${svgW} ${svgH}`);
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+  // Y-axis ticks + gridlines
+  const ticks = [1, 20, 40, 60, 80, 100, 120];
+  ticks.forEach(t => {
+    const y = yPx(t);
+    // gridline
+    const line = document.createElementNS(svgNS, 'line');
+    line.setAttribute('x1', padL); line.setAttribute('x2', svgW - padR);
+    line.setAttribute('y1', y);    line.setAttribute('y2', y);
+    line.setAttribute('stroke', '#e8e8e8'); line.setAttribute('stroke-width', '0.5');
+    svg.appendChild(line);
+    // tick label
+    const txt = document.createElementNS(svgNS, 'text');
+    txt.setAttribute('x', padL - 3);
+    txt.setAttribute('y', y + 3);
+    txt.setAttribute('text-anchor', 'end');
+    txt.setAttribute('font-size', isOverall ? '8' : '7');
+    txt.setAttribute('fill', '#aaa');
+    txt.textContent = t;
+    svg.appendChild(txt);
+  });
+
+  // Bars
+  bars.forEach((bar, i) => {
+    const x   = padL + i * (bW + bGap);
+    const bh  = barH(bar.rank);
+    const y   = padT + plotH - bh;
+
+    // Bar rect
+    const rect = document.createElementNS(svgNS, 'rect');
+    rect.setAttribute('x', x);
+    rect.setAttribute('y', y);
+    rect.setAttribute('width', bW);
+    rect.setAttribute('height', bh);
+    rect.setAttribute('fill', bar.isEU ? '#003399' : bar.color);
+    rect.setAttribute('fill-opacity', bar.isEU ? '1' : '0.82');
+    rect.setAttribute('rx', '1.5');
+    svg.appendChild(rect);
+
+    // EU avg: add a border highlight
+    if (bar.isEU) {
+      const border = document.createElementNS(svgNS, 'rect');
+      border.setAttribute('x', x - 1);
+      border.setAttribute('y', y - 1);
+      border.setAttribute('width', bW + 2);
+      border.setAttribute('height', bh + 1);
+      border.setAttribute('fill', 'none');
+      border.setAttribute('stroke', '#001f80');
+      border.setAttribute('stroke-width', '1.5');
+      border.setAttribute('rx', '2');
+      svg.appendChild(border);
+    }
+
+    // Rank label above bar
+    const rankTxt = document.createElementNS(svgNS, 'text');
+    rankTxt.setAttribute('x', x + bW / 2);
+    rankTxt.setAttribute('y', y - 2);
+    rankTxt.setAttribute('text-anchor', 'middle');
+    rankTxt.setAttribute('font-size', isOverall ? '9' : '7.5');
+    rankTxt.setAttribute('font-weight', 'bold');
+    rankTxt.setAttribute('fill', bar.isEU ? '#003399' : '#333');
+    rankTxt.textContent = bar.rank;
+    svg.appendChild(rankTxt);
+
+    // X-axis country label
+    const abbr = bar.abbr;
+    const labY = padT + plotH + (isOverall ? 12 : 11);
+    const labTxt = document.createElementNS(svgNS, 'text');
+    labTxt.setAttribute('x', x + bW / 2);
+    labTxt.setAttribute('y', labY);
+    labTxt.setAttribute('text-anchor', 'middle');
+    labTxt.setAttribute('font-size', isOverall ? '8.5' : '7');
+    labTxt.setAttribute('fill', bar.isEU ? '#003399' : '#555');
+    labTxt.setAttribute('font-weight', bar.isEU ? 'bold' : 'normal');
+    labTxt.textContent = abbr;
+    svg.appendChild(labTxt);
+
+    // Second line for 'EU avg' label
+    if (bar.isEU && !isOverall) {
+      const labTxt2 = document.createElementNS(svgNS, 'text');
+      labTxt2.setAttribute('x', x + bW / 2);
+      labTxt2.setAttribute('y', labY + 9);
+      labTxt2.setAttribute('text-anchor', 'middle');
+      labTxt2.setAttribute('font-size', '6');
+      labTxt2.setAttribute('fill', '#003399');
+      labTxt2.setAttribute('font-weight', 'bold');
+      labTxt2.textContent = 'avg';
+      svg.appendChild(labTxt2);
+    }
+  });
+
+  // Best EU performer reference line
+  const refY = yPx(panel.bestEURank);
+  const refLine = document.createElementNS(svgNS, 'line');
+  refLine.setAttribute('x1', padL);
+  refLine.setAttribute('x2', svgW - padR);
+  refLine.setAttribute('y1', refY);
+  refLine.setAttribute('y2', refY);
+  refLine.setAttribute('stroke', '#b8860b');
+  refLine.setAttribute('stroke-width', '1.5');
+  refLine.setAttribute('stroke-dasharray', '4 3');
+  svg.appendChild(refLine);
+
+  // Best EU label
+  const refLabel = document.createElementNS(svgNS, 'text');
+  refLabel.setAttribute('x', svgW - padR - 2);
+  refLabel.setAttribute('y', refY - 2);
+  refLabel.setAttribute('text-anchor', 'end');
+  refLabel.setAttribute('font-size', isOverall ? '7.5' : '6.5');
+  refLabel.setAttribute('fill', '#b8860b');
+  refLabel.setAttribute('font-style', 'italic');
+  refLabel.textContent = `${panel.bestEUCountry} (${panel.bestEURank})`;
+  svg.appendChild(refLabel);
+
+  wrapper.appendChild(svg);
+  gridEl.appendChild(wrapper);
+});
+
+// Re-layout grid: Overall full width, then 3×3 for sub-pillars
+// Already handled via CSS grid-column: span 5 on first panel
+</script>
+</body>
+</html>
