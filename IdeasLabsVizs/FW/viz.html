@@ -180,11 +180,11 @@
 
             const labels = { "2017_Frey_autom": ["2017", "Frey", "autom"], "2018_Brynjolfsson_mSML": ["2018", "Brynjolfsson", "mSML"], "2020_Webb_AI": ["2020", "Webb", "AI"], "2021_Tolan_AI": ["2021", "Tolan", "AI"], "2021_Felten_AIOE": ["2021/3", "Felten", "AIOE"], "2024_Engberg_DAIOE": ["2024", "Engberg", "DAIOE"], "2024_Loaiza_augm": ["2024", "Loaiza", "augm"], "2024_Loaiza_autom": ["2024", "Loaiza", "autom"], "2023_Felten_genAIOE": ["2021/3", "Felten", "genAIOE"], "2023_Gmyrek_LLM": ["2023", "Gmyrek", "LLM"], "2024_Eloundou_GPT": ["2024", "Eloundou", "GPT"], "2020_Webb_robot": ["2020", "Webb", "robot"], "2020_Webb_software": ["2020", "Webb", "software"], "2024_Autor_augm": ["2024", "Autor", "augm"], "2024_Autor_autom": ["2024", "Autor", "autom"], "2024_Prytkova_digital": ["2024", "Prytkova", "digital"] };
 
-            const sections = [{ "title": "AI", "groups": [["2017_Frey_autom", "2018_Brynjolfsson_mSML", "2020_Webb_AI"], ["2021_Tolan_AI", "2021_Felten_AIOE", "2024_Engberg_DAIOE"], ["2024_Loaiza_augm", "2024_Loaiza_autom"]] }, { "title": "GenAI", "groups": [["2023_Felten_genAIOE", "2023_Gmyrek_LLM", "2024_Eloundou_GPT"]] }, { "title": "Wider-Tech", "groups": [["2020_Webb_robot", "2020_Webb_software"], ["2024_Autor_augm", "2024_Autor_autom", "2024_Prytkova_digital"]] }];
+            const sections = [{ "title": "AI", "groups": [["2017_Frey_autom", "2018_Brynjolfsson_mSML", "2020_Webb_AI"], ["2021_Tolan_AI", "2021_Felten_AIOE", "2024_Engberg_DAIOE"], ["2024_Loaiza_augm", "2024_Loaiza_autom"]] }, { "title": "GenAI", "groups": [["2023_Felten_genAIOE", "2023_Gmyrek_LLM", "2024_Eloundou_GPT"]] }, { "title": "Other Technologies", "groups": [["2020_Webb_robot", "2020_Webb_software"], ["2024_Autor_augm", "2024_Autor_autom", "2024_Prytkova_digital"]] }];
 
             function valToColor(v) {
                 if (v === null || v === undefined) return '#e0e0e0';
-                let clampedV = Math.max(0.15, Math.min(0.85, v));
+                let clampedV = Math.max(0.10, Math.min(0.90, v));
                 let r, g, b;
                 if (clampedV <= 0.5) {
                     const t = (clampedV - 0.15) / 0.35;
@@ -257,7 +257,7 @@
                             labelsObj[p.score] = parts;
                         }
                     }
-                    let tech = p.tech === "wider-tech" ? "Wider-Tech" : p.tech;
+                    let tech = p.tech === "wider-tech" ? "Other Technologies" : p.tech;
                     if (!sectionsObj[tech]) sectionsObj[tech] = new Set();
                     sectionsObj[tech].add(p.score);
                 });
@@ -266,7 +266,7 @@
                     values: rowsObj[k]
                 }));
                 csvLabels = labelsObj;
-                const origOrder = ["AI", "GenAI", "Wider-Tech"];
+                const origOrder = ["AI", "GenAI", "Other Technologies"];
                 csvSections = Object.keys(sectionsObj).sort((a, b) => {
                     let ia = origOrder.indexOf(a);
                     let ib = origOrder.indexOf(b);
@@ -278,7 +278,7 @@
                     const groups = [];
                     if (k === 'GenAI') {
                         groups.push(allScores);
-                    } else if (k === 'Wider-Tech') {
+                    } else if (k === 'Other Technologies') {
                         const chunkSizes = [2, 2, 1];
                         let idx = 0;
                         for (const sz of chunkSizes) {
