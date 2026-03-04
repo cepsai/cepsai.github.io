@@ -511,7 +511,8 @@
         };
         const sankey = d3.sankey()
             .nodeWidth(20)
-            .nodePadding(16);
+            .nodePadding(16)
+            .nodeSort(null);
         const linkPath = d3.sankeyLinkHorizontal();
         function updateDimensions() {
             const rect = vizContainer.getBoundingClientRect();
@@ -626,9 +627,17 @@
                     levels.set(name, 0);
                 }
             });
+            // Compute total value per node for sorting
+            const nodeTotals = new Map();
+            linkKeyMap.forEach(link => {
+                nodeTotals.set(link.sourceName, (nodeTotals.get(link.sourceName) || 0) + link.value);
+                nodeTotals.set(link.targetName, (nodeTotals.get(link.targetName) || 0) + link.value);
+            });
             const sortedNames = Array.from(nodeNames).sort((a, b) => {
                 const levelDiff = (levels.get(a) || 0) - (levels.get(b) || 0);
-                return levelDiff !== 0 ? levelDiff : a.localeCompare(b);
+                if (levelDiff !== 0) return levelDiff;
+                // Within same level, sort by total value descending
+                return (nodeTotals.get(b) || 0) - (nodeTotals.get(a) || 0);
             });
             const nodes = sortedNames.map(name => ({
                 name,
@@ -1085,8 +1094,8 @@
         }
         function updateDataForYear(year) {
             originalData = allCsvData.filter(d => String(d.year).trim() === String(year)).map(d => ({
-                source: d["Country destination"],
-                target: d["Country source_label"],
+                source: d["Country source_label"],
+                target: d["Country destination"],
                 value: +d["Sum_of_deals"],
                 color: SOURCE_COLORS[d["Country source_label"]] || "#999"
             }));
