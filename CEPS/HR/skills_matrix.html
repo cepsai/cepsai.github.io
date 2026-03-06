@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CEPS Research Skills Matrix</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --l1-bg: #E3F2FD; --l1-border: #1976D2; --l1-text: #0D47A1;
+      --l2-bg: #E8F5E9; --l2-border: #388E3C; --l2-text: #1B5E20;
+      --l3-bg: #FFF3E0; --l3-border: #F57C00; --l3-text: #E65100;
+      --l4-bg: #FCE4EC; --l4-border: #C2185B; --l4-text: #880E4F;
+      --gap-bg: #FFFDE7; --gap-border: #F9A825; --gap-text: #F57F17;
+      --green-bg: #F0FFF4; --green-border: #68D391; --green-text: #276749;
+      --red-bg: #FFF5F5; --red-border: #FC8181; --red-text: #9B2C2C;
+      --bg: #F0F4F8;
+      --surface: #FFFFFF;
+      --text-primary: #1A202C;
+      --text-secondary: #4A5568;
+      --text-muted: #718096;
+      --border: #E2E8F0;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.18);
+      --radius: 10px;
+      --radius-sm: 6px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #1A365D 0%, #2D6A9F 100%);
+      color: #fff;
+      padding: 0 32px;
+      display: flex;
+      align-items: stretch;
+      gap: 20px;
+      box-shadow: var(--shadow-md);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 0;
+    }
+    .header-logo {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      color: #fff;
+      background: rgba(255,255,255,0.15);
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+    .header-title h1 { font-size: 18px; font-weight: 600; }
+    .header-title p { font-size: 11px; opacity: 0.65; margin-top: 1px; }
+
+    /* ── TAB NAV ─────────────────────────────────────────── */
+    .tab-nav {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      margin-left: auto;
+      padding-bottom: 0;
+    }
+    .tab-btn {
+      padding: 10px 20px 13px;
+      background: rgba(255,255,255,0.08);
+      border: none;
+      color: rgba(255,255,255,0.65);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 8px 8px 0 0;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .tab-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    .tab-btn.active {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* ── LEGEND ─────────────────────────────────────────── */
+    .legend {
+      display: flex;
+      gap: 14px;
+      padding: 10px 32px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .legend-label { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-right: 2px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+    .level-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 11px; border-radius: 5px;
+      padding: 2px 8px; border: 1.5px solid; letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
+    .level-badge.L1 { background: var(--l1-bg); border-color: var(--l1-border); color: var(--l1-text); }
+    .level-badge.L2 { background: var(--l2-bg); border-color: var(--l2-border); color: var(--l2-text); }
+    .level-badge.L3 { background: var(--l3-bg); border-color: var(--l3-border); color: var(--l3-text); }
+    .level-badge.L4 { background: var(--l4-bg); border-color: var(--l4-border); color: var(--l4-text); }
+
+    /* ── VIEWS ───────────────────────────────────────────── */
+    .view { display: none; }
+    .view.active { display: block; }
+    .main { padding: 24px 32px; max-width: 1600px; margin: 0 auto; }
+
+    /* ── MATRIX TABLE ───────────────────────────────────── */
+    .matrix-container {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-sm); overflow: auto;
+    }
+    table { border-collapse: collapse; width: 100%; min-width: 900px; }
+    th, td { padding: 0; border: 1px solid var(--border); }
+
+    thead tr:first-child th {
+      background: #1A365D; color: #fff;
+      font-weight: 600; font-size: 13px;
+      padding: 13px 14px; text-align: center;
+    }
+    thead tr:first-child th:first-child { text-align: left; }
+
+    .role-header { cursor: pointer; transition: background 0.15s; user-select: none; }
+    .role-header:hover { background: #2A5490 !important; }
+    .role-header-inner { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .role-header-name { font-size: 13px; }
+    .role-header-hint { font-size: 10px; opacity: 0.55; font-weight: 400; }
+
+    .family-row td {
+      background: #EDF2F7; color: var(--text-muted);
+      font-size: 10.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.9px;
+      padding: 5px 16px;
+    }
+
+    .skill-row { transition: background 0.1s; }
+    .skill-row:hover { background: #F7FAFC; }
+
+    .skill-name-cell {
+      padding: 11px 16px; font-size: 13px; font-weight: 500;
+      color: var(--text-primary); cursor: pointer; min-width: 200px;
+    }
+    .skill-name-cell:hover { color: #1A365D; text-decoration: underline; }
+    .skill-category-tag {
+      display: inline-block; font-size: 10px; padding: 1px 6px;
+      border-radius: 3px; margin-left: 6px;
+      background: #EDF2F7; color: var(--text-muted); font-weight: 500;
+      vertical-align: middle;
+    }
+
+    .req-cell {
+      text-align: center; padding: 7px 6px; cursor: pointer;
+      transition: background 0.1s;
+    }
+    .req-cell:hover { background: #EDF2F7; }
+    .req-cell .level-badge { cursor: pointer; transition: transform 0.1s; }
+    .req-cell .level-badge:hover { transform: scale(1.12); }
+    .req-cell-empty { color: var(--text-muted); font-size: 14px; }
+
+    /* ── OVERLAY & PANEL ────────────────────────────────── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.38);
+      z-index: 200; display: none; opacity: 0; transition: opacity 0.2s;
+    }
+    .overlay.active { display: block; opacity: 1; }
+
+    .panel {
+      position: fixed; top: 0; right: 0;
+      width: min(800px, 100vw); height: 100vh;
+      background: var(--surface); z-index: 300;
+      box-shadow: var(--shadow-lg);
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .panel.active { transform: translateX(0); }
+
+    .panel-header {
+      padding: 20px 24px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; gap: 14px;
+      background: linear-gradient(135deg, #1A365D 0%, #2D6A9F 100%);
+      color: #fff; flex-shrink: 0;
+    }
+    .panel-header-content { flex: 1; min-width: 0; }
+    .panel-header-tag {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; opacity: 0.65; margin-bottom: 4px;
+    }
+    .panel-header-title { font-size: 20px; font-weight: 700; line-height: 1.25; }
+    .panel-header-subtitle {
+      font-size: 13px; opacity: 0.78; margin-top: 7px;
+      line-height: 1.5; font-style: italic;
+    }
+    .panel-close {
+      background: rgba(255,255,255,0.14); border: none; color: #fff;
+      width: 32px; height: 32px; border-radius: 50%; font-size: 17px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s; flex-shrink: 0;
+    }
+    .panel-close:hover { background: rgba(255,255,255,0.28); }
+
+    .panel-body {
+      flex: 1; overflow-y: auto; padding: 24px;
+    }
+    .panel-body::-webkit-scrollbar { width: 5px; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── BULLET LIST ─────────────────────────────────────── */
+    .bullet-list { list-style: none; padding: 0; margin: 0; }
+    .bullet-list li {
+      display: flex; gap: 7px;
+      font-size: inherit; line-height: 1.6;
+      margin-bottom: 5px;
+    }
+    .bullet-list li:last-child { margin-bottom: 0; }
+    .bullet-list li::before {
+      content: "\2022";
+      flex-shrink: 0;
+      opacity: 0.55;
+      margin-top: 1px;
+    }
+
+    /* ── SKILL PANEL ────────────────────────────────────── */
+    .skill-definition {
+      background: #F7FAFC; border-left: 3px solid #2D6A9F;
+      padding: 12px 16px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      font-size: 13px; color: var(--text-secondary); margin-bottom: 22px;
+      line-height: 1.65;
+    }
+    .levels-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    }
+    .level-card {
+      border-radius: var(--radius); border: 2px solid; padding: 16px;
+    }
+    .level-card.L1 { background: var(--l1-bg); border-color: var(--l1-border); }
+    .level-card.L2 { background: var(--l2-bg); border-color: var(--l2-border); }
+    .level-card.L3 { background: var(--l3-bg); border-color: var(--l3-border); }
+    .level-card.L4 { background: var(--l4-bg); border-color: var(--l4-border); }
+    .level-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .level-card-name { font-size: 14px; font-weight: 700; margin-bottom: 1px; }
+    .level-card.L1 .level-card-name { color: var(--l1-text); }
+    .level-card.L2 .level-card-name { color: var(--l2-text); }
+    .level-card.L3 .level-card-name { color: var(--l3-text); }
+    .level-card.L4 .level-card-name { color: var(--l4-text); }
+    .level-card-sublabel { font-size: 10.5px; color: var(--text-muted); font-weight: 500; }
+    .role-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 11px; }
+    .role-tag {
+      font-size: 10px; padding: 2px 8px; border-radius: 20px;
+      background: rgba(255,255,255,0.65); color: var(--text-secondary);
+      border: 1px solid rgba(0,0,0,0.1); font-weight: 500;
+    }
+
+    /* ── ROLE PANEL ─────────────────────────────────────── */
+    .role-banner {
+      background: linear-gradient(135deg, #EBF8FF 0%, #BEE3F8 100%);
+      border: 1px solid #90CDF4; border-radius: var(--radius);
+      padding: 14px 18px; margin-bottom: 22px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .role-banner-icon { font-size: 22px; }
+    .role-banner-text strong { color: #1A365D; font-size: 14px; display: block; margin-bottom: 3px; }
+    .role-banner-text p { font-size: 12px; color: #4A5568; line-height: 1.5; }
+
+    .family-heading {
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.9px; color: var(--text-muted); margin: 20px 0 8px;
+    }
+
+    .skill-block {
+      border: 1px solid var(--border); border-radius: var(--radius);
+      margin-bottom: 14px; overflow: hidden;
+    }
+    .skill-block-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; background: #F7FAFC;
+      border-bottom: 1px solid var(--border); flex-wrap: wrap;
+    }
+    .skill-block-name { flex: 1; font-weight: 600; font-size: 13.5px; }
+    .skill-family-tag {
+      font-size: 10px; color: var(--text-muted); background: var(--border);
+      padding: 2px 7px; border-radius: 3px;
+    }
+    .gap-indicator {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10.5px; font-weight: 700; color: #92400E;
+      background: #FEF3C7; border: 1px solid #FCD34D;
+      padding: 2px 8px; border-radius: 4px;
+    }
+    .at-target-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10.5px; font-weight: 700; color: #276749;
+      background: #C6F6D5; border: 1px solid #9AE6B4;
+      padding: 2px 8px; border-radius: 4px;
+    }
+
+    .skill-block-body {
+      display: grid; grid-template-columns: 1fr 1fr;
+    }
+    .skill-block-body.single { grid-template-columns: 1fr; }
+    .level-pane { padding: 13px 15px; }
+    .level-pane + .level-pane { border-left: 1px solid var(--border); }
+    .level-pane.gap-pane { background: var(--gap-bg); }
+    .level-pane-heading {
+      display: flex; align-items: center; gap: 7px; margin-bottom: 8px;
+    }
+    .level-pane-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+    .level-pane-label.gap { color: var(--gap-text); }
+    .level-pane-text { font-size: 12.5px; color: var(--text-secondary); line-height: 1.65; }
+
+    /* ── CELL PANEL ─────────────────────────────────────── */
+    .cell-context { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; }
+    .cell-dual { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .cell-card {
+      border-radius: var(--radius); border: 2px solid; padding: 18px;
+    }
+    .cell-card.L1 { background: var(--l1-bg); border-color: var(--l1-border); }
+    .cell-card.L2 { background: var(--l2-bg); border-color: var(--l2-border); }
+    .cell-card.L3 { background: var(--l3-bg); border-color: var(--l3-border); }
+    .cell-card.L4 { background: var(--l4-bg); border-color: var(--l4-border); }
+    .cell-card.gap { background: var(--gap-bg); border-color: var(--gap-border); }
+    .cell-card.top { background: #F0FFF4; border-color: #9AE6B4; }
+    .cell-card-level { font-size: 22px; font-weight: 800; margin-bottom: 3px; }
+    .cell-card.L1 .cell-card-level { color: var(--l1-text); }
+    .cell-card.L2 .cell-card-level { color: var(--l2-text); }
+    .cell-card.L3 .cell-card-level { color: var(--l3-text); }
+    .cell-card.L4 .cell-card-level { color: var(--l4-text); }
+    .cell-card.gap .cell-card-level { color: var(--gap-text); }
+    .cell-card.top .cell-card-level { color: #276749; font-size: 26px; }
+    .cell-card-sublabel {
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; opacity: 0.65; margin-bottom: 10px;
+    }
+    .cell-card-text { font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
+
+    /* ── MANAGER SPACE ──────────────────────────────────── */
+    .manager-main {
+      padding: 24px 32px;
+      max-width: 1600px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    .manager-legend {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      padding: 10px 32px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-secondary);
+      flex-wrap: wrap;
+    }
+    .manager-legend-label { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+    .mg-item { display: flex; align-items: center; gap: 6px; }
+    .mg-dot {
+      width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid; flex-shrink: 0;
+    }
+    .mg-dot.green { background: #C6F6D5; border-color: #68D391; }
+    .mg-dot.red { background: #FED7D7; border-color: #FC8181; }
+    .mg-dot.neutral { background: #EDF2F7; border-color: #CBD5E0; }
+
+    .section-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .section-card-header {
+      background: linear-gradient(135deg, #1A365D 0%, #2D6A9F 100%);
+      color: #fff;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-card-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .section-card-subtitle {
+      font-size: 12px;
+      opacity: 0.65;
+    }
+
+    .assess-table { border-collapse: collapse; width: 100%; }
+    .assess-table th, .assess-table td { border: 1px solid var(--border); padding: 0; }
+    .assess-table thead tr th {
+      background: #F7FAFC;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 10px 14px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+    .assess-table thead tr th:first-child { text-align: left; min-width: 190px; }
+    .assess-table thead tr th.req-th {
+      background: #EDF2F7;
+      color: var(--text-muted);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .assess-table thead tr th.person-th {
+      background: #F0F4F8;
+      font-size: 12px;
+      color: #2D6A9F;
+    }
+
+    .assess-skill-name {
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .assess-req-cell {
+      text-align: center;
+      padding: 8px 6px;
+      background: #F7FAFC;
+    }
+    .assess-person-cell {
+      text-align: center;
+      padding: 8px 6px;
+      position: relative;
+    }
+    .assess-person-cell.meets {
+      background: #F0FFF4;
+    }
+    .assess-person-cell.below {
+      background: #FFF5F5;
+    }
+    .assess-person-cell.unassessed {
+      background: #FAFAFA;
+    }
+    .assess-person-cell.exceeds {
+      background: #EBFBEE;
+    }
+    .status-icon {
+      display: inline-block;
+      font-size: 10px;
+      margin-left: 3px;
+      vertical-align: middle;
+    }
+    .assess-table tbody tr:hover td { filter: brightness(0.96); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="header-logo">CEPS</div>
+    <div class="header-title">
+      <h1>Research Skills Matrix</h1>
+      <p>Competency framework &amp; career progression tool</p>
+    </div>
+  </div>
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('matrix')" id="tab-matrix">Skills Matrix</button>
+    <button class="tab-btn" onclick="switchTab('manager')" id="tab-manager">Manager Space</button>
+  </div>
+</header>
+
+<!-- Skills Matrix legend -->
+<div class="legend" id="legend-matrix">
+  <span class="legend-label">Proficiency:</span>
+  <div class="legend-item"><span class="level-badge L1">L1</span> Fundamental Awareness</div>
+  <div class="legend-item"><span class="level-badge L2">L2</span> Working Proficiency</div>
+  <div class="legend-item"><span class="level-badge L3">L3</span> Expert Proficiency</div>
+  <div class="legend-item"><span class="level-badge L4">L4</span> Strategic Proficiency</div>
+  <span style="margin-left:12px;font-size:11px;color:var(--text-muted)">Click a <strong>skill</strong> or <strong>role</strong> to explore</span>
+</div>
+
+<!-- Manager Space legend -->
+<div class="manager-legend" id="legend-manager" style="display:none">
+  <span class="manager-legend-label">Assessment status:</span>
+  <div class="mg-item"><div class="mg-dot green"></div> Meets required level</div>
+  <div class="mg-item"><div class="mg-dot" style="background:#C6F6D5;border-color:#48BB78;"></div> Exceeds required level</div>
+  <div class="mg-item"><div class="mg-dot red"></div> Below required level</div>
+  <div class="mg-item"><div class="mg-dot neutral"></div> Not assessed</div>
+</div>
+
+<!-- ── SKILLS MATRIX VIEW ─── -->
+<div class="view active" id="view-matrix">
+  <div class="main">
+    <div class="matrix-container">
+      <table id="matrix-table"></table>
+    </div>
+  </div>
+</div>
+
+<!-- ── MANAGER SPACE VIEW ─── -->
+<div class="view" id="view-manager">
+  <div class="manager-main" id="manager-content"></div>
+</div>
+
+<!-- Panel overlay -->
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div class="panel" id="panel">
+  <div class="panel-header">
+    <div class="panel-header-content">
+      <div class="panel-header-tag" id="panel-tag"></div>
+      <div class="panel-header-title" id="panel-title"></div>
+      <div class="panel-header-subtitle" id="panel-subtitle"></div>
+    </div>
+    <button class="panel-close" onclick="closePanel()" title="Close (Esc)">&#x2715;</button>
+  </div>
+  <div class="panel-body" id="panel-body"></div>
+</div>
+
+<script>
+
+const SKILLS = [
+  {
+    "id": "funding_income_generation",
+    "name": "Funding & income generation",
+    "family": "Managing projects",
+    "category": "Functional",
+    "definition": "Identifies relevant funding opportunities and develops high-quality grant applications to secure funds and contribute to income generation",
+    "levels": {
+      "L1": "- Is aware of funding sources for research projects and\nof the related application procedures.\n- Contributes to drafting research proposals.\n- Provides input for research funding proposals; starts understanding CEPS funding strategy.\n- Autonomously applies for small research grants and\ncontributes to larger applications.",
+      "L2": "- Identifies funding sources and writes successful grant proposals based on their own ideas.\n- Is familiar with key funding sources and can navigate their application procedures.\n- Recognises the importance of funding of one’s own institution and own research.",
+      "L3": "- Plans budgets and manages research resources effectively.\n- Informs others about relevant funding sources and advises them on application procedures.\n- Takes the lead in major presenting grant applications.\n- Actively engages in the funding of one’s own institution.",
+      "L4": "- Develops long-term financial sustainability strategies.\n- Influences funding policy within own research area.\n- Leads large and prestigious applications of international and interdisciplinary character.\n- Plays a crucial role in the funding of one’s own institution.\n- Negotiation with corporations, foundations,.."
+    }
+  },
+  {
+    "id": "project_management",
+    "name": "Project Management",
+    "family": "Managing projects",
+    "category": "Transversal",
+    "definition": "Manage and plan various resources, such as human resources, budget, deadline, results, and quality necessary for a specific project and for a project portfolio, and monitor the progress.",
+    "levels": {
+      "L1": "- Is familiar with different project management approaches and tools.\n- Participates in projects and delivers results according to deadlines.\n- Assists in research projects by supporting data collection, desk research, and report drafting.\n- Contributes to tenders and research projects; suggests research methods under supervision.\n- Independently drafts research components and begins taking ownership of research activities.",
+      "L2": "- Effectively uses a broad project management toolkit.\n- Defines and designs own research projects.\n-  Identifies risks and implements proper mitigation strategies.\n- Organizes workflows, sets timelines, and ensures deliverables.\n- Takes responsibility for parts of research projects; writes major sections of reports.\n- Designs research activities and allocates tasks to colleagues, actively manages project components.\n- Leads parts of projects and successfully collaborates on cross-unit CEPS projects.",
+      "L3": "- Manages multiple projects and identifies their synergies, ensuring strategic alignment and timely delivery..\n- Leverages problems and anticipates and manages conflicts within the project team and with project stakeholders.\n- Efficiently allocates research resources.\n- Oversees project design and execution, including data analysis and research coordination.\n- Demonstrates expertise in managing large research projects; secures funding for projects.",
+      "L4": "- Designs the project management and reporting structure for prestigious research projects.\n- Anticipates challenges and develops contingency plans.\n- Takes necessary decisions even when unpopular and is able to successfully convey the reason behind these decisions in complex projects.\n- Leads complex interdisciplinary projects; ensures high research standards.\n- Drives CEPS' research agenda through high-level project management and funding oversight.\n- Oversees project design, funding, and execution at a high level.\n- Drives CEPS' institutional research strategy through expert project leadership."
+    }
+  },
+  {
+    "id": "disciplinary_expertise",
+    "name": "Disciplinary expertise",
+    "family": "Doing research",
+    "category": "Functional",
+    "definition": "Demonstrate deep knowledge and complex understanding of a specific research area",
+    "levels": {
+      "L1": "- Understands key concepts and relevant knowledge of own research area.\n- Keeps track of the latest advances within related fields.\n- Is eager to learn and apply knowledge to tasks and projects.\n- Seeks guidance and shows curiosity in expanding expertise.\n- Recognizes the importance of accuracy and attention to detail.",
+      "L2": "- Makes original contributions to own research area.\n- Stays up to date with developments in the field and integrates new learning.\n- Shares knowledge with peers and contributes to team success.",
+      "L3": "- Brings new knowledge to own and related disciplines and is\naware of its impact on society.\n- Demonstrates deep, reliable subject matter expertise across a range of scenarios.\n- Solves complex problems and provides strategic insight in the discipline.\n- Actively contributes to innovation and process improvement in the field.",
+      "L4": "- Contributes with, and has a deep understanding of novel developments in own and related research areas, pursuing whenever appropriate an interdisciplinary approach.\n- Is a recognized authority who shapes thinking and practice within the discipline.\n- Develops others through thought leadership, mentoring, and collaboration.\n- Continuously pushes the boundaries of knowledge and practice."
+    }
+  },
+  {
+    "id": "research_methodology",
+    "name": "Research methodology",
+    "family": "Doing research",
+    "category": "Functional",
+    "definition": "Conduct research by selecting or developing the appropriate approach.",
+    "levels": {
+      "L1": "- Understands basic research concepts, terminology, and ethical principles.\n- Demonstrates curiosity and a willingness to learn research processes.\n- Is able to follow established methods with guidance.\n- Contributes to data collection and basic analysis with support.\n- Understands the purpose and value of peer review in ensuring quality and credibility.\n- Learns from reviewing processes to improve personal work.",
+      "L2": "- Applies appropriate research methods to defined problems.\n- Designs studies with growing independence and methodological soundness.\n- Interprets data accurately and draws reasonable conclusions.\n- Keeps up to date with current research practices and tools.\n- Follows peer review guidelines and timelines effectively.\n- Contributes to raising the overall quality of work within a team or group.",
+      "L3": "- Leads research projects with strong methodological rigor and critical insight.\n- Selects and adapts research designs to complex or evolving questions.\n- Guides others in the application of methods and interpretation of results.\n- Publishes or presents findings that contribute to the field.\n- Offers insightful feedback that strengthens clarity, accuracy, and impact.\n- Is recognized for objectivity, professionalism, and domain knowledge.",
+      "L4": "- Shapes research agendas and advances methodological innovation.\n- Develops frameworks, tools, or best practices that influence the discipline.\n- Mentors emerging researchers and builds capacity in research excellence.\n- Integrates interdisciplinary approaches to generate transformative insights.\n- Leads review panels or editorial boards with integrity and thoughtfulness.\n- Promotes a culture of continuous improvement through feedback and dialogue.\n- Advocates for ethical, inclusive, and high-impact review practices."
+    }
+  },
+  {
+    "id": "writing",
+    "name": "Writing",
+    "family": "Doing research",
+    "category": "Functional",
+    "definition": "Adapts communication to diverse audiences, conveying complex ideas and debates with clarity and impact. Produces well-structured research documents, proposals, and reports tailored to each context.",
+    "levels": {
+      "L1": "- Writes clear and concise policy briefs and reports after review.\n- Produces structured reports with minor revisions; can draft policy briefs with supervision.\n- Writes clear and concise content across various formats with minimal supervision.\n- Contributes, under supervision, content for research, academic, and technical texts in a style appropriate for readership in own research area.",
+      "L2": "- Writes major sections of reports and policy briefs with support from senior colleagues.\n- Develops writing tailored for different audiences; refines structure and clarity.\n- Independently produces high-quality research publications with minimal feedback.\n- Communicates in a written style appropriate for specialist\nand non-specialist audiences.",
+      "L3": "- Writes comprehensive reports and policy briefs; provides editorial guidance to juniors.\n- Demonstrates strong analytical writing; adapts complex topics into accessible content.\n- Leads the writing of major CEPS reports; sets quality standards for research publications.\n• Reviews and edits academic and technical texts.\n- Oversees the writing process for research projects; ensures alignment with CEPS standards.\n- Develops advanced academic writing competences and leads the production of research literature, presenting complex ideas in a clear way.",
+      "L4": "- Establishes the writing vision for the research unit; ensures strategic alignment.\n- Leads the development of research communication strategies.\n- Shapes CEPS' research positioning and external engagement through writing.\n- Provides thought leadership in research writing; enhances CEPS' research voice.\n- Leads CEPS’ editorial strategy, ensuring consistency and impact of publications.\n- Engages in high-level policy writing, influencing EU and international discussions."
+    }
+  },
+  {
+    "id": "making_impact",
+    "name": "Making impact",
+    "family": "Making an impact",
+    "category": "Functional",
+    "definition": "Communicates complex concepts, debates, and findings clearly and effectively, adapting messages to different audiences and formats. Engages in public speaking and dissemination activities, develops external networks, and builds strong professional relationships with policymakers and other key stakeholders to increase the impact and use of findings in policy making. Produces well-structured documents, proposals, and reports.",
+    "levels": {
+      "L1": "- Attends and actively participates in policy events and discussions.\n- Presents research findings in external meetings; begins building visibility in policy circles.\n- Represents CEPS at policy events, building recognition as an expert.\n- Understands the policy-making processes relevant for own\nfield of research\n-  Understands the wider contexts in which policies are\nsituated.",
+      "L2": "- Speaks regularly at external events, contributing expert insights.\n- Develops a strong external presence, engaging with policymakers and stakeholders.\n- Represents CEPS as a key speaker at major research and policy events.\n- Engages in dialogue with government institutions, stakeholders, and other key organisations.",
+      "L3": "- Leads research dissemination at external events; engages with key policy networks.\n- Develops relationships with media, policymakers, and think tanks.\n- Frequently invited to join panels and conferences as a recognized expert.\n- Drives CEPS’ influence at international policy events and negotiations.\n- Writes science-for-policy outputs cited or used by\npolicymakers",
+      "L4": "- Oversees CEPS' external engagement strategy; ensures high-profile visibility.\n- Builds and maintains relationships with EU and international policymakers.\n- Shapes CEPS' institutional presence, influencing policy discourse at the highest level.\n- Informs political priorities by presenting compelling evidence\nof challenges, or reframing of challenges.\n-  Is called upon to work directly with high-level policy makers."
+    }
+  },
+  {
+    "id": "cognitive_thinking",
+    "name": "Cognitive thinking",
+    "family": "Manage information",
+    "category": "Transversal",
+    "definition": "Combines creativity, logic, and foresight to understand complexity, identify patterns, and generate new ideas. Transforms insights into innovative and sustainable solutions for future challenges.",
+    "levels": {
+      "L1": "Is inquisitive, curious and open-minded\n- Seeks different perspectives and listens to other's reasoning\n- Analyses basic information and dat to draw initial conclusions\n- Experiments with new ideas and approaches.\n- Begins to connect concepts from own field and explores their broader meaning.",
+      "L2": "Critically analyses complex information, data and ideas from diverse sources. \n-Thinks in a flexible way, and adapts ideas to diferent contexts. \n-Combines analytical rigour with creative thinking to propose relevant solutions\nAnticipates implications and aligns ideas with broader objectives\nMakes sound, evidence-based judgments while remaining open to innovation.",
+      "L3": "Integrates knowledge from multiple disciplines to design innovative and strategic decisions.\n-Encourages creative and analytical thinking in peers and teammembers.\nSynthesises complex information to generate visionary insights\nUses critical reasoning and experimentation to improve methods and outcomes.\nBalances long-term perspective with practical decision-making.",
+      "L4": "Shapes organisational or research strategy through visionary, evidence-based, and forward-looking thinking.\nIntegrates insights across disciplines to drive breakthrough ideas and innovative approaches.\nChallenges existing assumptions constructively and sets new standards of excellence.\nPromotes a culture of curiosity, creativity, and analytical depth across the organisation.\nAnticipates emerging trends and translates them into strategic opportunities and long-term impact"
+    }
+  },
+  {
+    "id": "developing_oneself",
+    "name": "Developing oneself",
+    "family": "Self leadership",
+    "category": "Transversal",
+    "definition": "Take responsibility for lifelong learning and continuous professional development. Engage in learning to support and update professional competence and develop personal skills",
+    "levels": {
+      "L1": "- Actively seeks mentoring for career progression and\nemployability development.\n- Maintains own records of achievements and experiences.\n- Develops personal skills and skills aligned with CEPS\nrequirements.",
+      "L2": "- Initiates networks and relationships important to career development.\n- Actively pursues self and career improvement, and seeks\nothers’ advice on this.\n- Strategically develops both personal and career-oriented\nskills.",
+      "L3": "- Coaches others in academic career development.\n- Uses networks to further the career of others.\n- Purposefully develops professional and personal\nskills for self and others.",
+      "L4": "Challenges the status quo in a constructive and forward-looking way."
+    }
+  },
+  {
+    "id": "kwowing_onseself",
+    "name": "Kwowing onseself",
+    "family": "Self leadership",
+    "category": "Transversal",
+    "definition": "Understanding and questioning the way we work, recognising our emotions and their effects so that we can make the most of our own abilities.",
+    "levels": {
+      "L1": "- Begins to explore personal strengths and areas for growth.\n- Is open to feedback, though may need support in processing and applying it.\n- Becomes aware of how emotions influence actions and decisions.\n- Takes initial steps toward self-reflection and personal development.",
+      "L2": "- Recognizes personal strengths and development areas and works on them.\n- Accepts and applies feedback with growing confidence.\n- Understands how emotions impact behavior and strives to manage them effectively.\n- Aligns actions with personal values and seeks growth opportunities.",
+      "L3": "- Demonstrates strong self-awareness and actively refines personal and professional skills.\n- Seeks out and applies feedback constructively to improve performance.\n- Recognizes the impact of personal actions on others and adapts accordingly.\n- Regularly reflects on experiences to enhance continuous growth and effectiveness.",
+      "L4": "Cultivates a culture of curiosity, creativity, and analytical rigour."
+    }
+  },
+  {
+    "id": "team_leadership",
+    "name": "Team leadership",
+    "family": "Working with others",
+    "category": "Transversal",
+    "definition": "Mobilise and unite employees to achieve objectives, inspire through exemplary behaviour and facilitate change within the organisation.",
+    "levels": {
+      "L1": "- Provides guidance to junior colleagues and assists in team organization.\n- Leads small teams in research projects, taking responsibility for coordination.\n- Applies standard leadership practices and adapts them to team needs.\n- Begins to recognize and encourage individual team members’ strengths.",
+      "L2": "- Manages small project teams.\n- Delegates responsabilities based on team capabilities and skills.\n- Leads teams effectively by setting clear goals, roles, and expectations.\n- Resolves conflicts constructively and maintains team morale.\n- Coaches team members, adapts leadership style to team needs, and ensures accountability.",
+      "L3": "- Manages and leads research teams; ensures clear delegation of responsibilities.\n- Provides structured mentorship to team members and promotes professional growth.\n- Oversees team dynamics, ensuring effective collaboration and high performance.\n- Demonstrates strong leadership in research teams; resolves conflicts effectively.\n- Tailors leadership style to different situations and team members.\n- Demonstrates solid decision-making and problem-solving skills.",
+      "L4": ""
+    }
+  },
+  {
+    "id": "work_in_teams",
+    "name": "Work in teams",
+    "family": "Working with others",
+    "category": "Transversal",
+    "definition": "Working as part of a team, building professional relationships and sharing knowledge to achieve common goals.",
+    "levels": {
+      "L1": "- Manages their own time effectively; demonstrates empathy in teamwork.\n- Participates actively in teamwork, communicates well, and shows interest in unit activities.\n- Contributes positively to the team environment; takes initiative in internal CEPS activities.",
+      "L2": "- Balances workload and meets deadlines; collaborates effectively with colleagues.\n- Shows leadership in teamwork; mentors junior researchers and supports colleagues.\n- Provides constructive feedback; supports and develops junior researchers.\n- Encourages team spirit and cooperation; engages in shared initiatives.",
+      "L3": "- Develops interpersonal dynamics within the team, promoting inclusivity.\n- Manages conflict resolution and ensures a healthy team atmosphere.\n- Manages time efficiently; fosters a positive and inclusive team culture.\n- Leads team efforts and fosters a collaborative and supportive work environment.",
+      "L4": "Anticipates future trends and translates them into transformative actions and insights."
+    }
+  }
+];
+const ROLES = [
+  {
+    "id": "research_assistant",
+    "name": "Research Assistant",
+    "nextRole": "researcher",
+    "nextRoleName": "Researcher",
+    "requirements": {
+      "funding_income_generation": null,
+      "project_management": null,
+      "disciplinary_expertise": "L1",
+      "research_methodology": "L1",
+      "writing": "L1",
+      "making_impact": "L1",
+      "cognitive_thinking": "L1",
+      "developing_oneself": "L1",
+      "kwowing_onseself": null,
+      "team_leadership": null,
+      "work_in_teams": "L1"
+    }
+  },
+  {
+    "id": "researcher",
+    "name": "Researcher",
+    "nextRole": "research_fellow",
+    "nextRoleName": "Research Fellow",
+    "requirements": {
+      "funding_income_generation": "L1",
+      "project_management": "L1",
+      "disciplinary_expertise": "L2",
+      "research_methodology": "L2",
+      "writing": "L2",
+      "making_impact": "L2",
+      "cognitive_thinking": "L2",
+      "developing_oneself": "L2",
+      "kwowing_onseself": null,
+      "team_leadership": null,
+      "work_in_teams": "L2"
+    }
+  },
+  {
+    "id": "research_fellow",
+    "name": "Research Fellow",
+    "nextRole": "head_of_program",
+    "nextRoleName": "Head of Program",
+    "requirements": {
+      "funding_income_generation": "L2",
+      "project_management": "L2",
+      "disciplinary_expertise": "L3",
+      "research_methodology": "L3",
+      "writing": "L3",
+      "making_impact": "L3",
+      "cognitive_thinking": "L3",
+      "developing_oneself": "L3",
+      "kwowing_onseself": null,
+      "team_leadership": "L2",
+      "work_in_teams": "L3"
+    }
+  },
+  {
+    "id": "head_of_program",
+    "name": "Head of Program",
+    "nextRole": "head_of_unit",
+    "nextRoleName": "Head of Unit",
+    "requirements": {
+      "funding_income_generation": "L3",
+      "project_management": "L3",
+      "disciplinary_expertise": "L3",
+      "research_methodology": "L4",
+      "writing": "L4",
+      "making_impact": "L4",
+      "cognitive_thinking": "L4",
+      "developing_oneself": "L4",
+      "kwowing_onseself": null,
+      "team_leadership": "L3",
+      "work_in_teams": "L4"
+    }
+  },
+  {
+    "id": "head_of_unit",
+    "name": "Head of Unit",
+    "nextRole": "senior_research_fellow",
+    "nextRoleName": "Senior Research Fellow",
+    "requirements": {
+      "funding_income_generation": "L4",
+      "project_management": "L4",
+      "disciplinary_expertise": "L4",
+      "research_methodology": "L4",
+      "writing": "L4",
+      "making_impact": "L4",
+      "cognitive_thinking": "L4",
+      "developing_oneself": "L4",
+      "kwowing_onseself": null,
+      "team_leadership": "L4",
+      "work_in_teams": "L4"
+    }
+  },
+  {
+    "id": "senior_research_fellow",
+    "name": "Senior Research Fellow",
+    "nextRole": null,
+    "nextRoleName": null,
+    "requirements": {
+      "funding_income_generation": "L4",
+      "project_management": "L4",
+      "disciplinary_expertise": "L4",
+      "research_methodology": "L4",
+      "writing": "L4",
+      "making_impact": "L4",
+      "cognitive_thinking": "L4",
+      "developing_oneself": "L4",
+      "kwowing_onseself": null,
+      "team_leadership": "L3",
+      "work_in_teams": "L4"
+    }
+  }
+];
+const LEVEL_LABELS = {"L1": "Fundamental Awareness", "L2": "Working Proficiency", "L3": "Expert Proficiency", "L4": "Strategic Proficiency"};
+const ASSESSMENT = [
+  {
+    "role": "Researcher",
+    "roleId": "researcher",
+    "persons": [
+      "John Doe",
+      "Clara Santa"
+    ],
+    "skills": [
+      {
+        "skillId": "funding_income_generation",
+        "skillName": "Funding & income generation",
+        "required": "L1",
+        "persons": {
+          "John Doe": "L1",
+          "Clara Santa": "L1"
+        }
+      },
+      {
+        "skillId": "project_management",
+        "skillName": "Project Management",
+        "required": "L1",
+        "persons": {
+          "John Doe": "L2",
+          "Clara Santa": "L2"
+        }
+      },
+      {
+        "skillId": "disciplinary_expertise",
+        "skillName": "Disciplinary expertise",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L2",
+          "Clara Santa": "L1"
+        }
+      },
+      {
+        "skillId": "research_methodology",
+        "skillName": "Research methodology",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L2",
+          "Clara Santa": "L2"
+        }
+      },
+      {
+        "skillId": "writing",
+        "skillName": "Writing",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L2",
+          "Clara Santa": "L2"
+        }
+      },
+      {
+        "skillId": null,
+        "skillName": "Making an impact",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L3",
+          "Clara Santa": "L1"
+        }
+      },
+      {
+        "skillId": "cognitive_thinking",
+        "skillName": "Cognitive thinking",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L2",
+          "Clara Santa": "L2"
+        }
+      },
+      {
+        "skillId": null,
+        "skillName": "Knowing oneself",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L2",
+          "Clara Santa": "L2"
+        }
+      },
+      {
+        "skillId": "team_leadership",
+        "skillName": "Team leadership",
+        "required": null,
+        "persons": {
+          "John Doe": null,
+          "Clara Santa": null
+        }
+      },
+      {
+        "skillId": null,
+        "skillName": "Working in teams",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L3",
+          "Clara Santa": "L2"
+        }
+      }
+    ]
+  },
+  {
+    "role": "Research Fellow",
+    "roleId": "research_fellow",
+    "persons": [
+      "Josey Dorsey"
+    ],
+    "skills": [
+      {
+        "skillId": "funding_income_generation",
+        "skillName": "Funding & income generation",
+        "required": "L2",
+        "persons": {
+          "Josey Dorsey": "L2"
+        }
+      },
+      {
+        "skillId": "project_management",
+        "skillName": "Project Management",
+        "required": "L2",
+        "persons": {
+          "Josey Dorsey": "L1"
+        }
+      },
+      {
+        "skillId": "disciplinary_expertise",
+        "skillName": "Disciplinary expertise",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L3"
+        }
+      },
+      {
+        "skillId": "research_methodology",
+        "skillName": "Research methodology",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L2"
+        }
+      },
+      {
+        "skillId": "writing",
+        "skillName": "Writing",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L3"
+        }
+      },
+      {
+        "skillId": null,
+        "skillName": "Making an impact",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L3"
+        }
+      },
+      {
+        "skillId": "cognitive_thinking",
+        "skillName": "Cognitive thinking",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L3"
+        }
+      },
+      {
+        "skillId": null,
+        "skillName": "Knowing oneself",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L3"
+        }
+      },
+      {
+        "skillId": "team_leadership",
+        "skillName": "Team leadership",
+        "required": "L2",
+        "persons": {
+          "Josey Dorsey": "L2"
+        }
+      },
+      {
+        "skillId": null,
+        "skillName": "Working in teams",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L3"
+        }
+      }
+    ]
+  }
+];
+
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function lvNum(l) { return l ? parseInt(l.replace('L','')) : 0; }
+function badge(l) {
+  if (!l) return '<span class="req-cell-empty">&ndash;</span>';
+  return `<span class="level-badge ${l}">${l}</span>`;
+}
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function getSkill(id) { return SKILLS.find(s => s.id === id); }
+function getRole(id) { return ROLES.find(r => r.id === id); }
+
+// Format description text: split on " - " bullets into a list
+function fmtDesc(text) {
+  if (!text) return '';
+  const parts = text.split(/[ \t]+-[ \t]+/).map(s => s.trim()).filter(Boolean);
+  if (parts.length <= 1) return `<span>${esc(text)}</span>`;
+  return '<ul class="bullet-list">' + parts.map(p => `<li>${esc(p)}</li>`).join('') + '</ul>';
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('legend-matrix').style.display = tab === 'matrix' ? '' : 'none';
+  document.getElementById('legend-manager').style.display = tab === 'manager' ? '' : 'none';
+}
+
+// ── Build skills matrix ───────────────────────────────────────────────────────
+function buildMatrix() {
+  const families = [], familyMap = {};
+  for (const s of SKILLS) {
+    if (!familyMap[s.family]) { familyMap[s.family] = []; families.push(s.family); }
+    familyMap[s.family].push(s);
+  }
+
+  let h = '<thead><tr><th style="min-width:210px;text-align:left">Skill</th>';
+  for (const r of ROLES) {
+    h += `<th class="role-header" onclick="openRolePanel('${r.id}')" title="Click to view ${esc(r.name)} profile">`;
+    h += `<div class="role-header-inner"><span class="role-header-name">${esc(r.name)}</span>`;
+    h += r.nextRoleName
+      ? `<span class="role-header-hint">&#8594; ${esc(r.nextRoleName)}</span>`
+      : `<span class="role-header-hint">&#9733; Senior</span>`;
+    h += `</div></th>`;
+  }
+  h += '</tr></thead><tbody>';
+
+  for (const family of families) {
+    h += `<tr class="family-row"><td colspan="${ROLES.length+1}">${esc(family)}</td></tr>`;
+    for (const skill of familyMap[family]) {
+      h += `<tr class="skill-row">`;
+      h += `<td class="skill-name-cell" onclick="openSkillPanel('${skill.id}')" title="All levels for this skill">`;
+      h += esc(skill.name);
+      h += `<span class="skill-category-tag">${esc(skill.category)}</span></td>`;
+      for (const r of ROLES) {
+        const req = r.requirements[skill.id];
+        h += `<td class="req-cell" onclick="openCellPanel('${r.id}','${skill.id}')" title="${esc(r.name)} · ${esc(skill.name)}">${badge(req)}</td>`;
+      }
+      h += '</tr>';
+    }
+  }
+  h += '</tbody>';
+  document.getElementById('matrix-table').innerHTML = h;
+}
+
+// ── Build manager space ───────────────────────────────────────────────────────
+function buildManager() {
+  if (!ASSESSMENT || ASSESSMENT.length === 0) {
+    document.getElementById('manager-content').innerHTML =
+      '<p style="color:var(--text-muted);font-style:italic;padding:32px">No assessment data found.</p>';
+    return;
+  }
+
+  let h = '';
+  for (const section of ASSESSMENT) {
+    const persons = section.persons;
+    h += `<div class="section-card">`;
+    h += `<div class="section-card-header">`;
+    h += `<div><div class="section-card-title">${esc(section.role)}</div>`;
+    h += `<div class="section-card-subtitle">${persons.length} person${persons.length !== 1 ? 's' : ''} assessed</div></div>`;
+    h += `</div>`;
+
+    h += '<table class="assess-table"><thead><tr>';
+    h += '<th>Skill</th>';
+    h += '<th class="req-th">Required</th>';
+    for (const p of persons) h += `<th class="person-th">${esc(p)}</th>`;
+    h += '</tr></thead><tbody>';
+
+    for (const row of section.skills) {
+      h += '<tr>';
+      // Skill name - make clickable
+      const skillId = row.skillId;
+      if (skillId) {
+        h += `<td class="assess-skill-name" style="cursor:pointer" onclick="openSkillPanel('${skillId}')">${esc(row.skillName)}</td>`;
+      } else {
+        h += `<td class="assess-skill-name">${esc(row.skillName)}</td>`;
+      }
+      // Required level
+      h += `<td class="assess-req-cell">${badge(row.required)}</td>`;
+      // Person cells
+      for (const p of persons) {
+        const assessed = row.persons[p] || null;
+        const req = row.required;
+        let cls = 'unassessed', icon = '';
+        if (assessed && req) {
+          const diff = lvNum(assessed) - lvNum(req);
+          if (diff > 0) { cls = 'exceeds'; icon = '<span class="status-icon" title="Exceeds requirement">&#x2B06;</span>'; }
+          else if (diff === 0) { cls = 'meets'; icon = '<span class="status-icon" title="Meets requirement">&#x2714;</span>'; }
+          else { cls = 'below'; icon = '<span class="status-icon" title="Below requirement">&#x26A0;</span>'; }
+        } else if (assessed && !req) {
+          cls = 'unassessed';
+        }
+        h += `<td class="assess-person-cell ${cls}">${badge(assessed)}${icon}</td>`;
+      }
+      h += '</tr>';
+    }
+    h += '</tbody></table></div>';
+  }
+  document.getElementById('manager-content').innerHTML = h;
+}
+
+// ── Panel controls ────────────────────────────────────────────────────────────
+function openPanel() {
+  document.getElementById('overlay').classList.add('active');
+  document.getElementById('panel').classList.add('active');
+  document.addEventListener('keydown', escKey);
+}
+function closePanel() {
+  document.getElementById('overlay').classList.remove('active');
+  document.getElementById('panel').classList.remove('active');
+  document.removeEventListener('keydown', escKey);
+}
+function escKey(e) { if (e.key === 'Escape') closePanel(); }
+function setHeader(tag, title, subtitle) {
+  document.getElementById('panel-tag').textContent = tag;
+  document.getElementById('panel-title').textContent = title;
+  document.getElementById('panel-subtitle').textContent = subtitle;
+}
+
+// ── Skill panel ───────────────────────────────────────────────────────────────
+function openSkillPanel(skillId) {
+  const skill = getSkill(skillId);
+  if (!skill) return;
+  setHeader(skill.family + ' · ' + skill.category, skill.name, skill.definition);
+
+  const levelRoles = {L1:[], L2:[], L3:[], L4:[]};
+  for (const r of ROLES) {
+    const req = r.requirements[skillId];
+    if (req && levelRoles[req]) levelRoles[req].push(r.name);
+  }
+
+  let h = '<div class="levels-grid">';
+  for (const [lv, label] of Object.entries(LEVEL_LABELS)) {
+    const text = skill.levels[lv] || '';
+    const roles = levelRoles[lv] || [];
+    h += `<div class="level-card ${lv}">`;
+    h += `<div class="level-card-header">${badge(lv)}<div><div class="level-card-name">${esc(label)}</div><div class="level-card-sublabel">${lv}</div></div></div>`;
+    h += `<div class="level-pane-text">${fmtDesc(text)}</div>`;
+    if (roles.length) {
+      h += '<div class="role-tags">';
+      for (const rn of roles) h += `<span class="role-tag">${esc(rn)}</span>`;
+      h += '</div>';
+    }
+    h += '</div>';
+  }
+  h += '</div>';
+  document.getElementById('panel-body').innerHTML = h;
+  openPanel();
+}
+
+// ── Role panel ────────────────────────────────────────────────────────────────
+function openRolePanel(roleId) {
+  const role = getRole(roleId);
+  if (!role) return;
+  const next = role.nextRole ? getRole(role.nextRole) : null;
+
+  setHeader('Role Profile', role.name,
+    next ? `Skills required at this level · Gap analysis towards ${next.name}`
+         : `Skills required at this level · Senior position`);
+
+  let h = '<div class="role-banner"><span class="role-banner-icon">';
+  h += next ? '&#128202;' : '&#11088;';
+  h += '</span><div class="role-banner-text"><strong>';
+  h += next
+    ? `Career gap: ${esc(role.name)} &#8594; ${esc(next.name)}`
+    : `${esc(role.name)} — senior level`;
+  h += '</strong><p>';
+  h += next
+    ? 'Skills highlighted in amber show where development is needed for the next role.'
+    : 'This is the most senior position. Showing current requirements.';
+  h += '</p></div></div>';
+
+  const families = [...new Set(SKILLS.map(s => s.family))];
+  const fmap = {};
+  for (const s of SKILLS) { if (!fmap[s.family]) fmap[s.family]=[]; fmap[s.family].push(s); }
+
+  for (const fam of families) {
+    const skills = fmap[fam] || [];
+    const visible = skills.filter(s => role.requirements[s.id] || (next && next.requirements[s.id]));
+    if (!visible.length) continue;
+
+    h += `<div class="family-heading">${esc(fam)}</div>`;
+
+    for (const skill of visible) {
+      const cur = role.requirements[skill.id];
+      const nxt = next ? next.requirements[skill.id] : null;
+      const hasGap = nxt && lvNum(nxt) > lvNum(cur || 'L0');
+      const atTarget = next && cur && nxt && lvNum(nxt) <= lvNum(cur);
+
+      h += '<div class="skill-block"><div class="skill-block-header">';
+      h += `<span class="skill-block-name">${esc(skill.name)}</span>`;
+      h += `<span class="skill-family-tag">${esc(skill.category)}</span>`;
+      if (cur) h += badge(cur);
+      if (hasGap) h += `<span class="gap-indicator">&#8593; ${nxt} needed</span>`;
+      else if (atTarget) h += '<span class="at-target-badge">&#10004; At target</span>';
+      h += '</div>';
+
+      if (!cur && !nxt) {
+        h += '<div style="padding:8px 14px;font-size:12px;color:var(--text-muted);font-style:italic">Not required at this level</div>';
+      } else {
+        h += `<div class="skill-block-body${hasGap ? '' : ' single'}">`;
+        h += '<div class="level-pane">';
+        h += `<div class="level-pane-heading">${badge(cur || null)}<span class="level-pane-label">Current${cur ? ' (' + esc(LEVEL_LABELS[cur]||'') + ')' : ''}</span></div>`;
+        h += `<div class="level-pane-text">${cur ? fmtDesc(skill.levels[cur]) : '<em style="opacity:0.45">Not required</em>'}</div>`;
+        h += '</div>';
+        if (hasGap) {
+          h += '<div class="level-pane gap-pane">';
+          h += `<div class="level-pane-heading"><span class="level-badge" style="background:var(--gap-bg);border-color:var(--gap-border);color:var(--gap-text)">${nxt}</span><span class="level-pane-label gap">Target for ${esc(next.name)}</span></div>`;
+          h += `<div class="level-pane-text">${fmtDesc(skill.levels[nxt] || '')}</div>`;
+          h += '</div>';
+        }
+        h += '</div>';
+      }
+      h += '</div>';
+    }
+  }
+
+  document.getElementById('panel-body').innerHTML = h;
+  openPanel();
+}
+
+// ── Cell panel ────────────────────────────────────────────────────────────────
+function openCellPanel(roleId, skillId) {
+  const role = getRole(roleId), skill = getSkill(skillId);
+  if (!role || !skill) return;
+  const cur = role.requirements[skillId];
+  const next = role.nextRole ? getRole(role.nextRole) : null;
+  const nxt = next ? next.requirements[skillId] : null;
+  const hasGap = nxt && lvNum(nxt) > lvNum(cur || 'L0');
+
+  setHeader(role.name + ' · ' + skill.family, skill.name, skill.definition);
+
+  let h = `<p class="cell-context">Showing requirement for <strong>${esc(role.name)}</strong>`;
+  h += next ? ` and gap to <strong>${esc(next.name)}</strong>` : '';
+  h += '</p>';
+
+  if (!cur) {
+    h += `<p style="font-style:italic;color:var(--text-muted);padding-bottom:16px">This skill is not formally required for ${esc(role.name)}.</p>`;
+    if (nxt) {
+      h += `<div class="cell-card gap" style="max-width:380px">`;
+      h += `<div class="cell-card-level">${nxt}</div>`;
+      h += `<div class="cell-card-sublabel">Required for ${esc(next.name)}</div>`;
+      h += `<div class="cell-card-text">${fmtDesc(skill.levels[nxt] || '')}</div>`;
+      h += '</div>';
+    }
+    document.getElementById('panel-body').innerHTML = h;
+    openPanel();
+    return;
+  }
+
+  h += '<div class="cell-dual">';
+  h += `<div class="cell-card ${cur}">`;
+  h += `<div class="cell-card-level">${cur}</div>`;
+  h += `<div class="cell-card-sublabel">${esc(LEVEL_LABELS[cur]||'')} &bull; Current</div>`;
+  h += `<div class="cell-card-text">${fmtDesc(skill.levels[cur] || '')}</div>`;
+  h += '</div>';
+
+  if (hasGap) {
+    h += `<div class="cell-card gap">`;
+    h += `<div class="cell-card-level">${nxt}</div>`;
+    h += `<div class="cell-card-sublabel">Target &bull; ${esc(next.name)}</div>`;
+    h += `<div class="cell-card-text">${fmtDesc(skill.levels[nxt] || '')}</div>`;
+    h += '</div>';
+  } else if (!next) {
+    h += `<div class="cell-card top"><div class="cell-card-level">&#9733;</div>`;
+    h += `<div class="cell-card-sublabel">Most senior role</div>`;
+    h += `<div class="cell-card-text">No further progression defined in this framework.</div></div>`;
+  } else {
+    h += `<div class="cell-card top"><div class="cell-card-level">&#10004;</div>`;
+    h += `<div class="cell-card-sublabel">Already meets ${esc(next.name)} requirement</div>`;
+    h += `<div class="cell-card-text">No gap to bridge for this skill to reach the next role.</div></div>`;
+  }
+  h += '</div>';
+
+  document.getElementById('panel-body').innerHTML = h;
+  openPanel();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildMatrix();
+buildManager();
+</script>
+</body>
+</html>
