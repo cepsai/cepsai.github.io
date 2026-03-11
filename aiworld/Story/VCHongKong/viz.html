@@ -1,0 +1,811 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style type="text/css">
+        .knitr .inline {
+            background-color: #F7F7F7;
+            border: solid 1px #B0B0B0;
+        }
+
+        .error {
+            font-weight: bold;
+            color: #FF0000;
+        }
+
+        .warning {
+            font-weight: bold;
+        }
+
+        .message {
+            font-style: italic;
+        }
+
+        .source,
+        .output,
+        .warning,
+        .error,
+        .message {
+            padding: 0 1em;
+            border: solid 1px #F7F7F7;
+        }
+
+        .source {
+            background-color: #F5F5F5;
+        }
+
+        .rimage .left {
+            text-align: left;
+        }
+
+        .rimage .right {
+            text-align: right;
+        }
+
+        .rimage .center {
+            text-align: center;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 16fr 1fr 2fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        #container5 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+        }
+
+        #container3 {
+            grid-row: 4;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 4;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        #viz {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: 100%;
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .source-text a:visited {
+            color: #2756d3;
+        }
+
+        .footnote-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-style: italic;
+            color: #333;
+            text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+
+        @media (max-height: 500px),
+        (max-width: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr;
+                grid-template-columns: 1fr;
+                padding-bottom: 0;
+            }
+
+            #container1 {
+                grid-row: 1;
+                grid-column: 1;
+            }
+
+            #container3,
+            #container4,
+            #container5 {
+                display: none !important;
+            }
+
+            .source-text,
+            .logo,
+            .footnote-text {
+                display: none !important;
+            }
+        }
+    </style>
+
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1" class="container viz-container">
+            <div id="viz"></div>
+        </div>
+        <div id="container5" class="container footnote-container">
+            <div class="footnote-text" id="footnote-text">
+                This is a footnote example
+            </div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-text" id="source-text">
+                Source: Crunchbase
+            </div>
+        </div>
+        <div id="container4" class="container logo-container"><a href="https://aiworld.eu/" target="_blank"
+                rel="noopener"><img src="https://aiworld.eu/logo-transparent.svg" class="logo"
+                    alt="AI World logo" /></a></div>
+    </div>
+
+    <script>
+        const SHOW_CONTAINER_3 = 1;
+        const SHOW_CONTAINER_4 = 1;
+        const SHOW_CONTAINER_5 = 0;
+
+        const VIZ_CONTAINER_ID = 'viz';
+        const SOURCE_CONTAINER_ID = 'source-text';
+        const LOGO_CONTAINER_ID = 'logo-link';
+        const FOOTNOTE_CONTAINER_ID = 'footnote-text';
+
+        const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
+        const sourceContainer = document.getElementById(SOURCE_CONTAINER_ID);
+        const logoContainer = document.getElementById(LOGO_CONTAINER_ID);
+        const footnoteContainer = document.getElementById(FOOTNOTE_CONTAINER_ID);
+
+        (function applyContainerVisibility() {
+            const vizGrid = document.querySelector('.viz-grid');
+            const container1 = document.getElementById('container1');
+            const container3 = document.getElementById('container3');
+            const container4 = document.getElementById('container4');
+            const container5 = document.getElementById('container5');
+            if (!SHOW_CONTAINER_3) {
+                container3.style.display = 'none';
+            }
+            if (!SHOW_CONTAINER_4) {
+                container4.style.display = 'none';
+            }
+            if (!SHOW_CONTAINER_5) {
+                container5.style.display = 'none';
+            }
+
+            const row2Visible = SHOW_CONTAINER_5;
+            const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+            let gridRows = [];
+            let currentRow = 1;
+
+            const container1Height = 20 - (row2Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+            gridRows.push(`${container1Height}fr`);
+
+            if (row2Visible) {
+                gridRows.push('1fr');
+                currentRow++;
+                container5.style.gridRow = currentRow.toString();
+            }
+
+            if (row4Visible) {
+                gridRows.push('1fr');
+                currentRow++;
+                if (SHOW_CONTAINER_3) container3.style.gridRow = currentRow.toString();
+                if (SHOW_CONTAINER_4) container4.style.gridRow = currentRow.toString();
+            }
+
+            vizGrid.style.gridTemplateRows = gridRows.join(' ');
+            container1.style.gridRow = '1';
+
+            if (row4Visible) {
+                if (SHOW_CONTAINER_3 && !SHOW_CONTAINER_4) {
+                    container3.style.gridColumn = '1 / span 2';
+                } else if (!SHOW_CONTAINER_3 && SHOW_CONTAINER_4) {
+                    container4.style.gridColumn = '1 / span 2';
+                }
+            }
+        })();
+
+        const originalData = [
+            {
+                "id": "2011",
+                "value": 0.267858327293184,
+                "name": "2011"
+            },
+            {
+                "id": "2012",
+                "value": 0.481691396526344,
+                "name": "2012"
+            },
+            {
+                "id": "2013",
+                "value": 0.00298858348464857,
+                "name": "2013"
+            },
+            {
+                "id": "2014",
+                "value": 0.154502570507581,
+                "name": "2014"
+            },
+            {
+                "id": "2015",
+                "value": 7.83104357816597,
+                "name": "2015"
+            },
+            {
+                "id": "2016",
+                "value": 0.206361723658887,
+                "name": "2016"
+            },
+            {
+                "id": "2017",
+                "value": 7.6275849772434,
+                "name": "2017"
+            },
+            {
+                "id": "2018",
+                "value": 40.2474826659741,
+                "name": "2018"
+            },
+            {
+                "id": "2019",
+                "value": 2.52281007665052,
+                "name": "2019"
+            },
+            {
+                "id": "2020",
+                "value": 1.16254497914431,
+                "name": "2020"
+            },
+            {
+                "id": "2021",
+                "value": 1.14445452103332,
+                "name": "2021"
+            },
+            {
+                "id": "2022",
+                "value": 1.09786832139136,
+                "name": "2022"
+            },
+            {
+                "id": "2023",
+                "value": 1.23597131923601,
+                "name": "2023"
+            },
+            {
+                "id": "2024",
+                "value": 2.6415202304618,
+                "name": "2024"
+            },
+            {
+                "id": "2025",
+                "value": 0.198849546902056,
+                "name": "2025"
+            }
+        ];
+        const ORIGINAL_DATA = originalData;
+        const BAR_BORDER_RADIUS = 0;
+        const BAR_USE_GRADIENT = 1;
+        const BAR_VALUE_POSITION = "outside";
+        const BAR_ORIENTATION = "vertical";
+        const PALETTE_MODE = "aiw";
+        const BAR_SORT_MODE = "none";
+        function normalizeData(arr) {
+            return arr.map(function (d) {
+                var name = d.name || d.id || d.label || d.title;
+                var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+                var color = d.color != null ? d.color : null;
+                return { name: name, value: value, color: color };
+            });
+        }
+        let treemapData = normalizeData(originalData);
+
+        function roundedBarPath(bx, by, bw, bh, r, roundTop) {
+            if (bw <= 0 || bh <= 0) return "M" + bx + " " + by + " L" + bx + " " + by;
+            r = r > 0 ? Math.min(r, bw / 2, bh / 2) : 0;
+            if (!r) return "M" + bx + " " + by + " H" + (bx + bw) + " V" + (by + bh) + " H" + bx + " Z";
+            if (roundTop) {
+                return ["M", bx, by + r, "Q", bx, by, bx + r, by, "H", bx + bw - r, "Q", bx + bw, by, bx + bw, by + r, "V", by + bh, "H", bx, "Z"].join(" ");
+            } else {
+                return ["M", bx, by, "H", bx + bw - r, "Q", bx + bw, by, bx + bw, by + r, "V", by + bh - r, "Q", bx + bw, by + bh, bx + bw - r, by + bh, "H", bx, "Z"].join(" ");
+            }
+        }
+
+        function renderBarChart(width, height) {
+            if (!vizContainer) return;
+
+            while (vizContainer.firstChild) {
+                vizContainer.removeChild(vizContainer.firstChild);
+            }
+
+            if (!Array.isArray(treemapData) || treemapData.length === 0) {
+                const empty = document.createElement("div");
+                empty.style.display = "flex";
+                empty.style.alignItems = "center";
+                empty.style.justifyContent = "center";
+                empty.style.height = "100%";
+                empty.style.fontFamily = "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif";
+                empty.style.color = "#666";
+                empty.textContent = "No data available";
+                vizContainer.appendChild(empty);
+                barSvg = null;
+                return;
+            }
+
+            const isVertical = BAR_ORIENTATION === "vertical";
+
+            var data = treemapData.slice();
+            var groupedByName = {};
+            data.forEach(function (d) {
+                var key = d.name || "";
+                if (!key) return;
+                if (!groupedByName[key]) {
+                    groupedByName[key] = {
+                        name: d.name,
+                        parent: d.parent,
+                        value: (typeof d.value === "number" ? d.value : +d.value || 0),
+                        color: d.color
+                    };
+                }
+            });
+            data = Object.keys(groupedByName).map(function (k) { return groupedByName[k]; });
+
+            if (BAR_SORT_MODE === "descending") {
+                data.sort(function (a, b) {
+                    return d3.descending(
+                        typeof a.value === "number" ? a.value : +a.value || 0,
+                        typeof b.value === "number" ? b.value : +b.value || 0
+                    );
+                });
+            } else if (BAR_SORT_MODE === "ascending") {
+                data.sort(function (a, b) {
+                    return d3.ascending(
+                        typeof a.value === "number" ? a.value : +a.value || 0,
+                        typeof b.value === "number" ? b.value : +b.value || 0
+                    );
+                });
+            }
+            var maxLabelLen = d3.max(data, function (d) { return (d.name || "").length; }) || 0;
+            var estFontPx = Math.max(9, Math.min(13, (height - 44) / Math.max(6, data.length) * 0.6));
+            var estimatedLabelWidth = Math.max(40, Math.min(width * 0.28, maxLabelLen * estFontPx * 0.58 + 20));
+
+            const margin = isVertical
+                ? {
+                    top: 16,
+                    right: Math.max(40, width * 0.06),
+                    bottom: Math.max(36, height * 0.1),
+                    left: Math.max(40, width * 0.06)
+                }
+                : {
+                    top: 16,
+                    right: Math.max(40, width * 0.08),
+                    bottom: 28,
+                    left: estimatedLabelWidth
+                };
+
+            const innerWidth = Math.max(40, width - margin.left - margin.right);
+            const innerHeight = Math.max(40, height - margin.top - margin.bottom);
+
+            const svg = d3.select(vizContainer)
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .attr("viewBox", "0 0 " + width + " " + height)
+                .style("width", "100%")
+                .style("height", "100%");
+
+            barSvg = svg;
+
+            const g = svg.append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            const maxValue = d3.max(data, function (d) {
+                return typeof d.value === "number" ? d.value : +d.value || 0;
+            }) || 0;
+
+            let x, y;
+
+            if (isVertical) {
+                x = d3.scaleBand()
+                    .domain(data.map(function (d) { return d.name; }))
+                    .rangeRound([0, innerWidth])
+                    .padding(0);
+
+                y = d3.scaleLinear()
+                    .domain([0, maxValue * 1.05 || 1])
+                    .nice()
+                    .range([innerHeight, 0]);
+            } else {
+                y = d3.scaleBand()
+                    .domain(data.map(function (d) { return d.name; }))
+                    .rangeRound([0, innerHeight])
+                    .padding(0);
+
+                x = d3.scaleLinear()
+                    .domain([0, maxValue * 1.05 || 1])
+                    .nice()
+                    .range([0, innerWidth]);
+            }
+
+            const bg = g.append("g").attr("fill", "none");
+
+            if (isVertical) {
+                bg.selectAll("rect.col-bg")
+                    .data(data)
+                    .enter()
+                    .append("rect")
+                    .attr("class", "col-bg")
+                    .attr("x", function (d) { return x(d.name); })
+                    .attr("y", 0)
+                    .attr("width", x.bandwidth())
+                    .attr("height", innerHeight)
+                    .attr("fill", function (_d, i) { return i % 2 ? "#f5f5f5" : "#ffffff"; })
+                    .attr("pointer-events", "none");
+            } else {
+                bg.selectAll("rect.row-bg")
+                    .data(data)
+                    .enter()
+                    .append("rect")
+                    .attr("class", "row-bg")
+                    .attr("x", -margin.left)
+                    .attr("y", function (d) { return y(d.name); })
+                    .attr("width", innerWidth + margin.left + margin.right)
+                    .attr("height", y.bandwidth())
+                    .attr("fill", function (_d, i) { return i % 2 ? "#f5f5f5" : "#ffffff"; })
+                    .attr("pointer-events", "none");
+            }
+
+            const axisFont = Math.max(9, Math.min(13, innerHeight / Math.max(6, data.length) * 0.6));
+
+            let catTickInterval = 1;
+            if (isVertical) {
+                let tickWidth = innerWidth / data.length;
+                let requiredWidth = maxLabelLen * axisFont * 0.6 + 10;
+                catTickInterval = Math.max(1, Math.ceil(requiredWidth / tickWidth));
+            } else {
+                let tickHeight = innerHeight / data.length;
+                let requiredHeight = axisFont + 8;
+                catTickInterval = Math.max(1, Math.ceil(requiredHeight / tickHeight));
+            }
+
+            if (isVertical) {
+                let defaultTicks = y.ticks(Math.max(2, Math.floor(innerHeight / 30)));
+                let valTicks = defaultTicks;
+                if (defaultTicks.length >= 2 && defaultTicks[1] - defaultTicks[0] < 5) {
+                    valTicks = d3.range(0, y.domain()[1] + 1, 5);
+                }
+
+                g.append("g")
+                    .attr("class", "grid")
+                    .call(d3.axisLeft(y).tickValues(valTicks).tickSize(-innerWidth).tickFormat(""))
+                    .selectAll("line")
+                    .attr("stroke", "#e0e0e0")
+                    .attr("stroke-dasharray", "3,3");
+                g.select(".grid .domain").remove();
+
+                g.append("g")
+                    .attr("class", "axis axis--y")
+                    .call(d3.axisLeft(y).tickValues(valTicks));
+
+                g.select(".axis--y")
+                    .append("text")
+                    .attr("class", "y-axis-label")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", -margin.left + 15)
+                    .attr("x", -(innerHeight / 2))
+                    .attr("fill", "black")
+                    .style("text-anchor", "middle")
+                    .style("font-size", (axisFont + 2) + "px")
+                    .style("font-weight", 600)
+                    .text("AI Share (%)");
+
+                g.select(".axis--y").selectAll(".tick text")
+                    .style("font-size", axisFont + "px")
+                    .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif");
+
+                g.append("g")
+                    .attr("class", "axis axis--x")
+                    .attr("transform", "translate(0," + innerHeight + ")")
+                    .call(d3.axisBottom(x).tickValues(x.domain().filter(function (d, i) { return !(i % catTickInterval); })))
+                    .selectAll("text")
+                    .style("font-size", axisFont + "px")
+                    .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif");
+            } else {
+                let defaultTicks = x.ticks(Math.max(2, Math.floor(innerWidth / 50)));
+                let valTicks = defaultTicks;
+                if (defaultTicks.length >= 2 && defaultTicks[1] - defaultTicks[0] < 5) {
+                    valTicks = d3.range(0, x.domain()[1] + 1, 5);
+                }
+
+                g.append("g")
+                    .attr("class", "grid")
+                    .attr("transform", "translate(0," + innerHeight + ")")
+                    .call(d3.axisBottom(x).tickValues(valTicks).tickSize(-innerHeight).tickFormat(""))
+                    .selectAll("line")
+                    .attr("stroke", "#e0e0e0")
+                    .attr("stroke-dasharray", "3,3");
+                g.select(".grid .domain").remove();
+
+                g.append("g")
+                    .attr("class", "axis axis--y")
+                    .call(d3.axisLeft(y).tickValues(y.domain().filter(function (d, i) { return !(i % catTickInterval); })));
+
+                g.select(".axis--y")
+                    .append("text")
+                    .attr("class", "y-axis-label")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", -margin.left + 15)
+                    .attr("x", -(innerHeight / 2))
+                    .attr("fill", "black")
+                    .style("text-anchor", "middle")
+                    .style("font-size", (axisFont + 2) + "px")
+                    .style("font-weight", 600)
+                    .text("AI Share (%)");
+
+                g.select(".axis--y").selectAll(".tick text")
+                    .style("font-size", axisFont + "px")
+                    .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif");
+
+                g.append("g")
+                    .attr("class", "axis axis--x")
+                    .attr("transform", "translate(0," + innerHeight + ")")
+                    .call(d3.axisBottom(x).tickValues(valTicks))
+                    .selectAll("text")
+                    .style("font-size", axisFont + "px")
+                    .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif");
+            }
+
+            const defs = svg.append("defs");
+            const grad = defs.append("linearGradient")
+                .attr("id", "barGradient")
+                .attr("gradientUnits", "objectBoundingBox");
+
+            if (isVertical) {
+                grad.attr("x1", "0%").attr("y1", "100%").attr("x2", "0%").attr("y2", "0%");
+            } else {
+                grad.attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%");
+            }
+
+            grad.append("stop").attr("offset", "0%").attr("stop-color", "#cfe8ff");
+            grad.append("stop").attr("offset", "100%").attr("stop-color", "#1f78ff");
+            const barGroup = g.append("g").attr("class", "bars");
+
+            const barThickness = isVertical
+                ? Math.max(10, x.bandwidth() * 0.6)
+                : Math.max(10, y.bandwidth() * 0.8);
+
+            function getBarFill(d) {
+                if (d.name === "2018") return "#8b5cf6";
+                if (d.color) return d.color;
+                if (PALETTE_MODE === "aiw") return "#2756d3";
+                if (PALETTE_MODE === "ceps") return "#207164";
+                if (BAR_USE_GRADIENT) return "url(#barGradient)";
+                return "#1f78ff";
+            }
+
+            const bars = barGroup.selectAll("path.bar")
+                .data(data)
+                .enter()
+                .append("path")
+                .attr("class", "bar")
+                .attr("fill", getBarFill)
+                .attr("opacity", 0.95);
+
+            if (isVertical) {
+                const xOffset = (x.bandwidth() - barThickness) / 2;
+                bars
+                    .attr("d", function (d) {
+                        return roundedBarPath(x(d.name) + xOffset, innerHeight, barThickness, 0, BAR_BORDER_RADIUS, true);
+                    })
+                    .transition()
+                    .duration(700)
+                    .attrTween("d", function (d) {
+                        var bx = x(d.name) + xOffset;
+                        var v = typeof d.value === "number" ? d.value : +d.value || 0;
+                        var finalH = Math.max(4, innerHeight - y(v));
+                        var r = BAR_BORDER_RADIUS;
+                        return function (t) {
+                            var h = finalH * t;
+                            return roundedBarPath(bx, innerHeight - h, barThickness, h, r, true);
+                        };
+                    });
+            } else {
+                bars
+                    .attr("d", function (d) {
+                        var yPos = y(d.name) + (y.bandwidth() - barThickness) / 2;
+                        return roundedBarPath(0, yPos, 0, barThickness, BAR_BORDER_RADIUS, false);
+                    })
+                    .transition()
+                    .duration(700)
+                    .attrTween("d", function (d) {
+                        var yPos = y(d.name) + (y.bandwidth() - barThickness) / 2;
+                        var finalW = x(d.value || 0);
+                        var r = BAR_BORDER_RADIUS;
+                        return function (t) {
+                            return roundedBarPath(0, yPos, finalW * t, barThickness, r, false);
+                        };
+                    });
+            }
+
+            const formatValue = d3.format(".1f");
+            if (BAR_VALUE_POSITION !== "none") {
+                barGroup.selectAll("text.value-label")
+                    .data(data)
+                    .enter()
+                    .append("text")
+                    .attr("class", "value-label")
+                    .attr("x", function (d) {
+                        if (isVertical) return x(d.name) + x.bandwidth() / 2;
+                        var v = typeof d.value === "number" ? d.value : +d.value || 0;
+                        var barW = x(v);
+                        if (BAR_VALUE_POSITION === "outside") return barW + 6;
+                        var labelW = (formatValue(v).length + 1) * Math.max(9, axisFont) * 0.55 + 8;
+                        return barW < labelW ? barW + 6 : barW - 6;
+                    })
+                    .attr("y", function (d) {
+                        if (!isVertical) return y(d.name) + (y.bandwidth() * 0.8) / 2 + 4;
+                        var v = typeof d.value === "number" ? d.value : +d.value || 0;
+                        var topY = y(v);
+                        var barH = Math.max(4, innerHeight - topY);
+                        if (BAR_VALUE_POSITION === "outside") return topY - 6;
+                        return barH >= Math.max(9, axisFont) + 8 ? topY + Math.min(14, barH / 2) : topY - 6;
+                    })
+                    .attr("text-anchor", function (d) {
+                        if (isVertical) return "middle";
+                        if (BAR_VALUE_POSITION === "outside") return "start";
+                        var v = typeof d.value === "number" ? d.value : +d.value || 0;
+                        var barW = x(v);
+                        var labelW = (formatValue(v).length + 1) * Math.max(9, axisFont) * 0.55 + 8;
+                        return barW < labelW ? "start" : "end";
+                    })
+                    .attr("fill", function (d) {
+                        if (BAR_VALUE_POSITION !== "inside") return "#111827";
+                        var v = typeof d.value === "number" ? d.value : +d.value || 0;
+                        if (isVertical) {
+                            return Math.max(4, innerHeight - y(v)) < Math.max(9, axisFont) + 8 ? "#111827" : "#ffffff";
+                        }
+                        var barW = x(v);
+                        var labelW = (formatValue(v).length + 1) * Math.max(9, axisFont) * 0.55 + 8;
+                        return barW < labelW ? "#111827" : "#ffffff";
+                    })
+                    .style("font-size", function (d) { return (Math.max(9, axisFont) + (d.name === "2018" ? 4 : 0)) + "px"; })
+                    .style("font-weight", "600")
+                    .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif")
+                    .text(function (d) {
+                        var v = typeof d.value === "number" ? d.value : +d.value || 0;
+                        return formatValue(v) + "%";
+                    });
+
+                let senseTimeData = data.filter(function (d) { return d.name === "2018"; });
+                if (senseTimeData.length > 0) {
+                    barGroup.selectAll("text.sensetime-label")
+                        .data(senseTimeData)
+                        .enter()
+                        .append("text")
+                        .attr("class", "sensetime-label")
+                        .attr("x", function (d) { return isVertical ? x(d.name) + x.bandwidth() / 2 : x(d.value) + 6; })
+                        .attr("y", function (d) {
+                            var v = typeof d.value === "number" ? d.value : +d.value || 0;
+                            return isVertical ? y(v) - 24 : y(d.name) + (y.bandwidth() * 0.8) / 2 - 20;
+                        })
+                        .attr("text-anchor", isVertical ? "middle" : "start")
+                        .attr("fill", "#ef4444")
+                        .style("font-size", (Math.max(10, axisFont + 1)) + "px")
+                        .style("font-weight", "700")
+                        .style("font-style", "italic")
+                        .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif")
+                        .text("SenseTime effect");
+                }
+            }
+        }
+
+        function updateVisualization(width, height) {
+            treemapData = normalizeData(originalData);
+
+            renderBarChart(width, height);
+
+
+        }
+
+        const renderVisualization = function (currentData, width, height) {
+            updateVisualization(width, height);
+        };
+
+        const renderVisualizationForContainer = function () {
+            if (!vizContainer) {
+                return
+            }
+            const rect = vizContainer.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+            renderVisualization(null, width, height);
+        };
+
+        let resizeTimer;
+
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(renderVisualizationForContainer, 120);
+        });
+
+        if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+            const resizeObserver = new ResizeObserver(function () {
+                renderVisualizationForContainer();
+            });
+            resizeObserver.observe(vizContainer);
+        }
+
+        renderVisualizationForContainer();
+    </script>
+</body>
+
+</html>
