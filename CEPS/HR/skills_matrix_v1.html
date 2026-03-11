@@ -476,6 +476,7 @@
   </div>
   <div class="tab-nav">
     <button class="tab-btn active" onclick="switchTab('matrix')" id="tab-matrix">Skills Matrix</button>
+    <button class="tab-btn" onclick="switchTab('manager')" id="tab-manager">Manager Space</button>
   </div>
 </header>
 
@@ -489,6 +490,15 @@
   <span style="margin-left:12px;font-size:11px;color:var(--text-muted)">Click a <strong>skill</strong> or <strong>role</strong> to explore</span>
 </div>
 
+<!-- Manager Space legend -->
+<div class="manager-legend" id="legend-manager" style="display:none">
+  <span class="manager-legend-label">Assessment status:</span>
+  <div class="mg-item"><div class="mg-dot green"></div> Meets required level</div>
+  <div class="mg-item"><div class="mg-dot" style="background:#C6F6D5;border-color:#48BB78;"></div> Exceeds required level</div>
+  <div class="mg-item"><div class="mg-dot red"></div> Below required level</div>
+  <div class="mg-item"><div class="mg-dot neutral"></div> Not assessed</div>
+</div>
+
 <!-- ── SKILLS MATRIX VIEW ─── -->
 <div class="view active" id="view-matrix">
   <div class="main">
@@ -496,6 +506,11 @@
       <table id="matrix-table"></table>
     </div>
   </div>
+</div>
+
+<!-- ── MANAGER SPACE VIEW ─── -->
+<div class="view" id="view-manager">
+  <div class="manager-main" id="manager-content"></div>
 </div>
 
 <!-- Panel overlay -->
@@ -703,7 +718,6 @@ const ROLES = [
     "name": "Research Fellow",
     "nextRole": "head_of_program",
     "nextRoleName": "Head of Program",
-    "hintOverride": ["Head of Program", "Senior Research Fellow", "Head of Unit"],
     "requirements": {
       "funding_income_generation": "L2",
       "project_management": "L2",
@@ -738,31 +752,10 @@ const ROLES = [
     }
   },
   {
-    "id": "senior_research_fellow",
-    "name": "Senior Research Fellow",
-    "nextRole": null,
-    "nextRoleName": null,
-    "hintOverride": [],
-    "requirements": {
-      "funding_income_generation": "L4",
-      "project_management": "L4",
-      "disciplinary_expertise": "L4",
-      "research_methodology": "L4",
-      "writing": "L4",
-      "making_impact": "L4",
-      "cognitive_thinking": "L4",
-      "developing_oneself": "L4",
-      "kwowing_onseself": null,
-      "team_leadership": "L3",
-      "work_in_teams": "L4"
-    }
-  },
-  {
     "id": "head_of_unit",
     "name": "Head of Unit",
     "nextRole": "senior_research_fellow",
     "nextRoleName": "Senior Research Fellow",
-    "hintOverride": [],
     "requirements": {
       "funding_income_generation": "L4",
       "project_management": "L4",
@@ -774,6 +767,25 @@ const ROLES = [
       "developing_oneself": "L4",
       "kwowing_onseself": null,
       "team_leadership": "L4",
+      "work_in_teams": "L4"
+    }
+  },
+  {
+    "id": "senior_research_fellow",
+    "name": "Senior Research Fellow",
+    "nextRole": null,
+    "nextRoleName": null,
+    "requirements": {
+      "funding_income_generation": "L4",
+      "project_management": "L4",
+      "disciplinary_expertise": "L4",
+      "research_methodology": "L4",
+      "writing": "L4",
+      "making_impact": "L4",
+      "cognitive_thinking": "L4",
+      "developing_oneself": "L4",
+      "kwowing_onseself": null,
+      "team_leadership": "L3",
       "work_in_teams": "L4"
     }
   }
@@ -987,12 +999,6 @@ function getRole(id) { return ROLES.find(r => r.id === id); }
 // Format description text: split on " - " bullets into a list
 function fmtDesc(text) {
   if (!text) return '';
-  // Split on newline-based bullets (e.g. "- text\n- text")
-  const byNewline = text.split(/\n+/).map(s => s.replace(/^[ \t]*-[ \t]*/, '').trim()).filter(Boolean);
-  if (byNewline.length > 1) {
-    return '<ul class="bullet-list">' + byNewline.map(p => `<li>${esc(p)}</li>`).join('') + '</ul>';
-  }
-  // Fallback: split on " - " pattern
   const parts = text.split(/[ \t]+-[ \t]+/).map(s => s.trim()).filter(Boolean);
   if (parts.length <= 1) return `<span>${esc(text)}</span>`;
   return '<ul class="bullet-list">' + parts.map(p => `<li>${esc(p)}</li>`).join('') + '</ul>';
@@ -1005,6 +1011,7 @@ function switchTab(tab) {
   document.getElementById('view-' + tab).classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
   document.getElementById('legend-matrix').style.display = tab === 'matrix' ? '' : 'none';
+  document.getElementById('legend-manager').style.display = tab === 'manager' ? '' : 'none';
 }
 
 // ── Build skills matrix ───────────────────────────────────────────────────────
@@ -1019,15 +1026,9 @@ function buildMatrix() {
   for (const r of ROLES) {
     h += `<th class="role-header" onclick="openRolePanel('${r.id}')" title="Click to view ${esc(r.name)} profile">`;
     h += `<div class="role-header-inner"><span class="role-header-name">${esc(r.name)}</span>`;
-    if (r.hintOverride !== undefined) {
-      for (const hint of r.hintOverride) {
-        h += `<span class="role-header-hint">&#8594; ${esc(hint)}</span>`;
-      }
-    } else if (r.nextRoleName) {
-      h += `<span class="role-header-hint">&#8594; ${esc(r.nextRoleName)}</span>`;
-    } else {
-      h += `<span class="role-header-hint">&#9733; Senior</span>`;
-    }
+    h += r.nextRoleName
+      ? `<span class="role-header-hint">&#8594; ${esc(r.nextRoleName)}</span>`
+      : `<span class="role-header-hint">&#9733; Senior</span>`;
     h += `</div></th>`;
   }
   h += '</tr></thead><tbody>';
@@ -1285,6 +1286,7 @@ function openCellPanel(roleId, skillId) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 buildMatrix();
+buildManager();
 </script>
 </body>
 </html>
