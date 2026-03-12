@@ -62,7 +62,7 @@
             height: 100vh;
             width: 100vw;
             box-sizing: border-box;
-            padding-bottom: clamp(8px, 2vh, 18px);
+            padding-bottom: clamp(4px, 1vh, 8px);
         }
 
         #container1 {
@@ -345,11 +345,6 @@
                 "id": "2024",
                 "value": 2.6415202304618,
                 "name": "2024"
-            },
-            {
-                "id": "2025",
-                "value": 0.198849546902056,
-                "name": "2025"
             }
         ];
         const ORIGINAL_DATA = originalData;
@@ -442,7 +437,7 @@
                 ? {
                     top: 16,
                     right: Math.max(40, width * 0.06),
-                    bottom: Math.max(36, height * 0.1),
+                    bottom: Math.max(24, height * 0.05),
                     left: Math.max(40, width * 0.06)
                 }
                 : {
@@ -577,7 +572,7 @@
                     .attr("transform", "translate(0," + innerHeight + ")")
                     .call(d3.axisBottom(x).tickValues(x.domain().filter(function (d, i) { return !(i % catTickInterval); })))
                     .selectAll("text")
-                    .style("font-size", axisFont + "px")
+                    .style("font-size", "clamp(" + (axisFont - 4) + "px, 2vw, " + axisFont + "px)")
                     .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif");
             } else {
                 let defaultTicks = x.ticks(Math.max(2, Math.floor(innerWidth / 50)));
@@ -620,7 +615,7 @@
                     .attr("transform", "translate(0," + innerHeight + ")")
                     .call(d3.axisBottom(x).tickValues(valTicks))
                     .selectAll("text")
-                    .style("font-size", axisFont + "px")
+                    .style("font-size", "clamp(" + (axisFont - 4) + "px, 2vw, " + axisFont + "px)")
                     .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif");
             }
 
@@ -737,7 +732,10 @@
                         var labelW = (formatValue(v).length + 1) * Math.max(9, axisFont) * 0.55 + 8;
                         return barW < labelW ? "#111827" : "#ffffff";
                     })
-                    .style("font-size", function (d) { return (Math.max(9, axisFont) + (d.name === "2018" ? 4 : 0)) + "px"; })
+                    .style("font-size", function (d) {
+                        var baseSize = Math.max(9, axisFont) + (d.name === "2018" ? 4 : 0);
+                        return "clamp(" + (baseSize - 4) + "px, 2.5vw, " + baseSize + "px)";
+                    })
                     .style("font-weight", "600")
                     .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif")
                     .text(function (d) {
