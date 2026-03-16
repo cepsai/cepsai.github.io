@@ -415,11 +415,9 @@
             transform: rotate(180deg);
         }
 
-        /* Conclusion */
         .node-conclusion {
             transform: scale(1.05);
             margin: 15px 0 25px 0;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
             border-color: #bbb;
             border-width: 2px;
         }
@@ -457,7 +455,6 @@
             margin: 2px 0;
         }
 
-        /* Section pills */
         .pills {
             display: flex;
             flex-wrap: wrap;
@@ -473,7 +470,6 @@
             color: #666;
         }
 
-        /* Detection files */
         .det-files code {
             background: #f5f5f5;
             padding: 1px 4px;
@@ -550,8 +546,29 @@
             }
         }
 
+        function hasViableEvidence(block, sourceType, finalChip) {
+            if (!block) return false;
+
+            const chipMatch = (finalChip && finalChip !== 'unknown')
+                ? block.chip_provider === finalChip
+                : (block.chip_provider && block.chip_provider !== 'unknown');
+
+            if (sourceType === 'modelcard') {
+                return !!(block.matched_sections && block.matched_sections.length) && chipMatch;
+            }
+
+            if (sourceType === 'github') {
+                return !!(block.detection_files && block.detection_files.length) && chipMatch;
+            }
+
+            if (sourceType === 'arxiv') {
+                return !!(block.detection_sections && block.detection_sections.length) && chipMatch;
+            }
+
+            return false;
+        }
+
         function confColor(val) {
-            // Red (low) → Orange (mid) → Green (high)
             if (val >= 0.7) return '#4caf50';
             if (val >= 0.4) return '#ff9800';
             return '#ef5350';
@@ -570,7 +587,6 @@
         }
 
         function connector(labels) {
-            // labels: array of {text, cls}
             let h = '<div class="connector"><div class="connector-line"></div>';
             labels.forEach(l => { h += `<span class="connector-label ${l.cls || ''}">${l.text}</span>`; });
             h += '<div class="connector-arrow">▼</div></div>';
@@ -619,12 +635,12 @@
 
                 chartHTML = `
                     <h3 style="margin-bottom:20px; color:#444; font-size: 16px;">Chip Provider Distribution</h3>
-                    <div style="width: 220px; height: 220px; border-radius: 50%; background: ${conic}; margin: 0 auto; box-shadow: 0 6px 16px rgba(0,0,0,0.1); border: 4px solid #fff;"></div>
+                    <div style="width: 220px; height: 220px; border-radius: 50%; background: ${conic}; margin: 0 auto; border: 4px solid #fff;"></div>
                     <div style="margin-top: 25px; display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; font-size: 13px; font-weight: 500;">
                         ${legendHTML}
                     </div>
                 `;
-            } else {
+            } else if (currentStatsMode === 'comparison') {
                 let match = 0, mismatch = 0, noEval = 0;
                 RAW_DATA.forEach(d => {
                     const correct = d.conclusion && d.conclusion.correct;
@@ -650,11 +666,102 @@
                 chartHTML = `
                     <h3 style="margin-bottom:6px; color:#444; font-size: 16px;">Evaluation Accuracy</h3>
                     ${accuracyPct !== null ? `<div style="font-size:28px; font-weight:700; color:${accuracyPct >= 70 ? '#2e7d32' : accuracyPct >= 50 ? '#e65100' : '#c62828'}; margin-bottom:16px;">${accuracyPct}%</div>` : ''}
-                    <div style="width: 220px; height: 220px; border-radius: 50%; background: ${conic}; margin: 0 auto; box-shadow: 0 6px 16px rgba(0,0,0,0.1); border: 4px solid #fff;"></div>
+                    <div style="width: 220px; height: 220px; border-radius: 50%; background: ${conic}; margin: 0 auto; border: 4px solid #fff;"></div>
                     <div style="margin-top: 25px; display: flex; justify-content: center; gap: 20px; font-size: 13px; font-weight: 500;">
                         <div style="display: flex; align-items: center; gap: 6px;"><span style="display:inline-block; width:14px; height:14px; background:#4caf50; border-radius:3px;"></span> Correct (${match})</div>
                         <div style="display: flex; align-items: center; gap: 6px;"><span style="display:inline-block; width:14px; height:14px; background:#ef5350; border-radius:3px;"></span> Incorrect (${mismatch})</div>
                         ${noEval > 0 ? `<div style="display: flex; align-items: center; gap: 6px;"><span style="display:inline-block; width:14px; height:14px; background:#e0e0e0; border-radius:3px;"></span> Not evaluated (${noEval})</div>` : ''}
+                    </div>
+                `;
+            } else {
+                const total = RAW_DATA.length;
+                if (total === 0) return '<p class="empty">Select a model to view its classification path.</p>';
+
+                let modelcardCount = 0, githubCount = 0, arxivCount = 0;
+                const combos = {};
+
+                RAW_DATA.forEach(d => {
+                    const m = hasViableEvidence(d.modelcard_analysis, 'modelcard', d.chip_provider);
+                    const g = hasViableEvidence(d.github_code_analysis, 'github', d.chip_provider);
+                    const a = hasViableEvidence(d.arxiv_paper_analysis, 'arxiv', d.chip_provider);
+
+                    if (m) modelcardCount++;
+                    if (g) githubCount++;
+                    if (a) arxivCount++;
+
+                    const key = `m=${m ? 1 : 0} g=${g ? 1 : 0} a=${a ? 1 : 0}`;
+                    combos[key] = (combos[key] || 0) + 1;
+                });
+
+                const iconCell = (present, label, color) => `
+                    <td style="padding:10px 8px; text-align:center;" aria-label="${label}: ${present ? 'yes' : 'no'}">
+                        <span style="
+                            display:inline-flex;
+                            align-items:center;
+                            justify-content:center;
+                            width:22px;
+                            height:22px;
+                            border-radius:999px;
+                            border:1px solid ${present ? color : '#d6d6d6'};
+                            background:${present ? color : '#f5f5f5'};
+                            color:${present ? '#fff' : '#9a9a9a'};
+                            font-size:12px;
+                            font-weight:700;
+                        ">${present ? '✓' : '–'}</span>
+                    </td>
+                `;
+
+                const comboEntries = Object.entries(combos)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([label, count]) => {
+                        const match = label.match(/m=(\d) g=(\d) a=(\d)/);
+                        const modelcard = match && match[1] === '1';
+                        const github = match && match[2] === '1';
+                        const arxiv = match && match[3] === '1';
+                        return `
+                            <tr>
+                                ${iconCell(modelcard, 'Model card', '#f9a825')}
+                                ${iconCell(github, 'GitHub', '#1e88e5')}
+                                ${iconCell(arxiv, 'arXiv', '#f4511e')}
+                                <td style="padding:10px 12px; text-align:right; white-space:nowrap; font-weight:600; color:#222;">${count}</td>
+                                <td style="padding:10px 12px; text-align:right; white-space:nowrap; color:#666;">${Math.round(count / total * 100)}%</td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                const noEvidence = combos['m=0 g=0 a=0'] || 0;
+                const sourceCard = (title, count, color) => `
+                    <div style="flex:1; min-width:180px; background:#fff; border:1px solid #ddd; border-radius:8px; padding:16px;">
+                        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.4px; color:#777; margin-bottom:6px;">${title}</div>
+                        <div style="font-size:28px; font-weight:700; color:${color}; margin-bottom:6px;">${count}</div>
+                        <div style="font-size:12px; color:#666;">${Math.round(count / total * 100)}% of models</div>
+                    </div>
+                `;
+
+                chartHTML = `
+                    <div style="font-size:12px; color:#666; margin-bottom:22px;">* Viable evidence means source produced at least one non-unknown chip signal with supporting matched sections/files.</div>
+                    <div style="display:flex; justify-content:center; flex-wrap:wrap; gap:14px; margin:0 auto 24px; max-width:900px;">
+                        ${sourceCard('Model card signal', modelcardCount, '#f9a825')}
+                        ${sourceCard('GitHub signal', githubCount, '#1e88e5')}
+                        ${sourceCard('arXiv signal', arxivCount, '#f4511e')}
+                        ${sourceCard('No signal anywhere', noEvidence, '#9e9e9e')}
+                    </div>
+                    <div style="max-width:760px; margin:0 auto; background:#fff; border:1px solid #ddd; border-radius:8px; padding:18px 22px; text-align:left;">
+                        <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.4px; color:#777; margin-bottom:10px;">Source overlap</div>
+                        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                            <thead>
+                                <tr style="border-bottom:1px solid #e5e5e5;">
+                                    <th style="padding:0 8px 10px; text-align:center; color:#777; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px;">Model card</th>
+                                    <th style="padding:0 8px 10px; text-align:center; color:#777; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px;">GitHub</th>
+                                    <th style="padding:0 8px 10px; text-align:center; color:#777; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px;">arXiv</th>
+                                    <th style="padding:0 12px 10px; text-align:right; color:#777; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px;">Models</th>
+                                    <th style="padding:0 12px 10px; text-align:right; color:#777; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px;">Share</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${comboEntries}
+                            </tbody>
+                        </table>
                     </div>
                 `;
             }
@@ -663,6 +770,7 @@
                 <div style="display:flex; justify-content:center; gap: 10px; margin-bottom: 30px;">
                     <button onclick="setStatsMode('results')" style="padding: 6px 16px; border-radius: 20px; border: 1px solid #ccc; background: ${currentStatsMode === 'results' ? '#e0e0e0' : '#fff'}; cursor: pointer; font-size: 12px; font-weight: ${currentStatsMode === 'results' ? '600' : '400'}; transition: all 0.2s;">Results Mode</button>
                     <button onclick="setStatsMode('comparison')" style="padding: 6px 16px; border-radius: 20px; border: 1px solid #ccc; background: ${currentStatsMode === 'comparison' ? '#e0e0e0' : '#fff'}; cursor: pointer; font-size: 12px; font-weight: ${currentStatsMode === 'comparison' ? '600' : '400'}; transition: all 0.2s;">Comparison Mode</button>
+                    <button onclick="setStatsMode('coverage')" style="padding: 6px 16px; border-radius: 20px; border: 1px solid #ccc; background: ${currentStatsMode === 'coverage' ? '#e0e0e0' : '#fff'}; cursor: pointer; font-size: 12px; font-weight: ${currentStatsMode === 'coverage' ? '600' : '400'}; transition: all 0.2s;">Coverage Mode</button>
                 </div>
             `;
 
@@ -675,7 +783,7 @@
             `;
         }
 
-        fetch('results.json')
+        fetch('../database/results.json')
             .then(r => r.json())
             .then(data => {
                 RAW_DATA = data;
@@ -716,7 +824,6 @@
 
             let h = '';
 
-            // ── Step 1: Model Card Analysis ──
             h += '<div class="node">';
             h += '<div class="node-title">1. Model Card Analysis</div>';
             h += '<div class="two-col">';
@@ -736,7 +843,6 @@
             }
             h += '</div>';
 
-            // ── Connector: Model Card → GitHub Resolution ──
             const numGhCandidates = (gr.candidate_links || []).length;
             if (numGhCandidates > 0) {
                 h += connector([{ text: `${numGhCandidates} GitHub link${numGhCandidates > 1 ? 's' : ''} found in model card`, cls: '' }]);
@@ -744,7 +850,6 @@
                 h += connector([{ text: 'No GitHub links in model card', cls: 'skip' }]);
             }
 
-            // ── Step 2: GitHub Resolution ──
             h += `<div class="node${!hasGithub && numGhCandidates === 0 ? ' dimmed' : ''}">`;
             h += '<div class="node-title">2. GitHub Link Selection</div>';
 
@@ -777,7 +882,6 @@
             }
             h += '</div>';
 
-            // ── Connector: GitHub Resolution → GitHub Code Analysis ──
             if (hasGithub) {
                 const connLabels = [];
                 if (gr.source === 'llm') {
@@ -791,7 +895,6 @@
                 h += connector([{ text: 'No repo to analyze — skipping code scan', cls: 'skip' }]);
             }
 
-            // ── Step 3: GitHub Code Analysis ──
             h += `<div class="node${!hasGithub ? ' dimmed' : ''}">`;
             h += '<div class="node-title">3. GitHub Code Analysis</div>';
             if (hasGithub) {
@@ -815,7 +918,6 @@
             }
             h += '</div>';
 
-            // ── Connector: GitHub Code → ArXiv Paper ──
             const numAxCandidates = (ar.candidate_links || []).length;
             if (numAxCandidates > 0) {
                 h += connector([{ text: `${numAxCandidates} arXiv paper${numAxCandidates > 1 ? 's' : ''} found in model card`, cls: '' }]);
@@ -823,14 +925,12 @@
                 h += connector([{ text: 'No arXiv papers in model card', cls: 'skip' }]);
             }
 
-            // ── Step 4: ArXiv Paper Analysis ──
             h += `<div class="node${!hasArxiv && numAxCandidates === 0 ? ' dimmed' : ''}">`;
             h += '<div class="node-title">4. ArXiv Paper Analysis</div>';
 
             if (numAxCandidates === 0) {
                 h += '<div style="color:#aaa;font-style:italic">Skipped — no arXiv papers found</div>';
             } else {
-                // Show selected paper
                 if (hasArxiv) {
                     const paperLink = ar.selected_link;
                     const paperId = paperLink.replace('https://arxiv.org/abs/', '');
@@ -853,7 +953,6 @@
                         h += '</div>';
                     }
 
-                    // Show chip/framework analysis
                     if (ap.chip_provider && ap.chip_provider !== 'unknown' || ap.framework && ap.framework !== 'unknown') {
                         h += '<div class="two-col" style="margin-top:6px">';
                         h += '<div>';
@@ -880,7 +979,6 @@
             }
             h += '</div>';
 
-            // ── Connector: ArXiv → LLM Verification ──
             const usedLlm = chipWin === 'llm_chip';
             if (usedLlm) {
                 h += connector([{ text: 'Heuristics conflicted or were too low — triggering AI fallback', cls: 'llm-call' }]);
@@ -888,7 +986,6 @@
                 h += connector([{ text: 'Heuristics were sufficiently confident', cls: 'skip' }]);
             }
 
-            // ── Step 5: LLM Verification ──
             h += `<div class="node${!usedLlm ? ' dimmed' : ''}">`;
             h += '<div class="node-title">5. AI Chip Verification</div>';
             if (usedLlm) {
@@ -899,9 +996,8 @@
             }
             h += '</div>';
 
-            // ── Connector: Verification → Conclusion ──
             const decLabels = [];
-            // Chip decision
+
             if (chipWin === 'llm_chip') {
                 decLabels.push({ text: `Chip: AI verified as ${co.chip_provider}`, cls: 'win' });
             } else if (chipWin === 'arxiv_paper') {
@@ -918,7 +1014,7 @@
             } else {
                 decLabels.push({ text: 'Chip: all sources unknown', cls: 'skip' });
             }
-            // Framework decision
+
             if (fwWin === 'arxiv_paper') {
                 decLabels.push({ text: `Framework: arXiv paper (${Math.round((ap.framework_confidence || 0) * 100)}%) wins — highest priority`, cls: 'win' });
             } else if (fwWin === 'github_code') {
@@ -933,17 +1029,16 @@
             }
             h += connector(decLabels);
 
-            // ── Step 6: Conclusion ──
             h += '<div class="node node-conclusion">';
             h += '<div class="node-title">6. Conclusion</div>';
             h += '<div class="conclusion-row">';
-            // Chip
+
             h += `<div class="conclusion-dim src-${chipWin || ''}">`;
             h += `<div class="conclusion-val val-${co.chip_provider || 'unknown'}">${co.chip_provider || 'unknown'}</div>`;
             h += `<div class="kv"><span class="k">Chip Provider</span>${badgeHTML(chipWin)}</div>`;
             h += confBarHTML(co.chip_provider_confidence);
             h += '</div>';
-            // Framework
+
             h += `<div class="conclusion-dim src-${fwWin || ''}">`;
             h += `<div class="conclusion-val val-${co.framework || 'unknown'}">${co.framework || 'unknown'}</div>`;
             h += `<div class="kv"><span class="k">Framework</span>${badgeHTML(fwWin)}</div>`;
