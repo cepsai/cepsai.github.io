@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>AI Investment Rounds: EU vs US</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #ffffff;
+            color: #111;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            height: 100vh;
+        }
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 17fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(2px, 0.5vh, 6px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            display: flex;
+            overflow: hidden;
+            min-height: 0;
+            column-gap: 0;
+        }
+
+        #container1 .chart-wrapper {
+            flex: 1 1 auto;
+            display: flex;
+            min-width: 0;
+            height: 100%;
+            margin-left: 0;
+        }
+
+        #container1 .chart-wrapper-inner {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: row;
+            min-width: 0;
+            height: 100%;
+        }
+
+        #y-title {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            font-weight: 700;
+            font-size: clamp(12px, 1.5vw, 18px);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            color: #000;
+            flex-shrink: 0;
+            padding: 0 clamp(4px, 0.5vw, 8px);
+            white-space: nowrap;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            font-size: clamp(8px, 1.6vw, 16px);
+        }
+
+        #container3 {
+            grid-row: 3;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 clamp(8px, 2vw, 20px);
+            overflow: hidden;
+            min-width: 0;
+            gap: clamp(4px, 1vw, 8px);
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            min-width: 0;
+        }
+
+        #viz {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            padding: clamp(8px, 1vw, 12px) clamp(12px, 2vw, 24px) 0 clamp(12px, 2vw, 24px);
+            box-sizing: border-box;
+        }
+
+        .chart-body {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        #chart {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1vw, 14px);
+            background: rgba(255, 255, 255, 1);
+            padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+            border-radius: clamp(6px, 1vw, 12px);
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(0.625rem, 1.4vw, 1rem);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 8px);
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            font-weight: 600;
+            color: #333;
+            font-size: inherit;
+            padding: 2px 6px;
+        }
+
+        .legend-item.dim {
+            opacity: 0.35;
+        }
+
+        .legend-square {
+            width: clamp(8px, 0.9vw, 12px);
+            height: clamp(8px, 0.9vw, 12px);
+            border-radius: 0;
+            flex-shrink: 0;
+        }
+
+        .source-text {
+            font-size: clamp(8px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .source-text a:visited {
+            color: #2756d3;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: clamp(80px, 15vw, 200px);
+            pointer-events: auto;
+            object-fit: contain;
+            flex-shrink: 0;
+        }
+
+        .axis path,
+        .axis line {
+            stroke: #cfd2d7;
+        }
+
+        .tick text {
+            font-size: clamp(8px, 1.2vw, 18px);
+            fill: #333;
+        }
+
+
+        #tooltip {
+            position: absolute;
+            background: #fff;
+            border: 1px solid #d9d9df;
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+            transition: opacity 0.12s ease;
+            max-width: 260px;
+        }
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr;
+                grid-template-columns: 1fr;
+                padding-bottom: 0;
+            }
+
+            #container1 {
+                grid-row: 1;
+                grid-column: 1;
+            }
+
+            #container2,
+            #container3,
+            #container4 {
+                display: none !important;
+            }
+
+            #viz {
+                padding: 0 0 6px 0 !important;
+            }
+
+            .grid-lines {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1" class="container chart-container">
+            <div class="chart-wrapper">
+                <div class="chart-wrapper-inner">
+                    <div id="y-title">Investment ($M)</div>
+                    <div id="viz">
+                        <svg id="chart" role="img"></svg>
+                        <div id="tooltip"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="container2" class="container legend-container">
+            <div class="legend" id="legend"></div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-text">Source: <a href="https://aiworld.eu/" target="_blank">AIWorld</a></div>
+        </div>
+        <div id="container4" class="container logo-container">
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const svg = d3.select("#chart");
+        const tooltip = d3.select("#tooltip");
+        const vizEl = document.getElementById("viz");
+        const legendEl = document.getElementById("legend");
+
+        const COLORS = { EU: "#2756d3", US: "#e8592f" };
+        const STAGE_LABELS = {
+            angel: "Angel",
+            pre_seed: "Pre-Seed",
+            seed: "Seed",
+            series_a: "Series A",
+            series_b: "Series B",
+            series_c: "Series C"
+        };
+        const STAGE_ORDER = ["angel", "pre_seed", "seed", "series_a", "series_b", "series_c"];
+
+        const LOG_TICKS = [1e5, 1e7, 1e9];
+        const LOG_TICK_LABELS = { 1e5: "0.1", 1e7: "10", 1e9: "1,000" };
+        const Y_DOMAIN_MIN = 5e3;
+        const Y_DOMAIN_MAX = 8e9;
+
+        const EXTEND = new URLSearchParams(window.location.search).get("extend") === "1";
+
+        const formatCurrency = d => {
+            if (d >= 1e9) return "$" + d3.format(",.1f")(d / 1e9) + "B";
+            if (d >= 1e6) return "$" + d3.format(",.1f")(d / 1e6) + "M";
+            if (d >= 1e3) return "$" + d3.format(",.0f")(d / 1e3) + "K";
+            return "$" + d3.format(",.0f")(d);
+        };
+
+        let data = [];
+        let outliers = [];
+
+        init();
+
+        async function init() {
+            const [resp1, resp2] = await Promise.all([
+                fetch("./data.csv"),
+                fetch("./outliers.csv")
+            ]);
+            const text1 = await resp1.text();
+            const text2 = await resp2.text();
+
+            data = d3.csvParse(text1).map(d => ({
+                region: d.region,
+                investment_type: d.investment_type,
+                q1: +d.q1,
+                median: +d.median,
+                q3: +d.q3,
+                iqr: +d.iqr,
+                w_low: +d.w_low,
+                w_high: +d.w_high
+            }));
+
+            outliers = d3.csvParse(text2).map(d => ({
+                region: d.region,
+                investment_type: d.investment_type,
+                raised_usd: +d.raised_usd
+            }));
+
+            buildLegend();
+            render();
+        }
+
+        function buildLegend() {
+            legendEl.innerHTML = "";
+            ["EU", "US"].forEach(region => {
+                const item = document.createElement("div");
+                item.className = "legend-item";
+                item.innerHTML = `<div class="legend-square" style="background:${COLORS[region]}"></div><span>${region}</span>`;
+                legendEl.appendChild(item);
+            });
+        }
+
+        function seededRandom(seed) {
+            let s = seed;
+            return function () {
+                s = (s * 16807 + 0) % 2147483647;
+                return (s - 1) / 2147483646;
+            };
+        }
+
+        function render() {
+            if (!data.length) return;
+
+            const rect = vizEl.getBoundingClientRect();
+            const width = Math.max(400, rect.width || 960);
+            const height = Math.max(300, rect.height || 560);
+
+            const axisFont = Math.max(9, Math.min(13, width / 40));
+            const margin = {
+                top: Math.round(height * 0.05),
+                right: Math.round(width * 0.04),
+                bottom: Math.round(Math.max(axisFont + 8, height * 0.05)),
+                left: Math.round(axisFont * 4 + 4)
+            };
+
+            const innerW = width - margin.left - margin.right;
+            const innerH = height - margin.top - margin.bottom;
+
+            svg.attr("viewBox", `0 0 ${width} ${height}`);
+            svg.selectAll("*").remove();
+
+            const root = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const x0 = d3.scaleBand()
+                .domain(STAGE_ORDER)
+                .range([0, innerW])
+                .paddingInner(0.3)
+                .paddingOuter(0.15);
+
+            const x1 = d3.scaleBand()
+                .domain(["EU", "US"])
+                .range([0, x0.bandwidth()])
+                .padding(0.15);
+
+            const y = d3.scaleLog()
+                .domain([Y_DOMAIN_MIN, Y_DOMAIN_MAX])
+                .range([innerH, 0])
+                .clamp(true);
+
+            const gridLines = root.append("g").attr("class", "grid-lines");
+            gridLines.call(
+                d3.axisLeft(y)
+                    .tickValues(LOG_TICKS)
+                    .tickSize(-innerW)
+                    .tickFormat("")
+            );
+            gridLines.select(".domain").remove();
+            gridLines.selectAll("line")
+                .style("stroke", "#DBDBDB")
+                .style("stroke-dasharray", "2,3");
+
+            const xAxis = root.append("g")
+                .attr("class", "axis axis--x")
+                .attr("transform", `translate(0,${innerH})`)
+                .call(d3.axisBottom(x0).tickFormat(d => STAGE_LABELS[d] || d).tickSizeOuter(0));
+            xAxis.select(".domain").attr("stroke", "#cfd2d7");
+            xAxis.selectAll(".tick line").remove();
+            xAxis.selectAll("text")
+                .style("font-size", axisFont + "px")
+                .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+
+            const yAxis = root.append("g")
+                .attr("class", "axis axis--y")
+                .call(
+                    d3.axisLeft(y)
+                        .tickValues(LOG_TICKS)
+                        .tickFormat(d => LOG_TICK_LABELS[d] || d)
+                );
+            yAxis.select(".domain").attr("stroke", "#cfd2d7");
+            yAxis.selectAll("text")
+                .style("font-size", axisFont + "px")
+                .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+
+
+            const boxWidth = x1.bandwidth();
+            const whiskerStroke = Math.max(1.5, Math.min(2.5, innerW / 400));
+            const clampVal = v => Math.max(Y_DOMAIN_MIN, v);
+
+            STAGE_ORDER.forEach(stage => {
+                const stageData = data.filter(d => d.investment_type === stage);
+                const groupX = x0(stage);
+
+                stageData.forEach(d => {
+                    const cx = groupX + x1(d.region) + boxWidth / 2;
+                    const bx = groupX + x1(d.region);
+                    const color = COLORS[d.region];
+
+                    const g = root.append("g").attr("class", "boxplot-group");
+
+                    g.append("line")
+                        .attr("x1", cx).attr("x2", cx)
+                        .attr("y1", y(clampVal(d.w_low))).attr("y2", y(clampVal(d.q1)))
+                        .attr("stroke", color)
+                        .attr("stroke-width", whiskerStroke);
+
+                    g.append("line")
+                        .attr("x1", cx).attr("x2", cx)
+                        .attr("y1", y(clampVal(d.q3))).attr("y2", y(clampVal(d.w_high)))
+                        .attr("stroke", color)
+                        .attr("stroke-width", whiskerStroke);
+
+                    const capW = boxWidth * 0.5;
+                    g.append("line")
+                        .attr("x1", cx - capW / 2).attr("x2", cx + capW / 2)
+                        .attr("y1", y(clampVal(d.w_low))).attr("y2", y(clampVal(d.w_low)))
+                        .attr("stroke", color)
+                        .attr("stroke-width", whiskerStroke);
+                    g.append("line")
+                        .attr("x1", cx - capW / 2).attr("x2", cx + capW / 2)
+                        .attr("y1", y(clampVal(d.w_high))).attr("y2", y(clampVal(d.w_high)))
+                        .attr("stroke", color)
+                        .attr("stroke-width", whiskerStroke);
+
+                    g.append("rect")
+                        .attr("x", bx)
+                        .attr("y", y(clampVal(d.q3)))
+                        .attr("width", boxWidth)
+                        .attr("height", Math.max(1, y(clampVal(d.q1)) - y(clampVal(d.q3))))
+                        .attr("fill", color)
+                        .attr("fill-opacity", 0.25)
+                        .attr("stroke", color)
+                        .attr("stroke-width", whiskerStroke)
+                        .attr("rx", 0);
+
+                    g.append("line")
+                        .attr("x1", bx).attr("x2", bx + boxWidth)
+                        .attr("y1", y(clampVal(d.median))).attr("y2", y(clampVal(d.median)))
+                        .attr("stroke", color)
+                        .attr("stroke-width", Math.max(2, whiskerStroke * 1.3));
+
+                    g.append("rect")
+                        .attr("x", bx)
+                        .attr("y", y(clampVal(d.w_high)))
+                        .attr("width", boxWidth)
+                        .attr("height", Math.max(1, y(clampVal(d.w_low)) - y(clampVal(d.w_high))))
+                        .attr("fill", "transparent")
+                        .attr("stroke", "none")
+                        .on("mouseenter", (event) => showTooltip(event, d))
+                        .on("mousemove", (event) => moveTooltip(event, d))
+                        .on("mouseleave", hideTooltip);
+                });
+            });
+
+            const dotR = Math.max(1.5, Math.min(3, innerW / 500));
+            const rng = seededRandom(42);
+
+            const maxOutlierPositions = {};
+
+            STAGE_ORDER.forEach(stage => {
+                const groupX = x0(stage);
+                const stageOutliers = outliers.filter(o => o.investment_type === stage);
+
+                const maxByRegion = {};
+                stageOutliers.forEach(o => {
+                    if (!maxByRegion[o.region] || o.raised_usd > maxByRegion[o.region]) {
+                        maxByRegion[o.region] = o.raised_usd;
+                    }
+                });
+
+                stageOutliers.forEach(o => {
+                    const bx = groupX + x1(o.region);
+                    const jitter = (rng() - 0.5) * boxWidth * 0.7;
+                    const px = bx + boxWidth / 2 + jitter;
+                    const py = y(Math.max(Y_DOMAIN_MIN, o.raised_usd));
+                    const color = COLORS[o.region];
+                    const isMax = o.raised_usd === maxByRegion[o.region];
+
+                    root.append("circle")
+                        .attr("cx", px)
+                        .attr("cy", py)
+                        .attr("r", isMax ? dotR * 2 : dotR)
+                        .attr("fill", color)
+                        .attr("fill-opacity", isMax ? 1 : 0.45)
+                        .attr("stroke", "none");
+
+                    if (isMax) {
+                        if (!maxOutlierPositions[stage]) maxOutlierPositions[stage] = {};
+                        maxOutlierPositions[stage][o.region] = { px, py, val: o.raised_usd };
+                    }
+                });
+            });
+
+            if (EXTEND) {
+                const labelFont = Math.max(8, Math.min(12, innerW / 60));
+                STAGE_ORDER.forEach(stage => {
+                    const pts = maxOutlierPositions[stage];
+                    if (!pts || !pts.EU || !pts.US) return;
+
+                    root.append("line")
+                        .attr("x1", pts.EU.px)
+                        .attr("y1", pts.EU.py)
+                        .attr("x2", pts.US.px)
+                        .attr("y2", pts.US.py)
+                        .attr("stroke", "#555")
+                        .attr("stroke-width", 1.2)
+                        .attr("stroke-dasharray", "4,3");
+
+                    const diff = pts.US.val - pts.EU.val;
+                    const sign = diff >= 0 ? "+" : "-";
+                    const absDiff = Math.abs(diff);
+                    let label;
+                    let isBillions = false;
+                    if (absDiff >= 1e9) { label = sign + "$" + d3.format(",.1f")(absDiff / 1e9) + "B"; isBillions = true; }
+                    else if (absDiff >= 1e6) label = sign + "$" + d3.format(",.1f")(absDiff / 1e6) + "M";
+                    else if (absDiff >= 1e3) label = sign + "$" + d3.format(",.0f")(absDiff / 1e3) + "K";
+                    else label = sign + "$" + d3.format(",.0f")(absDiff);
+
+                    const thisLabelFont = isBillions ? labelFont * 1.5 : labelFont;
+
+                    root.append("text")
+                        .attr("x", pts.US.px)
+                        .attr("y", pts.US.py - dotR * 2 - 4)
+                        .attr("text-anchor", "middle")
+                        .style("font-size", thisLabelFont + "px")
+                        .style("font-weight", "700")
+                        .style("fill", "#333")
+                        .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif")
+                        .text(label);
+                });
+            }
+        }
+
+        function showTooltip(event, d) {
+            tooltip.style("opacity", 1);
+            moveTooltip(event, d);
+        }
+
+        function moveTooltip(event, d) {
+            const label = STAGE_LABELS[d.investment_type] || d.investment_type;
+            tooltip.html(
+                `<strong>${d.region} — ${label}</strong><br>` +
+                `Whisker High: ${formatCurrency(d.w_high)}<br>` +
+                `Q3: ${formatCurrency(d.q3)}<br>` +
+                `Median: ${formatCurrency(d.median)}<br>` +
+                `Q1: ${formatCurrency(d.q1)}<br>` +
+                `Whisker Low: ${formatCurrency(d.w_low)}`
+            );
+            positionTooltip(event);
+        }
+
+        function showOutlierTooltip(event, o) {
+            tooltip.style("opacity", 1);
+            moveOutlierTooltip(event, o);
+        }
+
+        function moveOutlierTooltip(event, o) {
+            const label = STAGE_LABELS[o.investment_type] || o.investment_type;
+            tooltip.html(
+                `<strong>${o.region} — ${label}</strong><br>` +
+                `Raised: ${formatCurrency(o.raised_usd)}`
+            );
+            positionTooltip(event);
+        }
+
+        function positionTooltip(event) {
+            const [x, yPos] = d3.pointer(event, vizEl);
+            const ttNode = tooltip.node();
+            const ttW = ttNode ? ttNode.offsetWidth : 0;
+            const ttH = ttNode ? ttNode.offsetHeight : 0;
+            const vizRect = vizEl.getBoundingClientRect();
+            let left = x + 14;
+            let top = yPos - ttH / 2;
+            if (left + ttW > vizRect.width) left = x - ttW - 14;
+            if (top < 4) top = 4;
+            if (top + ttH > vizRect.height) top = vizRect.height - ttH - 4;
+            tooltip.style("left", `${left}px`).style("top", `${top}px`);
+        }
+
+        function hideTooltip() { tooltip.style("opacity", 0); }
+
+        if (typeof ResizeObserver !== "undefined" && vizEl) {
+            new ResizeObserver(() => render()).observe(vizEl);
+        }
+        window.addEventListener("resize", render);
+        svg.on("mouseleave", hideTooltip);
+    </script>
+</body>
+
+</html>
