@@ -1,0 +1,4047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CEPS HR Performance Tool</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --l1-bg: #E3F2FD; --l1-border: #1976D2; --l1-text: #0D47A1;
+      --l2-bg: #E8F5E9; --l2-border: #388E3C; --l2-text: #1B5E20;
+      --l3-bg: #FFF3E0; --l3-border: #F57C00; --l3-text: #E65100;
+      --l4-bg: #FCE4EC; --l4-border: #C2185B; --l4-text: #880E4F;
+      --gap-bg: #FFFDE7; --gap-border: #F9A825; --gap-text: #F57F17;
+      --green-bg: #F0FFF4; --green-border: #68D391; --green-text: #276749;
+      --red-bg: #FFF5F5; --red-border: #FC8181; --red-text: #9B2C2C;
+      --bg: #F0F4F8;
+      --surface: #FFFFFF;
+      --text-primary: #1A202C;
+      --text-secondary: #4A5568;
+      --text-muted: #718096;
+      --border: #E2E8F0;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.18);
+      --radius: 10px;
+      --radius-sm: 6px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #1A365D 0%, #2D6A9F 100%);
+      color: #fff;
+      padding: 0 32px;
+      display: flex;
+      align-items: stretch;
+      gap: 20px;
+      box-shadow: var(--shadow-md);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 0;
+    }
+    .header-logo {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      color: #fff;
+      background: rgba(255,255,255,0.15);
+      padding: 5px 12px;
+      border-radius: var(--radius-sm);
+      flex-shrink: 0;
+    }
+    .header-title h1 { font-size: 18px; font-weight: 600; }
+    .header-title p { font-size: 11px; opacity: 0.65; margin-top: 1px; }
+
+    /* ── TAB NAV ─────────────────────────────────────────── */
+    .tab-nav {
+      display: flex;
+      align-items: flex-end;
+      gap: 2px;
+      margin-left: auto;
+      padding-bottom: 0;
+    }
+    .tab-btn {
+      padding: 10px 20px 13px;
+      background: rgba(255,255,255,0.08);
+      border: none;
+      color: rgba(255,255,255,0.65);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 8px 8px 0 0;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+      font-family: inherit;
+    }
+    .tab-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    .tab-btn.active {
+      background: var(--bg);
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* ── LEGEND ─────────────────────────────────────────── */
+    .legend {
+      display: flex;
+      gap: 14px;
+      padding: 10px 32px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .legend-label { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-right: 2px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+    .level-badge {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 11px; border-radius: 5px;
+      padding: 2px 8px; border: 1.5px solid; letter-spacing: 0.4px;
+      white-space: nowrap;
+    }
+    .level-badge.L1 { background: var(--l1-bg); border-color: var(--l1-border); color: var(--l1-text); }
+    .level-badge.L2 { background: var(--l2-bg); border-color: var(--l2-border); color: var(--l2-text); }
+    .level-badge.L3 { background: var(--l3-bg); border-color: var(--l3-border); color: var(--l3-text); }
+    .level-badge.L4 { background: var(--l4-bg); border-color: var(--l4-border); color: var(--l4-text); }
+
+    /* ── VIEWS ───────────────────────────────────────────── */
+    .view { display: none; }
+    .view.active { display: block; }
+    .main { padding: 24px 32px; max-width: 1600px; margin: 0 auto; }
+
+    /* ── MATRIX TABLE ───────────────────────────────────── */
+    .matrix-container {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-sm); overflow: auto;
+    }
+    table { border-collapse: collapse; width: 100%; min-width: 900px; }
+    th, td { padding: 0; border: 1px solid var(--border); }
+
+    thead tr:first-child th {
+      background: #1A365D; color: #fff;
+      font-weight: 600; font-size: 13px;
+      padding: 13px 14px; text-align: center;
+    }
+    thead tr:first-child th:first-child { text-align: left; }
+
+    .role-header { cursor: pointer; transition: background 0.15s; user-select: none; }
+    .role-header:hover { background: #2A5490 !important; }
+    .role-header-inner { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .role-header-name { font-size: 13px; }
+    .role-header-hint { font-size: 10px; opacity: 0.55; font-weight: 400; }
+
+    .family-row td {
+      background: #EDF2F7; color: var(--text-muted);
+      font-size: 10.5px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.9px;
+      padding: 5px 16px;
+    }
+
+    .skill-row { transition: background 0.1s; }
+    .skill-row:hover { background: #F7FAFC; }
+
+    .skill-name-cell {
+      padding: 11px 16px; font-size: 13px; font-weight: 500;
+      color: var(--text-primary); cursor: pointer; min-width: 200px;
+    }
+    .skill-name-cell:hover { color: #1A365D; text-decoration: underline; }
+    .skill-category-tag {
+      display: inline-block; font-size: 10px; padding: 1px 6px;
+      border-radius: 3px; margin-left: 6px;
+      background: #EDF2F7; color: var(--text-muted); font-weight: 500;
+      vertical-align: middle;
+    }
+
+    .req-cell {
+      text-align: center; padding: 7px 6px; cursor: pointer;
+      transition: background 0.1s;
+    }
+    .req-cell:hover { background: #EDF2F7; }
+    .req-cell .level-badge { cursor: pointer; transition: transform 0.1s; }
+    .req-cell .level-badge:hover { transform: scale(1.12); }
+    .req-cell-empty { color: var(--text-muted); font-size: 14px; }
+
+    /* ── OVERLAY & PANEL ────────────────────────────────── */
+    .overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.38);
+      z-index: 200; display: none; opacity: 0; transition: opacity 0.2s;
+    }
+    .overlay.active { display: block; opacity: 1; }
+
+    .panel {
+      position: fixed; top: 0; right: 0;
+      width: min(800px, 100vw); height: 100vh;
+      background: var(--surface); z-index: 300;
+      box-shadow: var(--shadow-lg);
+      transform: translateX(100%);
+      transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex; flex-direction: column; overflow: hidden;
+    }
+    .panel.active { transform: translateX(0); }
+
+    .panel-header {
+      padding: 20px 24px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; gap: 14px;
+      background: linear-gradient(135deg, #1A365D 0%, #2D6A9F 100%);
+      color: #fff; flex-shrink: 0;
+    }
+    .panel-header-content { flex: 1; min-width: 0; }
+    .panel-header-tag {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; opacity: 0.65; margin-bottom: 4px;
+    }
+    .panel-header-title { font-size: 20px; font-weight: 700; line-height: 1.25; }
+    .panel-header-subtitle {
+      font-size: 13px; opacity: 0.78; margin-top: 7px;
+      line-height: 1.5; font-style: italic;
+    }
+    .panel-close {
+      background: rgba(255,255,255,0.14); border: none; color: #fff;
+      width: 32px; height: 32px; border-radius: 50%; font-size: 17px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s; flex-shrink: 0;
+    }
+    .panel-close:hover { background: rgba(255,255,255,0.28); }
+
+    .panel-body {
+      flex: 1; overflow-y: auto; padding: 24px;
+    }
+    .panel-body::-webkit-scrollbar { width: 5px; }
+    .panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── BULLET LIST ─────────────────────────────────────── */
+    .bullet-list { list-style: none; padding: 0; margin: 0; }
+    .bullet-list li {
+      display: flex; gap: 7px;
+      font-size: inherit; line-height: 1.6;
+      margin-bottom: 5px;
+    }
+    .bullet-list li:last-child { margin-bottom: 0; }
+    .bullet-list li::before {
+      content: "\2022";
+      flex-shrink: 0;
+      opacity: 0.55;
+      margin-top: 1px;
+    }
+
+    /* ── SKILL PANEL ────────────────────────────────────── */
+    .skill-definition {
+      background: #F7FAFC; border-left: 3px solid #2D6A9F;
+      padding: 12px 16px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      font-size: 13px; color: var(--text-secondary); margin-bottom: 22px;
+      line-height: 1.65;
+    }
+    .levels-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    }
+    .level-card {
+      border-radius: var(--radius); border: 2px solid; padding: 16px;
+    }
+    .level-card.L1 { background: var(--l1-bg); border-color: var(--l1-border); }
+    .level-card.L2 { background: var(--l2-bg); border-color: var(--l2-border); }
+    .level-card.L3 { background: var(--l3-bg); border-color: var(--l3-border); }
+    .level-card.L4 { background: var(--l4-bg); border-color: var(--l4-border); }
+    .level-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .level-card-name { font-size: 14px; font-weight: 700; margin-bottom: 1px; }
+    .level-card.L1 .level-card-name { color: var(--l1-text); }
+    .level-card.L2 .level-card-name { color: var(--l2-text); }
+    .level-card.L3 .level-card-name { color: var(--l3-text); }
+    .level-card.L4 .level-card-name { color: var(--l4-text); }
+    .level-card-sublabel { font-size: 10.5px; color: var(--text-muted); font-weight: 500; }
+    .role-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 11px; }
+    .role-tag {
+      font-size: 10px; padding: 2px 8px; border-radius: 20px;
+      background: rgba(255,255,255,0.65); color: var(--text-secondary);
+      border: 1px solid rgba(0,0,0,0.1); font-weight: 500;
+    }
+
+    /* ── ROLE PANEL ─────────────────────────────────────── */
+    .role-banner {
+      background: linear-gradient(135deg, #EBF8FF 0%, #BEE3F8 100%);
+      border: 1px solid #90CDF4; border-radius: var(--radius);
+      padding: 14px 18px; margin-bottom: 22px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .role-banner-icon { font-size: 22px; }
+    .role-banner-text strong { color: #1A365D; font-size: 14px; display: block; margin-bottom: 3px; }
+    .role-banner-text p { font-size: 12px; color: #4A5568; line-height: 1.5; }
+
+    .family-heading {
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.9px; color: var(--text-muted); margin: 20px 0 8px;
+    }
+
+    .skill-block {
+      border: 1px solid var(--border); border-radius: var(--radius);
+      margin-bottom: 14px; overflow: hidden;
+    }
+    .skill-block-header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; background: #F7FAFC;
+      border-bottom: 1px solid var(--border); flex-wrap: wrap;
+    }
+    .skill-block-name { flex: 1; font-weight: 600; font-size: 13.5px; }
+    .skill-family-tag {
+      font-size: 10px; color: var(--text-muted); background: var(--border);
+      padding: 2px 7px; border-radius: 3px;
+    }
+    .gap-indicator {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10.5px; font-weight: 700; color: #92400E;
+      background: #FEF3C7; border: 1px solid #FCD34D;
+      padding: 2px 8px; border-radius: 4px;
+    }
+    .at-target-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10.5px; font-weight: 700; color: #276749;
+      background: #C6F6D5; border: 1px solid #9AE6B4;
+      padding: 2px 8px; border-radius: 4px;
+    }
+
+    .skill-block-body {
+      display: grid; grid-template-columns: 1fr 1fr;
+    }
+    .skill-block-body.single { grid-template-columns: 1fr; }
+    .level-pane { padding: 13px 15px; }
+    .level-pane + .level-pane { border-left: 1px solid var(--border); }
+    .level-pane.gap-pane { background: var(--gap-bg); }
+    .level-pane-heading {
+      display: flex; align-items: center; gap: 7px; margin-bottom: 8px;
+    }
+    .level-pane-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+    .level-pane-label.gap { color: var(--gap-text); }
+    .level-pane-text { font-size: 12.5px; color: var(--text-secondary); line-height: 1.65; }
+
+    /* ── CELL PANEL ─────────────────────────────────────── */
+    .cell-context { font-size: 12px; color: var(--text-muted); margin-bottom: 18px; }
+    .cell-dual { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .cell-card {
+      border-radius: var(--radius); border: 2px solid; padding: 18px;
+    }
+    .cell-card.L1 { background: var(--l1-bg); border-color: var(--l1-border); }
+    .cell-card.L2 { background: var(--l2-bg); border-color: var(--l2-border); }
+    .cell-card.L3 { background: var(--l3-bg); border-color: var(--l3-border); }
+    .cell-card.L4 { background: var(--l4-bg); border-color: var(--l4-border); }
+    .cell-card.gap { background: var(--gap-bg); border-color: var(--gap-border); }
+    .cell-card.top { background: #F0FFF4; border-color: #9AE6B4; }
+    .cell-card-level { font-size: 22px; font-weight: 800; margin-bottom: 3px; }
+    .cell-card.L1 .cell-card-level { color: var(--l1-text); }
+    .cell-card.L2 .cell-card-level { color: var(--l2-text); }
+    .cell-card.L3 .cell-card-level { color: var(--l3-text); }
+    .cell-card.L4 .cell-card-level { color: var(--l4-text); }
+    .cell-card.gap .cell-card-level { color: var(--gap-text); }
+    .cell-card.top .cell-card-level { color: #276749; font-size: 26px; }
+    .cell-card-sublabel {
+      font-size: 10.5px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; opacity: 0.65; margin-bottom: 10px;
+    }
+    .cell-card-text { font-size: 13px; color: var(--text-secondary); line-height: 1.65; }
+
+    /* ── MANAGER SPACE ──────────────────────────────────── */
+    .manager-main {
+      padding: 24px 32px;
+      max-width: 1600px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+    .manager-legend {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      padding: 10px 32px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-secondary);
+      flex-wrap: wrap;
+    }
+    .manager-legend-label { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+    .mg-item { display: flex; align-items: center; gap: 6px; }
+    .mg-dot {
+      width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid; flex-shrink: 0;
+    }
+    .mg-dot.green { background: #C6F6D5; border-color: #68D391; }
+    .mg-dot.red { background: #FED7D7; border-color: #FC8181; }
+    .mg-dot.neutral { background: #EDF2F7; border-color: #CBD5E0; }
+
+    .section-card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .section-card-header {
+      background: linear-gradient(135deg, #1A365D 0%, #2D6A9F 100%);
+      color: #fff;
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-card-title {
+      font-size: 15px;
+      font-weight: 700;
+    }
+    .section-card-subtitle {
+      font-size: 12px;
+      opacity: 0.65;
+    }
+
+    .assess-table { border-collapse: collapse; width: 100%; }
+    .assess-table th, .assess-table td { border: 1px solid var(--border); padding: 0; }
+    .assess-table thead tr th {
+      background: #F7FAFC;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 10px 14px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+    .assess-table thead tr th:first-child { text-align: left; min-width: 190px; }
+    .assess-table thead tr th.req-th {
+      background: #EDF2F7;
+      color: var(--text-muted);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .assess-table thead tr th.person-th {
+      background: #F0F4F8;
+      font-size: 12px;
+      color: #2D6A9F;
+    }
+
+    .assess-skill-name {
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .assess-req-cell {
+      text-align: center;
+      padding: 8px 6px;
+      background: #F7FAFC;
+    }
+    .assess-person-cell {
+      text-align: center;
+      padding: 8px 6px;
+      position: relative;
+    }
+    .assess-person-cell.meets {
+      background: #F0FFF4;
+    }
+    .assess-person-cell.below {
+      background: #FFF5F5;
+    }
+    .assess-person-cell.unassessed {
+      background: #FAFAFA;
+    }
+    .assess-person-cell.exceeds {
+      background: #EBFBEE;
+    }
+    .status-icon {
+      display: inline-block;
+      font-size: 10px;
+      margin-left: 3px;
+      vertical-align: middle;
+    }
+    .assess-table tbody tr:hover td { filter: brightness(0.96); }
+
+    /* ── ROLE SWITCHER ─────────────────────────────────────── */
+    .role-switcher {
+      display: flex; align-items: center; gap: 10px;
+      margin-left: auto; padding: 8px 0;
+    }
+    .role-switcher label { font-size: 11px; color: rgba(255,255,255,0.65); white-space: nowrap; }
+    .role-switcher select {
+      padding: 6px 10px; border-radius: var(--radius-sm);
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.12); color: #fff;
+      font-size: 12px; font-family: inherit; cursor: pointer;
+      max-width: 200px;
+    }
+    .role-switcher select option { color: #1A202C; background: #fff; }
+    .view-toggle {
+      display: flex; gap: 2px; margin-left: 8px;
+    }
+    .view-toggle-btn {
+      padding: 5px 12px; border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.65);
+      font-size: 11px; cursor: pointer; border-radius: 4px;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .view-toggle-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    .view-toggle-btn.active {
+      background: rgba(255,255,255,0.25); color: #fff; font-weight: 600;
+    }
+
+    /* ── CAREER PATH ───────────────────────────────────────── */
+    .career-path {
+      display: flex; align-items: center; gap: 0;
+      padding: 24px 0; overflow-x: auto; justify-content: center;
+    }
+    .career-node {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 12px 20px; border-radius: var(--radius);
+      border: 2px solid var(--border); background: var(--surface);
+      cursor: pointer; transition: all 0.2s; min-width: 130px;
+      position: relative;
+    }
+    .career-node:hover { border-color: #2D6A9F; box-shadow: var(--shadow-sm); }
+    .career-node.current { border-color: #1976D2; background: var(--l1-bg); }
+    .career-node.target { border-color: #F9A825; background: var(--gap-bg); }
+    .career-node.validated .career-validated { display: block; }
+    .career-node-name { font-size: 13px; font-weight: 600; text-align: center; }
+    .career-node-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .career-validated {
+      display: none; position: absolute; top: -6px; right: -6px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #48BB78; color: #fff; font-size: 10px;
+      line-height: 18px; text-align: center;
+    }
+    .career-arrow {
+      font-size: 20px; color: var(--text-muted); padding: 0 6px; flex-shrink: 0;
+    }
+
+    /* ── GAP ANALYSIS ──────────────────────────────────────── */
+    .gap-section { margin-top: 24px; }
+    .gap-summary {
+      display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .gap-stat {
+      padding: 12px 20px; border-radius: var(--radius);
+      background: var(--surface); border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm); text-align: center; min-width: 120px;
+    }
+    .gap-stat-num { font-size: 28px; font-weight: 800; color: #1A365D; }
+    .gap-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .gap-stat.warn .gap-stat-num { color: #E65100; }
+    .gap-stat.good .gap-stat-num { color: #276749; }
+
+    .radar-container {
+      display: flex; justify-content: center; margin: 20px 0;
+      background: var(--surface); border-radius: var(--radius);
+      padding: 20px; box-shadow: var(--shadow-sm);
+    }
+
+    /* ── IDP CARDS ─────────────────────────────────────────── */
+    .idp-section { margin-top: 24px; }
+    .idp-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); margin-bottom: 14px;
+      box-shadow: var(--shadow-sm); overflow: hidden;
+    }
+    .idp-card-header {
+      padding: 12px 16px; background: #F7FAFC;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .idp-card-body { padding: 14px 16px; }
+    .idp-action {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid #F0F4F8;
+    }
+    .idp-action:last-child { border-bottom: none; }
+    .idp-action-info { flex: 1; }
+    .idp-action-title { font-size: 13px; font-weight: 600; }
+    .idp-action-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .idp-action-desc { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+    .status-pill {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+    }
+    .status-pill.not_started { background: #EDF2F7; color: var(--text-muted); }
+    .status-pill.in_progress { background: #BEE3F8; color: #1A365D; }
+    .status-pill.completed { background: #C6F6D5; color: #276749; }
+    .status-pill.dropped { background: #FED7D7; color: #9B2C2C; }
+    .type-tag {
+      display: inline-block; font-size: 10px; padding: 2px 8px;
+      border-radius: 3px; background: #EDF2F7; color: var(--text-muted);
+      font-weight: 500;
+    }
+    .source-tag {
+      display: inline-block; font-size: 9px; padding: 1px 6px;
+      border-radius: 3px; font-weight: 600;
+    }
+    .source-tag.library { background: #E8F5E9; color: #1B5E20; }
+    .source-tag.ai { background: #E3F2FD; color: #0D47A1; }
+    .source-tag.manual { background: #FFF3E0; color: #E65100; }
+
+    /* ── BUTTONS ────────────────────────────────────────────── */
+    .btn {
+      padding: 7px 16px; border-radius: var(--radius-sm);
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      border: 1px solid; font-family: inherit; transition: all 0.15s;
+    }
+    .btn-primary {
+      background: #1A365D; color: #fff; border-color: #1A365D;
+    }
+    .btn-primary:hover { background: #2D6A9F; border-color: #2D6A9F; }
+    .btn-secondary {
+      background: var(--surface); color: var(--text-secondary); border-color: var(--border);
+    }
+    .btn-secondary:hover { background: #F7FAFC; }
+    .btn-success {
+      background: #48BB78; color: #fff; border-color: #48BB78;
+    }
+    .btn-success:hover { background: #38A169; }
+    .btn-danger {
+      background: #FC8181; color: #fff; border-color: #FC8181;
+    }
+    .btn-danger:hover { background: #F56565; }
+    .btn-sm { padding: 4px 10px; font-size: 11px; }
+    .btn-ai {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff; border-color: transparent;
+    }
+    .btn-ai:hover { opacity: 0.9; }
+
+    /* ── MODAL ──────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      z-index: 400; display: none; align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-lg); max-width: 700px; width: 95%;
+      max-height: 85vh; display: flex; flex-direction: column;
+    }
+    .modal-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-header h3 { font-size: 16px; font-weight: 700; }
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+    .modal-footer {
+      padding: 12px 20px; border-top: 1px solid var(--border);
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+
+    /* ── FORM ELEMENTS ─────────────────────────────────────── */
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: var(--text-secondary); margin-bottom: 4px;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 13px; font-family: inherit;
+    }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-group { flex: 1; }
+
+    /* ── FEEDBACK ───────────────────────────────────────────── */
+    .feedback-item {
+      padding: 14px; border-radius: var(--radius);
+      border: 1px solid var(--border); margin-bottom: 10px;
+      background: var(--surface);
+    }
+    .feedback-item.positive { border-left: 3px solid #48BB78; }
+    .feedback-item.developmental { border-left: 3px solid #F6AD55; }
+    .feedback-item.observation { border-left: 3px solid #63B3ED; }
+    .feedback-header {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; color: var(--text-muted); margin-bottom: 6px;
+    }
+    .feedback-content { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+    /* ── MANAGER VIEW ──────────────────────────────────────── */
+    .mgr-layout { display: flex; gap: 20px; min-height: 500px; }
+    .mgr-roster {
+      width: 300px; flex-shrink: 0; background: var(--surface);
+      border-radius: var(--radius); box-shadow: var(--shadow-sm);
+      overflow-y: auto; max-height: 80vh;
+    }
+    .mgr-roster-header {
+      padding: 14px 16px; background: #1A365D; color: #fff;
+      font-size: 14px; font-weight: 700; border-radius: var(--radius) var(--radius) 0 0;
+      position: sticky; top: 0;
+    }
+    .mgr-roster-item {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .mgr-roster-item:hover { background: #F7FAFC; }
+    .mgr-roster-item.active { background: #EBF8FF; border-left: 3px solid #2D6A9F; }
+    .mgr-roster-name { font-size: 13px; font-weight: 600; }
+    .mgr-roster-role { font-size: 11px; color: var(--text-muted); }
+    .mgr-roster-stats { display: flex; gap: 8px; margin-top: 4px; }
+    .mgr-detail {
+      flex: 1; background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-sm); overflow-y: auto; max-height: 80vh;
+    }
+    .mgr-detail-header {
+      padding: 16px 20px; background: linear-gradient(135deg, #1A365D 0%, #2D6A9F 100%);
+      color: #fff; border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .mgr-detail-body { padding: 20px; }
+    .mgr-detail-placeholder {
+      display: flex; align-items: center; justify-content: center;
+      height: 300px; color: var(--text-muted); font-style: italic;
+    }
+
+    .heatmap-container { overflow-x: auto; margin-top: 20px; }
+    .heatmap-table { border-collapse: collapse; width: 100%; }
+    .heatmap-table th, .heatmap-table td {
+      border: 1px solid var(--border); padding: 8px 10px;
+      font-size: 12px; text-align: center;
+    }
+    .heatmap-table th { background: #F7FAFC; font-weight: 600; }
+    .heatmap-table th:first-child { text-align: left; min-width: 140px; }
+    .heatmap-cell.at-target { background: #C6F6D5; }
+    .heatmap-cell.gap-1 { background: #FEFCBF; }
+    .heatmap-cell.gap-2 { background: #FED7AA; }
+    .heatmap-cell.gap-3 { background: #FEB2B2; }
+    .heatmap-cell.na { background: #F7FAFC; color: var(--text-muted); }
+
+    /* ── HR DASHBOARD ──────────────────────────────────────── */
+    .dashboard-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 20px;
+    }
+    .dash-widget {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-sm); overflow: hidden;
+    }
+    .dash-widget-header {
+      padding: 12px 16px; background: #F7FAFC;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px; font-weight: 700; color: var(--text-primary);
+    }
+    .dash-widget-body { padding: 16px; }
+    .dash-bar-row {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 8px; font-size: 12px;
+    }
+    .dash-bar-label { width: 130px; text-align: right; color: var(--text-secondary); }
+    .dash-bar-track {
+      flex: 1; height: 22px; background: #EDF2F7;
+      border-radius: 4px; overflow: hidden; position: relative;
+    }
+    .dash-bar-fill {
+      height: 100%; border-radius: 4px; transition: width 0.3s;
+      display: flex; align-items: center; padding-left: 8px;
+      font-size: 11px; font-weight: 700; color: #fff;
+    }
+    .dash-bar-fill.blue { background: #2D6A9F; }
+    .dash-bar-fill.green { background: #48BB78; }
+    .dash-bar-fill.amber { background: #F6AD55; }
+    .dash-bar-fill.red { background: #FC8181; }
+
+    .pipeline-table { width: 100%; border-collapse: collapse; }
+    .pipeline-table th, .pipeline-table td {
+      padding: 8px 10px; border-bottom: 1px solid var(--border);
+      font-size: 12px; text-align: left;
+    }
+    .pipeline-table th { font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; }
+
+    .progress-bar {
+      width: 80px; height: 6px; background: #EDF2F7;
+      border-radius: 3px; display: inline-block; vertical-align: middle;
+    }
+    .progress-bar-fill {
+      height: 100%; border-radius: 3px; background: #48BB78;
+    }
+
+    /* ── DATA MANAGEMENT ───────────────────────────────────── */
+    .data-mgmt { margin-top: 24px; }
+    .data-mgmt-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 12px;
+    }
+    .data-mgmt-card {
+      padding: 16px; border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--surface);
+    }
+    .data-mgmt-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+    .data-mgmt-card p { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+
+    /* ── SETTINGS ───────────────────────────────────────────── */
+    .settings-section {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-sm); padding: 20px; margin-top: 20px;
+    }
+    .settings-section h3 {
+      font-size: 15px; font-weight: 700; margin-bottom: 14px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+
+    /* ── AUDIT LOG ─────────────────────────────────────────── */
+    .audit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .audit-table th, .audit-table td {
+      padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: left;
+    }
+    .audit-table th { font-weight: 600; color: var(--text-muted); font-size: 11px; }
+
+    /* ── SECTION TITLES ────────────────────────────────────── */
+    .section-title {
+      font-size: 16px; font-weight: 700; color: var(--text-primary);
+      margin-bottom: 14px; padding-bottom: 8px;
+      border-bottom: 2px solid #1A365D;
+    }
+    .section-subtitle {
+      font-size: 13px; color: var(--text-muted); margin-bottom: 16px;
+    }
+
+    /* ── STACKED BAR ───────────────────────────────────────── */
+    .stacked-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .stacked-label { width: 130px; text-align: right; font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stacked-track { flex: 1; height: 18px; display: flex; border-radius: 3px; overflow: hidden; }
+    .stacked-seg { height: 100%; transition: width 0.3s; }
+    .stacked-seg.green { background: #48BB78; }
+    .stacked-seg.amber { background: #F6AD55; }
+    .stacked-seg.red { background: #FC8181; }
+    .stacked-seg.gray { background: #CBD5E0; }
+
+    /* ── QUICK ASSESS ──────────────────────────────────────── */
+    .quick-assess-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .qa-skill-row {
+      display: flex; align-items: center; gap: 8px; padding: 6px 0;
+      border-bottom: 1px solid #F0F4F8;
+    }
+    .qa-skill-name { flex: 1; font-size: 12px; font-weight: 500; }
+    .qa-level-select {
+      padding: 4px 8px; border: 1px solid var(--border);
+      border-radius: 4px; font-size: 12px; cursor: pointer;
+    }
+
+    /* ── AI LOADING ────────────────────────────────────────── */
+    .ai-loading {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px; color: var(--text-muted); font-size: 13px;
+    }
+    .ai-spinner {
+      width: 16px; height: 16px; border: 2px solid #E2E8F0;
+      border-top-color: #667eea; border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .ai-suggestion {
+      padding: 12px; border: 1px solid #E2E8F0; border-radius: var(--radius);
+      margin-bottom: 8px; background: linear-gradient(135deg, #f7f8ff 0%, #faf7ff 100%);
+    }
+    .ai-suggestion-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .ai-suggestion-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+    .ai-suggestion-meta { font-size: 11px; color: var(--text-muted); }
+
+    /* ── ORG CHART ──────────────────────────────────────── */
+    .org-chart { padding: 24px 0; overflow-x: auto; }
+    .org-level {
+      display: flex; justify-content: center; gap: 24px;
+      margin-bottom: 8px; position: relative;
+    }
+    .org-connector {
+      display: flex; justify-content: center; margin-bottom: 4px;
+    }
+    .org-connector svg { display: block; }
+    .org-person {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 10px 18px; border-radius: var(--radius);
+      border: 2px solid var(--border); background: var(--surface);
+      min-width: 140px; text-align: center; cursor: pointer;
+      transition: all 0.2s; box-shadow: var(--shadow-sm);
+    }
+    .org-person:hover { border-color: #2D6A9F; box-shadow: var(--shadow-md); }
+    .org-person.highlighted { border-color: #1976D2; background: var(--l1-bg); }
+    .org-person-name { font-size: 13px; font-weight: 600; }
+    .org-person-role { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+    .org-person-unit { font-size: 9px; color: var(--text-muted); }
+    .org-person-gender {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      margin-right: 4px; vertical-align: middle;
+    }
+
+    /* ── PROFILE CARD ──────────────────────────────────── */
+    .profile-card {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-sm); padding: 20px; margin-bottom: 20px;
+    }
+    .profile-header {
+      display: flex; align-items: center; gap: 16px;
+      padding-bottom: 16px; border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .profile-avatar {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: linear-gradient(135deg, #1A365D 0%, #2D6A9F 100%);
+      color: #fff; display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; flex-shrink: 0;
+    }
+    .profile-info h2 { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+    .profile-info p { font-size: 12px; color: var(--text-muted); }
+    .profile-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    .profile-field {
+      padding: 8px 12px; background: #F7FAFC; border-radius: var(--radius-sm);
+    }
+    .profile-field label {
+      display: block; font-size: 10px; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 2px;
+    }
+    .profile-field .value { font-size: 13px; color: var(--text-primary); }
+    .profile-field input, .profile-field select {
+      width: 100%; padding: 4px 6px; border: 1px solid var(--border);
+      border-radius: 3px; font-size: 13px; font-family: inherit;
+      background: #fff;
+    }
+
+    /* ── TRAINING CATALOG ──────────────────────────────── */
+    .training-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 14px 16px;
+      margin-bottom: 10px; display: flex; gap: 14px;
+      align-items: flex-start;
+    }
+    .training-card:hover { box-shadow: var(--shadow-sm); }
+    .training-date-badge {
+      flex-shrink: 0; width: 60px; text-align: center;
+      padding: 6px 4px; border-radius: var(--radius-sm);
+      background: #EBF8FF; border: 1px solid #90CDF4;
+    }
+    .training-date-badge .month { font-size: 10px; font-weight: 700; color: #2D6A9F; text-transform: uppercase; }
+    .training-date-badge .day { font-size: 18px; font-weight: 800; color: #1A365D; line-height: 1; }
+    .training-date-badge.no-date { background: #F7FAFC; border-color: var(--border); }
+    .training-date-badge.no-date .month { color: var(--text-muted); }
+    .training-card-body { flex: 1; }
+    .training-card-title { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+    .training-card-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+    .training-meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11px; color: var(--text-muted); }
+    .training-meta span { display: inline-flex; align-items: center; gap: 3px; }
+    .training-cost { font-weight: 700; color: #1A365D; }
+    .training-spots { font-weight: 600; }
+    .training-spots.low { color: #E53E3E; }
+    .training-filter {
+      display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .training-filter select, .training-filter input {
+      padding: 6px 10px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 12px;
+      font-family: inherit;
+    }
+
+    /* ── DEMOGRAPHICS CHART ────────────────────────────── */
+    .demo-row {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 6px; font-size: 12px;
+    }
+    .demo-label { width: 100px; text-align: right; color: var(--text-secondary); }
+    .demo-bar {
+      flex: 1; height: 22px; display: flex; border-radius: 4px; overflow: hidden;
+    }
+    .demo-seg {
+      height: 100%; display: flex; align-items: center;
+      padding: 0 8px; font-size: 10px; font-weight: 700; color: #fff;
+      transition: width 0.3s;
+    }
+    .demo-seg.male { background: #2D6A9F; }
+    .demo-seg.female { background: #D53F8C; }
+    .demo-seg.other { background: #718096; }
+
+    /* ── BACKUP BANNER ─────────────────────────────────── */
+    .backup-banner {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 10px 32px; background: #FEFCBF; border-top: 2px solid #F6AD55;
+      display: flex; align-items: center; justify-content: space-between;
+      z-index: 500; font-size: 13px; color: #744210;
+    }
+    .backup-banner .btn { margin-left: 12px; }
+
+    /* ── GOAL CARDS ────────────────────────────────────── */
+    .goal-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 14px 16px;
+      margin-bottom: 10px; box-shadow: var(--shadow-sm);
+    }
+    .goal-card-header {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 6px; flex-wrap: wrap;
+    }
+    .goal-card-title { font-size: 14px; font-weight: 600; flex: 1; }
+    .goal-card-body { font-size: 12px; color: var(--text-secondary); line-height: 1.6; }
+    .goal-card-meta { font-size: 11px; color: var(--text-muted); margin-top: 6px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+    /* ── TRAINING REQUEST ──────────────────────────────── */
+    .treq-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); padding: 12px 16px;
+      margin-bottom: 8px;
+    }
+    .treq-card.pending { border-left: 3px solid #F6AD55; }
+    .treq-card.approved { border-left: 3px solid #48BB78; }
+    .treq-card.rejected { border-left: 3px solid #FC8181; }
+
+    /* ── SPARKLINE ─────────────────────────────────────── */
+    .sparkline { display: inline-block; vertical-align: middle; margin-left: 6px; cursor: help; }
+
+    /* ── FEEDBACK TIMER ────────────────────────────────── */
+    .feedback-timer {
+      display: inline-block; font-size: 10px; padding: 2px 7px;
+      border-radius: 10px; font-weight: 600;
+    }
+    .feedback-timer.ok { background: #C6F6D5; color: #276749; }
+    .feedback-timer.warn { background: #FEFCBF; color: #744210; }
+    .feedback-timer.overdue { background: #FED7D7; color: #9B2C2C; }
+
+    /* ── REVIEW INDICATOR ──────────────────────────────── */
+    .review-indicator {
+      display: inline-block; font-size: 10px; padding: 2px 7px;
+      border-radius: 10px; font-weight: 600;
+      background: #BEE3F8; color: #1A365D;
+    }
+    .review-indicator.soon { background: #FED7AA; color: #7B341E; }
+
+    /* ── ATTACHMENT ─────────────────────────────────────── */
+    .attachment-link {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 11px; color: #2D6A9F; cursor: pointer;
+      padding: 2px 6px; background: #EBF8FF; border-radius: 3px;
+      text-decoration: none; margin-top: 4px;
+    }
+    .attachment-link:hover { background: #BEE3F8; }
+
+    @media (max-width: 900px) {
+      header { flex-wrap: wrap; padding: 0 16px; }
+      .role-switcher { margin-left: 0; width: 100%; padding-bottom: 8px; }
+      .tab-nav { width: 100%; overflow-x: auto; padding-bottom: 0; }
+      .main, .manager-main { padding: 16px; }
+      .mgr-layout { flex-direction: column; }
+      .mgr-roster { width: 100%; max-height: 250px; }
+      .career-path { justify-content: flex-start; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .levels-grid { grid-template-columns: 1fr; }
+      .cell-dual { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="header-logo">CEPS</div>
+    <div class="header-title">
+      <h1>HR Performance Tool</h1>
+      <p>Career development, skills &amp; talent management</p>
+    </div>
+  </div>
+  <div class="role-switcher">
+    <label>View as:</label>
+    <select id="person-select" onchange="onPersonChange(this.value)"></select>
+    <div class="view-toggle">
+      <button class="view-toggle-btn active" onclick="setViewRole('employee')" id="vr-employee">Employee</button>
+      <button class="view-toggle-btn" onclick="setViewRole('manager')" id="vr-manager">Manager</button>
+      <button class="view-toggle-btn" onclick="setViewRole('hr')" id="vr-hr">HR</button>
+    </div>
+  </div>
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('matrix')" id="tab-matrix">Skills Matrix</button>
+    <button class="tab-btn" onclick="switchTab('career')" id="tab-career">My Career</button>
+    <button class="tab-btn" onclick="switchTab('training')" id="tab-training">Training</button>
+    <button class="tab-btn" onclick="switchTab('manager')" id="tab-manager" style="display:none">Team</button>
+    <button class="tab-btn" onclick="switchTab('orgchart')" id="tab-orgchart" style="display:none">Org Chart</button>
+    <button class="tab-btn" onclick="switchTab('hr')" id="tab-hr" style="display:none">HR Dashboard</button>
+  </div>
+</header>
+
+<!-- Skills Matrix legend -->
+<div class="legend" id="legend-matrix">
+  <span class="legend-label">Proficiency:</span>
+  <div class="legend-item"><span class="level-badge L1">L1</span> Fundamental Awareness</div>
+  <div class="legend-item"><span class="level-badge L2">L2</span> Working Proficiency</div>
+  <div class="legend-item"><span class="level-badge L3">L3</span> Expert Proficiency</div>
+  <div class="legend-item"><span class="level-badge L4">L4</span> Strategic Proficiency</div>
+  <span style="margin-left:12px;font-size:11px;color:var(--text-muted)">Click a <strong>skill</strong> or <strong>role</strong> to explore</span>
+</div>
+
+<!-- ── SKILLS MATRIX VIEW ─── -->
+<div class="view active" id="view-matrix">
+  <div class="main">
+    <div class="matrix-container">
+      <table id="matrix-table"></table>
+    </div>
+  </div>
+</div>
+
+<!-- ── MY CAREER VIEW ─── -->
+<div class="view" id="view-career">
+  <div class="main" id="career-content"></div>
+</div>
+
+<!-- ── MANAGER VIEW ─── -->
+<div class="view" id="view-manager">
+  <div class="main" id="manager-content"></div>
+</div>
+
+<!-- ── TRAINING CATALOG VIEW ─── -->
+<div class="view" id="view-training">
+  <div class="main" id="training-content"></div>
+</div>
+
+<!-- ── ORG CHART VIEW ─── -->
+<div class="view" id="view-orgchart">
+  <div class="main" id="orgchart-content"></div>
+</div>
+
+<!-- ── HR DASHBOARD VIEW ─── -->
+<div class="view" id="view-hr">
+  <div class="main" id="hr-content"></div>
+</div>
+
+<!-- ── ACTION MODAL ─── -->
+<div class="modal-overlay" id="action-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="action-modal-title">Add Development Action</h3>
+      <button class="panel-close" onclick="closeActionModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="action-modal-body"></div>
+    <div class="modal-footer" id="action-modal-footer"></div>
+  </div>
+</div>
+
+<!-- ── FEEDBACK MODAL ─── -->
+<div class="modal-overlay" id="feedback-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Give Feedback</h3>
+      <button class="panel-close" onclick="closeFeedbackModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="feedback-modal-body"></div>
+    <div class="modal-footer" id="feedback-modal-footer"></div>
+  </div>
+</div>
+
+<!-- ── GOAL MODAL ─── -->
+<div class="modal-overlay" id="goal-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Set Goal</h3>
+      <button class="panel-close" onclick="closeGoalModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="goal-modal-body"></div>
+    <div class="modal-footer" id="goal-modal-footer"></div>
+  </div>
+</div>
+
+<!-- ── TRAINING REQUEST MODAL ─── -->
+<div class="modal-overlay" id="training-req-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Request Training</h3>
+      <button class="panel-close" onclick="closeTrainingReqModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="treq-modal-body"></div>
+    <div class="modal-footer" id="treq-modal-footer"></div>
+  </div>
+</div>
+
+<!-- ── ADMIN TRAINING MODAL ─── -->
+<div class="modal-overlay" id="admin-training-modal">
+  <div class="modal" style="max-width:800px">
+    <div class="modal-header">
+      <h3 id="admin-training-modal-title">Edit Training</h3>
+      <button class="panel-close" onclick="closeAdminTrainingModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="admin-training-modal-body"></div>
+    <div class="modal-footer" id="admin-training-modal-footer"></div>
+  </div>
+</div>
+
+<!-- ── BACKUP WARNING MODAL ─── -->
+<div class="modal-overlay" id="backup-warning-modal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-header">
+      <h3>Data Storage Notice</h3>
+    </div>
+    <div class="modal-body" style="text-align:center;padding:24px">
+      <p style="font-size:36px;margin-bottom:12px">&#9888;</p>
+      <p style="font-size:14px;margin-bottom:12px"><strong>This application stores all data in your browser's localStorage.</strong></p>
+      <p style="font-size:12px;color:var(--text-secondary);margin-bottom:16px">Data may be lost if you clear browser data or switch browsers. Export regular backups via <strong>HR Dashboard → Export Data</strong>.</p>
+      <button class="btn btn-primary" onclick="dismissBackupWarning()">Got it, I understand</button>
+    </div>
+  </div>
+</div>
+
+<!-- Panel overlay -->
+<div class="overlay" id="overlay" onclick="closePanel()"></div>
+<div class="panel" id="panel">
+  <div class="panel-header">
+    <div class="panel-header-content">
+      <div class="panel-header-tag" id="panel-tag"></div>
+      <div class="panel-header-title" id="panel-title"></div>
+      <div class="panel-header-subtitle" id="panel-subtitle"></div>
+    </div>
+    <button class="panel-close" onclick="closePanel()" title="Close (Esc)">&#x2715;</button>
+  </div>
+  <div class="panel-body" id="panel-body"></div>
+</div>
+
+<script>
+
+const SKILLS = [
+  {
+    "id": "funding_income_generation",
+    "name": "Funding & income generation",
+    "family": "Managing projects",
+    "category": "Functional",
+    "definition": "Identifies relevant funding opportunities and develops high-quality grant applications to secure funds and contribute to income generation",
+    "levels": {
+      "L1": "- Is aware of funding sources for research projects and\nof the related application procedures.\n- Contributes to drafting research proposals.\n- Provides input for research funding proposals; starts understanding CEPS funding strategy.\n- Autonomously applies for small research grants and\ncontributes to larger applications.",
+      "L2": "- Identifies funding sources and writes successful grant proposals based on their own ideas.\n- Is familiar with key funding sources and can navigate their application procedures.\n- Recognises the importance of funding of one’s own institution and own research.",
+      "L3": "- Plans budgets and manages research resources effectively.\n- Informs others about relevant funding sources and advises them on application procedures.\n- Takes the lead in major presenting grant applications.\n- Actively engages in the funding of one’s own institution.",
+      "L4": "- Develops long-term financial sustainability strategies.\n- Influences funding policy within own research area.\n- Leads large and prestigious applications of international and interdisciplinary character.\n- Plays a crucial role in the funding of one’s own institution.\n- Negotiation with corporations, foundations,.."
+    }
+  },
+  {
+    "id": "project_management",
+    "name": "Project Management",
+    "family": "Managing projects",
+    "category": "Transversal",
+    "definition": "Manage and plan various resources, such as human resources, budget, deadline, results, and quality necessary for a specific project and for a project portfolio, and monitor the progress.",
+    "levels": {
+      "L1": "- Is familiar with different project management approaches and tools.\n- Participates in projects and delivers results according to deadlines.\n- Assists in research projects by supporting data collection, desk research, and report drafting.\n- Contributes to tenders and research projects; suggests research methods under supervision.\n- Independently drafts research components and begins taking ownership of research activities.",
+      "L2": "- Effectively uses a broad project management toolkit.\n- Defines and designs own research projects.\n-  Identifies risks and implements proper mitigation strategies.\n- Organizes workflows, sets timelines, and ensures deliverables.\n- Takes responsibility for parts of research projects; writes major sections of reports.\n- Designs research activities and allocates tasks to colleagues, actively manages project components.\n- Leads parts of projects and successfully collaborates on cross-unit CEPS projects.",
+      "L3": "- Manages multiple projects and identifies their synergies, ensuring strategic alignment and timely delivery..\n- Leverages problems and anticipates and manages conflicts within the project team and with project stakeholders.\n- Efficiently allocates research resources.\n- Oversees project design and execution, including data analysis and research coordination.\n- Demonstrates expertise in managing large research projects; secures funding for projects.",
+      "L4": "- Designs the project management and reporting structure for prestigious research projects.\n- Anticipates challenges and develops contingency plans.\n- Takes necessary decisions even when unpopular and is able to successfully convey the reason behind these decisions in complex projects.\n- Leads complex interdisciplinary projects; ensures high research standards.\n- Drives CEPS' research agenda through high-level project management and funding oversight.\n- Oversees project design, funding, and execution at a high level.\n- Drives CEPS' institutional research strategy through expert project leadership."
+    }
+  },
+  {
+    "id": "disciplinary_expertise",
+    "name": "Disciplinary expertise",
+    "family": "Doing research",
+    "category": "Functional",
+    "definition": "Demonstrate deep knowledge and complex understanding of a specific research area",
+    "levels": {
+      "L1": "- Understands key concepts and relevant knowledge of own research area.\n- Keeps track of the latest advances within related fields.\n- Is eager to learn and apply knowledge to tasks and projects.\n- Seeks guidance and shows curiosity in expanding expertise.\n- Recognizes the importance of accuracy and attention to detail.",
+      "L2": "- Makes original contributions to own research area.\n- Stays up to date with developments in the field and integrates new learning.\n- Shares knowledge with peers and contributes to team success.",
+      "L3": "- Brings new knowledge to own and related disciplines and is\naware of its impact on society.\n- Demonstrates deep, reliable subject matter expertise across a range of scenarios.\n- Solves complex problems and provides strategic insight in the discipline.\n- Actively contributes to innovation and process improvement in the field.",
+      "L4": "- Contributes with, and has a deep understanding of novel developments in own and related research areas, pursuing whenever appropriate an interdisciplinary approach.\n- Is a recognized authority who shapes thinking and practice within the discipline.\n- Develops others through thought leadership, mentoring, and collaboration.\n- Continuously pushes the boundaries of knowledge and practice."
+    }
+  },
+  {
+    "id": "research_methodology",
+    "name": "Research methodology",
+    "family": "Doing research",
+    "category": "Functional",
+    "definition": "Conduct research by selecting or developing the appropriate approach.",
+    "levels": {
+      "L1": "- Understands basic research concepts, terminology, and ethical principles.\n- Demonstrates curiosity and a willingness to learn research processes.\n- Is able to follow established methods with guidance.\n- Contributes to data collection and basic analysis with support.\n- Understands the purpose and value of peer review in ensuring quality and credibility.\n- Learns from reviewing processes to improve personal work.",
+      "L2": "- Applies appropriate research methods to defined problems.\n- Designs studies with growing independence and methodological soundness.\n- Interprets data accurately and draws reasonable conclusions.\n- Keeps up to date with current research practices and tools.\n- Follows peer review guidelines and timelines effectively.\n- Contributes to raising the overall quality of work within a team or group.",
+      "L3": "- Leads research projects with strong methodological rigor and critical insight.\n- Selects and adapts research designs to complex or evolving questions.\n- Guides others in the application of methods and interpretation of results.\n- Publishes or presents findings that contribute to the field.\n- Offers insightful feedback that strengthens clarity, accuracy, and impact.\n- Is recognized for objectivity, professionalism, and domain knowledge.",
+      "L4": "- Shapes research agendas and advances methodological innovation.\n- Develops frameworks, tools, or best practices that influence the discipline.\n- Mentors emerging researchers and builds capacity in research excellence.\n- Integrates interdisciplinary approaches to generate transformative insights.\n- Leads review panels or editorial boards with integrity and thoughtfulness.\n- Promotes a culture of continuous improvement through feedback and dialogue.\n- Advocates for ethical, inclusive, and high-impact review practices."
+    }
+  },
+  {
+    "id": "writing",
+    "name": "Writing",
+    "family": "Doing research",
+    "category": "Functional",
+    "definition": "Adapts communication to diverse audiences, conveying complex ideas and debates with clarity and impact. Produces well-structured research documents, proposals, and reports tailored to each context.",
+    "levels": {
+      "L1": "- Writes clear and concise policy briefs and reports after review.\n- Produces structured reports with minor revisions; can draft policy briefs with supervision.\n- Writes clear and concise content across various formats with minimal supervision.\n- Contributes, under supervision, content for research, academic, and technical texts in a style appropriate for readership in own research area.",
+      "L2": "- Writes major sections of reports and policy briefs with support from senior colleagues.\n- Develops writing tailored for different audiences; refines structure and clarity.\n- Independently produces high-quality research publications with minimal feedback.\n- Communicates in a written style appropriate for specialist\nand non-specialist audiences.",
+      "L3": "- Writes comprehensive reports and policy briefs; provides editorial guidance to juniors.\n- Demonstrates strong analytical writing; adapts complex topics into accessible content.\n- Leads the writing of major CEPS reports; sets quality standards for research publications.\n• Reviews and edits academic and technical texts.\n- Oversees the writing process for research projects; ensures alignment with CEPS standards.\n- Develops advanced academic writing competences and leads the production of research literature, presenting complex ideas in a clear way.",
+      "L4": "- Establishes the writing vision for the research unit; ensures strategic alignment.\n- Leads the development of research communication strategies.\n- Shapes CEPS' research positioning and external engagement through writing.\n- Provides thought leadership in research writing; enhances CEPS' research voice.\n- Leads CEPS’ editorial strategy, ensuring consistency and impact of publications.\n- Engages in high-level policy writing, influencing EU and international discussions."
+    }
+  },
+  {
+    "id": "making_impact",
+    "name": "Making impact",
+    "family": "Making an impact",
+    "category": "Functional",
+    "definition": "Communicates complex concepts, debates, and findings clearly and effectively, adapting messages to different audiences and formats. Engages in public speaking and dissemination activities, develops external networks, and builds strong professional relationships with policymakers and other key stakeholders to increase the impact and use of findings in policy making. Produces well-structured documents, proposals, and reports.",
+    "levels": {
+      "L1": "- Attends and actively participates in policy events and discussions.\n- Presents research findings in external meetings; begins building visibility in policy circles.\n- Represents CEPS at policy events, building recognition as an expert.\n- Understands the policy-making processes relevant for own\nfield of research\n-  Understands the wider contexts in which policies are\nsituated.",
+      "L2": "- Speaks regularly at external events, contributing expert insights.\n- Develops a strong external presence, engaging with policymakers and stakeholders.\n- Represents CEPS as a key speaker at major research and policy events.\n- Engages in dialogue with government institutions, stakeholders, and other key organisations.",
+      "L3": "- Leads research dissemination at external events; engages with key policy networks.\n- Develops relationships with media, policymakers, and think tanks.\n- Frequently invited to join panels and conferences as a recognized expert.\n- Drives CEPS’ influence at international policy events and negotiations.\n- Writes science-for-policy outputs cited or used by\npolicymakers",
+      "L4": "- Oversees CEPS' external engagement strategy; ensures high-profile visibility.\n- Builds and maintains relationships with EU and international policymakers.\n- Shapes CEPS' institutional presence, influencing policy discourse at the highest level.\n- Informs political priorities by presenting compelling evidence\nof challenges, or reframing of challenges.\n-  Is called upon to work directly with high-level policy makers."
+    }
+  },
+  {
+    "id": "cognitive_thinking",
+    "name": "Cognitive thinking",
+    "family": "Manage information",
+    "category": "Transversal",
+    "definition": "Combines creativity, logic, and foresight to understand complexity, identify patterns, and generate new ideas. Transforms insights into innovative and sustainable solutions for future challenges.",
+    "levels": {
+      "L1": "Is inquisitive, curious and open-minded\n- Seeks different perspectives and listens to other's reasoning\n- Analyses basic information and dat to draw initial conclusions\n- Experiments with new ideas and approaches.\n- Begins to connect concepts from own field and explores their broader meaning.",
+      "L2": "Critically analyses complex information, data and ideas from diverse sources. \n-Thinks in a flexible way, and adapts ideas to diferent contexts. \n-Combines analytical rigour with creative thinking to propose relevant solutions\nAnticipates implications and aligns ideas with broader objectives\nMakes sound, evidence-based judgments while remaining open to innovation.",
+      "L3": "Integrates knowledge from multiple disciplines to design innovative and strategic decisions.\n-Encourages creative and analytical thinking in peers and teammembers.\nSynthesises complex information to generate visionary insights\nUses critical reasoning and experimentation to improve methods and outcomes.\nBalances long-term perspective with practical decision-making.",
+      "L4": "Shapes organisational or research strategy through visionary, evidence-based, and forward-looking thinking.\nIntegrates insights across disciplines to drive breakthrough ideas and innovative approaches.\nChallenges existing assumptions constructively and sets new standards of excellence.\nPromotes a culture of curiosity, creativity, and analytical depth across the organisation.\nAnticipates emerging trends and translates them into strategic opportunities and long-term impact"
+    }
+  },
+  {
+    "id": "developing_oneself",
+    "name": "Developing oneself",
+    "family": "Self leadership",
+    "category": "Transversal",
+    "definition": "Take responsibility for lifelong learning and continuous professional development. Engage in learning to support and update professional competence and develop personal skills",
+    "levels": {
+      "L1": "- Actively seeks mentoring for career progression and\nemployability development.\n- Maintains own records of achievements and experiences.\n- Develops personal skills and skills aligned with CEPS\nrequirements.",
+      "L2": "- Initiates networks and relationships important to career development.\n- Actively pursues self and career improvement, and seeks\nothers’ advice on this.\n- Strategically develops both personal and career-oriented\nskills.",
+      "L3": "- Coaches others in academic career development.\n- Uses networks to further the career of others.\n- Purposefully develops professional and personal\nskills for self and others.",
+      "L4": "Challenges the status quo in a constructive and forward-looking way."
+    }
+  },
+  {
+    "id": "knowing_oneself",
+    "name": "Knowing oneself",
+    "family": "Self leadership",
+    "category": "Transversal",
+    "definition": "Understanding and questioning the way we work, recognising our emotions and their effects so that we can make the most of our own abilities.",
+    "levels": {
+      "L1": "- Begins to explore personal strengths and areas for growth.\n- Is open to feedback, though may need support in processing and applying it.\n- Becomes aware of how emotions influence actions and decisions.\n- Takes initial steps toward self-reflection and personal development.",
+      "L2": "- Recognizes personal strengths and development areas and works on them.\n- Accepts and applies feedback with growing confidence.\n- Understands how emotions impact behavior and strives to manage them effectively.\n- Aligns actions with personal values and seeks growth opportunities.",
+      "L3": "- Demonstrates strong self-awareness and actively refines personal and professional skills.\n- Seeks out and applies feedback constructively to improve performance.\n- Recognizes the impact of personal actions on others and adapts accordingly.\n- Regularly reflects on experiences to enhance continuous growth and effectiveness.",
+      "L4": "Cultivates a culture of curiosity, creativity, and analytical rigour."
+    }
+  },
+  {
+    "id": "team_leadership",
+    "name": "Team leadership",
+    "family": "Working with others",
+    "category": "Transversal",
+    "definition": "Mobilise and unite employees to achieve objectives, inspire through exemplary behaviour and facilitate change within the organisation.",
+    "levels": {
+      "L1": "- Provides guidance to junior colleagues and assists in team organization.\n- Leads small teams in research projects, taking responsibility for coordination.\n- Applies standard leadership practices and adapts them to team needs.\n- Begins to recognize and encourage individual team members’ strengths.",
+      "L2": "- Manages small project teams.\n- Delegates responsabilities based on team capabilities and skills.\n- Leads teams effectively by setting clear goals, roles, and expectations.\n- Resolves conflicts constructively and maintains team morale.\n- Coaches team members, adapts leadership style to team needs, and ensures accountability.",
+      "L3": "- Manages and leads research teams; ensures clear delegation of responsibilities.\n- Provides structured mentorship to team members and promotes professional growth.\n- Oversees team dynamics, ensuring effective collaboration and high performance.\n- Demonstrates strong leadership in research teams; resolves conflicts effectively.\n- Tailors leadership style to different situations and team members.\n- Demonstrates solid decision-making and problem-solving skills.",
+      "L4": "- Sets the strategic vision for team culture and performance across the organisation.\n- Shapes leadership development practices and succession planning.\n- Inspires and empowers leaders at all levels to grow and take ownership.\n- Drives organisational change and fosters a culture of accountability, trust, and continuous improvement.\n- Represents the organisation externally as a leadership role model."
+    }
+  },
+  {
+    "id": "work_in_teams",
+    "name": "Work in teams",
+    "family": "Working with others",
+    "category": "Transversal",
+    "definition": "Working as part of a team, building professional relationships and sharing knowledge to achieve common goals.",
+    "levels": {
+      "L1": "- Manages their own time effectively; demonstrates empathy in teamwork.\n- Participates actively in teamwork, communicates well, and shows interest in unit activities.\n- Contributes positively to the team environment; takes initiative in internal CEPS activities.",
+      "L2": "- Balances workload and meets deadlines; collaborates effectively with colleagues.\n- Shows leadership in teamwork; mentors junior researchers and supports colleagues.\n- Provides constructive feedback; supports and develops junior researchers.\n- Encourages team spirit and cooperation; engages in shared initiatives.",
+      "L3": "- Develops interpersonal dynamics within the team, promoting inclusivity.\n- Manages conflict resolution and ensures a healthy team atmosphere.\n- Manages time efficiently; fosters a positive and inclusive team culture.\n- Leads team efforts and fosters a collaborative and supportive work environment.",
+      "L4": "Anticipates future trends and translates them into transformative actions and insights."
+    }
+  }
+];
+const ROLES = [
+  {
+    "id": "research_assistant",
+    "name": "Research Assistant",
+    "nextRole": "researcher",
+    "nextRoleName": "Researcher",
+    "requirements": {
+      "funding_income_generation": null,
+      "project_management": null,
+      "disciplinary_expertise": "L1",
+      "research_methodology": "L1",
+      "writing": "L1",
+      "making_impact": "L1",
+      "cognitive_thinking": "L1",
+      "developing_oneself": "L1",
+      "knowing_oneself": null,
+      "team_leadership": null,
+      "work_in_teams": "L1"
+    }
+  },
+  {
+    "id": "researcher",
+    "name": "Researcher",
+    "nextRole": "research_fellow",
+    "nextRoleName": "Research Fellow",
+    "requirements": {
+      "funding_income_generation": "L1",
+      "project_management": "L1",
+      "disciplinary_expertise": "L2",
+      "research_methodology": "L2",
+      "writing": "L2",
+      "making_impact": "L2",
+      "cognitive_thinking": "L2",
+      "developing_oneself": "L2",
+      "knowing_oneself": null,
+      "team_leadership": null,
+      "work_in_teams": "L2"
+    }
+  },
+  {
+    "id": "research_fellow",
+    "name": "Research Fellow",
+    "nextRole": "head_of_program",
+    "nextRoleName": "Head of Program",
+    "hintOverride": ["Head of Program", "Senior Research Fellow", "Head of Unit"],
+    "requirements": {
+      "funding_income_generation": "L2",
+      "project_management": "L2",
+      "disciplinary_expertise": "L3",
+      "research_methodology": "L3",
+      "writing": "L3",
+      "making_impact": "L3",
+      "cognitive_thinking": "L3",
+      "developing_oneself": "L3",
+      "knowing_oneself": null,
+      "team_leadership": "L2",
+      "work_in_teams": "L3"
+    }
+  },
+  {
+    "id": "head_of_program",
+    "name": "Head of Program",
+    "nextRole": "head_of_unit",
+    "nextRoleName": "Head of Unit",
+    "requirements": {
+      "funding_income_generation": "L3",
+      "project_management": "L3",
+      "disciplinary_expertise": "L3",
+      "research_methodology": "L4",
+      "writing": "L4",
+      "making_impact": "L4",
+      "cognitive_thinking": "L4",
+      "developing_oneself": "L4",
+      "knowing_oneself": null,
+      "team_leadership": "L3",
+      "work_in_teams": "L4"
+    }
+  },
+  {
+    "id": "senior_research_fellow",
+    "name": "Senior Research Fellow",
+    "nextRole": null,
+    "nextRoleName": null,
+    "hintOverride": [],
+    "requirements": {
+      "funding_income_generation": "L4",
+      "project_management": "L4",
+      "disciplinary_expertise": "L4",
+      "research_methodology": "L4",
+      "writing": "L4",
+      "making_impact": "L4",
+      "cognitive_thinking": "L4",
+      "developing_oneself": "L4",
+      "knowing_oneself": null,
+      "team_leadership": "L3",
+      "work_in_teams": "L4"
+    }
+  },
+  {
+    "id": "head_of_unit",
+    "name": "Head of Unit",
+    "nextRole": "senior_research_fellow",
+    "nextRoleName": "Senior Research Fellow",
+    "hintOverride": [],
+    "requirements": {
+      "funding_income_generation": "L4",
+      "project_management": "L4",
+      "disciplinary_expertise": "L4",
+      "research_methodology": "L4",
+      "writing": "L4",
+      "making_impact": "L4",
+      "cognitive_thinking": "L4",
+      "developing_oneself": "L4",
+      "knowing_oneself": null,
+      "team_leadership": "L4",
+      "work_in_teams": "L4"
+    }
+  }
+];
+const LEVEL_LABELS = {"L1": "Fundamental Awareness", "L2": "Working Proficiency", "L3": "Expert Proficiency", "L4": "Strategic Proficiency"};
+const ASSESSMENT = [
+  {
+    "role": "Researcher",
+    "roleId": "researcher",
+    "persons": [
+      "John Doe",
+      "Clara Santa"
+    ],
+    "skills": [
+      {
+        "skillId": "funding_income_generation",
+        "skillName": "Funding & income generation",
+        "required": "L1",
+        "persons": {
+          "John Doe": "L1",
+          "Clara Santa": "L1"
+        }
+      },
+      {
+        "skillId": "project_management",
+        "skillName": "Project Management",
+        "required": "L1",
+        "persons": {
+          "John Doe": "L2",
+          "Clara Santa": "L2"
+        }
+      },
+      {
+        "skillId": "disciplinary_expertise",
+        "skillName": "Disciplinary expertise",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L2",
+          "Clara Santa": "L1"
+        }
+      },
+      {
+        "skillId": "research_methodology",
+        "skillName": "Research methodology",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L2",
+          "Clara Santa": "L2"
+        }
+      },
+      {
+        "skillId": "writing",
+        "skillName": "Writing",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L2",
+          "Clara Santa": "L2"
+        }
+      },
+      {
+        "skillId": null,
+        "skillName": "Making an impact",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L3",
+          "Clara Santa": "L1"
+        }
+      },
+      {
+        "skillId": "cognitive_thinking",
+        "skillName": "Cognitive thinking",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L2",
+          "Clara Santa": "L2"
+        }
+      },
+      {
+        "skillId": null,
+        "skillName": "Knowing oneself",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L2",
+          "Clara Santa": "L2"
+        }
+      },
+      {
+        "skillId": "team_leadership",
+        "skillName": "Team leadership",
+        "required": null,
+        "persons": {
+          "John Doe": null,
+          "Clara Santa": null
+        }
+      },
+      {
+        "skillId": null,
+        "skillName": "Working in teams",
+        "required": "L2",
+        "persons": {
+          "John Doe": "L3",
+          "Clara Santa": "L2"
+        }
+      }
+    ]
+  },
+  {
+    "role": "Research Fellow",
+    "roleId": "research_fellow",
+    "persons": [
+      "Josey Dorsey"
+    ],
+    "skills": [
+      {
+        "skillId": "funding_income_generation",
+        "skillName": "Funding & income generation",
+        "required": "L2",
+        "persons": {
+          "Josey Dorsey": "L2"
+        }
+      },
+      {
+        "skillId": "project_management",
+        "skillName": "Project Management",
+        "required": "L2",
+        "persons": {
+          "Josey Dorsey": "L1"
+        }
+      },
+      {
+        "skillId": "disciplinary_expertise",
+        "skillName": "Disciplinary expertise",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L3"
+        }
+      },
+      {
+        "skillId": "research_methodology",
+        "skillName": "Research methodology",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L2"
+        }
+      },
+      {
+        "skillId": "writing",
+        "skillName": "Writing",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L3"
+        }
+      },
+      {
+        "skillId": null,
+        "skillName": "Making an impact",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L3"
+        }
+      },
+      {
+        "skillId": "cognitive_thinking",
+        "skillName": "Cognitive thinking",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L3"
+        }
+      },
+      {
+        "skillId": null,
+        "skillName": "Knowing oneself",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L3"
+        }
+      },
+      {
+        "skillId": "team_leadership",
+        "skillName": "Team leadership",
+        "required": "L2",
+        "persons": {
+          "Josey Dorsey": "L2"
+        }
+      },
+      {
+        "skillId": null,
+        "skillName": "Working in teams",
+        "required": "L3",
+        "persons": {
+          "Josey Dorsey": "L3"
+        }
+      }
+    ]
+  }
+];
+
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function lvNum(l) { return l ? parseInt(l.replace('L','')) : 0; }
+function badge(l) {
+  if (!l) return '<span class="req-cell-empty">&ndash;</span>';
+  return `<span class="level-badge ${l}">${l}</span>`;
+}
+function esc(s) {
+  return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function getSkill(id) { return SKILLS.find(s => s.id === id); }
+function getRole(id) { return ROLES.find(r => r.id === id); }
+
+// Format description text: split on " - " bullets into a list
+function fmtDesc(text) {
+  if (!text) return '';
+  // Split on newline-based bullets (e.g. "- text\n- text")
+  const byNewline = text.split(/\n+/).map(s => s.replace(/^[ \t]*-[ \t]*/, '').trim()).filter(Boolean);
+  if (byNewline.length > 1) {
+    return '<ul class="bullet-list">' + byNewline.map(p => `<li>${esc(p)}</li>`).join('') + '</ul>';
+  }
+  // Fallback: split on " - " pattern
+  const parts = text.split(/[ \t]+-[ \t]+/).map(s => s.trim()).filter(Boolean);
+  if (parts.length <= 1) return `<span>${esc(text)}</span>`;
+  return '<ul class="bullet-list">' + parts.map(p => `<li>${esc(p)}</li>`).join('') + '</ul>';
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const view = document.getElementById('view-' + tab);
+  const tabBtn = document.getElementById('tab-' + tab);
+  if (view) view.classList.add('active');
+  if (tabBtn) tabBtn.classList.add('active');
+  document.getElementById('legend-matrix').style.display = tab === 'matrix' ? '' : 'none';
+}
+
+// ── Build skills matrix ───────────────────────────────────────────────────────
+function buildMatrix() {
+  const families = [], familyMap = {};
+  for (const s of SKILLS) {
+    if (!familyMap[s.family]) { familyMap[s.family] = []; families.push(s.family); }
+    familyMap[s.family].push(s);
+  }
+
+  let h = '<thead><tr><th style="min-width:210px;text-align:left">Skill</th>';
+  for (const r of ROLES) {
+    h += `<th class="role-header" onclick="openRolePanel('${r.id}')" title="Click to view ${esc(r.name)} profile">`;
+    h += `<div class="role-header-inner"><span class="role-header-name">${esc(r.name)}</span>`;
+    if (r.hintOverride !== undefined) {
+      for (const hint of r.hintOverride) {
+        h += `<span class="role-header-hint">&#8594; ${esc(hint)}</span>`;
+      }
+    } else if (r.nextRoleName) {
+      h += `<span class="role-header-hint">&#8594; ${esc(r.nextRoleName)}</span>`;
+    } else {
+      h += `<span class="role-header-hint">&#9733; Senior</span>`;
+    }
+    h += `</div></th>`;
+  }
+  h += '</tr></thead><tbody>';
+
+  for (const family of families) {
+    h += `<tr class="family-row"><td colspan="${ROLES.length+1}">${esc(family)}</td></tr>`;
+    for (const skill of familyMap[family]) {
+      h += `<tr class="skill-row">`;
+      h += `<td class="skill-name-cell" onclick="openSkillPanel('${skill.id}')" title="All levels for this skill">`;
+      h += esc(skill.name);
+      h += `<span class="skill-category-tag">${esc(skill.category)}</span></td>`;
+      for (const r of ROLES) {
+        const req = r.requirements[skill.id];
+        h += `<td class="req-cell" onclick="openCellPanel('${r.id}','${skill.id}')" title="${esc(r.name)} · ${esc(skill.name)}">${badge(req)}</td>`;
+      }
+      h += '</tr>';
+    }
+  }
+  h += '</tbody>';
+  document.getElementById('matrix-table').innerHTML = h;
+}
+
+// ── Build manager space ───────────────────────────────────────────────────────
+function buildManager() {
+  if (!ASSESSMENT || ASSESSMENT.length === 0) {
+    document.getElementById('manager-content').innerHTML =
+      '<p style="color:var(--text-muted);font-style:italic;padding:32px">No assessment data found.</p>';
+    return;
+  }
+
+  let h = '';
+  for (const section of ASSESSMENT) {
+    const persons = section.persons;
+    h += `<div class="section-card">`;
+    h += `<div class="section-card-header">`;
+    h += `<div><div class="section-card-title">${esc(section.role)}</div>`;
+    h += `<div class="section-card-subtitle">${persons.length} person${persons.length !== 1 ? 's' : ''} assessed</div></div>`;
+    h += `</div>`;
+
+    h += '<table class="assess-table"><thead><tr>';
+    h += '<th>Skill</th>';
+    h += '<th class="req-th">Required</th>';
+    for (const p of persons) h += `<th class="person-th">${esc(p)}</th>`;
+    h += '</tr></thead><tbody>';
+
+    for (const row of section.skills) {
+      h += '<tr>';
+      // Skill name - make clickable
+      const skillId = row.skillId;
+      if (skillId) {
+        h += `<td class="assess-skill-name" style="cursor:pointer" onclick="openSkillPanel('${skillId}')">${esc(row.skillName)}</td>`;
+      } else {
+        h += `<td class="assess-skill-name">${esc(row.skillName)}</td>`;
+      }
+      // Required level
+      h += `<td class="assess-req-cell">${badge(row.required)}</td>`;
+      // Person cells
+      for (const p of persons) {
+        const assessed = row.persons[p] || null;
+        const req = row.required;
+        let cls = 'unassessed', icon = '';
+        if (assessed && req) {
+          const diff = lvNum(assessed) - lvNum(req);
+          if (diff > 0) { cls = 'exceeds'; icon = '<span class="status-icon" title="Exceeds requirement">&#x2B06;</span>'; }
+          else if (diff === 0) { cls = 'meets'; icon = '<span class="status-icon" title="Meets requirement">&#x2714;</span>'; }
+          else { cls = 'below'; icon = '<span class="status-icon" title="Below requirement">&#x26A0;</span>'; }
+        } else if (assessed && !req) {
+          cls = 'unassessed';
+        }
+        h += `<td class="assess-person-cell ${cls}">${badge(assessed)}${icon}</td>`;
+      }
+      h += '</tr>';
+    }
+    h += '</tbody></table></div>';
+  }
+  document.getElementById('manager-content').innerHTML = h;
+}
+
+// ── Panel controls ────────────────────────────────────────────────────────────
+function openPanel() {
+  document.getElementById('overlay').classList.add('active');
+  document.getElementById('panel').classList.add('active');
+  document.addEventListener('keydown', escKey);
+}
+function closePanel() {
+  document.getElementById('overlay').classList.remove('active');
+  document.getElementById('panel').classList.remove('active');
+  document.removeEventListener('keydown', escKey);
+}
+function escKey(e) { if (e.key === 'Escape') closePanel(); }
+function setHeader(tag, title, subtitle) {
+  document.getElementById('panel-tag').textContent = tag;
+  document.getElementById('panel-title').textContent = title;
+  document.getElementById('panel-subtitle').textContent = subtitle;
+}
+
+// ── Skill panel ───────────────────────────────────────────────────────────────
+function openSkillPanel(skillId) {
+  const skill = getSkill(skillId);
+  if (!skill) return;
+  setHeader(skill.family + ' · ' + skill.category, skill.name, skill.definition);
+
+  const levelRoles = {L1:[], L2:[], L3:[], L4:[]};
+  for (const r of ROLES) {
+    const req = r.requirements[skillId];
+    if (req && levelRoles[req]) levelRoles[req].push(r.name);
+  }
+
+  let h = '<div class="levels-grid">';
+  for (const [lv, label] of Object.entries(LEVEL_LABELS)) {
+    const text = skill.levels[lv] || '';
+    const roles = levelRoles[lv] || [];
+    h += `<div class="level-card ${lv}">`;
+    h += `<div class="level-card-header">${badge(lv)}<div><div class="level-card-name">${esc(label)}</div><div class="level-card-sublabel">${lv}</div></div></div>`;
+    h += `<div class="level-pane-text">${fmtDesc(text)}</div>`;
+    if (roles.length) {
+      h += '<div class="role-tags">';
+      for (const rn of roles) h += `<span class="role-tag">${esc(rn)}</span>`;
+      h += '</div>';
+    }
+    h += '</div>';
+  }
+  h += '</div>';
+  document.getElementById('panel-body').innerHTML = h;
+  openPanel();
+}
+
+// ── Role panel ────────────────────────────────────────────────────────────────
+function openRolePanel(roleId) {
+  const role = getRole(roleId);
+  if (!role) return;
+  const next = role.nextRole ? getRole(role.nextRole) : null;
+
+  setHeader('Role Profile', role.name,
+    next ? `Skills required at this level · Gap analysis towards ${next.name}`
+         : `Skills required at this level · Senior position`);
+
+  let h = '<div class="role-banner"><span class="role-banner-icon">';
+  h += next ? '&#128202;' : '&#11088;';
+  h += '</span><div class="role-banner-text"><strong>';
+  h += next
+    ? `Career gap: ${esc(role.name)} &#8594; ${esc(next.name)}`
+    : `${esc(role.name)} — senior level`;
+  h += '</strong><p>';
+  h += next
+    ? 'Skills highlighted in amber show where development is needed for the next role.'
+    : 'This is the most senior position. Showing current requirements.';
+  h += '</p></div></div>';
+
+  const families = [...new Set(SKILLS.map(s => s.family))];
+  const fmap = {};
+  for (const s of SKILLS) { if (!fmap[s.family]) fmap[s.family]=[]; fmap[s.family].push(s); }
+
+  for (const fam of families) {
+    const skills = fmap[fam] || [];
+    const visible = skills.filter(s => role.requirements[s.id] || (next && next.requirements[s.id]));
+    if (!visible.length) continue;
+
+    h += `<div class="family-heading">${esc(fam)}</div>`;
+
+    for (const skill of visible) {
+      const cur = role.requirements[skill.id];
+      const nxt = next ? next.requirements[skill.id] : null;
+      const hasGap = nxt && lvNum(nxt) > lvNum(cur || 'L0');
+      const atTarget = next && cur && nxt && lvNum(nxt) <= lvNum(cur);
+
+      h += '<div class="skill-block"><div class="skill-block-header">';
+      h += `<span class="skill-block-name">${esc(skill.name)}</span>`;
+      h += `<span class="skill-family-tag">${esc(skill.category)}</span>`;
+      if (cur) h += badge(cur);
+      if (hasGap) h += `<span class="gap-indicator">&#8593; ${nxt} needed</span>`;
+      else if (atTarget) h += '<span class="at-target-badge">&#10004; At target</span>';
+      h += '</div>';
+
+      if (!cur && !nxt) {
+        h += '<div style="padding:8px 14px;font-size:12px;color:var(--text-muted);font-style:italic">Not required at this level</div>';
+      } else {
+        h += `<div class="skill-block-body${hasGap ? '' : ' single'}">`;
+        h += '<div class="level-pane">';
+        h += `<div class="level-pane-heading">${badge(cur || null)}<span class="level-pane-label">Current${cur ? ' (' + esc(LEVEL_LABELS[cur]||'') + ')' : ''}</span></div>`;
+        h += `<div class="level-pane-text">${cur ? fmtDesc(skill.levels[cur]) : '<em style="opacity:0.45">Not required</em>'}</div>`;
+        h += '</div>';
+        if (hasGap) {
+          h += '<div class="level-pane gap-pane">';
+          h += `<div class="level-pane-heading"><span class="level-badge" style="background:var(--gap-bg);border-color:var(--gap-border);color:var(--gap-text)">${nxt}</span><span class="level-pane-label gap">Target for ${esc(next.name)}</span></div>`;
+          h += `<div class="level-pane-text">${fmtDesc(skill.levels[nxt] || '')}</div>`;
+          h += '</div>';
+        }
+        h += '</div>';
+      }
+      h += '</div>';
+    }
+  }
+
+  document.getElementById('panel-body').innerHTML = h;
+  openPanel();
+}
+
+// ── Cell panel ────────────────────────────────────────────────────────────────
+function openCellPanel(roleId, skillId) {
+  const role = getRole(roleId), skill = getSkill(skillId);
+  if (!role || !skill) return;
+  const cur = role.requirements[skillId];
+  const next = role.nextRole ? getRole(role.nextRole) : null;
+  const nxt = next ? next.requirements[skillId] : null;
+  const hasGap = nxt && lvNum(nxt) > lvNum(cur || 'L0');
+
+  setHeader(role.name + ' · ' + skill.family, skill.name, skill.definition);
+
+  let h = `<p class="cell-context">Showing requirement for <strong>${esc(role.name)}</strong>`;
+  h += next ? ` and gap to <strong>${esc(next.name)}</strong>` : '';
+  h += '</p>';
+
+  if (!cur) {
+    h += `<p style="font-style:italic;color:var(--text-muted);padding-bottom:16px">This skill is not formally required for ${esc(role.name)}.</p>`;
+    if (nxt) {
+      h += `<div class="cell-card gap" style="max-width:380px">`;
+      h += `<div class="cell-card-level">${nxt}</div>`;
+      h += `<div class="cell-card-sublabel">Required for ${esc(next.name)}</div>`;
+      h += `<div class="cell-card-text">${fmtDesc(skill.levels[nxt] || '')}</div>`;
+      h += '</div>';
+    }
+    document.getElementById('panel-body').innerHTML = h;
+    openPanel();
+    return;
+  }
+
+  h += '<div class="cell-dual">';
+  h += `<div class="cell-card ${cur}">`;
+  h += `<div class="cell-card-level">${cur}</div>`;
+  h += `<div class="cell-card-sublabel">${esc(LEVEL_LABELS[cur]||'')} &bull; Current</div>`;
+  h += `<div class="cell-card-text">${fmtDesc(skill.levels[cur] || '')}</div>`;
+  h += '</div>';
+
+  if (hasGap) {
+    h += `<div class="cell-card gap">`;
+    h += `<div class="cell-card-level">${nxt}</div>`;
+    h += `<div class="cell-card-sublabel">Target &bull; ${esc(next.name)}</div>`;
+    h += `<div class="cell-card-text">${fmtDesc(skill.levels[nxt] || '')}</div>`;
+    h += '</div>';
+  } else if (!next) {
+    h += `<div class="cell-card top"><div class="cell-card-level">&#9733;</div>`;
+    h += `<div class="cell-card-sublabel">Most senior role</div>`;
+    h += `<div class="cell-card-text">No further progression defined in this framework.</div></div>`;
+  } else {
+    h += `<div class="cell-card top"><div class="cell-card-level">&#10004;</div>`;
+    h += `<div class="cell-card-sublabel">Already meets ${esc(next.name)} requirement</div>`;
+    h += `<div class="cell-card-text">No gap to bridge for this skill to reach the next role.</div></div>`;
+  }
+  h += '</div>';
+
+  document.getElementById('panel-body').innerHTML = h;
+  openPanel();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildMatrix();
+</script>
+
+<!-- External modules -->
+<script src="hr_data_v3.js"></script>
+<script src="hr_storage_v3.js"></script>
+<script src="hr_ai_v3.js"></script>
+<script src="hr_export_v3.js"></script>
+
+<script>
+// ── APP STATE ─────────────────────────────────────────────────────────────────
+let currentUser = null;
+let selectedManagerTeamMember = null;
+
+// ── INITIALIZE ────────────────────────────────────────────────────────────────
+function initApp() {
+  HRStore.init();
+
+  // v3 migration: rename kwowing_onseself -> knowing_oneself
+  const _emps = HRStore.getEmployees();
+  let _migrated = false;
+  for (const emp of _emps) {
+    if (emp.skills && emp.skills.kwowing_onseself !== undefined) {
+      emp.skills.knowing_oneself = emp.skills.kwowing_onseself;
+      delete emp.skills.kwowing_onseself;
+      _migrated = true;
+    }
+    // Initialize skill history arrays
+    if (emp.skills) {
+      for (const sid of Object.keys(emp.skills)) {
+        if (!emp.skills[sid].history) emp.skills[sid].history = [];
+      }
+    }
+  }
+  if (_migrated) HRStore.saveEmployees(_emps);
+
+  // v3 backup warning
+  if (!HRStore.isWarningShown()) {
+    document.getElementById('backup-warning-modal').classList.add('active');
+  }
+  checkBackupReminder();
+
+  currentUser = HRStore.getCurrentUser();
+  buildPersonSelect();
+  updateViewForRole();
+  switchTab('matrix');
+}
+
+// ── PERSON SELECT ─────────────────────────────────────────────────────────────
+function buildPersonSelect() {
+  const sel = document.getElementById('person-select');
+  const emps = HRStore.getEmployees();
+  sel.innerHTML = emps.map(e => {
+    const role = getRole(e.currentRoleId);
+    return `<option value="${e.id}" ${e.id === currentUser.id ? 'selected' : ''}>${esc(e.name)} (${role ? esc(role.name) : ''})</option>`;
+  }).join('');
+}
+
+function onPersonChange(empId) {
+  const emp = HRStore.getEmployee(empId);
+  if (!emp) return;
+  currentUser = { id: emp.id, name: emp.name, viewRole: currentUser.viewRole };
+  HRStore.setCurrentUser(currentUser);
+  refreshCurrentView();
+}
+
+function setViewRole(role) {
+  document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('vr-' + role).classList.add('active');
+  currentUser.viewRole = role;
+  HRStore.setCurrentUser(currentUser);
+  updateViewForRole();
+}
+
+function updateViewForRole() {
+  const r = currentUser.viewRole;
+  document.getElementById('tab-career').style.display = (r === 'employee' || r === 'manager') ? '' : 'none';
+  document.getElementById('tab-training').style.display = '';
+  document.getElementById('tab-manager').style.display = (r === 'manager') ? '' : 'none';
+  document.getElementById('tab-orgchart').style.display = (r === 'manager' || r === 'hr') ? '' : 'none';
+  document.getElementById('tab-hr').style.display = (r === 'hr') ? '' : 'none';
+
+  if (r === 'manager') {
+    buildManagerView();
+    switchTab('manager');
+  } else if (r === 'hr') {
+    buildHRDashboard();
+    switchTab('hr');
+  } else {
+    buildCareerView();
+    switchTab('career');
+  }
+}
+
+function refreshCurrentView() {
+  const active = document.querySelector('.view.active');
+  if (!active) return;
+  const id = active.id.replace('view-', '');
+  if (id === 'career') buildCareerView();
+  else if (id === 'manager') buildManagerView();
+  else if (id === 'hr') buildHRDashboard();
+  else if (id === 'training') buildTrainingCatalog();
+  else if (id === 'orgchart') buildOrgChart();
+}
+
+// Override switchTab to also rebuild views
+const _origSwitchTab = switchTab;
+switchTab = function(tab) {
+  _origSwitchTab(tab);
+  if (tab === 'career') buildCareerView();
+  else if (tab === 'manager') buildManagerView();
+  else if (tab === 'hr') buildHRDashboard();
+  else if (tab === 'training') buildTrainingCatalog();
+  else if (tab === 'orgchart') buildOrgChart();
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── EMPLOYEE: MY CAREER VIEW ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildCareerView() {
+  const emp = HRStore.getEmployee(currentUser.id);
+  if (!emp) { document.getElementById('career-content').innerHTML = '<p style="color:var(--text-muted);padding:20px">Select an employee to view career path.</p>'; return; }
+
+  const targetRole = emp.targetRoleId ? getRole(emp.targetRoleId) : null;
+  const currentRole = getRole(emp.currentRoleId);
+
+  let h = '';
+
+  // Profile card
+  h += buildProfileCard(emp);
+
+  // Career path
+  h += '<div class="section-title">Career Path</div>';
+  h += '<div class="section-subtitle">Click a role to set it as your career target</div>';
+  h += buildCareerPath(emp);
+
+  // Gap analysis
+  if (targetRole) {
+    h += buildGapAnalysis(emp, targetRole);
+  } else {
+    h += '<div style="padding:20px;text-align:center;color:var(--text-muted)">Select a target role above to see your gap analysis.</div>';
+  }
+
+  // IDP
+  h += buildIDPSection(emp);
+
+  // v3: Goals
+  h += buildGoalsSection(emp);
+
+  // v3: Training requests
+  h += buildTrainingRequestsSection(emp.id);
+
+  // Feedback
+  h += buildFeedbackSection(emp);
+
+  document.getElementById('career-content').innerHTML = h;
+}
+
+function buildCareerPath(emp) {
+  let h = '<div class="career-path">';
+  for (let i = 0; i < ROLES.length; i++) {
+    const r = ROLES[i];
+    const isCurrent = r.id === emp.currentRoleId;
+    const isTarget = r.id === emp.targetRoleId;
+    const isValidated = isTarget && emp.targetRoleValidated;
+    let cls = 'career-node';
+    if (isCurrent) cls += ' current';
+    if (isTarget) cls += ' target';
+    if (isValidated) cls += ' validated';
+
+    if (i > 0) h += '<span class="career-arrow">&#8594;</span>';
+    h += `<div class="${cls}" onclick="setCareerTarget('${r.id}')">`;
+    h += `<span class="career-validated">&#10004;</span>`;
+    h += `<span class="career-node-name">${esc(r.name)}</span>`;
+    if (isCurrent) h += '<span class="career-node-sub">Current</span>';
+    if (isTarget) h += '<span class="career-node-sub">Target</span>';
+    h += '</div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function setCareerTarget(roleId) {
+  HRStore.setTargetRole(currentUser.id, roleId);
+  buildCareerView();
+}
+
+function buildGapAnalysis(emp, targetRole) {
+  let h = '<div class="gap-section">';
+  h += '<div class="section-title">Skill Gap Analysis</div>';
+
+  // Calculate gaps
+  let atTarget = 0, gap1 = 0, gap2plus = 0, unassessed = 0;
+  const gaps = [];
+
+  for (const skill of SKILLS) {
+    const required = targetRole.requirements[skill.id];
+    if (!required) continue;
+    const current = emp.skills?.[skill.id]?.level || null;
+    const diff = lvNum(required) - lvNum(current);
+    if (!current) { unassessed++; gaps.push({ skill, current, required, diff: lvNum(required) }); }
+    else if (diff <= 0) { atTarget++; }
+    else if (diff === 1) { gap1++; gaps.push({ skill, current, required, diff }); }
+    else { gap2plus++; gaps.push({ skill, current, required, diff }); }
+  }
+
+  const totalReq = atTarget + gap1 + gap2plus + unassessed;
+
+  // Summary stats
+  h += '<div class="gap-summary">';
+  h += `<div class="gap-stat good"><div class="gap-stat-num">${atTarget}</div><div class="gap-stat-label">At Target</div></div>`;
+  h += `<div class="gap-stat${gap1 > 0 ? ' warn' : ''}"><div class="gap-stat-num">${gap1}</div><div class="gap-stat-label">1-Level Gap</div></div>`;
+  h += `<div class="gap-stat${gap2plus > 0 ? ' warn' : ''}"><div class="gap-stat-num">${gap2plus}</div><div class="gap-stat-label">2+ Level Gap</div></div>`;
+  h += `<div class="gap-stat"><div class="gap-stat-num">${unassessed}</div><div class="gap-stat-label">Not Assessed</div></div>`;
+  h += '</div>';
+
+  // Radar chart
+  h += '<div class="radar-container">';
+  h += buildRadarChart(emp, targetRole);
+  h += '</div>';
+
+  // Skill blocks for gaps
+  if (gaps.length > 0) {
+    h += '<div style="margin-top:16px">';
+    gaps.sort((a, b) => b.diff - a.diff);
+    for (const g of gaps) {
+      h += '<div class="skill-block"><div class="skill-block-header">';
+      h += `<span class="skill-block-name">${esc(g.skill.name)}</span>`;
+      h += `<span class="skill-family-tag">${esc(g.skill.category)}</span>`;
+      if (g.current) h += badge(g.current);
+      h += renderSkillSparkline(emp.skills?.[g.skill.id]);
+      h += `<span class="gap-indicator">&#8593; ${g.required} needed</span>`;
+      h += '</div>';
+      h += `<div class="skill-block-body">`;
+      h += '<div class="level-pane">';
+      h += `<div class="level-pane-heading">${badge(g.current)}<span class="level-pane-label">Current${g.current ? ' (' + esc(LEVEL_LABELS[g.current]||'') + ')' : ' (Not assessed)'}</span></div>`;
+      h += `<div class="level-pane-text">${g.current ? fmtDesc(g.skill.levels[g.current]) : '<em style="opacity:0.45">Not yet assessed</em>'}</div>`;
+      h += '</div>';
+      h += '<div class="level-pane gap-pane">';
+      h += `<div class="level-pane-heading"><span class="level-badge" style="background:var(--gap-bg);border-color:var(--gap-border);color:var(--gap-text)">${g.required}</span><span class="level-pane-label gap">Required (${esc(LEVEL_LABELS[g.required]||'')})</span></div>`;
+      h += `<div class="level-pane-text">${fmtDesc(g.skill.levels[g.required] || '')}</div>`;
+      h += '</div></div></div>';
+    }
+    h += '</div>';
+  }
+
+  h += '</div>';
+  return h;
+}
+
+function buildRadarChart(emp, targetRole) {
+  const skills = SKILLS.filter(s => targetRole.requirements[s.id]);
+  if (skills.length < 3) return '';
+
+  const size = 300, cx = size/2, cy = size/2, r = 110;
+  const n = skills.length;
+
+  let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`;
+
+  // Grid
+  for (let ring = 1; ring <= 4; ring++) {
+    const rr = r * ring / 4;
+    let pts = [];
+    for (let i = 0; i < n; i++) {
+      const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+      pts.push(`${cx + rr * Math.cos(angle)},${cy + rr * Math.sin(angle)}`);
+    }
+    svg += `<polygon points="${pts.join(' ')}" fill="none" stroke="#E2E8F0" stroke-width="1"/>`;
+  }
+
+  // Axes
+  for (let i = 0; i < n; i++) {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    svg += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#E2E8F0" stroke-width="1"/>`;
+    // Labels
+    const lx = cx + (r + 20) * Math.cos(angle);
+    const ly = cy + (r + 20) * Math.sin(angle);
+    const anchor = Math.abs(Math.cos(angle)) < 0.1 ? 'middle' : Math.cos(angle) > 0 ? 'start' : 'end';
+    const name = skills[i].name.length > 14 ? skills[i].name.substring(0, 13) + '..' : skills[i].name;
+    svg += `<text x="${lx}" y="${ly}" text-anchor="${anchor}" dominant-baseline="middle" font-size="9" fill="#718096">${esc(name)}</text>`;
+  }
+
+  // Required polygon
+  let reqPts = [];
+  for (let i = 0; i < n; i++) {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    const lv = lvNum(targetRole.requirements[skills[i].id]);
+    const rr = r * lv / 4;
+    reqPts.push(`${cx + rr * Math.cos(angle)},${cy + rr * Math.sin(angle)}`);
+  }
+  svg += `<polygon points="${reqPts.join(' ')}" fill="rgba(249,168,37,0.15)" stroke="#F9A825" stroke-width="2" stroke-dasharray="4,3"/>`;
+
+  // Current polygon
+  let curPts = [];
+  for (let i = 0; i < n; i++) {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    const lv = lvNum(emp.skills?.[skills[i].id]?.level);
+    const rr = r * lv / 4;
+    curPts.push(`${cx + rr * Math.cos(angle)},${cy + rr * Math.sin(angle)}`);
+  }
+  svg += `<polygon points="${curPts.join(' ')}" fill="rgba(25,118,210,0.15)" stroke="#1976D2" stroke-width="2"/>`;
+
+  // Legend
+  svg += `<rect x="10" y="${size-30}" width="12" height="12" fill="rgba(25,118,210,0.3)" stroke="#1976D2" stroke-width="1.5"/>`;
+  svg += `<text x="26" y="${size-20}" font-size="10" fill="#4A5568">Current</text>`;
+  svg += `<rect x="80" y="${size-30}" width="12" height="12" fill="rgba(249,168,37,0.3)" stroke="#F9A825" stroke-width="1.5" stroke-dasharray="3,2"/>`;
+  svg += `<text x="96" y="${size-20}" font-size="10" fill="#4A5568">Required</text>`;
+
+  svg += '</svg>';
+  return svg;
+}
+
+// ── IDP SECTION ───────────────────────────────────────────────────────────────
+function buildIDPSection(emp) {
+  const idp = HRStore.getIDP(emp.id);
+  const targetRole = emp.targetRoleId ? getRole(emp.targetRoleId) : null;
+
+  let h = '<div class="idp-section">';
+  h += '<div class="section-title">Individual Development Plan</div>';
+
+  if (!targetRole) {
+    h += '<div style="padding:16px;color:var(--text-muted)">Set a target role to create a development plan.</div>';
+    h += '</div>';
+    return h;
+  }
+
+  if (!idp) {
+    h += `<div style="padding:16px;text-align:center">`;
+    h += `<p style="color:var(--text-muted);margin-bottom:12px">No active development plan. Create one to track your growth towards ${esc(targetRole.name)}.</p>`;
+    h += `<button class="btn btn-primary" onclick="createNewIDP('${emp.id}','${targetRole.id}')">Create Development Plan</button>`;
+    h += '</div></div>';
+    return h;
+  }
+
+  // IDP header info
+  h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">`;
+  h += `<span style="font-size:12px;color:var(--text-muted)">Target: <strong>${esc(targetRole.name)}</strong> | Created: ${idp.createdDate}</span>`;
+  const _reviewBadge = nextReviewBadge(idp);
+  if (_reviewBadge) h += ' ' + _reviewBadge;
+  h += `<button class="btn btn-primary btn-sm" onclick="openAddActionModal('${emp.id}')">+ Add Action</button>`;
+  h += '</div>';
+
+  if (idp.managerNotes) {
+    h += `<div style="background:#F7FAFC;border-left:3px solid #2D6A9F;padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:14px;font-size:12px;color:var(--text-secondary)"><strong>Manager notes:</strong> ${esc(idp.managerNotes)}</div>`;
+  }
+
+  // Group actions by skill
+  const actionsBySkill = {};
+  for (const action of idp.actions) {
+    if (!actionsBySkill[action.skillId]) actionsBySkill[action.skillId] = [];
+    actionsBySkill[action.skillId].push(action);
+  }
+
+  if (idp.actions.length === 0) {
+    h += '<div style="padding:16px;text-align:center;color:var(--text-muted)">No development actions yet. Click "Add Action" to get started.</div>';
+  }
+
+  for (const [skillId, actions] of Object.entries(actionsBySkill)) {
+    const skill = getSkill(skillId);
+    h += '<div class="idp-card">';
+    h += '<div class="idp-card-header">';
+    h += `<span style="font-weight:600;font-size:13px">${skill ? esc(skill.name) : skillId}</span>`;
+    if (actions[0]) {
+      h += badge(actions[0].fromLevel);
+      h += '<span style="color:var(--text-muted);font-size:12px">&#8594;</span>';
+      h += badge(actions[0].toLevel);
+    }
+    h += '</div>';
+    h += '<div class="idp-card-body">';
+    for (const action of actions) {
+      h += '<div class="idp-action">';
+      h += '<div class="idp-action-info">';
+      h += `<div class="idp-action-title">${esc(action.title)}</div>`;
+      h += `<div class="idp-action-meta">`;
+      h += `<span class="type-tag">${esc(action.type)}</span> `;
+      h += `<span class="source-tag ${action.source || 'manual'}">${action.source || 'manual'}</span> `;
+      if (action.deadline) h += `Due: ${action.deadline} `;
+      if (action.managerApproved) h += '<span style="color:#48BB78;font-size:10px">&#10004; Manager approved</span>';
+      h += '</div>';
+      h += `<div class="idp-action-desc">${esc(action.description)}</div>`;
+      if (action.notes) h += `<div style="font-size:11px;color:var(--text-muted);margin-top:3px">Note: ${esc(action.notes)}</div>`;
+      h += '</div>';
+      h += '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">';
+      h += `<select class="qa-level-select" onchange="changeActionStatus('${emp.id}','${action.id}',this.value)" style="font-size:10px;padding:3px 6px">`;
+      for (const st of ['not_started','in_progress','completed','dropped']) {
+        h += `<option value="${st}" ${action.status===st?'selected':''}>${st.replace(/_/g,' ')}</option>`;
+      }
+      h += '</select>';
+      h += `<button class="btn btn-danger btn-sm" onclick="removeAction('${emp.id}','${action.id}')" style="font-size:10px;padding:2px 6px">Remove</button>`;
+      h += '</div></div>';
+    }
+    h += '</div></div>';
+  }
+
+  h += '</div>';
+  return h;
+}
+
+function createNewIDP(empId, targetRoleId) {
+  HRStore.createIDP(empId, targetRoleId);
+  buildCareerView();
+}
+
+function changeActionStatus(empId, actionId, newStatus) {
+  HRStore.updateIDPActionStatus(empId, actionId, newStatus);
+}
+
+function removeAction(empId, actionId) {
+  HRStore.removeIDPAction(empId, actionId);
+  buildCareerView();
+}
+
+// ── ADD ACTION MODAL ──────────────────────────────────────────────────────────
+function openAddActionModal(empId) {
+  const emp = HRStore.getEmployee(empId);
+  const targetRole = emp?.targetRoleId ? getRole(emp.targetRoleId) : null;
+  if (!emp || !targetRole) return;
+
+  const modal = document.getElementById('action-modal');
+  modal.classList.add('active');
+
+  // Find gap skills
+  const gapSkills = [];
+  for (const skill of SKILLS) {
+    const req = targetRole.requirements[skill.id];
+    if (!req) continue;
+    const cur = emp.skills?.[skill.id]?.level || null;
+    if (lvNum(req) > lvNum(cur)) {
+      gapSkills.push({ skill, current: cur, required: req });
+    }
+  }
+
+  let h = '';
+
+  // Tabs within modal: Library | AI Suggestions | Manual
+  h += '<div style="display:flex;gap:4px;margin-bottom:16px">';
+  h += '<button class="btn btn-secondary btn-sm" onclick="showActionTab(\'library\')" id="atab-library" style="font-weight:700">From Library</button>';
+  h += '<button class="btn btn-ai btn-sm" onclick="showActionTab(\'ai\')" id="atab-ai">AI Suggestions</button>';
+  h += '<button class="btn btn-secondary btn-sm" onclick="showActionTab(\'manual\')" id="atab-manual">Manual Entry</button>';
+  h += '</div>';
+
+  // Library tab
+  h += '<div id="action-tab-library">';
+  if (gapSkills.length === 0) {
+    h += '<p style="color:var(--text-muted)">No skill gaps found.</p>';
+  } else {
+    h += '<div class="form-group"><label>Select gap skill:</label>';
+    h += `<select id="lib-skill-select" onchange="filterLibraryActions()">`;
+    for (const g of gapSkills) {
+      h += `<option value="${g.skill.id}" data-from="${g.current||'L0'}" data-to="${g.required}">${esc(g.skill.name)} (${g.current||'?'} &#8594; ${g.required})</option>`;
+    }
+    h += '</select></div>';
+    h += '<div id="lib-actions-list"></div>';
+  }
+  h += '</div>';
+
+  // AI tab
+  h += '<div id="action-tab-ai" style="display:none">';
+  if (gapSkills.length === 0) {
+    h += '<p style="color:var(--text-muted)">No skill gaps found.</p>';
+  } else {
+    h += '<div class="form-group"><label>Select gap skill for AI suggestions:</label>';
+    h += `<select id="ai-skill-select">`;
+    for (const g of gapSkills) {
+      h += `<option value="${g.skill.id}" data-from="${g.current||'L0'}" data-to="${g.required}">${esc(g.skill.name)} (${g.current||'?'} &#8594; ${g.required})</option>`;
+    }
+    h += '</select></div>';
+    h += `<button class="btn btn-ai" onclick="requestAISuggestions('${empId}')">Generate AI Suggestions</button>`;
+    h += '<div id="ai-suggestions-list" style="margin-top:14px"></div>';
+  }
+  h += '</div>';
+
+  // Manual tab
+  h += '<div id="action-tab-manual" style="display:none">';
+  h += '<div class="form-group"><label>Skill:</label>';
+  h += '<select id="manual-skill-select">';
+  for (const g of gapSkills) {
+    h += `<option value="${g.skill.id}" data-from="${g.current||'L0'}" data-to="${g.required}">${esc(g.skill.name)}</option>`;
+  }
+  h += '</select></div>';
+  h += '<div class="form-row"><div class="form-group"><label>Title:</label><input id="manual-title" placeholder="Action title"></div>';
+  h += '<div class="form-group"><label>Type:</label><select id="manual-type"><option>training</option><option>mentoring</option><option>stretch</option><option>project</option><option>self-study</option></select></div></div>';
+  h += '<div class="form-group"><label>Description:</label><textarea id="manual-desc" placeholder="Describe the development action..."></textarea></div>';
+  h += '<div class="form-row"><div class="form-group"><label>Deadline:</label><input id="manual-deadline" type="date"></div>';
+  h += '<div class="form-group"><label>Notes:</label><input id="manual-notes" placeholder="Optional notes"></div></div>';
+  h += '<div class="form-group"><label>Attachment (optional):</label>';
+  h += '<input type="file" id="manual-attachment" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx">';
+  h += '<div style="font-size:10px;color:var(--text-muted)">PDF, images, Word. Max 2MB.</div></div>';
+  h += `<button class="btn btn-primary" onclick="addManualAction('${empId}')">Add Action</button>`;
+  h += '</div>';
+
+  document.getElementById('action-modal-body').innerHTML = h;
+  document.getElementById('action-modal-footer').innerHTML = `<button class="btn btn-secondary" onclick="closeActionModal()">Close</button>`;
+
+  // Load initial library
+  setTimeout(filterLibraryActions, 50);
+}
+
+function showActionTab(tab) {
+  ['library','ai','manual'].forEach(t => {
+    document.getElementById('action-tab-' + t).style.display = t === tab ? '' : 'none';
+    document.getElementById('atab-' + t).style.fontWeight = t === tab ? '700' : '400';
+  });
+}
+
+function filterLibraryActions() {
+  const sel = document.getElementById('lib-skill-select');
+  if (!sel) return;
+  const opt = sel.options[sel.selectedIndex];
+  const skillId = sel.value;
+  const from = opt.dataset.from;
+  const to = opt.dataset.to;
+
+  const lib = HRStore.getActionLibrary();
+  const matching = lib.filter(a => a.skillId === skillId && lvNum(a.fromLevel) >= lvNum(from) && lvNum(a.toLevel) <= lvNum(to));
+
+  let h = '';
+  if (matching.length === 0) {
+    h = '<p style="color:var(--text-muted);font-size:12px;padding:8px 0">No library actions found for this transition.</p>';
+  } else {
+    for (const a of matching) {
+      h += '<div class="ai-suggestion">';
+      h += `<div class="ai-suggestion-title">${esc(a.title)}</div>`;
+      h += `<div class="ai-suggestion-desc">${esc(a.description)}</div>`;
+      h += `<div class="ai-suggestion-meta"><span class="type-tag">${esc(a.type)}</span> ${esc(a.duration)} | ${esc(a.provider)}`;
+      if (a.cost > 0) h += ` | <span class="training-cost">&euro;${a.cost.toLocaleString()}</span>`;
+      if (a.nextDate) h += ` | Next: ${a.nextDate}`;
+      if (a.maxParticipants) { const spots = a.maxParticipants - (a.enrolled||0); h += ` | <span class="training-spots${spots<=3?' low':''}">${spots} spots</span>`; }
+      h += '</div>';
+      h += `<button class="btn btn-success btn-sm" style="margin-top:6px" onclick="addLibraryAction('${currentUser.id}','${a.id}')">Add to IDP</button>`;
+      h += '</div>';
+    }
+  }
+  document.getElementById('lib-actions-list').innerHTML = h;
+}
+
+function addLibraryAction(empId, libActionId) {
+  const lib = HRStore.getActionLibrary();
+  const a = lib.find(l => l.id === libActionId);
+  if (!a) return;
+
+  const idp = HRStore.getIDP(empId);
+  if (!idp) { HRStore.createIDP(empId, HRStore.getEmployee(empId).targetRoleId); }
+
+  HRStore.addIDPAction(empId, {
+    skillId: a.skillId, fromLevel: a.fromLevel, toLevel: a.toLevel,
+    type: a.type, title: a.title, description: a.description,
+    source: 'library', deadline: '', notes: ''
+  });
+
+  closeActionModal();
+  buildCareerView();
+}
+
+async function requestAISuggestions(empId) {
+  const sel = document.getElementById('ai-skill-select');
+  if (!sel) return;
+  const opt = sel.options[sel.selectedIndex];
+  const skillId = sel.value;
+  const from = opt.dataset.from === 'L0' ? null : opt.dataset.from;
+  const to = opt.dataset.to;
+  const fromL = from || 'L1';
+  const container = document.getElementById('ai-suggestions-list');
+
+  container.innerHTML = '<div class="ai-loading"><div class="ai-spinner"></div>Generating suggestions with AI...</div>';
+
+  try {
+    const suggestions = await AIAdvisor.getSuggestions(skillId, fromL, to);
+    let h = '';
+    for (const s of suggestions) {
+      h += '<div class="ai-suggestion">';
+      h += `<div class="ai-suggestion-title">${esc(s.title)}</div>`;
+      h += `<div class="ai-suggestion-desc">${esc(s.description)}</div>`;
+      h += `<div class="ai-suggestion-meta"><span class="type-tag">${esc(s.type)}</span> ${esc(s.duration)}${s.outcome ? ' | Expected: ' + esc(s.outcome) : ''}</div>`;
+      h += `<button class="btn btn-success btn-sm" style="margin-top:6px" onclick="addAISuggestion('${empId}','${skillId}','${fromL}','${to}',${suggestions.indexOf(s)})">Add to IDP</button>`;
+      h += '</div>';
+    }
+    container.innerHTML = h;
+    // Store temp for adding
+    window._aiSuggestions = suggestions;
+  } catch (err) {
+    container.innerHTML = `<div style="color:#E53E3E;font-size:12px;padding:8px">${esc(err.message)}<br><br>Make sure Ollama is running with glm-4.7-flash model. You can configure the AI endpoint in the HR Dashboard settings.</div>`;
+  }
+}
+
+function addAISuggestion(empId, skillId, fromLevel, toLevel, idx) {
+  if (!window._aiSuggestions || !window._aiSuggestions[idx]) return;
+  const s = window._aiSuggestions[idx];
+
+  const idp = HRStore.getIDP(empId);
+  if (!idp) { HRStore.createIDP(empId, HRStore.getEmployee(empId).targetRoleId); }
+
+  HRStore.addIDPAction(empId, {
+    skillId, fromLevel, toLevel,
+    type: s.type, title: s.title, description: s.description,
+    source: 'ai', deadline: '', notes: s.outcome || ''
+  });
+
+  closeActionModal();
+  buildCareerView();
+}
+
+function addManualAction(empId) {
+  const sel = document.getElementById('manual-skill-select');
+  const opt = sel.options[sel.selectedIndex];
+
+  const title = document.getElementById('manual-title').value.trim();
+  if (!title) { alert('Please enter a title'); return; }
+
+  const idp = HRStore.getIDP(empId);
+  if (!idp) { HRStore.createIDP(empId, HRStore.getEmployee(empId).targetRoleId); }
+
+  HRStore.addIDPAction(empId, {
+    skillId: sel.value,
+    fromLevel: opt.dataset.from === 'L0' ? null : opt.dataset.from,
+    toLevel: opt.dataset.to,
+    type: document.getElementById('manual-type').value,
+    title: title,
+    description: document.getElementById('manual-desc').value.trim(),
+    source: 'manual',
+    deadline: document.getElementById('manual-deadline').value,
+    notes: document.getElementById('manual-notes').value.trim()
+  });
+
+  closeActionModal();
+  buildCareerView();
+}
+
+function closeActionModal() {
+  document.getElementById('action-modal').classList.remove('active');
+}
+
+// ── FEEDBACK SECTION ──────────────────────────────────────────────────────────
+function buildFeedbackSection(emp) {
+  const feedback = HRStore.getEmployeeFeedback(emp.id);
+  const emps = HRStore.getEmployees();
+
+  let h = '<div style="margin-top:24px">';
+  h += '<div class="section-title">Feedback</div>';
+  h += `<button class="btn btn-secondary btn-sm" onclick="openFeedbackModal('${emp.id}')" style="margin-bottom:14px">+ Add Feedback</button>`;
+
+  if (feedback.length === 0) {
+    h += '<div style="color:var(--text-muted);font-size:12px;padding:8px">No feedback yet.</div>';
+  } else {
+    const sorted = [...feedback].sort((a, b) => b.date.localeCompare(a.date));
+    for (const fb of sorted) {
+      const author = emps.find(e => e.id === fb.authorId);
+      const skill = fb.skillId ? getSkill(fb.skillId) : null;
+      h += `<div class="feedback-item ${fb.type}">`;
+      h += '<div class="feedback-header">';
+      h += `<strong>${author ? esc(author.name) : 'Unknown'}</strong>`;
+      h += `<span>${esc(fb.authorRole)}</span>`;
+      h += `<span>${fb.date}</span>`;
+      if (skill) h += `<span class="type-tag">${esc(skill.name)}</span>`;
+      h += `<span class="status-pill ${fb.type === 'positive' ? 'completed' : fb.type === 'developmental' ? 'in_progress' : 'not_started'}">${esc(fb.type)}</span>`;
+      h += '</div>';
+      h += `<div class="feedback-content">${esc(fb.content)}</div>`;
+      if (fb.attachments && fb.attachments.length > 0) h += '<div style="margin-top:4px">' + renderAttachments(fb.attachments) + '</div>';
+      h += '</div>';
+    }
+  }
+  h += '</div>';
+  return h;
+}
+
+function openFeedbackModal(targetEmpId) {
+  const modal = document.getElementById('feedback-modal');
+  modal.classList.add('active');
+
+  let h = '';
+  h += '<div class="form-group"><label>Feedback Type:</label>';
+  h += '<select id="fb-type"><option value="positive">Positive</option><option value="developmental">Developmental</option><option value="observation">Observation</option></select></div>';
+  h += '<div class="form-group"><label>Related Skill (optional):</label>';
+  h += '<select id="fb-skill"><option value="">General</option>';
+  for (const s of SKILLS) h += `<option value="${s.id}">${esc(s.name)}</option>`;
+  h += '</select></div>';
+  h += '<div class="form-group"><label>Content:</label>';
+  h += '<textarea id="fb-content" placeholder="Write your feedback..."></textarea></div>';
+  h += '<div class="form-group"><label>Attachment (optional):</label>';
+  h += '<input type="file" id="fb-attachment" accept=".pdf,.png,.jpg,.jpeg,.doc,.docx">';
+  h += '<div style="font-size:10px;color:var(--text-muted)">PDF, images, Word. Max 2MB.</div></div>';
+
+  document.getElementById('feedback-modal-body').innerHTML = h;
+  document.getElementById('feedback-modal-footer').innerHTML =
+    `<button class="btn btn-secondary" onclick="closeFeedbackModal()">Cancel</button>` +
+    `<button class="btn btn-primary" onclick="submitFeedback('${targetEmpId}')">Submit</button>`;
+}
+
+async function submitFeedback(targetEmpId) {
+  const content = document.getElementById('fb-content').value.trim();
+  if (!content) { alert('Please enter feedback content'); return; }
+
+  let attachments = [];
+  const fileInput = document.getElementById('fb-attachment');
+  if (fileInput && fileInput.files.length > 0) {
+    try {
+      const att = await readFileAsDataURL(fileInput.files[0]);
+      attachments.push(att);
+    } catch (err) {
+      alert(err.message);
+      return;
+    }
+  }
+
+  HRStore.addFeedback({
+    employeeId: targetEmpId,
+    authorId: currentUser.id,
+    authorRole: currentUser.viewRole === 'manager' ? 'manager' : (currentUser.id === targetEmpId ? 'self' : 'peer'),
+    skillId: document.getElementById('fb-skill').value || null,
+    type: document.getElementById('fb-type').value,
+    content: content,
+    visibility: 'employee_manager',
+    attachments: attachments
+  });
+
+  closeFeedbackModal();
+  refreshCurrentView();
+}
+
+function closeFeedbackModal() {
+  document.getElementById('feedback-modal').classList.remove('active');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── MANAGER VIEW ─────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildManagerView() {
+  const mgr = HRStore.getEmployee(currentUser.id);
+  const allEmps = HRStore.getEmployees();
+  const team = allEmps.filter(e => e.managerId === currentUser.id);
+
+  let h = '';
+
+  if (team.length === 0) {
+    h = '<div style="padding:40px;text-align:center;color:var(--text-muted)"><p style="font-size:16px;margin-bottom:8px">No direct reports found.</p><p>Switch to a manager role (e.g. Josey Dorsey or Sophie Laurent) to see team members.</p></div>';
+    document.getElementById('manager-content').innerHTML = h;
+    return;
+  }
+
+  h += '<div class="mgr-layout">';
+
+  // Roster
+  h += '<div class="mgr-roster">';
+  h += '<div class="mgr-roster-header">My Team (' + team.length + ')</div>';
+  for (const emp of team) {
+    const role = getRole(emp.currentRoleId);
+    const targetRole = emp.targetRoleId ? getRole(emp.targetRoleId) : null;
+    const gaps = countGaps(emp);
+    const isActive = selectedManagerTeamMember === emp.id;
+
+    h += `<div class="mgr-roster-item${isActive ? ' active' : ''}" onclick="selectTeamMember('${emp.id}')">`;
+    h += `<div class="mgr-roster-name">${esc(emp.name)}</div>`;
+    h += `<div class="mgr-roster-role">${role ? esc(role.name) : ''} ${targetRole ? '&#8594; ' + esc(targetRole.name) : ''}</div>`;
+    h += '<div class="mgr-roster-stats">';
+    h += `<span style="font-size:10px;color:${gaps.total > 0 ? '#E65100' : '#276749'}">${gaps.total} gap${gaps.total !== 1 ? 's' : ''}</span>`;
+    h += feedbackTimerBadge(emp.id);
+    const idp = HRStore.getIDP(emp.id);
+    if (idp) {
+      const done = idp.actions.filter(a => a.status === 'completed').length;
+      const total = idp.actions.length;
+      h += `<span class="progress-bar"><span class="progress-bar-fill" style="width:${total ? (done/total*100) : 0}%"></span></span>`;
+      h += `<span style="font-size:10px;color:var(--text-muted)">${done}/${total}</span>`;
+    }
+    h += '</div></div>';
+  }
+  h += '</div>';
+
+  // Detail
+  h += '<div class="mgr-detail">';
+  if (selectedManagerTeamMember) {
+    h += buildManagerDetail(selectedManagerTeamMember);
+  } else {
+    h += '<div class="mgr-detail-placeholder">Select a team member to view their profile</div>';
+  }
+  h += '</div>';
+
+  h += '</div>';
+
+  // Team heatmap
+  h += buildTeamHeatmap(team);
+
+  document.getElementById('manager-content').innerHTML = h;
+}
+
+function selectTeamMember(empId) {
+  selectedManagerTeamMember = empId;
+  buildManagerView();
+}
+
+function countGaps(emp) {
+  if (!emp.targetRoleId) return { total: 0, skills: [] };
+  const targetRole = getRole(emp.targetRoleId);
+  if (!targetRole) return { total: 0, skills: [] };
+
+  let total = 0;
+  const skills = [];
+  for (const skill of SKILLS) {
+    const req = targetRole.requirements[skill.id];
+    if (!req) continue;
+    const cur = emp.skills?.[skill.id]?.level || null;
+    if (lvNum(req) > lvNum(cur)) {
+      total++;
+      skills.push({ skillId: skill.id, current: cur, required: req });
+    }
+  }
+  return { total, skills };
+}
+
+function buildManagerDetail(empId) {
+  const emp = HRStore.getEmployee(empId);
+  if (!emp) return '';
+  const role = getRole(emp.currentRoleId);
+  const targetRole = emp.targetRoleId ? getRole(emp.targetRoleId) : null;
+
+  let h = '';
+  h += '<div class="mgr-detail-header">';
+  h += `<div style="font-size:18px;font-weight:700">${esc(emp.name)}</div>`;
+  h += `<div style="font-size:12px;opacity:0.75">${role ? esc(role.name) : ''} | ${esc(emp.unit)} | Since ${emp.startDate}</div>`;
+  h += '</div>';
+  h += '<div class="mgr-detail-body">';
+
+  // Target role + validation
+  h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">';
+  h += `<span style="font-size:13px"><strong>Target:</strong> ${targetRole ? esc(targetRole.name) : 'Not set'}</span>`;
+  if (targetRole && !emp.targetRoleValidated) {
+    h += `<button class="btn btn-success btn-sm" onclick="validateTarget('${emp.id}')">Validate Target</button>`;
+  } else if (emp.targetRoleValidated) {
+    h += '<span style="color:#48BB78;font-size:12px;font-weight:600">&#10004; Validated</span>';
+  }
+  h += `<button class="btn btn-secondary btn-sm" onclick="openFeedbackModal('${emp.id}')">Give Feedback</button>`;
+  h += '</div>';
+
+  // Quick assess
+  h += '<div style="margin-bottom:20px">';
+  h += '<h4 style="font-size:13px;font-weight:700;margin-bottom:10px">Skill Assessment</h4>';
+  for (const skill of SKILLS) {
+    const cur = emp.skills?.[skill.id]?.level || null;
+    const req = targetRole ? targetRole.requirements[skill.id] : null;
+    const gap = req && lvNum(req) > lvNum(cur);
+
+    h += '<div class="qa-skill-row">';
+    h += `<span class="qa-skill-name">${esc(skill.name)}`;
+    if (gap) h += ` <span class="gap-indicator" style="font-size:9px;padding:1px 5px">gap</span>`;
+    h += '</span>';
+    h += badge(cur);
+    h += renderSkillSparkline(emp.skills?.[skill.id]);
+    h += `<select class="qa-level-select" onchange="managerAssess('${emp.id}','${skill.id}',this.value)">`;
+    h += '<option value="">--</option>';
+    for (const lv of ['L1','L2','L3','L4']) {
+      h += `<option value="${lv}" ${cur === lv ? 'selected' : ''}>${lv}</option>`;
+    }
+    h += '</select>';
+    h += '</div>';
+  }
+  h += '</div>';
+
+  // IDP overview
+  const idp = HRStore.getIDP(emp.id);
+  if (idp && idp.actions.length > 0) {
+    h += '<h4 style="font-size:13px;font-weight:700;margin-bottom:10px">Development Actions</h4>';
+    for (const action of idp.actions) {
+      const skill = getSkill(action.skillId);
+      h += '<div class="idp-action">';
+      h += '<div class="idp-action-info">';
+      h += `<div class="idp-action-title">${esc(action.title)}</div>`;
+      h += `<div class="idp-action-meta"><span class="type-tag">${esc(action.type)}</span> ${skill ? esc(skill.name) : ''} | <span class="status-pill ${action.status}">${action.status.replace(/_/g,' ')}</span></div>`;
+      h += '</div>';
+      if (!action.managerApproved) {
+        h += `<button class="btn btn-success btn-sm" onclick="approveAction('${emp.id}','${action.id}')">Approve</button>`;
+      } else {
+        h += '<span style="color:#48BB78;font-size:10px">&#10004;</span>';
+      }
+      h += '</div>';
+    }
+  }
+
+  // v3: Goals
+  const _goals = HRStore.getEmployeeGoals(emp.id);
+  if (_goals.length > 0) {
+    h += '<h4 style="font-size:13px;font-weight:700;margin-bottom:10px;margin-top:16px">Goals</h4>';
+    for (const g of _goals) {
+      h += '<div class="goal-card"><div class="goal-card-header">';
+      h += `<span class="goal-card-title">${esc(g.title)}</span>`;
+      h += `<span class="status-pill ${g.status}">${g.status.replace(/_/g,' ')}</span>`;
+      h += '</div>';
+      if (g.status === 'pending_approval' && !g.managerApproved) {
+        h += `<button class="btn btn-success btn-sm" onclick="approveGoal('${g.id}','${currentUser.id}')" style="margin-top:4px">Approve Goal</button>`;
+      }
+      h += '</div>';
+    }
+  }
+
+  // v3: Pending training requests
+  h += buildPendingRequestsSection(currentUser.id);
+
+  h += '</div>';
+  return h;
+}
+
+function validateTarget(empId) {
+  HRStore.validateTargetRole(empId, currentUser.id);
+  buildManagerView();
+}
+
+function managerAssess(empId, skillId, level) {
+  if (!level) return;
+  HRStore.updateEmployeeSkill(empId, skillId, level, currentUser.id);
+  buildManagerView();
+}
+
+function approveAction(empId, actionId) {
+  HRStore.approveIDPAction(empId, actionId, currentUser.id);
+  buildManagerView();
+}
+
+function buildTeamHeatmap(team) {
+  if (team.length === 0) return '';
+
+  let h = '<div style="margin-top:24px">';
+  h += '<div class="section-title">Team Skills Heatmap</div>';
+  h += '<div class="section-subtitle">Color shows gap relative to target role</div>';
+  h += '<div class="heatmap-container"><table class="heatmap-table">';
+  h += '<thead><tr><th>Employee</th>';
+  for (const s of SKILLS) {
+    const short = s.name.length > 12 ? s.name.substring(0, 11) + '..' : s.name;
+    h += `<th title="${esc(s.name)}">${esc(short)}</th>`;
+  }
+  h += '</tr></thead><tbody>';
+
+  for (const emp of team) {
+    const targetRole = emp.targetRoleId ? getRole(emp.targetRoleId) : null;
+    h += '<tr>';
+    h += `<td style="text-align:left;font-weight:500">${esc(emp.name)}</td>`;
+    for (const s of SKILLS) {
+      const req = targetRole ? targetRole.requirements[s.id] : null;
+      const cur = emp.skills?.[s.id]?.level || null;
+      if (!req) {
+        h += '<td class="heatmap-cell na">-</td>';
+      } else {
+        const gap = lvNum(req) - lvNum(cur);
+        let cls = 'at-target';
+        if (gap >= 3) cls = 'gap-3';
+        else if (gap === 2) cls = 'gap-2';
+        else if (gap === 1) cls = 'gap-1';
+        h += `<td class="heatmap-cell ${cls}" title="${cur || '?'} / ${req}">${cur || '?'}</td>`;
+      }
+    }
+    h += '</tr>';
+  }
+
+  h += '</tbody></table></div></div>';
+  return h;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── HR DASHBOARD ─────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildHRDashboard() {
+  const emps = HRStore.getEmployees();
+  const idps = HRStore.getIDPs();
+  const feedback = HRStore.getFeedback();
+
+  let h = '';
+  h += '<div class="section-title">HR Dashboard</div>';
+  h += '<div class="dashboard-grid">';
+
+  // Widget 1: Headcount by Role
+  h += '<div class="dash-widget">';
+  h += '<div class="dash-widget-header">Headcount by Role</div>';
+  h += '<div class="dash-widget-body">';
+  const roleCounts = {};
+  for (const r of ROLES) roleCounts[r.id] = 0;
+  for (const emp of emps) { if (roleCounts[emp.currentRoleId] !== undefined) roleCounts[emp.currentRoleId]++; }
+  const maxCount = Math.max(...Object.values(roleCounts), 1);
+  for (const r of ROLES) {
+    const count = roleCounts[r.id];
+    const pct = (count / maxCount * 100);
+    h += '<div class="dash-bar-row">';
+    h += `<span class="dash-bar-label">${esc(r.name)}</span>`;
+    h += `<div class="dash-bar-track"><div class="dash-bar-fill blue" style="width:${pct}%">${count}</div></div>`;
+    h += '</div>';
+  }
+  h += '</div></div>';
+
+  // Widget 2: Gap Distribution
+  h += '<div class="dash-widget">';
+  h += '<div class="dash-widget-header">Gap Distribution by Skill</div>';
+  h += '<div class="dash-widget-body">';
+  for (const skill of SKILLS) {
+    let atTarget = 0, gap1 = 0, gap2 = 0, na = 0;
+    for (const emp of emps) {
+      if (!emp.targetRoleId) { na++; continue; }
+      const targetRole = getRole(emp.targetRoleId);
+      if (!targetRole) { na++; continue; }
+      const req = targetRole.requirements[skill.id];
+      if (!req) { na++; continue; }
+      const cur = emp.skills?.[skill.id]?.level || null;
+      const gap = lvNum(req) - lvNum(cur);
+      if (gap <= 0) atTarget++;
+      else if (gap === 1) gap1++;
+      else gap2++;
+    }
+    const total = atTarget + gap1 + gap2 + na;
+    if (total === 0) continue;
+    const name = skill.name.length > 16 ? skill.name.substring(0, 15) + '..' : skill.name;
+    h += '<div class="stacked-row">';
+    h += `<span class="stacked-label" title="${esc(skill.name)}">${esc(name)}</span>`;
+    h += '<div class="stacked-track">';
+    if (atTarget) h += `<div class="stacked-seg green" style="width:${atTarget/total*100}%" title="${atTarget} at target"></div>`;
+    if (gap1) h += `<div class="stacked-seg amber" style="width:${gap1/total*100}%" title="${gap1} with 1-level gap"></div>`;
+    if (gap2) h += `<div class="stacked-seg red" style="width:${gap2/total*100}%" title="${gap2} with 2+ level gap"></div>`;
+    if (na) h += `<div class="stacked-seg gray" style="width:${na/total*100}%" title="${na} N/A"></div>`;
+    h += '</div></div>';
+  }
+  h += '<div style="display:flex;gap:12px;margin-top:8px;font-size:10px">';
+  h += '<span><span style="display:inline-block;width:10px;height:10px;background:#48BB78;border-radius:2px;vertical-align:middle"></span> At target</span>';
+  h += '<span><span style="display:inline-block;width:10px;height:10px;background:#F6AD55;border-radius:2px;vertical-align:middle"></span> 1-level gap</span>';
+  h += '<span><span style="display:inline-block;width:10px;height:10px;background:#FC8181;border-radius:2px;vertical-align:middle"></span> 2+ gap</span>';
+  h += '<span><span style="display:inline-block;width:10px;height:10px;background:#CBD5E0;border-radius:2px;vertical-align:middle"></span> N/A</span>';
+  h += '</div></div></div>';
+
+  // Widget 3: Development Activity
+  h += '<div class="dash-widget">';
+  h += '<div class="dash-widget-header">Development Activity</div>';
+  h += '<div class="dash-widget-body">';
+  let actCounts = { not_started: 0, in_progress: 0, completed: 0, dropped: 0 };
+  for (const idp of idps) {
+    for (const a of idp.actions) {
+      actCounts[a.status] = (actCounts[a.status] || 0) + 1;
+    }
+  }
+  const totalAct = Object.values(actCounts).reduce((s, v) => s + v, 0) || 1;
+  const actColors = { not_started: 'gray', in_progress: 'blue', completed: 'green', dropped: 'red' };
+  for (const [status, count] of Object.entries(actCounts)) {
+    h += '<div class="dash-bar-row">';
+    h += `<span class="dash-bar-label">${status.replace(/_/g, ' ')}</span>`;
+    h += `<div class="dash-bar-track"><div class="dash-bar-fill ${actColors[status] || 'blue'}" style="width:${count/totalAct*100}%">${count}</div></div>`;
+    h += '</div>';
+  }
+  h += `<div style="font-size:11px;color:var(--text-muted);margin-top:6px">${idps.length} active plans | ${feedback.length} feedback entries</div>`;
+  h += '</div></div>';
+
+  // Widget 4: Progression Pipeline
+  h += '<div class="dash-widget">';
+  h += '<div class="dash-widget-header">Progression Pipeline</div>';
+  h += '<div class="dash-widget-body">';
+  h += '<table class="pipeline-table"><thead><tr><th>Employee</th><th>Current</th><th>Target</th><th>Gaps</th><th>IDP Progress</th></tr></thead><tbody>';
+
+  const ranked = emps
+    .filter(e => e.targetRoleId)
+    .map(e => {
+      const gaps = countGaps(e);
+      const idp = HRStore.getIDP(e.id);
+      const done = idp ? idp.actions.filter(a => a.status === 'completed').length : 0;
+      const total = idp ? idp.actions.length : 0;
+      return { emp: e, gaps: gaps.total, done, total };
+    })
+    .sort((a, b) => a.gaps - b.gaps);
+
+  for (const r of ranked) {
+    const role = getRole(r.emp.currentRoleId);
+    const target = getRole(r.emp.targetRoleId);
+    const pct = r.total > 0 ? Math.round(r.done / r.total * 100) : 0;
+    h += '<tr>';
+    h += `<td style="font-weight:500">${esc(r.emp.name)}</td>`;
+    h += `<td>${role ? esc(role.name) : ''}</td>`;
+    h += `<td>${target ? esc(target.name) : ''}</td>`;
+    h += `<td><span style="color:${r.gaps === 0 ? '#48BB78' : '#E65100'};font-weight:700">${r.gaps}</span></td>`;
+    h += `<td><span class="progress-bar"><span class="progress-bar-fill" style="width:${pct}%"></span></span> ${pct}%</td>`;
+    h += '</tr>';
+  }
+  h += '</tbody></table></div></div>';
+
+  h += '</div>';  // close dashboard-grid
+
+  // Data Management
+  h += '<div class="data-mgmt">';
+  h += '<div class="section-title">Data Management</div>';
+  h += '<div class="data-mgmt-grid">';
+
+  // Export
+  h += '<div class="data-mgmt-card">';
+  h += '<h4>Export Data</h4>';
+  h += '<p>Download data as JSON or CSV files</p>';
+  h += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
+  h += '<button class="btn btn-secondary btn-sm" onclick="HRExport.exportAllJSON()">Full Backup (JSON)</button>';
+  h += '<button class="btn btn-secondary btn-sm" onclick="HRExport.exportEmployeesCSV()">Employees (CSV)</button>';
+  h += '<button class="btn btn-secondary btn-sm" onclick="HRExport.exportGapAnalysisCSV()">Gap Analysis (CSV)</button>';
+  h += '<button class="btn btn-secondary btn-sm" onclick="HRExport.exportIDPsCSV()">Dev Plans (CSV)</button>';
+  h += '<button class="btn btn-secondary btn-sm" onclick="HRExport.exportFeedbackCSV()">Feedback (CSV)</button>';
+  h += '<button class="btn btn-secondary btn-sm" onclick="HRExport.exportAuditLogCSV()">Audit Log (CSV)</button>';
+  h += '</div></div>';
+
+  // Import
+  h += '<div class="data-mgmt-card">';
+  h += '<h4>Import Data</h4>';
+  h += '<p>Restore from a JSON backup file</p>';
+  h += '<input type="file" accept=".json" onchange="importData(this)" style="font-size:12px">';
+  h += '</div>';
+
+  // GDPR
+  h += '<div class="data-mgmt-card">';
+  h += '<h4>GDPR Tools</h4>';
+  h += '<p>Export or delete individual employee data</p>';
+  h += '<div class="form-group"><select id="gdpr-emp-select" style="padding:6px 8px">';
+  for (const emp of emps) h += `<option value="${emp.id}">${esc(emp.name)}</option>`;
+  h += '</select></div>';
+  h += '<div style="display:flex;gap:6px">';
+  h += '<button class="btn btn-secondary btn-sm" onclick="gdprExport()">Export Employee Data</button>';
+  h += '<button class="btn btn-danger btn-sm" onclick="gdprDelete()">Delete Employee</button>';
+  h += '</div></div>';
+
+  // Reset
+  h += '<div class="data-mgmt-card">';
+  h += '<h4>System</h4>';
+  h += '<p>Reset to demo data (destroys all changes)</p>';
+  h += '<button class="btn btn-danger btn-sm" onclick="resetSystem()">Reset to Seed Data</button>';
+  h += '</div>';
+
+  h += '</div></div>';
+
+  // AI Settings
+  h += '<div class="settings-section">';
+  h += '<h3>AI Settings (Ollama / glm-4.7-flash)</h3>';
+  const settings = HRStore.getSettings();
+  h += '<div class="form-row">';
+  h += '<div class="form-group"><label>API Endpoint:</label>';
+  h += `<input id="ai-endpoint" value="${esc(settings.aiEndpoint || '')}" placeholder="http://localhost:11434/api/generate"></div>`;
+  h += '<div class="form-group"><label>Model:</label>';
+  h += `<input id="ai-model" value="${esc(settings.aiModel || '')}" placeholder="glm-4.7-flash"></div>`;
+  h += '</div>';
+  h += '<div class="form-group"><label>API Key (for OpenAI-compatible endpoints, leave empty for Ollama):</label>';
+  h += `<input id="ai-key" type="password" value="${esc(settings.aiApiKey || '')}" placeholder="Optional"></div>`;
+  h += '<button class="btn btn-primary btn-sm" onclick="saveAISettings()">Save AI Settings</button>';
+  h += '</div>';
+
+  // Audit Log
+  h += '<div style="margin-top:20px">';
+  h += '<div class="section-title">Audit Log (Last 50)</div>';
+  const log = HRStore.getAuditLog().slice(-50).reverse();
+  h += '<table class="audit-table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Target</th><th>Details</th></tr></thead><tbody>';
+  for (const entry of log) {
+    const user = emps.find(e => e.id === entry.userId);
+    const target = emps.find(e => e.id === entry.targetEmployeeId);
+    h += '<tr>';
+    h += `<td>${entry.timestamp ? new Date(entry.timestamp).toLocaleString() : ''}</td>`;
+    h += `<td>${user ? esc(user.name) : esc(entry.userId)}</td>`;
+    h += `<td>${esc(entry.action)}</td>`;
+    h += `<td>${target ? esc(target.name) : esc(entry.targetEmployeeId || '')}</td>`;
+    h += `<td style="font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(JSON.stringify(entry.details || {}))}</td>`;
+    h += '</tr>';
+  }
+  h += '</tbody></table></div>';
+
+  document.getElementById('hr-content').innerHTML = h;
+}
+
+// ── HR Dashboard actions ──────────────────────────────────────────────────────
+async function importData(input) {
+  if (!input.files[0]) return;
+  try {
+    await HRExport.importJSON(input.files[0]);
+    alert('Data imported successfully!');
+    buildPersonSelect();
+    buildHRDashboard();
+  } catch (e) {
+    alert('Import failed: ' + e.message);
+  }
+}
+
+function gdprExport() {
+  const empId = document.getElementById('gdpr-emp-select').value;
+  HRExport.exportEmployeeJSON(empId);
+}
+
+function gdprDelete() {
+  const empId = document.getElementById('gdpr-emp-select').value;
+  const emp = HRStore.getEmployee(empId);
+  if (!emp) return;
+  if (!confirm(`Are you sure you want to permanently delete all data for ${emp.name}? This cannot be undone.`)) return;
+  HRStore.deleteEmployee(empId);
+  buildPersonSelect();
+  buildHRDashboard();
+}
+
+function resetSystem() {
+  if (!confirm('This will reset ALL data to the demo seed data. All changes will be lost. Continue?')) return;
+  HRStore.reset();
+  buildPersonSelect();
+  currentUser = HRStore.getCurrentUser();
+  updateViewForRole();
+}
+
+function saveAISettings() {
+  const settings = {
+    aiEndpoint: document.getElementById('ai-endpoint').value.trim(),
+    aiModel: document.getElementById('ai-model').value.trim(),
+    aiApiKey: document.getElementById('ai-key').value.trim()
+  };
+  HRStore.saveSettings(settings);
+  alert('AI settings saved!');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── PROFILE CARD (v2) ────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildProfileCard(emp) {
+  const role = getRole(emp.currentRoleId);
+  const initials = emp.name.split(' ').map(w => w[0]).join('').toUpperCase();
+  const isOwn = emp.id === currentUser.id;
+
+  let h = '<div class="profile-card">';
+  h += '<div class="profile-header">';
+  h += `<div class="profile-avatar">${esc(initials)}</div>`;
+  h += '<div class="profile-info">';
+  h += `<h2>${esc(emp.name)}</h2>`;
+  h += `<p>${role ? esc(role.name) : ''} &bull; ${esc(emp.unit)} &bull; Since ${emp.startDate}</p>`;
+  h += '</div>';
+  if (isOwn) h += `<button class="btn btn-secondary btn-sm" onclick="toggleProfileEdit()">Edit Profile</button>`;
+  h += '</div>';
+
+  // Read-only fields
+  h += '<div id="profile-readonly" class="profile-grid">';
+  h += profileField('Email', emp.email);
+  h += profileField('Phone', emp.phone || '-');
+  h += profileField('Gender', capitalize(emp.gender || 'Not specified'));
+  h += profileField('Contract', capitalize(emp.contractType || '-'));
+  h += profileField('FTE', emp.fte != null ? (emp.fte * 100) + '%' : '-');
+  h += profileField('Unit', emp.unit);
+  h += '</div>';
+
+  // Editable fields (hidden by default)
+  h += `<div id="profile-edit" style="display:none" class="profile-grid">`;
+  h += profileInput('Name', 'prof-name', emp.name);
+  h += profileInput('Email', 'prof-email', emp.email);
+  h += profileInput('Phone', 'prof-phone', emp.phone || '');
+  h += `<div class="profile-field"><label>Gender</label><select id="prof-gender"><option value="male" ${emp.gender==='male'?'selected':''}>Male</option><option value="female" ${emp.gender==='female'?'selected':''}>Female</option><option value="other" ${emp.gender==='other'?'selected':''}>Other</option><option value="" ${!emp.gender?'selected':''}>Not specified</option></select></div>`;
+  h += `<div class="profile-field"><label>Contract</label><select id="prof-contract"><option value="permanent" ${emp.contractType==='permanent'?'selected':''}>Permanent</option><option value="fixed-term" ${emp.contractType==='fixed-term'?'selected':''}>Fixed-term</option><option value="freelance" ${emp.contractType==='freelance'?'selected':''}>Freelance</option></select></div>`;
+  h += profileInput('FTE (%)', 'prof-fte', emp.fte != null ? Math.round(emp.fte * 100) : 100);
+  h += `<div style="grid-column:1/-1;display:flex;gap:8px;margin-top:4px"><button class="btn btn-primary btn-sm" onclick="saveProfile('${emp.id}')">Save</button><button class="btn btn-secondary btn-sm" onclick="toggleProfileEdit()">Cancel</button></div>`;
+  h += '</div>';
+
+  h += '</div>';
+  return h;
+}
+
+function profileField(label, value) {
+  return `<div class="profile-field"><label>${esc(label)}</label><div class="value">${esc(String(value))}</div></div>`;
+}
+function profileInput(label, id, value) {
+  return `<div class="profile-field"><label>${esc(label)}</label><input id="${id}" value="${esc(String(value))}"></div>`;
+}
+function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+function toggleProfileEdit() {
+  const ro = document.getElementById('profile-readonly');
+  const ed = document.getElementById('profile-edit');
+  if (!ro || !ed) return;
+  const show = ed.style.display === 'none';
+  ro.style.display = show ? 'none' : '';
+  ed.style.display = show ? '' : 'none';
+}
+
+function saveProfile(empId) {
+  const name = document.getElementById('prof-name').value.trim();
+  const email = document.getElementById('prof-email').value.trim();
+  const phone = document.getElementById('prof-phone').value.trim();
+  const gender = document.getElementById('prof-gender').value;
+  const contractType = document.getElementById('prof-contract').value;
+  const fteRaw = parseInt(document.getElementById('prof-fte').value) || 100;
+  const fte = Math.min(100, Math.max(0, fteRaw)) / 100;
+
+  HRStore.updateEmployee(empId, { name, email, phone, gender, contractType, fte });
+  HRStore.audit('profile_updated', empId, empId, { fields: 'name,email,phone,gender,contract,fte' });
+
+  if (empId === currentUser.id) {
+    currentUser.name = name;
+    HRStore.setCurrentUser(currentUser);
+  }
+  buildPersonSelect();
+  buildCareerView();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── TRAINING CATALOG (v2) ────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildTrainingCatalog() {
+  const lib = HRStore.getActionLibrary();
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  let h = '<div class="section-title">Training &amp; Development Catalog</div>';
+  h += '<div class="section-subtitle">Browse available training programmes, mentoring, and development opportunities</div>';
+  h += `<button class="btn btn-secondary btn-sm" onclick="openTrainingReqModal('${currentUser.id}')" style="margin-bottom:12px">Request Training</button> `;
+  if (currentUser.viewRole === 'hr') h += `<button class="btn btn-primary btn-sm" onclick="document.getElementById('tc-admin').style.display=document.getElementById('tc-admin').style.display==='none'?'':'none'" style="margin-bottom:12px">Manage Catalog</button>`;
+
+  // Filters
+  h += '<div class="training-filter">';
+  h += '<select id="tc-type-filter" onchange="filterTraining()"><option value="">All types</option>';
+  for (const t of ['training','mentoring','stretch','project','self-study']) h += `<option value="${t}">${capitalize(t)}</option>`;
+  h += '</select>';
+  h += '<select id="tc-skill-filter" onchange="filterTraining()"><option value="">All skills</option>';
+  for (const s of SKILLS) h += `<option value="${s.id}">${esc(s.name)}</option>`;
+  h += '</select>';
+  h += '<select id="tc-provider-filter" onchange="filterTraining()"><option value="">All providers</option><option value="internal">Internal</option><option value="external">External</option></select>';
+  h += '<label style="font-size:12px;display:flex;align-items:center;gap:4px"><input type="checkbox" id="tc-upcoming-only" onchange="filterTraining()"> Upcoming dates only</label>';
+  h += '</div>';
+
+  // Summary stats
+  const withDates = lib.filter(a => a.nextDate);
+  const totalCost = lib.reduce((s, a) => s + (a.cost || 0), 0);
+  const totalSpots = lib.filter(a => a.maxParticipants).reduce((s, a) => s + a.maxParticipants - (a.enrolled || 0), 0);
+  h += '<div class="gap-summary" style="margin-bottom:20px">';
+  h += `<div class="gap-stat"><div class="gap-stat-num">${lib.length}</div><div class="gap-stat-label">Total Offerings</div></div>`;
+  h += `<div class="gap-stat"><div class="gap-stat-num">${withDates.length}</div><div class="gap-stat-label">With Scheduled Dates</div></div>`;
+  h += `<div class="gap-stat"><div class="gap-stat-num">${totalSpots}</div><div class="gap-stat-label">Open Spots</div></div>`;
+  h += `<div class="gap-stat"><div class="gap-stat-num">&euro;${totalCost.toLocaleString()}</div><div class="gap-stat-label">Total Ext. Cost</div></div>`;
+  h += '</div>';
+
+  // Catalog listing
+  h += '<div id="tc-list">';
+  h += renderTrainingList(lib, months);
+  h += '</div>';
+
+  // v3: Admin panel (hidden by default)
+  if (currentUser.viewRole === 'hr') {
+    h += '<div id="tc-admin" style="display:none">' + buildAdminTrainingPanel() + '</div>';
+  }
+
+  document.getElementById('training-content').innerHTML = h;
+}
+
+function renderTrainingList(items, months) {
+  if (!months) months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  // Sort: items with dates first (by date), then items without dates
+  const sorted = [...items].sort((a, b) => {
+    if (a.nextDate && !b.nextDate) return -1;
+    if (!a.nextDate && b.nextDate) return 1;
+    if (a.nextDate && b.nextDate) return a.nextDate.localeCompare(b.nextDate);
+    return a.title.localeCompare(b.title);
+  });
+
+  let h = '';
+  for (const a of sorted) {
+    const skill = SKILLS.find(s => s.id === a.skillId);
+    const dateObj = a.nextDate ? new Date(a.nextDate) : null;
+
+    h += `<div class="training-card" data-type="${a.type}" data-skill="${a.skillId}" data-provider="${a.provider}" data-hasdate="${a.nextDate ? '1' : '0'}">`;
+
+    // Date badge
+    if (dateObj) {
+      h += '<div class="training-date-badge">';
+      h += `<div class="month">${months[dateObj.getMonth()]}</div>`;
+      h += `<div class="day">${dateObj.getDate()}</div>`;
+      h += '</div>';
+    } else {
+      h += '<div class="training-date-badge no-date">';
+      h += '<div class="month">Open</div>';
+      h += '<div class="day">-</div>';
+      h += '</div>';
+    }
+
+    h += '<div class="training-card-body">';
+    h += `<div class="training-card-title">${esc(a.title)}</div>`;
+    h += `<div class="training-card-desc">${esc(a.description)}</div>`;
+    h += '<div class="training-meta">';
+    h += `<span class="type-tag">${esc(a.type)}</span>`;
+    if (skill) h += `<span>${esc(skill.name)}</span>`;
+    h += `<span>${esc(a.fromLevel)} &#8594; ${esc(a.toLevel)}</span>`;
+    h += `<span>${esc(a.duration)}</span>`;
+    h += `<span>${esc(a.provider)}</span>`;
+    if (a.cost > 0) h += `<span class="training-cost">&euro;${a.cost.toLocaleString()}</span>`;
+    else h += '<span style="color:#48BB78">Free</span>';
+    if (a.maxParticipants) {
+      const spots = a.maxParticipants - (a.enrolled || 0);
+      const isLow = spots <= 3;
+      h += `<span class="training-spots${isLow ? ' low' : ''}">${spots} spot${spots !== 1 ? 's' : ''} left</span>`;
+    }
+    h += '</div></div></div>';
+  }
+  if (sorted.length === 0) h = '<p style="color:var(--text-muted);padding:16px">No matching training found.</p>';
+  return h;
+}
+
+function filterTraining() {
+  const type = document.getElementById('tc-type-filter').value;
+  const skill = document.getElementById('tc-skill-filter').value;
+  const provider = document.getElementById('tc-provider-filter').value;
+  const upcomingOnly = document.getElementById('tc-upcoming-only').checked;
+
+  const cards = document.querySelectorAll('#tc-list .training-card');
+  cards.forEach(card => {
+    let show = true;
+    if (type && card.dataset.type !== type) show = false;
+    if (skill && card.dataset.skill !== skill) show = false;
+    if (provider && card.dataset.provider !== provider) show = false;
+    if (upcomingOnly && card.dataset.hasdate !== '1') show = false;
+    card.style.display = show ? '' : 'none';
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── ORG CHART (v2) ───────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildOrgChart() {
+  const emps = HRStore.getEmployees();
+
+  let h = '<div class="section-title">Organisation Chart</div>';
+  h += '<div class="section-subtitle">Reporting structure &bull; Click a person to view their career profile</div>';
+
+  // Build tree from manager relationships
+  const byManager = {};
+  let roots = [];
+  for (const emp of emps) {
+    if (!emp.managerId) {
+      roots.push(emp);
+    } else {
+      if (!byManager[emp.managerId]) byManager[emp.managerId] = [];
+      byManager[emp.managerId].push(emp);
+    }
+  }
+
+  h += '<div class="org-chart">';
+  h += renderOrgLevel(roots, byManager, 0);
+  h += '</div>';
+
+  // Demographics summary below org chart
+  h += buildDemographicsSummary(emps);
+
+  document.getElementById('orgchart-content').innerHTML = h;
+}
+
+function renderOrgLevel(people, byManager, depth) {
+  if (!people || people.length === 0) return '';
+  let h = '<div class="org-level">';
+
+  for (const emp of people) {
+    const role = getRole(emp.currentRoleId);
+    const children = byManager[emp.id] || [];
+    const gColor = emp.gender === 'female' ? '#D53F8C' : emp.gender === 'male' ? '#2D6A9F' : '#718096';
+    const isHighlighted = emp.id === currentUser.id;
+
+    h += '<div style="display:flex;flex-direction:column;align-items:center">';
+    h += `<div class="org-person${isHighlighted ? ' highlighted' : ''}" onclick="onPersonChange('${emp.id}');setViewRole('employee');">`;
+    h += `<span class="org-person-name"><span class="org-person-gender" style="background:${gColor}"></span>${esc(emp.name)}</span>`;
+    h += `<span class="org-person-role">${role ? esc(role.name) : ''}</span>`;
+    h += `<span class="org-person-unit">${esc(emp.unit)}</span>`;
+    h += '</div>';
+
+    if (children.length > 0) {
+      // Connector line
+      h += '<div class="org-connector"><svg width="2" height="16"><line x1="1" y1="0" x2="1" y2="16" stroke="#CBD5E0" stroke-width="2"/></svg></div>';
+      h += renderOrgLevel(children, byManager, depth + 1);
+    }
+    h += '</div>';
+  }
+
+  h += '</div>';
+  return h;
+}
+
+function buildDemographicsSummary(emps) {
+  let h = '<div style="margin-top:32px">';
+  h += '<div class="section-title">Workforce Demographics</div>';
+  h += '<div class="dashboard-grid">';
+
+  // Gender by role
+  h += '<div class="dash-widget">';
+  h += '<div class="dash-widget-header">Gender Distribution by Role</div>';
+  h += '<div class="dash-widget-body">';
+  for (const role of ROLES) {
+    const inRole = emps.filter(e => e.currentRoleId === role.id);
+    if (inRole.length === 0) continue;
+    const male = inRole.filter(e => e.gender === 'male').length;
+    const female = inRole.filter(e => e.gender === 'female').length;
+    const other = inRole.length - male - female;
+    const total = inRole.length;
+    h += '<div class="demo-row">';
+    h += `<span class="demo-label">${esc(role.name)}</span>`;
+    h += '<div class="demo-bar">';
+    if (male) h += `<div class="demo-seg male" style="width:${male/total*100}%">${male}</div>`;
+    if (female) h += `<div class="demo-seg female" style="width:${female/total*100}%">${female}</div>`;
+    if (other) h += `<div class="demo-seg other" style="width:${other/total*100}%">${other}</div>`;
+    h += '</div></div>';
+  }
+  h += '<div style="display:flex;gap:12px;margin-top:8px;font-size:10px">';
+  h += '<span><span style="display:inline-block;width:10px;height:10px;background:#2D6A9F;border-radius:2px;vertical-align:middle"></span> Male</span>';
+  h += '<span><span style="display:inline-block;width:10px;height:10px;background:#D53F8C;border-radius:2px;vertical-align:middle"></span> Female</span>';
+  h += '</div></div></div>';
+
+  // Contract types
+  h += '<div class="dash-widget">';
+  h += '<div class="dash-widget-header">Contract Types</div>';
+  h += '<div class="dash-widget-body">';
+  const contracts = {};
+  emps.forEach(e => { const c = e.contractType || 'unknown'; contracts[c] = (contracts[c] || 0) + 1; });
+  const maxC = Math.max(...Object.values(contracts), 1);
+  for (const [type, count] of Object.entries(contracts)) {
+    h += '<div class="dash-bar-row">';
+    h += `<span class="dash-bar-label">${capitalize(type)}</span>`;
+    h += `<div class="dash-bar-track"><div class="dash-bar-fill blue" style="width:${count/maxC*100}%">${count}</div></div>`;
+    h += '</div>';
+  }
+  h += '</div></div>';
+
+  // Gender by unit
+  h += '<div class="dash-widget">';
+  h += '<div class="dash-widget-header">Gender Distribution by Unit</div>';
+  h += '<div class="dash-widget-body">';
+  const units = [...new Set(emps.map(e => e.unit))];
+  for (const unit of units) {
+    const inUnit = emps.filter(e => e.unit === unit);
+    const male = inUnit.filter(e => e.gender === 'male').length;
+    const female = inUnit.filter(e => e.gender === 'female').length;
+    const other = inUnit.length - male - female;
+    const total = inUnit.length;
+    h += '<div class="demo-row">';
+    h += `<span class="demo-label">${esc(unit)}</span>`;
+    h += '<div class="demo-bar">';
+    if (male) h += `<div class="demo-seg male" style="width:${male/total*100}%">${male}</div>`;
+    if (female) h += `<div class="demo-seg female" style="width:${female/total*100}%">${female}</div>`;
+    if (other) h += `<div class="demo-seg other" style="width:${other/total*100}%">${other}</div>`;
+    h += '</div></div>';
+  }
+  h += '</div></div>';
+
+  // FTE summary
+  h += '<div class="dash-widget">';
+  h += '<div class="dash-widget-header">Headcount &amp; FTE Summary</div>';
+  h += '<div class="dash-widget-body">';
+  const totalFTE = emps.reduce((s, e) => s + (e.fte || 1), 0);
+  const totalHead = emps.length;
+  const avgTenure = (emps.reduce((s, e) => {
+    const start = new Date(e.startDate);
+    const now = new Date();
+    return s + (now - start) / (365.25 * 24 * 3600 * 1000);
+  }, 0) / totalHead).toFixed(1);
+  h += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
+  h += `<div class="gap-stat"><div class="gap-stat-num">${totalHead}</div><div class="gap-stat-label">Headcount</div></div>`;
+  h += `<div class="gap-stat"><div class="gap-stat-num">${totalFTE.toFixed(1)}</div><div class="gap-stat-label">FTE Total</div></div>`;
+  h += `<div class="gap-stat"><div class="gap-stat-num">${avgTenure}</div><div class="gap-stat-label">Avg. Tenure (yrs)</div></div>`;
+  h += `<div class="gap-stat"><div class="gap-stat-num">${Math.round(emps.filter(e => e.gender === 'female').length / totalHead * 100)}%</div><div class="gap-stat-label">Female</div></div>`;
+  h += '</div></div></div>';
+
+  h += '</div></div>';
+  return h;
+}
+
+// ── Also add training activity widget to HR Dashboard ─────────────────────────
+// We'll hook into the existing buildHRDashboard by adding to it
+
+const _origBuildHRDashboard = buildHRDashboard;
+buildHRDashboard = function() {
+  _origBuildHRDashboard();
+  // Append training summary and demographics to the HR dashboard
+  const container = document.getElementById('hr-content');
+  if (!container) return;
+
+  const emps = HRStore.getEmployees();
+  const lib = HRStore.getActionLibrary();
+  const idps = HRStore.getIDPs();
+
+  let h = '';
+
+  // Training Activity Report
+  h += '<div style="margin-top:24px"><div class="section-title">Training Activity Report</div>';
+  h += '<div class="dashboard-grid">';
+
+  // By type
+  h += '<div class="dash-widget"><div class="dash-widget-header">IDP Actions by Type</div><div class="dash-widget-body">';
+  const typeCounts = {};
+  idps.forEach(idp => idp.actions.forEach(a => { typeCounts[a.type] = (typeCounts[a.type] || 0) + 1; }));
+  const maxType = Math.max(...Object.values(typeCounts), 1);
+  for (const [type, count] of Object.entries(typeCounts).sort((a,b) => b[1]-a[1])) {
+    h += '<div class="dash-bar-row">';
+    h += `<span class="dash-bar-label">${capitalize(type)}</span>`;
+    h += `<div class="dash-bar-track"><div class="dash-bar-fill blue" style="width:${count/maxType*100}%">${count}</div></div>`;
+    h += '</div>';
+  }
+  h += '</div></div>';
+
+  // Training costs
+  h += '<div class="dash-widget"><div class="dash-widget-header">Training Cost Breakdown</div><div class="dash-widget-body">';
+  const extTrainings = lib.filter(a => a.type === 'training' && a.cost > 0);
+  if (extTrainings.length > 0) {
+    h += '<table class="pipeline-table"><thead><tr><th>Training</th><th>Cost</th><th>Next Date</th><th>Spots Left</th></tr></thead><tbody>';
+    for (const t of extTrainings.sort((a,b) => (b.cost||0) - (a.cost||0))) {
+      const spots = t.maxParticipants ? t.maxParticipants - (t.enrolled || 0) : '-';
+      h += '<tr>';
+      h += `<td style="font-weight:500">${esc(t.title)}</td>`;
+      h += `<td class="training-cost">&euro;${(t.cost||0).toLocaleString()}</td>`;
+      h += `<td>${t.nextDate || '-'}</td>`;
+      h += `<td>${spots}</td>`;
+      h += '</tr>';
+    }
+    h += '</tbody></table>';
+    h += `<div style="font-size:12px;margin-top:8px;font-weight:600">Total external training budget: &euro;${extTrainings.reduce((s,t) => s + (t.cost||0), 0).toLocaleString()}</div>`;
+  } else {
+    h += '<p style="color:var(--text-muted)">No external training costs.</p>';
+  }
+  h += '</div></div>';
+
+  h += buildTrainingByGenderWidget();
+
+  h += '</div></div>';
+
+  // Demographics
+  h += buildDemographicsSummary(emps);
+
+  container.innerHTML += h;
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── V3: BACKUP WARNING ───────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function dismissBackupWarning() {
+  HRStore.setWarningShown();
+  document.getElementById('backup-warning-modal').classList.remove('active');
+}
+
+function checkBackupReminder() {
+  const status = HRStore.getBackupStatus();
+  const existing = document.getElementById('backup-banner');
+  if (existing) existing.remove();
+
+  const needsReminder = status.changesSince > 20 || (status.daysSince !== null && status.daysSince > 7) || (status.daysSince === null && status.changesSince > 5);
+  if (!needsReminder) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'backup-banner';
+  banner.className = 'backup-banner';
+  const msg = status.lastBackup
+    ? `${status.changesSince} changes since last backup (${status.daysSince} days ago).`
+    : `${status.changesSince} changes made. No backup yet.`;
+  banner.innerHTML = `<span>&#9888; ${msg} Consider exporting a backup.</span><span><button class="btn btn-primary btn-sm" onclick="HRExport.exportAllJSON();document.getElementById('backup-banner').remove()">Export Now</button><button class="btn btn-secondary btn-sm" onclick="this.parentElement.parentElement.remove()" style="margin-left:4px">Dismiss</button></span>`;
+  document.body.appendChild(banner);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── V3: FEEDBACK SCHEDULING ──────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function daysSinceLastFeedback(empId) {
+  const fb = HRStore.getEmployeeFeedback(empId);
+  if (fb.length === 0) return Infinity;
+  const latest = fb.reduce((max, f) => f.date > max ? f.date : max, '');
+  return Math.floor((Date.now() - new Date(latest).getTime()) / 86400000);
+}
+
+function feedbackTimerBadge(empId) {
+  const days = daysSinceLastFeedback(empId);
+  if (days === Infinity) return '<span class="feedback-timer overdue">No feedback yet</span>';
+  if (days > 60) return `<span class="feedback-timer overdue">${days}d since feedback</span>`;
+  if (days > 30) return `<span class="feedback-timer warn">${days}d since feedback</span>`;
+  return `<span class="feedback-timer ok">${days}d ago</span>`;
+}
+
+function nextReviewBadge(idp) {
+  if (!idp || !idp.reviewDates || idp.reviewDates.length === 0) return '';
+  const today = new Date().toISOString().split('T')[0];
+  const next = idp.reviewDates.find(d => d >= today);
+  if (!next) return '<span class="review-indicator">All reviews done</span>';
+  const daysUntil = Math.floor((new Date(next).getTime() - Date.now()) / 86400000);
+  if (daysUntil <= 7) return `<span class="review-indicator soon">Review in ${daysUntil}d: ${next}</span>`;
+  return `<span class="review-indicator">Next review: ${next}</span>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── V3: SKILL SPARKLINES (TREND ANALYSIS) ────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function renderSkillSparkline(skillData) {
+  if (!skillData || !skillData.history || skillData.history.length === 0) return '';
+  const history = [...skillData.history, { level: skillData.level, assessedDate: skillData.assessedDate }];
+  const w = 50, h = 18, pad = 2;
+  const n = history.length;
+  if (n < 2) return '';
+
+  let svg = `<span class="sparkline" title="Skill progression: ${history.map(p => p.level || '?').join(' → ')}"><svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`;
+  const pts = history.map((p, i) => {
+    const x = pad + (i / (n - 1)) * (w - 2 * pad);
+    const lv = p.level ? parseInt(p.level.replace('L', '')) : 0;
+    const y = h - pad - (lv / 4) * (h - 2 * pad);
+    return `${x},${y}`;
+  });
+  svg += `<polyline points="${pts.join(' ')}" fill="none" stroke="#2D6A9F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+  // Dots
+  for (const pt of pts) {
+    svg += `<circle cx="${pt.split(',')[0]}" cy="${pt.split(',')[1]}" r="2" fill="#2D6A9F"/>`;
+  }
+  svg += '</svg></span>';
+  return svg;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── V3: GOALS ────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildGoalsSection(emp) {
+  const goals = HRStore.getEmployeeGoals(emp.id);
+  let h = '<div style="margin-top:24px">';
+  h += '<div class="section-title">Goals</div>';
+  h += `<button class="btn btn-primary btn-sm" onclick="openGoalModal('${emp.id}')" style="margin-bottom:14px">+ Set Goal</button>`;
+
+  if (goals.length === 0) {
+    h += '<div style="color:var(--text-muted);font-size:12px;padding:8px">No goals set yet.</div>';
+  } else {
+    const sorted = [...goals].sort((a, b) => (a.deadline || '').localeCompare(b.deadline || ''));
+    for (const g of sorted) {
+      const skill = g.linkedSkillId ? getSkill(g.linkedSkillId) : null;
+      h += '<div class="goal-card">';
+      h += '<div class="goal-card-header">';
+      h += `<span class="goal-card-title">${esc(g.title)}</span>`;
+      h += `<span class="status-pill ${g.status}">${g.status.replace(/_/g, ' ')}</span>`;
+      if (g.managerApproved) h += '<span style="color:#48BB78;font-size:10px">&#10004; Approved</span>';
+      h += '</div>';
+      h += `<div class="goal-card-body">${esc(g.description)}</div>`;
+      h += '<div class="goal-card-meta">';
+      if (g.deadline) h += `<span>Due: ${g.deadline}</span>`;
+      if (skill) h += `<span class="type-tag">${esc(skill.name)}</span>`;
+      if (g.managerNotes) h += `<span style="font-style:italic">Manager: ${esc(g.managerNotes)}</span>`;
+      h += '</div>';
+      h += `<div style="margin-top:6px;display:flex;gap:4px">`;
+      if (g.status === 'draft') h += `<button class="btn btn-primary btn-sm" onclick="submitGoalForApproval('${g.id}')">Submit for Approval</button>`;
+      if (g.status !== 'completed') {
+        h += `<select class="qa-level-select" onchange="updateGoalStatus('${g.id}',this.value)" style="font-size:10px;padding:3px 6px">`;
+        for (const st of ['draft','pending_approval','approved','in_progress','completed']) {
+          h += `<option value="${st}" ${g.status===st?'selected':''}>${st.replace(/_/g,' ')}</option>`;
+        }
+        h += '</select>';
+      }
+      h += `<button class="btn btn-danger btn-sm" onclick="deleteGoal('${g.id}')" style="font-size:10px;padding:2px 6px">Delete</button>`;
+      h += '</div></div>';
+    }
+  }
+  h += '</div>';
+  return h;
+}
+
+function openGoalModal(empId) {
+  const modal = document.getElementById('goal-modal');
+  modal.classList.add('active');
+
+  let h = '';
+  h += '<div class="form-group"><label>Goal Title:</label><input id="goal-title" placeholder="What do you want to achieve?"></div>';
+  h += '<div class="form-group"><label>Description:</label><textarea id="goal-desc" placeholder="Describe the goal in detail, including success criteria..."></textarea></div>';
+  h += '<div class="form-row"><div class="form-group"><label>Deadline:</label><input id="goal-deadline" type="date"></div>';
+  h += '<div class="form-group"><label>Linked Skill (optional):</label><select id="goal-skill"><option value="">None</option>';
+  for (const s of SKILLS) h += `<option value="${s.id}">${esc(s.name)}</option>`;
+  h += '</select></div></div>';
+
+  document.getElementById('goal-modal-body').innerHTML = h;
+  document.getElementById('goal-modal-footer').innerHTML =
+    `<button class="btn btn-secondary" onclick="closeGoalModal()">Cancel</button>` +
+    `<button class="btn btn-primary" onclick="submitGoal('${empId}')">Create Goal</button>`;
+}
+
+function closeGoalModal() { document.getElementById('goal-modal').classList.remove('active'); }
+
+function submitGoal(empId) {
+  const title = document.getElementById('goal-title').value.trim();
+  if (!title) { alert('Please enter a goal title'); return; }
+  HRStore.addGoal({
+    employeeId: empId,
+    title,
+    description: document.getElementById('goal-desc').value.trim(),
+    deadline: document.getElementById('goal-deadline').value,
+    linkedSkillId: document.getElementById('goal-skill').value || null,
+    status: 'draft'
+  });
+  closeGoalModal();
+  buildCareerView();
+}
+
+function submitGoalForApproval(goalId) {
+  HRStore.updateGoal(goalId, { status: 'pending_approval' });
+  buildCareerView();
+}
+
+function updateGoalStatus(goalId, status) {
+  HRStore.updateGoal(goalId, { status });
+}
+
+function deleteGoal(goalId) {
+  if (!confirm('Delete this goal?')) return;
+  HRStore.deleteGoal(goalId);
+  buildCareerView();
+}
+
+function approveGoal(goalId, managerId) {
+  HRStore.updateGoal(goalId, { status: 'approved', managerApproved: true, approvedBy: managerId });
+  buildManagerView();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── V3: TRAINING REQUESTS ────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildTrainingRequestsSection(empId) {
+  const reqs = HRStore.getEmployeeTrainingRequests(empId);
+  if (reqs.length === 0) return '';
+  let h = '<div style="margin-top:16px"><h4 style="font-size:13px;font-weight:700;margin-bottom:8px">My Training Requests</h4>';
+  for (const r of reqs.sort((a, b) => b.requestDate.localeCompare(a.requestDate))) {
+    h += `<div class="treq-card ${r.status}">`;
+    h += `<div style="display:flex;align-items:center;gap:8px"><strong style="font-size:13px">${esc(r.title)}</strong><span class="status-pill ${r.status === 'approved' ? 'completed' : r.status === 'rejected' ? 'dropped' : 'in_progress'}">${r.status}</span></div>`;
+    h += `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">${esc(r.description)}</div>`;
+    h += `<div style="font-size:11px;color:var(--text-muted);margin-top:4px"><span class="type-tag">${esc(r.type)}</span> Est: &euro;${r.estimatedCost || 0} | ${esc(r.estimatedDuration || '')} | Requested: ${r.requestDate}</div>`;
+    if (r.managerComment) h += `<div style="font-size:11px;font-style:italic;margin-top:4px;color:var(--text-secondary)">Manager: ${esc(r.managerComment)}</div>`;
+    h += '</div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function openTrainingReqModal(empId) {
+  const modal = document.getElementById('training-req-modal');
+  modal.classList.add('active');
+
+  let h = '';
+  h += '<div class="form-group"><label>Training Title:</label><input id="treq-title" placeholder="What training do you need?"></div>';
+  h += '<div class="form-group"><label>Description:</label><textarea id="treq-desc" placeholder="Why is this training needed? How will it help?"></textarea></div>';
+  h += '<div class="form-row"><div class="form-group"><label>Type:</label><select id="treq-type"><option value="training">Training</option><option value="mentoring">Mentoring</option><option value="conference">Conference</option><option value="other">Other</option></select></div>';
+  h += '<div class="form-group"><label>Estimated Cost (&euro;):</label><input id="treq-cost" type="number" value="0"></div></div>';
+  h += '<div class="form-row"><div class="form-group"><label>Estimated Duration:</label><input id="treq-duration" placeholder="e.g. 3 days, 1 week"></div>';
+  h += '<div class="form-group"><label>Linked Skill:</label><select id="treq-skill"><option value="">None</option>';
+  for (const s of SKILLS) h += `<option value="${s.id}">${esc(s.name)}</option>`;
+  h += '</select></div></div>';
+
+  document.getElementById('treq-modal-body').innerHTML = h;
+  document.getElementById('treq-modal-footer').innerHTML =
+    `<button class="btn btn-secondary" onclick="closeTrainingReqModal()">Cancel</button>` +
+    `<button class="btn btn-primary" onclick="submitTrainingReq('${empId}')">Submit Request</button>`;
+}
+
+function closeTrainingReqModal() { document.getElementById('training-req-modal').classList.remove('active'); }
+
+function submitTrainingReq(empId) {
+  const title = document.getElementById('treq-title').value.trim();
+  if (!title) { alert('Please enter a title'); return; }
+  HRStore.addTrainingRequest({
+    employeeId: empId,
+    title,
+    description: document.getElementById('treq-desc').value.trim(),
+    type: document.getElementById('treq-type').value,
+    estimatedCost: parseFloat(document.getElementById('treq-cost').value) || 0,
+    estimatedDuration: document.getElementById('treq-duration').value.trim(),
+    linkedSkillId: document.getElementById('treq-skill').value || null
+  });
+  closeTrainingReqModal();
+  buildTrainingCatalog();
+}
+
+function buildPendingRequestsSection(managerId) {
+  const reqs = HRStore.getTeamTrainingRequests(managerId).filter(r => r.status === 'pending');
+  if (reqs.length === 0) return '';
+  const emps = HRStore.getEmployees();
+
+  let h = '<div style="margin-top:16px"><h4 style="font-size:13px;font-weight:700;margin-bottom:8px;color:#E65100">Pending Training Requests (' + reqs.length + ')</h4>';
+  for (const r of reqs) {
+    const emp = emps.find(e => e.id === r.employeeId);
+    h += `<div class="treq-card pending">`;
+    h += `<div style="display:flex;align-items:center;gap:8px"><strong style="font-size:13px">${emp ? esc(emp.name) : ''}: ${esc(r.title)}</strong></div>`;
+    h += `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">${esc(r.description)}</div>`;
+    h += `<div style="font-size:11px;color:var(--text-muted);margin-top:4px"><span class="type-tag">${esc(r.type)}</span> Est: &euro;${r.estimatedCost || 0} | ${esc(r.estimatedDuration || '')}</div>`;
+    h += `<div style="margin-top:6px;display:flex;gap:6px">`;
+    h += `<button class="btn btn-success btn-sm" onclick="resolveRequest('${r.id}','approved','${managerId}')">Approve</button>`;
+    h += `<button class="btn btn-danger btn-sm" onclick="resolveRequest('${r.id}','rejected','${managerId}')">Reject</button>`;
+    h += '</div></div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function resolveRequest(reqId, status, managerId) {
+  const comment = status === 'rejected' ? prompt('Reason for rejection (optional):') || '' : '';
+  const req = HRStore.resolveTrainingRequest(reqId, status, managerId, comment);
+  // If approved, optionally add to IDP
+  if (status === 'approved' && req) {
+    const idp = HRStore.getIDP(req.employeeId);
+    if (idp) {
+      HRStore.addIDPAction(req.employeeId, {
+        skillId: req.linkedSkillId || null,
+        fromLevel: null, toLevel: null,
+        type: req.type, title: req.title, description: req.description,
+        source: 'request', deadline: '', notes: 'Created from approved training request'
+      });
+    }
+  }
+  buildManagerView();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── V3: ADMIN TRAINING CATALOG ───────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildAdminTrainingPanel() {
+  const lib = HRStore.getActionLibrary();
+  let h = '<div style="margin-top:24px"><div class="section-title">Manage Training Catalog</div>';
+  h += '<button class="btn btn-primary btn-sm" onclick="openAdminTrainingModal(null)" style="margin-bottom:14px">+ Add Training</button>';
+  h += '<table class="pipeline-table"><thead><tr><th>Title</th><th>Skill</th><th>Levels</th><th>Type</th><th>Cost</th><th>Next Date</th><th>Actions</th></tr></thead><tbody>';
+  for (const item of lib) {
+    const skill = SKILLS.find(s => s.id === item.skillId);
+    h += '<tr>';
+    h += `<td style="font-weight:500">${esc(item.title)}</td>`;
+    h += `<td>${skill ? esc(skill.name) : ''}</td>`;
+    h += `<td>${item.fromLevel} → ${item.toLevel}</td>`;
+    h += `<td>${esc(item.type)}</td>`;
+    h += `<td>${item.cost ? '€' + item.cost : 'Free'}</td>`;
+    h += `<td>${item.nextDate || '-'}</td>`;
+    h += `<td><button class="btn btn-secondary btn-sm" onclick="openAdminTrainingModal('${item.id}')" style="font-size:10px">Edit</button> <button class="btn btn-danger btn-sm" onclick="deleteTrainingItem('${item.id}')" style="font-size:10px">Del</button></td>`;
+    h += '</tr>';
+  }
+  h += '</tbody></table></div>';
+  return h;
+}
+
+function openAdminTrainingModal(itemId) {
+  const modal = document.getElementById('admin-training-modal');
+  modal.classList.add('active');
+  const item = itemId ? HRStore.getActionLibrary().find(i => i.id === itemId) : null;
+  document.getElementById('admin-training-modal-title').textContent = item ? 'Edit Training' : 'Add Training';
+
+  let h = '';
+  h += `<div class="form-group"><label>Title:</label><input id="at-title" value="${esc(item?.title || '')}"></div>`;
+  h += `<div class="form-group"><label>Description:</label><textarea id="at-desc">${esc(item?.description || '')}</textarea></div>`;
+  h += '<div class="form-row"><div class="form-group"><label>Skill:</label><select id="at-skill">';
+  for (const s of SKILLS) h += `<option value="${s.id}" ${item?.skillId === s.id ? 'selected' : ''}>${esc(s.name)}</option>`;
+  h += '</select></div>';
+  h += '<div class="form-group"><label>Type:</label><select id="at-type">';
+  for (const t of ['training','mentoring','stretch','project','self-study']) h += `<option value="${t}" ${item?.type === t ? 'selected' : ''}>${t}</option>`;
+  h += '</select></div></div>';
+  h += '<div class="form-row">';
+  h += `<div class="form-group"><label>From Level:</label><select id="at-from"><option value="L1" ${item?.fromLevel==='L1'?'selected':''}>L1</option><option value="L2" ${item?.fromLevel==='L2'?'selected':''}>L2</option><option value="L3" ${item?.fromLevel==='L3'?'selected':''}>L3</option></select></div>`;
+  h += `<div class="form-group"><label>To Level:</label><select id="at-to"><option value="L2" ${item?.toLevel==='L2'?'selected':''}>L2</option><option value="L3" ${item?.toLevel==='L3'?'selected':''}>L3</option><option value="L4" ${item?.toLevel==='L4'?'selected':''}>L4</option></select></div>`;
+  h += '</div>';
+  h += '<div class="form-row">';
+  h += `<div class="form-group"><label>Duration:</label><input id="at-duration" value="${esc(item?.duration || '')}"></div>`;
+  h += `<div class="form-group"><label>Provider:</label><select id="at-provider"><option value="internal" ${item?.provider==='internal'?'selected':''}>Internal</option><option value="external" ${item?.provider==='external'?'selected':''}>External</option></select></div>`;
+  h += '</div>';
+  h += '<div class="form-row">';
+  h += `<div class="form-group"><label>Cost (€):</label><input id="at-cost" type="number" value="${item?.cost || 0}"></div>`;
+  h += `<div class="form-group"><label>Next Date:</label><input id="at-date" type="date" value="${item?.nextDate || ''}"></div>`;
+  h += '</div>';
+  h += '<div class="form-row">';
+  h += `<div class="form-group"><label>Max Participants:</label><input id="at-max" type="number" value="${item?.maxParticipants || ''}"></div>`;
+  h += `<div class="form-group"><label>Currently Enrolled:</label><input id="at-enrolled" type="number" value="${item?.enrolled || 0}"></div>`;
+  h += '</div>';
+
+  document.getElementById('admin-training-modal-body').innerHTML = h;
+  document.getElementById('admin-training-modal-footer').innerHTML =
+    `<button class="btn btn-secondary" onclick="closeAdminTrainingModal()">Cancel</button>` +
+    `<button class="btn btn-primary" onclick="saveTrainingItem('${itemId || ''}')">Save</button>`;
+}
+
+function closeAdminTrainingModal() { document.getElementById('admin-training-modal').classList.remove('active'); }
+
+function saveTrainingItem(itemId) {
+  const data = {
+    skillId: document.getElementById('at-skill').value,
+    type: document.getElementById('at-type').value,
+    title: document.getElementById('at-title').value.trim(),
+    description: document.getElementById('at-desc').value.trim(),
+    fromLevel: document.getElementById('at-from').value,
+    toLevel: document.getElementById('at-to').value,
+    duration: document.getElementById('at-duration').value.trim(),
+    provider: document.getElementById('at-provider').value,
+    cost: parseFloat(document.getElementById('at-cost').value) || 0,
+    nextDate: document.getElementById('at-date').value || null,
+    maxParticipants: parseInt(document.getElementById('at-max').value) || null,
+    enrolled: parseInt(document.getElementById('at-enrolled').value) || 0
+  };
+  if (!data.title) { alert('Title is required'); return; }
+
+  if (itemId) {
+    HRStore.updateLibraryItem(itemId, data);
+  } else {
+    HRStore.addLibraryItem(data);
+  }
+  closeAdminTrainingModal();
+  buildTrainingCatalog();
+}
+
+function deleteTrainingItem(itemId) {
+  if (!confirm('Delete this training from the catalog?')) return;
+  HRStore.deleteLibraryItem(itemId);
+  buildTrainingCatalog();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── V3: FILE ATTACHMENTS ─────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    if (file.size > 2 * 1024 * 1024) {
+      reject(new Error('File too large. Maximum 2MB allowed.'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve({ filename: file.name, mimeType: file.type, size: file.size, data: reader.result, uploadedDate: new Date().toISOString().split('T')[0] });
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderAttachments(attachments) {
+  if (!attachments || attachments.length === 0) return '';
+  return attachments.map(att =>
+    `<a class="attachment-link" onclick="downloadAttachment(${JSON.stringify(att).replace(/"/g, '&quot;')})" title="${esc(att.filename)} (${Math.round(att.size/1024)}KB)">&#128206; ${esc(att.filename)}</a>`
+  ).join(' ');
+}
+
+function downloadAttachment(att) {
+  const a = document.createElement('a');
+  a.href = att.data;
+  a.download = att.filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── V3: TRAINING BY GENDER WIDGET ────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildTrainingByGenderWidget() {
+  const emps = HRStore.getEmployees();
+  const idps = HRStore.getIDPs();
+  const genderStats = { male: { total: 0, completed: 0 }, female: { total: 0, completed: 0 }, other: { total: 0, completed: 0 } };
+
+  for (const idp of idps) {
+    const emp = emps.find(e => e.id === idp.employeeId);
+    if (!emp) continue;
+    const g = emp.gender || 'other';
+    const key = genderStats[g] ? g : 'other';
+    for (const act of idp.actions) {
+      genderStats[key].total++;
+      if (act.status === 'completed') genderStats[key].completed++;
+    }
+  }
+
+  let h = '<div class="dash-widget"><div class="dash-widget-header">Training Activity by Gender</div><div class="dash-widget-body">';
+  const maxTotal = Math.max(...Object.values(genderStats).map(g => g.total), 1);
+  const colors = { male: 'blue', female: 'amber', other: 'green' };
+
+  for (const [gender, stats] of Object.entries(genderStats)) {
+    if (stats.total === 0) continue;
+    h += '<div class="dash-bar-row">';
+    h += `<span class="dash-bar-label">${capitalize(gender)} (${stats.total})</span>`;
+    h += `<div class="dash-bar-track">`;
+    h += `<div class="dash-bar-fill ${colors[gender]}" style="width:${stats.total/maxTotal*100}%">${stats.completed} done / ${stats.total}</div>`;
+    h += '</div></div>';
+  }
+
+  // Summary
+  const totalActions = Object.values(genderStats).reduce((s, g) => s + g.total, 0);
+  const totalCompleted = Object.values(genderStats).reduce((s, g) => s + g.completed, 0);
+  h += `<div style="font-size:11px;color:var(--text-muted);margin-top:8px">Total: ${totalActions} development actions, ${totalCompleted} completed (${totalActions ? Math.round(totalCompleted/totalActions*100) : 0}%)</div>`;
+  h += '</div></div>';
+  return h;
+}
+
+// ── Start the app ─────────────────────────────────────────────────────────────
+initApp();
+</script>
+</body>
+</html>
