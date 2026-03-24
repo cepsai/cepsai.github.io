@@ -23,7 +23,10 @@
 
         .header {
             padding: 14px 0 10px;
-            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
             border-bottom: 1px solid #ddd;
             background: #fff;
         }
@@ -33,9 +36,51 @@
             padding: 6px 12px;
             border: 1px solid #bbb;
             border-radius: 4px;
-            min-width: 380px;
             background: #fff;
-            vertical-align: middle;
+        }
+
+        #model-select {
+            min-width: 380px;
+        }
+
+        .pagination-ctrl {
+            display: flex;
+            align-items: center;
+            background: #fff;
+            border: 1px solid #bbb;
+            border-radius: 4px;
+            height: 31px;
+        }
+
+        .pagination-ctrl button {
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            padding: 0 8px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            color: #555;
+        }
+
+        .pagination-ctrl button:hover:not(:disabled) {
+            background: #f0f0f0;
+        }
+
+        .pagination-ctrl button:disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+
+        .pagination-ctrl span {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+            padding: 0 10px;
+            border-left: 1px solid #eee;
+            border-right: 1px solid #eee;
+            min-width: 80px;
+            text-align: center;
         }
 
         .hf-btn {
@@ -46,9 +91,7 @@
             background: #fff;
             text-decoration: none;
             color: #222;
-            margin-left: 10px;
             display: none;
-            vertical-align: middle;
         }
 
         .hf-btn:hover {
@@ -484,17 +527,51 @@
             text-align: center;
             margin-top: 60px;
         }
+
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 100px;
+            color: #555;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #eee;
+            border-top-color: #1565c0;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 
 <body>
 
     <div class="header">
-        <select id="sort-select"
-            style="font-size: 14px; padding: 6px 12px; border: 1px solid #bbb; border-radius: 4px; background: #fff; vertical-align: middle; margin-right: 10px; min-width: auto;">
+        <select id="sort-select">
             <option value="desc" selected>Default Order</option>
             <option value="asc">Alphabetical</option>
         </select>
+
+        <div class="pagination-ctrl">
+            <button id="prev-page-btn" title="Previous 100 models" disabled>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <span id="page-info">Page 1 / ?</span>
+            <button id="next-page-btn" title="Next 100 models">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </button>
+        </div>
+
         <select id="model-select">
             <option value="">-- Select a model --</option>
         </select>
@@ -502,13 +579,18 @@
     </div>
 
     <div class="diagram" id="diagram">
-        <p class="empty">Select a model</p>
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <div>Fetching massive results from HF Dataset...</div>
+        </div>
     </div>
 
     <script>
         let RAW_DATA = [];
         let DATA = [];
         let currentStatsMode = 'results';
+        let currentPage = 1;
+        const modelsPerPage = 100;
 
         function applySort() {
             const sortVal = document.getElementById('sort-select').value;
@@ -522,21 +604,49 @@
         function renderModelSelect() {
             const sel = document.getElementById('model-select');
             sel.innerHTML = '<option value="">-- Select a model --</option>';
-            DATA.forEach(m => {
+            
+            const startIdx = (currentPage - 1) * modelsPerPage;
+            const endIdx = Math.min(startIdx + modelsPerPage, DATA.length);
+            
+            for (let i = startIdx; i < endIdx; i++) {
+                const m = DATA[i];
                 const opt = document.createElement('option');
                 opt.value = m.original_index;
                 opt.textContent = m.id;
                 sel.appendChild(opt);
-            });
+            }
+            
+            const totalPages = Math.ceil(DATA.length / modelsPerPage) || 1;
+            document.getElementById('page-info').textContent = `Page ${currentPage} / ${totalPages}`;
+            document.getElementById('prev-page-btn').disabled = currentPage === 1;
+            document.getElementById('next-page-btn').disabled = currentPage >= totalPages;
         }
 
+        document.getElementById('prev-page-btn').addEventListener('click', function() {
+            if (currentPage > 1) {
+                currentPage--;
+                renderModelSelect();
+                document.getElementById('model-select').value = "";
+                document.getElementById('model-select').dispatchEvent(new Event('change'));
+            }
+        });
+
+        document.getElementById('next-page-btn').addEventListener('click', function() {
+            const totalPages = Math.ceil(DATA.length / modelsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderModelSelect();
+                document.getElementById('model-select').value = "";
+                document.getElementById('model-select').dispatchEvent(new Event('change'));
+            }
+        });
+
         document.getElementById('sort-select').addEventListener('change', function () {
-            const currentSelected = document.getElementById('model-select').value;
+            currentPage = 1;
             applySort();
             renderModelSelect();
-            if (currentSelected !== '') {
-                document.getElementById('model-select').value = currentSelected;
-            }
+            document.getElementById('model-select').value = "";
+            document.getElementById('model-select').dispatchEvent(new Event('change'));
         });
 
         function setStatsMode(mode) {
@@ -783,7 +893,7 @@
             `;
         }
 
-        fetch('results.json')
+        fetch('https://huggingface.co/datasets/Franri/model-chips-data/resolve/main/results.json')
             .then(r => r.json())
             .then(data => {
                 RAW_DATA = data;
@@ -794,7 +904,7 @@
                 document.getElementById('diagram').innerHTML = drawGlobalStats();
             })
             .catch(e => {
-                document.getElementById('diagram').innerHTML = '<p class="empty">Failed to load ../database/results.json: ' + e.message + '</p>';
+                document.getElementById('diagram').innerHTML = '<p class="empty">Failed to load data from Hugging Face: ' + e.message + '</p>';
             });
 
         document.getElementById('model-select').addEventListener('change', function () {
