@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" id="html-root">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,6 +8,33 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --surface-raised: #eef1f6;
+  --surface-hover: #e6eaf2;
+  --border: #dde2eb;
+  --border-accent: #b4bece;
+  --text: #1a2030;
+  --text-muted: #4a5568;
+  --text-dim: #8a97aa;
+  --accent: #2f6fd4;
+  --accent-glow: rgba(47, 111, 212, 0.12);
+  --accent-hover: #1e5bb8;
+  --green: #16a34a;
+  --green-dim: rgba(22, 163, 74, 0.12);
+  --amber: #d97706;
+  --amber-dim: rgba(217, 119, 6, 0.12);
+  --red: #dc2626;
+  --red-dim: rgba(220, 38, 38, 0.12);
+  --cyan: #0891b2;
+  --cyan-dim: rgba(8, 145, 178, 0.12);
+  --violet: #7c3aed;
+  --violet-dim: rgba(124, 58, 237, 0.12);
+  --radius: 8px;
+  --radius-lg: 14px;
+}
+
+html.dark :root {
   --bg: #0c0f14;
   --surface: #14181f;
   --surface-raised: #1a1f28;
@@ -30,8 +57,6 @@
   --cyan-dim: rgba(34, 211, 238, 0.12);
   --violet: #a78bfa;
   --violet-dim: rgba(167, 139, 250, 0.12);
-  --radius: 8px;
-  --radius-lg: 14px;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -291,9 +316,20 @@ td a:hover { color: var(--accent-hover); text-decoration: underline; }
   overflow: hidden; text-overflow: ellipsis;
 }
 .bar-track {
-  flex: 1; height: 24px; background: rgba(255,255,255,0.03);
+  flex: 1; height: 24px; background: rgba(0,0,0,0.06);
   border-radius: 4px; overflow: hidden; position: relative;
 }
+html.dark .bar-track { background: rgba(255,255,255,0.03); }
+
+/* ---- Theme toggle ---- */
+.theme-toggle {
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-muted); width: 36px; height: 36px;
+  border-radius: 50%; cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; flex-shrink: 0;
+}
+.theme-toggle:hover { background: var(--surface-hover); color: var(--text); }
 .bar-fill {
   height: 100%; border-radius: 4px;
   transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
@@ -357,7 +393,10 @@ td a:hover { color: var(--accent-hover); text-decoration: underline; }
       <h1>⚡ AI Funding & Research Tracker</h1>
       <p class="subtitle">Funding opportunities and research publications on AI & society</p>
     </div>
-    <div class="db-badge"><span class="dot"></span> <span id="db-name">ai_funding_tracker.db</span></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode">🌙</button>
+      <div class="db-badge"><span class="dot"></span> <span id="db-name">ai_funding_tracker.db</span></div>
+    </div>
   </div>
   <div class="stats-strip" id="stats-strip"></div>
 </header>
@@ -495,8 +534,24 @@ function queryAll(sql) {
 }
 
 function loadData() {
-  try { fundingData = queryAll('SELECT * FROM funding_opportunities ORDER BY submission_deadline ASC'); } catch(e) { fundingData = []; }
-  try { researchData = queryAll('SELECT * FROM research_publications ORDER BY publication_date DESC'); } catch(e) { researchData = []; }
+  try {
+    fundingData = queryAll([
+      'SELECT',
+      '  id, name AS program_name, organization AS organization_name,',
+      '  UPPER(SUBSTR(type,1,1)) || SUBSTR(type,2) AS source_type,',
+      '  description AS thematic_focus,',
+      '  url AS access_link,',
+      '  amount_notes AS budget_amount,',
+      '  deadline AS submission_deadline,',
+      '  eligible_regions AS geographic_scope,',
+      '  date_added AS source_discovered_date,',
+      '  CASE WHEN status = "active" THEN 1 ELSE 0 END AS still_open,',
+      '  notes, contact',
+      'FROM opportunities',
+      'ORDER BY deadline ASC'
+    ].join(' '));
+  } catch(e) { fundingData = []; console.warn('loadData funding:', e); }
+  researchData = [];
 }
 
 // ---- Stats ----
@@ -507,8 +562,9 @@ function buildStats() {
   var totalR = researchData.length;
 
   var soon = fundingData.filter(function(r) {
-    if (!r.submission_deadline || r.still_open !== 1) return false;
+    if (!r.submission_deadline || r.still_open !== 1 || r.submission_deadline === 'rolling') return false;
     var d = new Date(r.submission_deadline + 'T12:00:00');
+    if (isNaN(d.getTime())) return false;
     var diff = (d - new Date()) / 86400000;
     return diff >= 0 && diff <= 30;
   }).length;
@@ -676,8 +732,10 @@ function srcBadgeClass(s) {
 
 function deadlineDisplay(d, stillOpen) {
   if (!d) return '<span style="color:var(--text-dim)">—</span>';
+  if (d === 'rolling') return '<span style="color:var(--green)">Rolling</span>';
   var now = new Date();
   var dl = new Date(d + 'T12:00:00');
+  if (isNaN(dl.getTime())) return esc(d);
   var diff = Math.ceil((dl - now) / 86400000);
   if (diff < 0 || stillOpen === 0) return '<span class="deadline-passed">' + d + '</span>';
   if (diff <= 14) return '<span class="deadline-soon">' + d + ' (' + diff + 'd)</span>';
@@ -889,6 +947,26 @@ function closePanel() {
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closePanel();
 });
+
+// ---- Theme toggle ----
+(function() {
+  if (localStorage.getItem('theme') === 'dark') {
+    document.getElementById('html-root').classList.add('dark');
+  }
+})();
+
+document.getElementById('theme-toggle').addEventListener('click', function() {
+  var root = document.getElementById('html-root');
+  var isDark = root.classList.toggle('dark');
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+  this.textContent = isDark ? '☀️' : '🌙';
+});
+
+(function() {
+  if (document.getElementById('html-root').classList.contains('dark')) {
+    document.getElementById('theme-toggle').textContent = '☀️';
+  }
+})();
 
 // ---- Boot ----
 init();
