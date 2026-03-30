@@ -411,6 +411,9 @@ html.dark .bar-track { background: rgba(255,255,255,0.03); }
     <button class="tab-btn" data-tab="research" onclick="switchTab('research')">
       Research <span class="count" id="count-research">0</span>
     </button>
+    <button class="tab-btn" data-tab="archive" onclick="switchTab('archive')">
+      Archive <span class="count" id="count-archive">0</span>
+    </button>
   </div>
 
   <div id="view-funding">
@@ -425,11 +428,6 @@ html.dark .bar-track { background: rgba(255,255,255,0.03); }
       <select class="filter" id="filter-source" onchange="filterFunding()">
         <option value="">All Sources</option>
       </select>
-      <select class="filter" id="filter-status" onchange="filterFunding()">
-        <option value="">All Status</option>
-        <option value="1">Open</option>
-        <option value="0">Closed</option>
-      </select>
     </div>
     <div class="table-wrap">
       <table>
@@ -441,7 +439,6 @@ html.dark .bar-track { background: rgba(255,255,255,0.03); }
             <th data-col="source_type" onclick="sortFunding('source_type')">Source <span class="sort-arrow">▼</span></th>
             <th data-col="budget_amount" onclick="sortFunding('budget_amount')">Budget <span class="sort-arrow">▼</span></th>
             <th data-col="submission_deadline" onclick="sortFunding('submission_deadline')">Deadline <span class="sort-arrow">▼</span></th>
-            <th data-col="still_open" onclick="sortFunding('still_open')">Status <span class="sort-arrow">▼</span></th>
           </tr>
         </thead>
         <tbody id="tbody-funding"></tbody>
@@ -478,6 +475,36 @@ html.dark .bar-track { background: rgba(255,255,255,0.03); }
       </table>
     </div>
   </div>
+
+  <div id="view-archive" style="display:none;">
+    <div class="toolbar">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" id="search-archive" placeholder="Search archived programs, organisations…" oninput="filterArchive()">
+      </div>
+      <select class="filter" id="filter-archive-geo" onchange="filterArchive()">
+        <option value="">All Regions</option>
+      </select>
+      <select class="filter" id="filter-archive-source" onchange="filterArchive()">
+        <option value="">All Sources</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr id="thead-archive">
+            <th data-col="program_name" onclick="sortArchive('program_name')">Program <span class="sort-arrow">▼</span></th>
+            <th data-col="organization_name" onclick="sortArchive('organization_name')">Organisation <span class="sort-arrow">▼</span></th>
+            <th data-col="geographic_scope" onclick="sortArchive('geographic_scope')">Region <span class="sort-arrow">▼</span></th>
+            <th data-col="source_type" onclick="sortArchive('source_type')">Source <span class="sort-arrow">▼</span></th>
+            <th data-col="budget_amount" onclick="sortArchive('budget_amount')">Budget <span class="sort-arrow">▼</span></th>
+            <th data-col="submission_deadline" onclick="sortArchive('submission_deadline')">Deadline <span class="sort-arrow">▼</span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody-archive"></tbody>
+      </table>
+    </div>
+  </div>
 </main>
 
 <!-- Detail Panel -->
@@ -491,12 +518,15 @@ html.dark .bar-track { background: rgba(255,255,255,0.03); }
 var DB = null;
 var fundingData = [];
 var researchData = [];
+var archiveFiltered = [];
 var fundingFiltered = [];
 var researchFiltered = [];
 var fundingSortCol = 'submission_deadline';
 var fundingSortAsc = true;
 var researchSortCol = 'publication_date';
 var researchSortAsc = false;
+var archiveSortCol = 'submission_deadline';
+var archiveSortAsc = false;
 
 // ---- Init ----
 async function init() {
@@ -513,6 +543,7 @@ async function init() {
     populateFilters();
     filterFunding();
     filterResearch();
+    filterArchive();
     updateCounts();
 
     document.getElementById('loading-screen').classList.add('hidden');
@@ -691,11 +722,28 @@ function populateFilters() {
   Object.keys(resSrcs).sort().forEach(function(s) {
     var o = document.createElement('option'); o.value = s; o.textContent = s; sel.appendChild(o);
   });
+
+  var arcGeos = {}; var arcSrcs = {};
+  fundingData.filter(function(r) { return r.still_open === 0; }).forEach(function(r) {
+    if (r.geographic_scope) arcGeos[r.geographic_scope] = 1;
+    if (r.source_type) arcSrcs[r.source_type] = 1;
+  });
+  sel = document.getElementById('filter-archive-geo');
+  Object.keys(arcGeos).sort().forEach(function(g) {
+    var o = document.createElement('option'); o.value = g; o.textContent = g; sel.appendChild(o);
+  });
+  sel = document.getElementById('filter-archive-source');
+  Object.keys(arcSrcs).sort().forEach(function(s) {
+    var o = document.createElement('option'); o.value = s; o.textContent = s; sel.appendChild(o);
+  });
 }
 
 function updateCounts() {
-  document.getElementById('count-funding').textContent = fundingData.length;
+  var open = fundingData.filter(function(r) { return r.still_open === 1; }).length;
+  var closed = fundingData.filter(function(r) { return r.still_open === 0; }).length;
+  document.getElementById('count-funding').textContent = open;
   document.getElementById('count-research').textContent = researchData.length;
+  document.getElementById('count-archive').textContent = closed;
 }
 
 // ---- Tabs ----
@@ -706,6 +754,7 @@ function switchTab(tab) {
   }
   document.getElementById('view-funding').style.display = tab === 'funding' ? '' : 'none';
   document.getElementById('view-research').style.display = tab === 'research' ? '' : 'none';
+  document.getElementById('view-archive').style.display = tab === 'archive' ? '' : 'none';
 }
 
 // ---- Funding table ----
@@ -749,16 +798,15 @@ function filterFunding() {
   var q = (document.getElementById('search-funding').value || '').toLowerCase();
   var geo = document.getElementById('filter-geo').value;
   var src = document.getElementById('filter-source').value;
-  var status = document.getElementById('filter-status').value;
 
   fundingFiltered = fundingData.filter(function(r) {
+    if (r.still_open !== 1) return false;
     if (q) {
       var haystack = ((r.program_name || '') + ' ' + (r.organization_name || '') + ' ' + (r.thematic_focus || '')).toLowerCase();
       if (haystack.indexOf(q) < 0) return false;
     }
     if (geo && r.geographic_scope !== geo) return false;
     if (src && r.source_type !== src) return false;
-    if (status !== '' && String(r.still_open) !== status) return false;
     return true;
   });
 
@@ -799,7 +847,7 @@ function sortFundingData() {
 function renderFunding() {
   var tbody = document.getElementById('tbody-funding');
   if (fundingFiltered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><p>No matching funding opportunities</p></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><p>No matching funding opportunities</p></div></td></tr>';
     return;
   }
   var html = '';
@@ -812,7 +860,6 @@ function renderFunding() {
     html += '<td><span class="badge ' + srcBadgeClass(r.source_type) + '">' + esc(r.source_type || '—') + '</span></td>';
     html += '<td>' + esc(r.budget_amount || '—') + '</td>';
     html += '<td>' + deadlineDisplay(r.submission_deadline, r.still_open) + '</td>';
-    html += '<td><span class="badge ' + (r.still_open === 1 ? 'open' : 'closed') + '">' + (r.still_open === 1 ? 'Open' : 'Closed') + '</span></td>';
     html += '</tr>';
   }
   tbody.innerHTML = html;
@@ -887,6 +934,76 @@ function renderResearch() {
   tbody.innerHTML = html;
 }
 
+// ---- Archive table ----
+function filterArchive() {
+  var q = (document.getElementById('search-archive').value || '').toLowerCase();
+  var geo = document.getElementById('filter-archive-geo').value;
+  var src = document.getElementById('filter-archive-source').value;
+
+  archiveFiltered = fundingData.filter(function(r) {
+    if (r.still_open !== 0) return false;
+    if (q) {
+      var haystack = ((r.program_name || '') + ' ' + (r.organization_name || '') + ' ' + (r.thematic_focus || '')).toLowerCase();
+      if (haystack.indexOf(q) < 0) return false;
+    }
+    if (geo && r.geographic_scope !== geo) return false;
+    if (src && r.source_type !== src) return false;
+    return true;
+  });
+
+  sortArchiveData();
+  renderArchive();
+}
+
+function sortArchive(col) {
+  if (archiveSortCol === col) { archiveSortAsc = !archiveSortAsc; }
+  else { archiveSortCol = col; archiveSortAsc = true; }
+  var ths = document.querySelectorAll('#thead-archive th');
+  for (var i = 0; i < ths.length; i++) {
+    ths[i].classList.toggle('sorted', ths[i].dataset.col === col);
+    if (ths[i].dataset.col === col) {
+      ths[i].querySelector('.sort-arrow').textContent = archiveSortAsc ? '▲' : '▼';
+    }
+  }
+  sortArchiveData();
+  renderArchive();
+}
+
+function sortArchiveData() {
+  var col = archiveSortCol;
+  var asc = archiveSortAsc;
+  archiveFiltered.sort(function(a, b) {
+    var va = a[col]; var vb = b[col];
+    if (va == null) va = ''; if (vb == null) vb = '';
+    if (typeof va === 'number' && typeof vb === 'number') return asc ? va - vb : vb - va;
+    va = String(va).toLowerCase(); vb = String(vb).toLowerCase();
+    if (va < vb) return asc ? -1 : 1;
+    if (va > vb) return asc ? 1 : -1;
+    return 0;
+  });
+}
+
+function renderArchive() {
+  var tbody = document.getElementById('tbody-archive');
+  if (archiveFiltered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 15s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01M15 9h.01"/></svg><p>No archived opportunities</p></div></td></tr>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < archiveFiltered.length; i++) {
+    var r = archiveFiltered[i];
+    html += '<tr data-idx="' + i + '" data-type="archive" onclick="openArchivePanel(this.dataset.idx)">';
+    html += '<td class="program">' + esc(r.program_name) + '</td>';
+    html += '<td class="org">' + esc(r.organization_name) + '</td>';
+    html += '<td><span class="badge ' + geoBadgeClass(r.geographic_scope) + '">' + esc(r.geographic_scope || '—') + '</span></td>';
+    html += '<td><span class="badge ' + srcBadgeClass(r.source_type) + '">' + esc(r.source_type || '—') + '</span></td>';
+    html += '<td>' + esc(r.budget_amount || '—') + '</td>';
+    html += '<td><span class="deadline-passed">' + esc(r.submission_deadline || '—') + '</span></td>';
+    html += '</tr>';
+  }
+  tbody.innerHTML = html;
+}
+
 // ---- Detail panels ----
 function openFundingPanel(idx) {
   var r = fundingFiltered[idx];
@@ -910,6 +1027,28 @@ function openFundingPanel(idx) {
 
   if (r.access_link) { html += '<a class="panel-link" href="' + esc(r.access_link) + '" target="_blank" rel="noopener">Open Call Page →</a>'; }
 
+  document.getElementById('panel-content').innerHTML = html;
+  document.getElementById('panel-overlay').classList.add('open');
+  document.getElementById('detail-panel').classList.add('open');
+}
+
+function openArchivePanel(idx) {
+  var r = archiveFiltered[idx];
+  if (!r) return;
+  var html = '';
+  html += '<div class="panel-title">' + esc(r.program_name) + '</div>';
+  html += '<div class="panel-org">' + esc(r.organization_name) + '</div>';
+  html += '<div class="panel-meta">';
+  html += '<span class="badge ' + geoBadgeClass(r.geographic_scope) + '">' + esc(r.geographic_scope || '—') + '</span>';
+  html += '<span class="badge ' + srcBadgeClass(r.source_type) + '">' + esc(r.source_type || '—') + '</span>';
+  html += '<span class="badge closed">Closed</span>';
+  html += '</div>';
+  if (r.thematic_focus) { html += '<div class="panel-section"><div class="panel-section-label">Description</div><div class="panel-section-content">' + esc(r.thematic_focus) + '</div></div>'; }
+  if (r.budget_amount) { html += '<div class="panel-section"><div class="panel-section-label">Budget</div><div class="panel-section-content">' + esc(r.budget_amount) + '</div></div>'; }
+  if (r.submission_deadline) { html += '<div class="panel-section"><div class="panel-section-label">Deadline</div><div class="panel-section-content"><span class="deadline-passed">' + esc(r.submission_deadline) + '</span></div></div>'; }
+  if (r.notes) { html += '<div class="panel-section"><div class="panel-section-label">Notes</div><div class="panel-section-content">' + esc(r.notes) + '</div></div>'; }
+  if (r.source_discovered_date) { html += '<div class="panel-section"><div class="panel-section-label">Discovered</div><div class="panel-section-content">' + esc(r.source_discovered_date) + '</div></div>'; }
+  if (r.access_link) { html += '<a class="panel-link" href="' + esc(r.access_link) + '" target="_blank" rel="noopener">Open Call Page →</a>'; }
   document.getElementById('panel-content').innerHTML = html;
   document.getElementById('panel-overlay').classList.add('open');
   document.getElementById('detail-panel').classList.add('open');
