@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Any Funding Tracker — Skill for Claude Cowork</title>
+<meta name="description" content="A Claude Cowork skill that searches the web daily, maintains a formatted Excel spreadsheet, and serves a local HTML dashboard — for any funding topic.">
+<meta property="og:title" content="Any Funding Tracker — Skill for Claude Cowork">
+<meta property="og:description" content="Track any funding opportunity, updated daily by AI. A free skill for Claude Cowork.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #1976d2;
+  --primary-dark: #1565c0;
+  --primary-light: #e3f2fd;
+  --text: rgba(0,0,0,0.87);
+  --text-secondary: rgba(0,0,0,0.6);
+  --border: rgba(0,0,0,0.12);
+  --bg: #fafafa;
+  --card: #ffffff;
+  --green: #4caf50;
+  --green-light: #e8f5e9;
+  --amber: #ff9800;
+  --amber-light: #fff3e0;
+  --fit5: #c6efce;
+  --fit4: #dff0d8;
+  --fit3: #ffeb9c;
+  --header-bg: #1F4E79;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif; color: var(--text); background: var(--bg); line-height: 1.6; }
+
+/* NAV */
+nav { background: var(--card); border-bottom: 1px solid var(--border); padding: 0 32px; display: flex; align-items: center; height: 64px; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+nav .logo { font-size: 1.1rem; font-weight: 700; color: var(--primary); letter-spacing: -0.3px; display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+nav .logo span { font-weight: 300; color: var(--text-secondary); margin-left: 4px; }
+nav .nav-links { margin-left: auto; display: flex; gap: 28px; align-items: center; }
+nav .nav-links a { text-decoration: none; color: var(--text-secondary); font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+nav .nav-links a:hover { color: var(--primary); }
+nav .nav-links .btn-nav { background: var(--primary); color: #fff; padding: 8px 20px; border-radius: 4px; font-weight: 500; }
+nav .nav-links .btn-nav:hover { background: var(--primary-dark); color: #fff; }
+
+/* MOBILE NAV */
+.nav-toggle { display: none; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text); padding: 4px 8px; }
+
+/* HERO */
+.hero { padding: 80px 32px 64px; text-align: center; background: linear-gradient(170deg, #e3f2fd 0%, #fafafa 60%); }
+.hero h1 { font-size: 2.8rem; font-weight: 700; color: var(--text); line-height: 1.2; margin-bottom: 16px; }
+.hero h1 em { font-style: normal; color: var(--primary); }
+.hero p.subtitle { font-size: 1.15rem; color: var(--text-secondary); max-width: 640px; margin: 0 auto 32px; }
+.hero-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.btn-hero { display: inline-block; background: var(--primary); color: #fff; padding: 14px 32px; border-radius: 4px; font-size: 1rem; font-weight: 500; text-decoration: none; transition: background 0.2s, transform 0.1s; border: 2px solid var(--primary); }
+.btn-hero:hover { background: var(--primary-dark); border-color: var(--primary-dark); transform: translateY(-1px); }
+.btn-hero.outline { background: transparent; color: var(--primary); }
+.btn-hero.outline:hover { background: var(--primary-light); }
+
+/* SECTION */
+section { max-width: 1100px; margin: 0 auto; padding: 64px 24px; }
+section h2 { font-size: 1.7rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+section h2 .section-num { color: var(--primary); font-weight: 300; margin-right: 8px; }
+section .section-lead { color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 32px; max-width: 700px; }
+.divider { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+/* HOW IT WORKS strip */
+.how-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; max-width: 1100px; margin: -32px auto 0; padding: 0 24px; position: relative; z-index: 1; }
+.how-step { background: var(--card); border: 1px solid var(--border); padding: 28px 24px; text-align: center; }
+.how-step:first-child { border-radius: 8px 0 0 8px; }
+.how-step:last-child { border-radius: 0 8px 8px 0; }
+.how-step .step-icon { font-size: 2rem; margin-bottom: 8px; }
+.how-step h3 { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+.how-step p { font-size: 0.88rem; color: var(--text-secondary); }
+
+/* EXAMPLE SECTION */
+.example-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.example-header { background: var(--header-bg); color: #fff; padding: 20px 24px; }
+.example-header h3 { font-size: 1.1rem; font-weight: 500; }
+.example-header p { font-size: 0.85rem; opacity: 0.8; margin-top: 4px; }
+.example-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.example-table th { background: #f5f5f5; text-align: left; padding: 10px 14px; font-weight: 500; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
+.example-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.example-table tr:last-child td { border-bottom: none; }
+.example-table tr:nth-child(even) { background: #f8fbff; }
+.fit-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-weight: 600; font-size: 0.8rem; }
+.fit-5 { background: var(--fit5); color: #1b5e20; }
+.fit-4 { background: var(--fit4); color: #33691e; }
+.fit-3 { background: var(--fit3); color: #795548; }
+.type-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.78rem; font-weight: 500; background: var(--primary-light); color: var(--primary); }
+.type-corporate { background: var(--amber-light); color: #e65100; }
+
+/* DOCS SECTION */
+.docs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.doc-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 28px 24px; transition: box-shadow 0.2s; }
+.doc-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.doc-card .doc-num { font-size: 0.8rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.doc-card h3 { font-size: 1.1rem; margin-bottom: 8px; }
+.doc-card p { color: var(--text-secondary); font-size: 0.92rem; margin-bottom: 16px; }
+.doc-card .example-block { background: var(--bg); border-left: 3px solid var(--primary); padding: 12px 16px; font-size: 0.88rem; color: var(--text); border-radius: 0 6px 6px 0; line-height: 1.5; }
+
+/* FORM SECTION */
+.form-wrapper { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 40px; max-width: 720px; margin: 0 auto; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.form-wrapper h3 { font-size: 1.2rem; margin-bottom: 4px; }
+.form-wrapper .form-lead { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 28px; }
+.form-group { margin-bottom: 24px; }
+.form-group label { display: block; font-weight: 500; font-size: 0.92rem; margin-bottom: 6px; }
+.form-group label .label-hint { font-weight: 400; color: var(--text-secondary); font-size: 0.85rem; }
+.form-group textarea, .form-group input { width: 100%; padding: 12px 14px; border: 1px solid rgba(0,0,0,0.23); border-radius: 4px; font-family: inherit; font-size: 0.95rem; line-height: 1.5; color: var(--text); transition: border-color 0.2s; resize: vertical; background: #fff; }
+.form-group textarea:focus, .form-group input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.form-group textarea { min-height: 80px; }
+.form-group .helper { font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px; }
+
+.btn-generate { background: var(--primary); color: #fff; border: none; padding: 14px 32px; border-radius: 4px; font-size: 1rem; font-weight: 500; cursor: pointer; width: 100%; transition: background 0.2s; margin-top: 8px; font-family: inherit; }
+.btn-generate:hover { background: var(--primary-dark); }
+
+/* OUTPUT */
+.prompt-output { display: none; margin-top: 24px; }
+.prompt-output.visible { display: block; }
+.prompt-output h4 { font-size: 0.95rem; font-weight: 500; margin-bottom: 8px; }
+.prompt-box { background: #263238; color: #e0e0e0; padding: 20px; border-radius: 6px; font-family: 'Roboto Mono', 'Courier New', monospace; font-size: 0.88rem; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; position: relative; min-height: 80px; }
+.btn-copy { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.15); border: none; color: #e0e0e0; padding: 6px 14px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; font-family: inherit; transition: background 0.2s; }
+.btn-copy:hover { background: rgba(255,255,255,0.25); }
+.prompt-actions { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.btn-download { display: inline-block; background: var(--green); color: #fff; border: none; padding: 10px 24px; border-radius: 4px; font-size: 0.9rem; font-weight: 500; cursor: pointer; text-decoration: none; font-family: inherit; transition: background 0.2s; }
+.btn-download:hover { background: #388e3c; }
+
+/* DOWNLOAD SECTION */
+.download-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 600px; margin: 0 auto 24px; }
+.download-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 24px; text-align: center; transition: box-shadow 0.2s; }
+.download-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.download-card .file-icon { font-size: 2.2rem; margin-bottom: 8px; }
+.download-card h4 { font-size: 1rem; margin-bottom: 4px; }
+.download-card p { font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 14px; }
+.download-card .btn-dl { display: inline-block; background: var(--primary); color: #fff; padding: 8px 20px; border-radius: 4px; font-size: 0.88rem; font-weight: 500; text-decoration: none; cursor: pointer; border: none; font-family: inherit; transition: background 0.2s; }
+.download-card .btn-dl:hover { background: var(--primary-dark); }
+.install-instructions { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 20px 24px; max-width: 600px; margin: 0 auto; font-size: 0.9rem; }
+.install-instructions code { background: #e8e8e8; padding: 2px 6px; border-radius: 3px; font-size: 0.85rem; }
+.install-instructions ol { padding-left: 20px; }
+.install-instructions li { margin-bottom: 6px; }
+
+/* FOOTER */
+footer { text-align: center; padding: 40px 24px; color: var(--text-secondary); font-size: 0.85rem; border-top: 1px solid var(--border); margin-top: 32px; }
+footer a { color: var(--primary); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+
+/* RESPONSIVE */
+@media (max-width: 800px) {
+  .hero { padding: 56px 20px 48px; }
+  .hero h1 { font-size: 1.9rem; }
+  .how-strip { grid-template-columns: 1fr; gap: 0; margin-top: -16px; }
+  .how-step { border-radius: 0; }
+  .how-step:first-child { border-radius: 8px 8px 0 0; }
+  .how-step:last-child { border-radius: 0 0 8px 8px; }
+  .docs-grid { grid-template-columns: 1fr; }
+  .download-grid { grid-template-columns: 1fr; }
+  nav .nav-links a:not(.btn-nav) { display: none; }
+  nav .nav-toggle { display: block; }
+  .form-wrapper { padding: 24px 18px; }
+  section { padding: 40px 16px; }
+}
+@media (max-width: 800px) {
+  nav.open .nav-links { display: flex; flex-direction: column; position: absolute; top: 64px; left: 0; right: 0; background: var(--card); border-bottom: 1px solid var(--border); padding: 16px 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  nav.open .nav-links a:not(.btn-nav) { display: block; padding: 8px 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="main-nav">
+  <div class="logo">Any Funding Tracker <span>by AI World</span></div>
+  <button class="nav-toggle" onclick="document.getElementById('main-nav').classList.toggle('open')" aria-label="Toggle menu">&#9776;</button>
+  <div class="nav-links">
+    <a href="#example">Example</a>
+    <a href="#docs">How it works</a>
+    <a href="#builder">Prompt builder</a>
+    <a href="#download" class="btn-nav">Download skill</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>Track <em>any</em> funding opportunity,<br>updated daily by AI</h1>
+  <p class="subtitle">A skill for Claude Cowork that searches the web every morning, maintains a formatted Excel spreadsheet, and serves a local HTML dashboard &mdash; for any topic you care about.</p>
+  <div class="hero-buttons">
+    <a href="#builder" class="btn-hero">Build your prompt</a>
+    <a href="#download" class="btn-hero outline">Download skill</a>
+  </div>
+</div>
+
+<!-- HOW IT WORKS STRIP -->
+<div class="how-strip">
+  <div class="how-step">
+    <div class="step-icon">&#128269;</div>
+    <h3>Daily web search</h3>
+    <p>Claude searches for new grants, RFPs, and fellowships every morning using your custom queries.</p>
+  </div>
+  <div class="how-step">
+    <div class="step-icon">&#128202;</div>
+    <h3>Excel spreadsheet</h3>
+    <p>All opportunities are stored in a formatted .xlsx file you can open, edit, and share.</p>
+  </div>
+  <div class="how-step">
+    <div class="step-icon">&#127760;</div>
+    <h3>HTML dashboard</h3>
+    <p>A local dashboard with tabs, filters, and search &mdash; no server required.</p>
+  </div>
+</div>
+
+<hr class="divider" style="margin-top:40px;">
+
+<!-- EXAMPLE -->
+<section id="example">
+  <h2><span class="section-num">01</span> Real example</h2>
+  <p class="section-lead">This is what the AI Evaluation Funding Tracker found &mdash; a live tracker searching for grants to fund research on evaluating frontier AI systems.</p>
+
+  <div class="example-card">
+    <div class="example-header">
+      <h3>AI Evaluation Funding Tracker</h3>
+      <p>Topic: AI evaluation methodology for frontier systems &middot; Eligibility: think tanks &amp; non-profits globally</p>
+    </div>
+    <div style="overflow-x:auto;">
+    <table class="example-table">
+      <thead>
+        <tr>
+          <th>Fit</th>
+          <th>Call</th>
+          <th>Funder</th>
+          <th>Type</th>
+          <th>Budget</th>
+          <th>Deadline</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="fit-badge fit-5">5</span></td>
+          <td>Science of Trustworthy AI RFP</td>
+          <td>Schmidt Sciences</td>
+          <td><span class="type-badge">Foundation</span></td>
+          <td>$1M &ndash; $5M</td>
+          <td>May 17</td>
+        </tr>
+        <tr>
+          <td><span class="fit-badge fit-4">4</span></td>
+          <td>AI Interpretability RFP</td>
+          <td>Schmidt Sciences</td>
+          <td><span class="type-badge">Foundation</span></td>
+          <td>$300K &ndash; $1M</td>
+          <td>May 26</td>
+        </tr>
+        <tr>
+          <td><span class="fit-badge fit-4">4</span></td>
+          <td>Navigating Transformative AI</td>
+          <td>Coefficient Giving / Open Philanthropy</td>
+          <td><span class="type-badge">Foundation</span></td>
+          <td>$200K &ndash; $2M/yr</td>
+          <td>Rolling</td>
+        </tr>
+        <tr>
+          <td><span class="fit-badge fit-3">3</span></td>
+          <td>Impact Challenge: AI for Science</td>
+          <td>Google.org</td>
+          <td><span class="type-badge type-corporate">Corporate</span></td>
+          <td>$500K &ndash; $3M</td>
+          <td>Apr 17</td>
+        </tr>
+        <tr>
+          <td><span class="fit-badge fit-3">3</span></td>
+          <td>S-Process Grant Round 2026</td>
+          <td>Survival &amp; Flourishing Fund</td>
+          <td><span class="type-badge">Foundation</span></td>
+          <td>$20 &ndash; $40M pool</td>
+          <td>Apr 22</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <p style="color:var(--text-secondary); font-size:0.85rem; margin-top:12px;">The Schmidt Sciences Trustworthy AI RFP scored 5/5 &mdash; it directly targets evaluation methodology for frontier AI systems and is open to non-profits globally.</p>
+</section>
+
+<hr class="divider">
+
+<!-- DOCS -->
+<section id="docs">
+  <h2><span class="section-num">02</span> Three things to tell Claude</h2>
+  <p class="section-lead">Your prompt needs just three elements. Be specific and the tracker will be more useful from day one.</p>
+
+  <div class="docs-grid">
+    <div class="doc-card">
+      <div class="doc-num">Element 1</div>
+      <h3>Topic &amp; search queries</h3>
+      <p>Describe what you want to track. Name the field, the angle, and any intersections. Claude will turn this into 4&ndash;6 daily web searches.</p>
+      <div class="example-block">AI and the future of work &mdash; grants and fellowships for research on how AI changes labour markets, workforce skills, and economic opportunity.</div>
+    </div>
+    <div class="doc-card">
+      <div class="doc-num">Element 2</div>
+      <h3>Exclusion rules</h3>
+      <p>Say what to filter out. Think about eligibility, geography, and scope so you don't get noise.</p>
+      <div class="example-block">Exclude opportunities restricted to universities only, student scholarships, and US-citizens-only grants. Include anything open to research organisations, NGOs, or policy institutes.</div>
+    </div>
+    <div class="doc-card">
+      <div class="doc-num">Element 3</div>
+      <h3>Output folder</h3>
+      <p>Tell Claude where on your computer the tracker files should live. It will ask you to confirm access.</p>
+      <div class="example-block">Save everything to ~/Documents/grants/ai-work-funding</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- PROMPT BUILDER -->
+<section id="builder">
+  <h2><span class="section-num">03</span> Prompt builder</h2>
+  <p class="section-lead">Fill in the three fields below and download a ready-to-paste prompt for Claude Cowork.</p>
+
+  <div class="form-wrapper">
+    <h3>Build your tracker prompt</h3>
+    <p class="form-lead">Answer three questions and get a prompt you can paste straight into Cowork.</p>
+
+    <div class="form-group">
+      <label>1. What topic do you want to track? <span class="label-hint">&mdash; be specific about the field and angle</span></label>
+      <textarea id="field-topic" placeholder="e.g. AI ethics and responsible AI &mdash; grants, fellowships, and RFPs for research on fairness, accountability, transparency, and AI governance. Include EU programmes, large foundations (Ford, MacArthur, Open Society), and government agencies (NSF, NEH)."></textarea>
+      <div class="helper">The more specific you are, the better the daily searches will be.</div>
+    </div>
+
+    <div class="form-group">
+      <label>2. What should be excluded? <span class="label-hint">&mdash; eligibility, geography, scope</span></label>
+      <textarea id="field-exclusions" placeholder="e.g. Exclude startup accelerators, corporate challenges, and anything restricted to universities. Only grants and fellowships."></textarea>
+      <div class="helper">Think: who are you? What doesn't apply to your organisation?</div>
+    </div>
+
+    <div class="form-group">
+      <label>3. Where should the files be saved? <span class="label-hint">&mdash; a folder on your computer</span></label>
+      <input type="text" id="field-folder" placeholder="e.g. ~/Documents/grants/ai-ethics-funding">
+      <div class="helper">Claude will create an Excel file, a JSON file, and an HTML dashboard in this folder.</div>
+    </div>
+
+    <button class="btn-generate" onclick="generatePrompt()">Generate prompt</button>
+
+    <div class="prompt-output" id="prompt-output">
+      <h4>Your prompt &mdash; copy or download:</h4>
+      <div class="prompt-box" id="prompt-text"><button class="btn-copy" onclick="copyPrompt()">Copy</button></div>
+      <div class="prompt-actions">
+        <button class="btn-download" onclick="downloadPrompt()">Download as .txt</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- DOWNLOAD -->
+<section id="download" style="text-align:center;">
+  <h2><span class="section-num">04</span> Download the skill</h2>
+  <p class="section-lead" style="margin-left:auto; margin-right:auto;">Drop the skill files into your Claude Cowork skills directory and you're ready to go.</p>
+
+  <div class="download-grid">
+    <div class="download-card">
+      <div class="file-icon">&#128196;</div>
+      <h4>SKILL.md</h4>
+      <p>The full skill definition &mdash; instructions Claude follows to build your tracker.</p>
+      <button class="btn-dl" onclick="downloadSkill()">Download SKILL.md</button>
+    </div>
+    <div class="download-card">
+      <div class="file-icon">&#128013;</div>
+      <h4>xlsx_to_json.py</h4>
+      <p>Converter script that turns the Excel file into JSON for the dashboard.</p>
+      <button class="btn-dl" onclick="downloadConverter()">Download script</button>
+    </div>
+  </div>
+
+  <div class="install-instructions">
+    <strong>Installation:</strong>
+    <ol>
+      <li>Create the folder <code>.claude/skills/any-funding-tracker/scripts/</code> in your project or home directory.</li>
+      <li>Place <code>SKILL.md</code> in <code>.claude/skills/any-funding-tracker/</code></li>
+      <li>Place <code>xlsx_to_json.py</code> in <code>.claude/skills/any-funding-tracker/scripts/</code></li>
+      <li>Open Claude Cowork and type <code>/any-funding-tracker</code> or paste a prompt from the builder above.</li>
+    </ol>
+  </div>
+</section>
+
+<footer>
+  Built with Claude Cowork &middot; Inspired by <a href="https://aiworld.eu" target="_blank" rel="noopener">aiworld.eu</a>
+</footer>
+
+<script>
+// ─── Embedded file contents ───
+var SKILL_MD = "---\nname: any-funding-tracker\ndescription: >\n  Create a daily auto-updating funding/opportunity tracker for ANY topic, with XLSX as the data\n  store and a local HTML dashboard for browsing. Use this skill whenever the user wants to track\n  grants, funding, RFPs, fellowships, or research opportunities in any field \u2014 AI, climate,\n  biotech, education, housing, global development, or anything else. Also trigger when the user\n  mentions \"funding tracker\", \"grant tracker\", \"opportunity tracker\", \"funding database\",\n  \"track grants\", \"find funding for\", or wants a daily search pipeline that discovers open calls\n  and writes structured data to a spreadsheet. This skill handles the full lifecycle: gathering\n  the user's topic and constraints, running the initial search, building the XLSX + HTML dashboard,\n  and setting up a daily scheduled task that keeps it all up to date \u2014 no GitHub required.\n---\n\n# Any-Funding Tracker\n\nBuild a daily auto-updating funding tracker for any topic the user cares about. The system uses\nan **XLSX spreadsheet** as the single data source, a **bundled script** that converts it to JSON\non each run, and a **static HTML dashboard** that reads the JSON for browsing, filtering, and\narchiving.\n\nThe HTML is generated once during initial setup and never changes. On each daily run, only the\nXLSX and JSON are updated.\n\n## What you'll create\n\n| File | Purpose |\n|------|---------|\n| `{slug}_funding.xlsx` | Source of truth \u2014 all opportunities (active + archived) |\n| `{slug}_funding.json` | Auto-generated from XLSX by the converter script; feeds the HTML |\n| `index.html` | Static dashboard \u2014 sorting, filtering, tabs (Open / TBC / Archive) |\n\n`{slug}` is a short lowercase identifier derived from the user's topic (e.g. `ai_work`, `climate_adaptation`, `biotech_eu`).\n\n---\n\n## Phase 1 \u2014 Gather configuration\n\nBefore writing any code, collect these from the user. Ask for anything that's missing.\n\n### Required\n\n1. **Topic & search queries** \u2014 What field are they tracking? Work with them to produce 4\u20136\n   specific web search phrases that will surface real funding calls. Include the current year in\n   each query so results are fresh.\n\n   Example: topic \"AI and the future of work\" \u2192\n   - \"AI future of work funding grant 2026\"\n   - \"artificial intelligence workforce research RFP 2026\"\n   - \"AI labour market grant fellowship 2026\"\n   - \"AI economic opportunity funding call 2026\"\n   - \"foundation grant AI workers skills 2026\"\n\n2. **Exclusion rules** \u2014 What should be filtered out? Probe for:\n   - Scope exclusions (e.g. \"pure ML methods with no social-science angle\")\n   - Eligibility exclusions (e.g. \"student scholarships\", \"US citizens only\")\n   - Geographic restrictions (e.g. \"EU Horizon only\")\n\n3. **Output folder** \u2014 Ask the user which folder on their computer should hold the tracker files.\n   Use `request_cowork_directory` with the path they give you to mount it. This is where the\n   XLSX, JSON, and HTML will live.\n\n### Optional (use sensible defaults)\n\n- **Schedule** \u2014 defaults to daily at 8:30am local time\n- **Minimum thematic fit** \u2014 defaults to 3 (on a 1\u20135 scale)\n- **Title & emoji** \u2014 defaults to \"{Topic} Funding Tracker\" with a relevant emoji\n- **Slug** \u2014 defaults to a short snake_case version of the topic\n\n---\n\n## Phase 2 \u2014 Initial search & data creation\n\n### Step 1 \u2014 Mount the output folder\n\n```python\n# Use request_cowork_directory with the user's chosen path\n# Then find the mounted path:\nimport glob, os\ncandidates = glob.glob(\"/sessions/*/mnt/<folder_name>\")\nWORKSPACE = candidates[0] if candidates else os.path.join(os.getcwd(), \"outputs\")\nos.makedirs(WORKSPACE, exist_ok=True)\n```\n\n### Step 2 \u2014 Web search\n\nRun all search queries using the WebSearch tool. For each result, assess:\n- Is it actually a funding opportunity (grant, fellowship, RFP, accelerator)?\n- Does it match the user's topic?\n- Does it survive the exclusion rules?\n- Is there enough information to fill the entry schema?\n\n### Step 3 \u2014 Structure entries\n\nEach opportunity is a row with these columns:\n\n```\nid               camelCase slug (e.g. \"fordFoundationClimate2026\")\nname             full programme name\norganization     funder name\ntype             government | foundation | corporate | research_institution\nthematic_fit     integer 1\u20135 (5 = direct match to the user's topic)\ndescription      2\u20133 sentences \u2014 award size, eligibility, focus\nurl              direct link to the opportunity page\ncontact          email or contact URL (or \"\")\namount_max_usd   maximum award in USD as integer (0 if unknown)\namount_notes     human-readable award range string\ndeadline         \"YYYY-MM-DD\" | \"rolling\" | \"TBC\"\neligible_regions e.g. \"US\", \"EU\", \"global\"\ndate_added       today's ISO date\nstatus           \"new\" for first appearance, then \"active\", then \"archived\"\nbroken_url       TRUE/FALSE\nnotes            practical notes about fit, restrictions, next steps\n```\n\nOnly include entries with `thematic_fit` >= the user's chosen minimum (default 3).\n\n### Step 4 \u2014 Link checker\n\nFor every entry, send a HEAD request (timeout=10s, allow_redirects=True). Mark `broken_url=TRUE`\nif status >= 400 or connection error. Sleep 0.25s between requests.\n\n### Step 5 \u2014 Build XLSX\n\nUse openpyxl to create `{slug}_funding.xlsx` with professional formatting:\n\n- **Header row:** dark blue background (#1F4E79), white bold text, frozen row 1, auto-filter on all columns\n- **Zebra striping:** light blue (#D6E4F0) on even rows\n- **Column widths:** set sensible widths per column type (wider for name/description, narrower for type/fit)\n- **Conditional formatting on thematic_fit:** 5=green, 4=light green, 3=yellow\n- **Conditional formatting on broken_url:** TRUE cells get red background\n- **Date format:** deadline column formatted as date where applicable\n- **Sort order:** specific dates ascending \u2192 \"TBC\" \u2192 \"rolling\". Archived rows at the bottom.\n\nSave to the user's output folder.\n\n### Step 6 \u2014 Run the XLSX-to-JSON converter\n\nUse the bundled `scripts/xlsx_to_json.py` script to generate `{slug}_funding.json` from the XLSX.\n\n```bash\npython <skill-path>/scripts/xlsx_to_json.py <WORKSPACE>/{slug}_funding.xlsx <WORKSPACE>/{slug}_funding.json\n```\n\nThis script reads the XLSX, converts all rows to a JSON array, and writes it out. It handles\ntype coercion (integers for thematic_fit and amount_max_usd, booleans for broken_url) and\npreserves the sort order.\n\n### Step 7 \u2014 Generate `index.html`\n\nGenerate the HTML dashboard once and save it to the output folder. After this, the HTML never\nchanges \u2014 only the JSON file gets updated on each daily run.\n\nThe HTML is a self-contained single-page app that loads `{slug}_funding.json` via a relative\nfetch (same folder). All CSS and JS are inline.\n\n**Layout:**\n\n- **Header:** emoji + title, subtitle describing the topic, \"Data file last updated: {date}\"\n  The date is read from the JSON metadata, not hardcoded.\n- **Three tabs:** Open Calls | TBC | Archive, each with a count badge\n- **Toolbar:** search box (searches name, org, description), dropdowns for type / fit score / region\n- **Table:** Fit | Name / Organisation | Type | Max Award | Deadline | Region\n- **Detail panel:** slides in from right on row click \u2014 shows full description, URL, contact, notes\n- **Footer:** \"Always verify details on the funder's website before applying.\"\n\n**Tab partitioning logic:**\n\n```javascript\nfunction tabOf(o) {\n  var st = deadlineStatus(o.deadline);\n  if (o.status === 'archived' || st === 'passed') return 'archive';\n  if (o.deadline === 'TBC' || o.deadline === '') return 'tbc';\n  return 'open';\n}\n\nfunction deadlineStatus(d) {\n  if (!d || d === 'rolling' || d === 'TBC') return d ? d.toLowerCase() : 'tbc';\n  var dl = new Date(d + 'T12:00:00');  // local noon \u2014 avoids timezone-shift bugs\n  var now = new Date(); now.setHours(12,0,0,0);\n  return dl < now ? 'passed' : 'upcoming';\n}\n```\n\n**Sorting:** Default sort by deadline ascending within each tab. Clicking column headers toggles\nsort direction. \"rolling\" deadlines sort after all specific dates. \"TBC\" deadlines sort between\nspecific dates and rolling.\n\n**Critical implementation patterns (prevent real bugs):**\n\n1. **Date parsing \u2014 use local noon, never UTC midnight:**\n   `new Date(d + 'T12:00:00')` not `new Date(d)`.\n   Without this, \"today\" deadlines are classified as \"passed\" in negative-UTC-offset timezones.\n\n2. **onclick \u2014 use data attributes, never quoted IDs in JS strings:**\n   `<tr data-id=\"someId\" onclick=\"openPanel(this.dataset.id)\">`\n   Never do `onclick=\"openPanel('someId')\"` \u2014 quote escaping between Python and JS is fragile.\n\n3. **Use `var` and plain for-loops** in all JS. Avoid arrow functions and template literals \u2014\n   they interact badly with Python string generation.\n\n4. **JSON loading:** Use `fetch('{slug}_funding.json')` with a cache-busting query param\n   `?t=` + Date.now() so the browser always gets fresh data.\n\n5. **New entry indicator:** Entries with `status: \"new\"` show a small blue dot after their name.\n\n6. **Broken URL indicator:** Rows with `broken_url: true` show a red warning badge.\n\n**Responsive design:** The dashboard should work on both desktop and mobile. Use CSS grid or\nflexbox. Detail panel is a slide-over on desktop, full-screen on mobile.\n\n### Step 8 \u2014 Verify everything works\n\nOpen the HTML and confirm:\n- JSON loads and populates the table\n- Tab counts are correct\n- Filtering and search work\n- Detail panel opens on row click\n- Sort toggles work\n\n---\n\n## Phase 3 \u2014 Set up daily scheduled task\n\nCreate a scheduled task that runs the daily update cycle. The task prompt must be completely\nself-contained \u2014 it runs in a fresh session with no memory of this conversation.\n\nThe task prompt should include:\n\n1. **Mount the output folder** \u2014 call `request_cowork_directory` with the user's folder path\n2. **Read existing XLSX** \u2014 load the current spreadsheet with openpyxl\n3. **Archive passed deadlines** \u2014 set status to \"archived\" for any row where the deadline date\n   has passed (skip \"rolling\" and \"TBC\")\n4. **Flip \"new\" to \"active\"** \u2014 entries marked \"new\" from the previous run become \"active\"\n5. **Web search** \u2014 run all search queries with the current year\n6. **Deduplicate** \u2014 check new finds against existing rows by URL, name similarity, and ID\n7. **Apply exclusion rules** and thematic_fit minimum\n8. **Link check** new entries\n9. **Add new rows** to the XLSX with status \"new\"\n10. **Re-sort and re-format** the XLSX (maintain header formatting, zebra striping, conditional formatting)\n11. **Run xlsx_to_json.py** to regenerate the JSON file\n12. **Save everything** to the output folder\n13. **Print summary** \u2014 date, entries before/after, archived count, new entries found, broken URLs\n\nThe task does NOT touch the HTML file \u2014 it only updates XLSX and JSON.\n\n---\n\n## Architecture notes\n\n**Why XLSX as source of truth:** The user can open the spreadsheet in Excel/Google Sheets to\nmanually edit entries (fix a deadline, add notes, mark something as archived). The daily task\nreads the XLSX each time, so manual edits are preserved.\n\n**Why a separate JSON file:** HTML dashboards can't read XLSX natively without a heavy JS library.\nA small JSON file loads instantly and keeps the dashboard fast. The converter script is the bridge.\n\n**Why generate HTML only once:** The dashboard is pure presentation logic \u2014 filtering, sorting,\ntabs. It doesn't contain data. As long as the JSON schema doesn't change, the HTML never needs\nupdating. This avoids the fragile step of regenerating complex HTML on every run.\n";
+
+var CONVERTER_PY = "#!/usr/bin/env python3\n\"\"\"Convert a funding tracker XLSX to JSON for the HTML dashboard.\n\nUsage:\n    python xlsx_to_json.py <input.xlsx> <output.json>\n\nReads all rows from the first sheet of the XLSX, converts them to a JSON array\nwith proper types (integers, booleans), and writes the result. Also adds a small\nmetadata block with the conversion timestamp.\n\nThe output JSON has the structure:\n{\n  \"meta\": { \"updated\": \"2026-03-30\", \"count\": 21, \"active\": 15, \"archived\": 6 },\n  \"opportunities\": [ { ... }, ... ]\n}\n\"\"\"\nimport json\nimport sys\nimport datetime\nfrom openpyxl import load_workbook\n\nEXPECTED_COLUMNS = [\n    \"id\", \"name\", \"organization\", \"type\", \"thematic_fit\", \"description\",\n    \"url\", \"contact\", \"amount_max_usd\", \"amount_notes\", \"deadline\",\n    \"eligible_regions\", \"date_added\", \"status\", \"broken_url\", \"notes\"\n]\n\nINT_FIELDS = {\"thematic_fit\", \"amount_max_usd\"}\nBOOL_FIELDS = {\"broken_url\"}\n\n\ndef cell_value(cell):\n    \"\"\"Extract cell value, handling None and date objects.\"\"\"\n    v = cell.value\n    if v is None:\n        return \"\"\n    if isinstance(v, datetime.datetime):\n        return v.strftime(\"%Y-%m-%d\")\n    if isinstance(v, datetime.date):\n        return v.strftime(\"%Y-%m-%d\")\n    return v\n\n\ndef convert(xlsx_path, json_path):\n    wb = load_workbook(xlsx_path, read_only=True, data_only=True)\n    ws = wb.active\n\n    rows = list(ws.iter_rows(min_row=1))\n    if not rows:\n        print(\"Error: spreadsheet is empty\")\n        sys.exit(1)\n\n    # Read header row and map to column indices\n    headers = [str(c.value).strip().lower() if c.value else \"\" for c in rows[0]]\n\n    # Build column map \u2014 match expected columns to actual positions\n    col_map = {}\n    for expected in EXPECTED_COLUMNS:\n        for i, h in enumerate(headers):\n            if h == expected:\n                col_map[expected] = i\n                break\n\n    missing = [c for c in EXPECTED_COLUMNS if c not in col_map]\n    if missing:\n        print(f\"Warning: missing columns: {missing}\")\n\n    opportunities = []\n    for row in rows[1:]:\n        entry = {}\n        for col_name, col_idx in col_map.items():\n            val = cell_value(row[col_idx]) if col_idx < len(row) else \"\"\n\n            if col_name in INT_FIELDS:\n                try:\n                    val = int(float(val)) if val not in (\"\", None) else 0\n                except (ValueError, TypeError):\n                    val = 0\n            elif col_name in BOOL_FIELDS:\n                if isinstance(val, bool):\n                    pass\n                elif isinstance(val, str):\n                    val = val.strip().upper() in (\"TRUE\", \"1\", \"YES\")\n                else:\n                    val = bool(val)\n            else:\n                val = str(val) if val is not None else \"\"\n\n            entry[col_name] = val\n\n        # Skip rows with no id\n        if not entry.get(\"id\"):\n            continue\n\n        opportunities.append(entry)\n\n    wb.close()\n\n    # Count statuses\n    active = sum(1 for o in opportunities if o.get(\"status\") in (\"active\", \"new\"))\n    archived = sum(1 for o in opportunities if o.get(\"status\") == \"archived\")\n\n    output = {\n        \"meta\": {\n            \"updated\": datetime.date.today().strftime(\"%Y-%m-%d\"),\n            \"count\": len(opportunities),\n            \"active\": active,\n            \"archived\": archived\n        },\n        \"opportunities\": opportunities\n    }\n\n    with open(json_path, \"w\", encoding=\"utf-8\") as f:\n        json.dump(output, f, indent=2, ensure_ascii=False)\n\n    print(f\"Converted {len(opportunities)} entries to {json_path}\")\n    print(f\"  Active: {active}, Archived: {archived}\")\n\n\nif __name__ == \"__main__\":\n    if len(sys.argv) != 3:\n        print(f\"Usage: {sys.argv[0]} <input.xlsx> <output.json>\")\n        sys.exit(1)\n    convert(sys.argv[1], sys.argv[2])\n";
+
+// ─── Prompt builder ───
+function generatePrompt() {
+  var topic = document.getElementById('field-topic').value.trim();
+  var exclusions = document.getElementById('field-exclusions').value.trim();
+  var folder = document.getElementById('field-folder').value.trim();
+
+  if (!topic) { alert('Please describe your topic first.'); return; }
+  if (!exclusions) { alert('Please add at least one exclusion rule.'); return; }
+  if (!folder) { alert('Please specify an output folder.'); return; }
+
+  var prompt = 'Create a funding tracker for ' + topic + '\n\n'
+    + 'Exclusion rules: ' + exclusions + '\n\n'
+    + 'Save all files to: ' + folder;
+
+  var el = document.getElementById('prompt-text');
+  el.innerHTML = '<button class="btn-copy" onclick="copyPrompt()">Copy</button>' + escapeHtml(prompt);
+  document.getElementById('prompt-output').classList.add('visible');
+  document.getElementById('prompt-output').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function escapeHtml(text) {
+  var div = document.createElement('div');
+  div.appendChild(document.createTextNode(text));
+  return div.innerHTML;
+}
+
+function copyPrompt() {
+  var el = document.getElementById('prompt-text');
+  var text = el.textContent.replace('Copy', '').trim();
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = el.querySelector('.btn-copy');
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+  });
+}
+
+function downloadPrompt() {
+  var el = document.getElementById('prompt-text');
+  var text = el.textContent.replace('Copy', '').trim();
+  downloadFile(text, 'funding-tracker-prompt.txt', 'text/plain');
+}
+
+// ─── File downloads ───
+function downloadSkill() {
+  downloadFile(SKILL_MD, 'SKILL.md', 'text/markdown');
+}
+
+function downloadConverter() {
+  downloadFile(CONVERTER_PY, 'xlsx_to_json.py', 'text/x-python');
+}
+
+function downloadFile(content, filename, mimeType) {
+  var blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ─── Mobile nav close on link click ───
+document.querySelectorAll('.nav-links a').forEach(function(link) {
+  link.addEventListener('click', function() {
+    document.getElementById('main-nav').classList.remove('open');
+  });
+});
+</script>
+
+</body>
+</html>
