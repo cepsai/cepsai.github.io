@@ -8,17 +8,40 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:       #0d1117;
-      --surface:  #161b22;
-      --surface2: #1c2128;
-      --border:   #30363d;
-      --text:     #e6edf3;
-      --muted:    #8b949e;
-      --accent:   #58a6ff;
-      --accent-dim: #1f3a5f;
-      --green:    #3fb950;
-      --red:      #f85149;
-      --radius:   8px;
+      --bg:           #ffffff;
+      --surface:      #ffffff;
+      --surface2:     #f6f8fa;
+      --border:       #d0d7de;
+      --text:         #1f2328;
+      --muted:        #636c76;
+      --accent:       #0969da;
+      --accent-dim:   #ddf4ff;
+      --accent-border:#54aeff;
+      --green:        #1a7f37;
+      --green-dim:    #dafbe1;
+      --green-border: #82cfaa;
+      --red:          #d1242f;
+      --red-dim:      #ffebe9;
+      --red-border:   #ffcecb;
+      --radius:       8px;
+    }
+
+    [data-theme="dark"] {
+      --bg:           #0d1117;
+      --surface:      #161b22;
+      --surface2:     #1c2128;
+      --border:       #30363d;
+      --text:         #e6edf3;
+      --muted:        #8b949e;
+      --accent:       #58a6ff;
+      --accent-dim:   #1f3a5f;
+      --accent-border:#388bfd;
+      --green:        #3fb950;
+      --green-dim:    #0d2818;
+      --green-border: #1b4a2a;
+      --red:          #f85149;
+      --red-dim:      #2d1515;
+      --red-border:   #5a2020;
     }
 
     body {
@@ -138,15 +161,15 @@
 
     .btn:disabled { opacity: .45; cursor: not-allowed; }
 
-    .btn-primary   { background: var(--accent); color: #0d1117; }
+    .btn-primary   { background: var(--accent); color: #fff; }
     .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-    .btn-ghost     { background: transparent; color: var(--accent); border: 1px solid var(--accent-dim); }
-    .btn-danger    { background: transparent; color: var(--red); border: 1px solid #3d1f1f; }
+    .btn-ghost     { background: transparent; color: var(--accent); border: 1px solid var(--accent-border); }
+    .btn-danger    { background: transparent; color: var(--red); border: 1px solid var(--red-border); }
 
     .btn-primary:hover:not(:disabled)   { opacity: .88; }
-    .btn-secondary:hover:not(:disabled) { background: #252d38; }
+    .btn-secondary:hover:not(:disabled) { background: var(--surface2); filter: brightness(.96); }
     .btn-ghost:hover:not(:disabled)     { background: var(--accent-dim); }
-    .btn-danger:hover:not(:disabled)    { background: #2d1515; }
+    .btn-danger:hover:not(:disabled)    { background: var(--red-dim); }
 
     .btn-row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
 
@@ -158,9 +181,9 @@
       display: none;
     }
 
-    .toast.success { background: #0d2818; color: var(--green); border: 1px solid #1b4a2a; display: block; }
-    .toast.error   { background: #2d1515; color: var(--red); border: 1px solid #5a2020; display: block; }
-    .toast.info    { background: var(--accent-dim); color: var(--accent); border: 1px solid #2b4a7a; display: block; }
+    .toast.success { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border); display: block; }
+    .toast.error   { background: var(--red-dim);   color: var(--red);   border: 1px solid var(--red-border);   display: block; }
+    .toast.info    { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); display: block; }
 
     /* ── Preview thumbnail ── */
     .thumb-wrap {
@@ -208,7 +231,21 @@
       transition: color .15s, background .15s;
     }
 
-    .icon-btn:hover { color: var(--red); background: #2d1515; }
+    .icon-btn:hover { color: var(--red); background: var(--red-dim); }
+
+    .theme-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: .35rem .45rem;
+      display: flex;
+      align-items: center;
+      transition: color .15s, border-color .15s;
+    }
+
+    .theme-btn:hover { color: var(--text); border-color: #6e7781; }
 
     /* ── Loading spinner ── */
     .spinner {
@@ -246,7 +283,13 @@
 
 <header>
   <span class="logo"><span class="logo-dot"></span>Gallery CMS</span>
-  <a class="back-link" href="ceps_tool_gallery.html">← Back to gallery</a>
+  <div style="display:flex;align-items:center;gap:.6rem">
+    <button class="theme-btn" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">
+      <svg id="theme-icon-moon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/></svg>
+      <svg id="theme-icon-sun" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="display:none"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/></svg>
+    </button>
+    <a class="back-link" href="ceps_tool_gallery.html">← Back to gallery</a>
+  </div>
 </header>
 
 <main>
@@ -588,6 +631,21 @@
   document.getElementById('add-btn').addEventListener('click', addTool);
 
   document.getElementById('refresh-btn').addEventListener('click', loadToolsFromGitHub);
+
+  // ── Theme ──────────────────────────────────────────────────────────────────
+  function applyTheme(dark) {
+    document.documentElement.dataset.theme = dark ? 'dark' : '';
+    document.getElementById('theme-icon-moon').style.display = dark ? 'none' : '';
+    document.getElementById('theme-icon-sun').style.display  = dark ? ''     : 'none';
+  }
+
+  applyTheme(localStorage.getItem('gallery_theme') === 'dark');
+
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const isDark = document.documentElement.dataset.theme === 'dark';
+    applyTheme(!isDark);
+    localStorage.setItem('gallery_theme', !isDark ? 'dark' : 'light');
+  });
 
   // ── Init ───────────────────────────────────────────────────────────────────
   loadStoredConfig();
