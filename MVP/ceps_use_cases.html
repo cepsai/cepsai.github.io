@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Use Cases — CEPS AI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0d1117;
+      --surface:    #161b22;
+      --surface2:   #1c2128;
+      --border:     #30363d;
+      --text:       #e6edf3;
+      --muted:      #8b949e;
+      --accent:     #58a6ff;
+      --accent-dim: #1f3a5f;
+      --green:      #3fb950;
+      --red:        #f85149;
+      --yellow:     #d29922;
+      --radius:     8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 20;
+      gap: 1rem;
+    }
+
+    .logo {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+
+    .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+
+    .search-wrap {
+      position: relative;
+    }
+
+    .search-wrap svg {
+      position: absolute;
+      left: .65rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--muted);
+      pointer-events: none;
+    }
+
+    #search {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: .83rem;
+      padding: .4rem .7rem .4rem 2rem;
+      width: 220px;
+      outline: none;
+      transition: border-color .15s;
+      font-family: inherit;
+    }
+
+    #search:focus { border-color: var(--accent); }
+    #search::placeholder { color: var(--muted); }
+
+    .add-btn {
+      font-size: .8rem;
+      font-weight: 500;
+      color: var(--accent);
+      border: 1px solid var(--accent-dim);
+      background: transparent;
+      padding: .4rem .9rem;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s;
+      font-family: inherit;
+    }
+
+    .add-btn:hover { background: var(--accent-dim); }
+    .add-btn.active { background: var(--accent-dim); }
+
+    .settings-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: .38rem .5rem;
+      display: flex;
+      align-items: center;
+      transition: color .15s, border-color .15s;
+    }
+
+    .settings-btn:hover { color: var(--text); border-color: #484f58; }
+    .settings-btn.configured { color: var(--green); border-color: #1b4a2a; }
+
+    /* ── Panels ── */
+    .panel {
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height .3s ease;
+    }
+
+    .panel.open { max-height: 600px; }
+
+    .panel-inner {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .panel-title {
+      font-size: .8rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .2rem;
+    }
+
+    /* ── Form elements ── */
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: .3rem;
+      font-size: .8rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    input[type="text"], input[type="url"], input[type="password"], textarea {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: .85rem;
+      padding: .5rem .75rem;
+      width: 100%;
+      outline: none;
+      transition: border-color .15s;
+    }
+
+    input:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 70px; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .45rem .9rem;
+      border-radius: 6px;
+      font-size: .82rem;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity .15s, background .15s;
+    }
+
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #0d1117; }
+    .btn-primary:hover:not(:disabled) { opacity: .88; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover:not(:disabled) { background: #252d38; }
+
+    .btn-row { display: flex; align-items: center; gap: .6rem; }
+
+    .toast {
+      font-size: .8rem;
+      padding: .4rem .75rem;
+      border-radius: 5px;
+      display: none;
+    }
+
+    .toast.success { background: #0d2818; color: var(--green); border: 1px solid #1b4a2a; display: inline-block; }
+    .toast.error   { background: #2d1515; color: var(--red);   border: 1px solid #5a2020; display: inline-block; }
+
+    /* ── Filter chips ── */
+    .filters {
+      padding: .9rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .filters-label {
+      font-size: .75rem;
+      color: var(--muted);
+      font-weight: 500;
+      margin-right: .2rem;
+    }
+
+    .chip {
+      font-size: .75rem;
+      font-weight: 500;
+      padding: .25rem .65rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background .15s, color .15s, border-color .15s;
+      font-family: inherit;
+    }
+
+    .chip:hover { border-color: #484f58; color: var(--text); }
+    .chip.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+
+    /* ── Use case list ── */
+    .list {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem 2rem 4rem;
+      display: flex;
+      flex-direction: column;
+      gap: .75rem;
+    }
+
+    /* ── Use case row ── */
+    .uc-row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 0;
+      transition: border-color .2s;
+      overflow: hidden;
+    }
+
+    .uc-row:hover { border-color: #484f58; }
+
+    .uc-cell {
+      padding: 1.1rem 1.25rem;
+      border-right: 1px solid var(--border);
+    }
+
+    .uc-cell:last-child { border-right: none; }
+
+    .uc-cell-label {
+      font-size: .68rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .4rem;
+    }
+
+    .uc-cell-text {
+      font-size: .85rem;
+      line-height: 1.55;
+      color: var(--text);
+    }
+
+    .uc-problem .uc-cell-label { color: var(--yellow); }
+    .uc-solution .uc-cell-label { color: var(--green); }
+
+    /* Right column: skills + link */
+    .uc-meta {
+      padding: 1.1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: .75rem;
+      min-width: 180px;
+      max-width: 220px;
+    }
+
+    .uc-skills {
+      display: flex;
+      flex-direction: column;
+      gap: .3rem;
+    }
+
+    .uc-skills-label {
+      font-size: .68rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: .1rem;
+    }
+
+    .skill-tag {
+      font-size: .78rem;
+      font-weight: 600;
+      font-family: ui-monospace, "SF Mono", Consolas, monospace;
+      padding: .2rem .55rem;
+      border-radius: 5px;
+      background: var(--accent-dim);
+      border: 1px solid #2b4a7a;
+      color: var(--accent);
+      display: inline-block;
+      width: fit-content;
+    }
+
+    .uc-footer {
+      display: flex;
+      flex-direction: column;
+      gap: .3rem;
+    }
+
+    .uc-author {
+      font-size: .72rem;
+      color: #4d5562;
+    }
+
+    .uc-link {
+      font-size: .75rem;
+      color: var(--accent);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: .25rem;
+    }
+
+    .uc-link:hover { text-decoration: underline; }
+
+    /* ── Empty state ── */
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 4rem 0;
+      font-size: .9rem;
+    }
+
+    /* ── Count bar ── */
+    .count-bar {
+      padding: .6rem 2rem;
+      border-bottom: 1px solid var(--border);
+      font-size: .78rem;
+      color: var(--muted);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      .uc-row { grid-template-columns: 1fr; }
+      .uc-cell { border-right: none; border-bottom: 1px solid var(--border); }
+      .uc-meta { max-width: 100%; flex-direction: row; flex-wrap: wrap; }
+      .form-row, .form-row-3 { grid-template-columns: 1fr; }
+      #search { width: 140px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <a class="logo" href="ceps_tool_gallery.html">
+    <span class="logo-dot"></span>
+    CEPS AI Use Cases
+  </a>
+  <div class="header-right">
+    <div class="search-wrap">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.099zm-5.242 1.656a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11z"/>
+      </svg>
+      <input type="text" id="search" placeholder="Search use cases…">
+    </div>
+    <button class="add-btn" id="add-toggle">+ Add use case</button>
+    <button class="settings-btn" id="settings-toggle" title="GitHub settings" aria-label="GitHub settings">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492zM5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0z"/>
+        <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52l-.094-.319zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.47l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115l.094-.319z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<!-- ── Settings panel ── -->
+<div class="panel" id="settings-panel">
+  <div class="panel-inner">
+    <div class="panel-title">GitHub Configuration</div>
+    <div class="form-row-3">
+      <label>Repository
+        <input type="text" id="cfg-repo" value="cepsai/cepsai.github.io" placeholder="owner/repo">
+      </label>
+      <label>Personal Access Token <a href="https://github.com/settings/tokens/new?scopes=contents&description=use-cases-cms" target="_blank" rel="noopener" style="color:var(--accent);font-weight:400">(create)</a>
+        <input type="password" id="cfg-token" placeholder="ghp_…" autocomplete="off">
+      </label>
+      <label style="justify-content:flex-end">
+        <div style="height:1.1rem"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="save-cfg-btn">Save</button>
+          <span id="cfg-toast" class="toast"></span>
+        </div>
+      </label>
+    </div>
+    <div style="font-size:.75rem;color:var(--muted)">Token is stored in your browser only — never sent to any third party.</div>
+  </div>
+</div>
+
+<!-- ── Add use case panel ── -->
+<div class="panel" id="add-panel">
+  <div class="panel-inner">
+    <div class="panel-title">Add a Use Case</div>
+    <div class="form-row">
+      <label>Problem — what challenge needed solving?
+        <textarea id="uc-problem" placeholder="Describe the problem…"></textarea>
+      </label>
+      <label>Solution — what approach was used?
+        <textarea id="uc-solution" placeholder="Describe the solution…"></textarea>
+      </label>
+    </div>
+    <div class="form-row">
+      <label>Claude Skills (comma-separated)
+        <input type="text" id="uc-skills" placeholder="e.g. /browse, /claude-api, /result-evaluator">
+      </label>
+      <label>Tool URL (optional)
+        <input type="url" id="uc-url" placeholder="https://…">
+      </label>
+    </div>
+    <div class="form-row">
+      <label>Your name / team
+        <input type="text" id="uc-author" placeholder="e.g. CEPS AI Team">
+      </label>
+      <div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="submit-btn">Submit use case</button>
+      <button class="btn btn-secondary" id="cancel-btn">Cancel</button>
+      <span id="submit-toast" class="toast"></span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Filters ── -->
+<div class="filters" id="filters">
+  <span class="filters-label">Filter:</span>
+  <button class="chip active" data-skill="all">All</button>
+</div>
+
+<!-- ── Count ── -->
+<div class="count-bar" id="count-bar"></div>
+
+<!-- ── List ── -->
+<div class="list" id="list">
+  <div class="empty">Loading use cases…</div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let allCases    = [];
+  let cachedSha   = null;
+  let activeSkill = 'all';
+  let searchQuery = '';
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function getConfig() {
+    return {
+      repo:  document.getElementById('cfg-repo').value.trim(),
+      token: document.getElementById('cfg-token').value.trim()
+    };
+  }
+
+  function loadStoredConfig() {
+    const repo  = localStorage.getItem('uc_repo');
+    const token = localStorage.getItem('uc_token');
+    if (repo)  document.getElementById('cfg-repo').value  = repo;
+    if (token) {
+      document.getElementById('cfg-token').value = token;
+      document.getElementById('settings-toggle').classList.add('configured');
+    }
+  }
+
+  function toast(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = `toast ${type}`;
+    if (type !== 'info') setTimeout(() => { el.className = 'toast'; }, 4000);
+  }
+
+  function slugify(str) {
+    return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36);
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── GitHub API ─────────────────────────────────────────────────────────────
+  async function ghGetFile(repo, token, path) {
+    const res = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    if (!res.ok) throw new Error(`GitHub ${res.status}`);
+    return res.json();
+  }
+
+  async function ghPutFile(repo, token, path, content, sha, message) {
+    const res = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+      method: 'PUT',
+      headers: {
+        Authorization:  `token ${token}`,
+        'Content-Type': 'application/json',
+        Accept:         'application/vnd.github.v3+json'
+      },
+      body: JSON.stringify({ message, content: btoa(unescape(encodeURIComponent(content))), sha })
+    });
+    if (!res.ok) throw new Error(`GitHub ${res.status}: ${await res.text()}`);
+    return res.json();
+  }
+
+  // ── Load data ──────────────────────────────────────────────────────────────
+  async function loadCases() {
+    try {
+      const res = await fetch('use_cases.json?_=' + Date.now());
+      if (!res.ok) throw new Error('Failed to fetch use_cases.json');
+      allCases = await res.json();
+      buildFilters();
+      render();
+    } catch (e) {
+      document.getElementById('list').innerHTML = `<div class="empty">Could not load use cases: ${e.message}</div>`;
+    }
+  }
+
+  // ── Build filter chips ─────────────────────────────────────────────────────
+  function buildFilters() {
+    const skillSet = new Set();
+    allCases.forEach(uc => (uc.skills || []).forEach(s => skillSet.add(s)));
+
+    const container = document.getElementById('filters');
+    // Remove all chips except "All"
+    container.querySelectorAll('[data-skill]:not([data-skill="all"])').forEach(el => el.remove());
+
+    [...skillSet].sort().forEach(skill => {
+      const btn = document.createElement('button');
+      btn.className = 'chip';
+      btn.dataset.skill = skill;
+      btn.textContent = skill;
+      container.appendChild(btn);
+    });
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  function render() {
+    const q = searchQuery.toLowerCase();
+    const filtered = allCases.filter(uc => {
+      const matchesSkill = activeSkill === 'all' || (uc.skills || []).includes(activeSkill);
+      const matchesSearch = !q ||
+        uc.problem.toLowerCase().includes(q) ||
+        uc.solution.toLowerCase().includes(q) ||
+        (uc.skills || []).join(' ').toLowerCase().includes(q);
+      return matchesSkill && matchesSearch;
+    });
+
+    const countBar = document.getElementById('count-bar');
+    countBar.textContent = `${filtered.length} of ${allCases.length} use case${allCases.length !== 1 ? 's' : ''}`;
+
+    const list = document.getElementById('list');
+    if (!filtered.length) {
+      list.innerHTML = '<div class="empty">No use cases match your search.</div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    filtered.forEach(uc => list.appendChild(buildRow(uc)));
+  }
+
+  function buildRow(uc) {
+    const row = document.createElement('div');
+    row.className = 'uc-row';
+
+    // Problem
+    const prob = document.createElement('div');
+    prob.className = 'uc-cell uc-problem';
+    prob.innerHTML = `<div class="uc-cell-label">Problem</div><div class="uc-cell-text">${escapeHtml(uc.problem)}</div>`;
+
+    // Solution
+    const sol = document.createElement('div');
+    sol.className = 'uc-cell uc-solution';
+    sol.innerHTML = `<div class="uc-cell-label">Solution</div><div class="uc-cell-text">${escapeHtml(uc.solution)}</div>`;
+
+    // Meta
+    const meta = document.createElement('div');
+    meta.className = 'uc-meta';
+
+    const skills = document.createElement('div');
+    skills.className = 'uc-skills';
+    if ((uc.skills || []).length) {
+      const lbl = document.createElement('div');
+      lbl.className = 'uc-skills-label';
+      lbl.textContent = 'Claude Skill';
+      skills.appendChild(lbl);
+    }
+    (uc.skills || []).forEach(s => {
+      const tag = document.createElement('span');
+      tag.className = 'skill-tag';
+      tag.textContent = s;
+      skills.appendChild(tag);
+    });
+
+    const footer = document.createElement('div');
+    footer.className = 'uc-footer';
+
+    if (uc.author) {
+      const author = document.createElement('span');
+      author.className = 'uc-author';
+      author.textContent = uc.author + (uc.date ? ' · ' + formatDate(uc.date) : '');
+      footer.appendChild(author);
+    }
+
+    if (uc.tool_url) {
+      const link = document.createElement('a');
+      link.className = 'uc-link';
+      link.href = uc.tool_url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.innerHTML = `View tool <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><path d="M3.5 3a.5.5 0 0 0 0 1H7.29L3.14 8.14a.5.5 0 1 0 .71.71L8 4.71V8.5a.5.5 0 0 0 1 0v-5a.5.5 0 0 0-.5-.5h-5z"/></svg>`;
+      footer.appendChild(link);
+    }
+
+    meta.appendChild(skills);
+    meta.appendChild(footer);
+
+    row.appendChild(prob);
+    row.appendChild(sol);
+    row.appendChild(meta);
+    return row;
+  }
+
+  // ── Submit use case ────────────────────────────────────────────────────────
+  async function submitCase() {
+    const { repo, token } = getConfig();
+    if (!token) {
+      toast('submit-toast', 'Configure GitHub token first (⚙)', 'error');
+      return;
+    }
+
+    const problem  = document.getElementById('uc-problem').value.trim();
+    const solution = document.getElementById('uc-solution').value.trim();
+    const skillsRaw = document.getElementById('uc-skills').value.trim();
+    const url      = document.getElementById('uc-url').value.trim();
+    const author   = document.getElementById('uc-author').value.trim();
+
+    if (!problem || !solution) {
+      toast('submit-toast', 'Problem and solution are required', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const file = await ghGetFile(repo, token, 'MVP/use_cases.json');
+      cachedSha = file.sha;
+      const current = JSON.parse(atob(file.content.replace(/\n/g, '')));
+
+      const newCase = {
+        id:       slugify(problem.slice(0, 40)),
+        problem,
+        solution,
+        skills:   skillsRaw ? skillsRaw.split(',').map(s => s.trim()).filter(Boolean) : [],
+        tool_url: url || undefined,
+        author:   author || undefined,
+        date:     new Date().toISOString().slice(0, 10)
+      };
+
+      // Remove undefined keys
+      Object.keys(newCase).forEach(k => newCase[k] === undefined && delete newCase[k]);
+
+      current.push(newCase);
+
+      await ghPutFile(
+        repo, token,
+        'MVP/use_cases.json',
+        JSON.stringify(current, null, 2),
+        cachedSha,
+        `Add use case: ${problem.slice(0, 60)}`
+      );
+
+      toast('submit-toast', 'Submitted! Reloading…', 'success');
+
+      // Reset form
+      ['uc-problem','uc-solution','uc-skills','uc-url','uc-author'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+
+      setTimeout(async () => {
+        await loadCases();
+        closePanel('add-panel');
+        document.getElementById('add-toggle').classList.remove('active');
+      }, 1500);
+    } catch (e) {
+      toast('submit-toast', `Error: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Submit use case';
+    }
+  }
+
+  // ── Panel helpers ──────────────────────────────────────────────────────────
+  function togglePanel(id, triggerBtn) {
+    const panel = document.getElementById(id);
+    const isOpen = panel.classList.contains('open');
+    // Close all panels
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.add-btn, .settings-btn').forEach(b => b.classList.remove('active'));
+    if (!isOpen) {
+      panel.classList.add('open');
+      if (triggerBtn) triggerBtn.classList.add('active');
+    }
+  }
+
+  function closePanel(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+
+  // ── Event listeners ────────────────────────────────────────────────────────
+  document.getElementById('add-toggle').addEventListener('click', function() {
+    togglePanel('add-panel', this);
+  });
+
+  document.getElementById('settings-toggle').addEventListener('click', function() {
+    togglePanel('settings-panel', this);
+  });
+
+  document.getElementById('cancel-btn').addEventListener('click', () => {
+    closePanel('add-panel');
+    document.getElementById('add-toggle').classList.remove('active');
+  });
+
+  document.getElementById('save-cfg-btn').addEventListener('click', () => {
+    const { repo, token } = getConfig();
+    if (!repo || !token) { toast('cfg-toast', 'Both fields required', 'error'); return; }
+    localStorage.setItem('uc_repo', repo);
+    localStorage.setItem('uc_token', token);
+    document.getElementById('settings-toggle').classList.add('configured');
+    toast('cfg-toast', 'Saved', 'success');
+    closePanel('settings-panel');
+    document.getElementById('settings-toggle').classList.remove('active');
+  });
+
+  document.getElementById('submit-btn').addEventListener('click', submitCase);
+
+  document.getElementById('filters').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    activeSkill = chip.dataset.skill;
+    render();
+  });
+
+  document.getElementById('search').addEventListener('input', (e) => {
+    searchQuery = e.target.value;
+    render();
+  });
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  loadStoredConfig();
+  loadCases();
+</script>
+</body>
+</html>
