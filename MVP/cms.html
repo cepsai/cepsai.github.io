@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CMS — Tool Gallery</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --surface2: #1c2128;
+      --border:   #30363d;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --accent:   #58a6ff;
+      --accent-dim: #1f3a5f;
+      --green:    #3fb950;
+      --red:      #f85149;
+      --radius:   8px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+
+    .logo {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+
+    .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+
+    .back-link {
+      font-size: .8rem;
+      color: var(--muted);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+    }
+
+    .back-link:hover { color: var(--text); }
+
+    main {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 2.5rem 2rem 4rem;
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    /* ── Sections ── */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .section-header {
+      padding: .9rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      font-size: .82rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .section-body { padding: 1.2rem; display: flex; flex-direction: column; gap: 1rem; }
+
+    /* ── Form elements ── */
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: .35rem;
+      font-size: .82rem;
+      color: var(--muted);
+    }
+
+    label span { font-weight: 500; }
+
+    input, textarea {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: .88rem;
+      padding: .55rem .8rem;
+      width: 100%;
+      transition: border-color .15s;
+      outline: none;
+    }
+
+    input:focus, textarea:focus { border-color: var(--accent); }
+    textarea { resize: vertical; min-height: 80px; }
+
+    input[type="password"] { letter-spacing: .08em; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .5rem 1rem;
+      border-radius: 6px;
+      font-size: .83rem;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: opacity .15s, background .15s;
+      font-family: inherit;
+    }
+
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+    .btn-primary   { background: var(--accent); color: #0d1117; }
+    .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+    .btn-ghost     { background: transparent; color: var(--accent); border: 1px solid var(--accent-dim); }
+    .btn-danger    { background: transparent; color: var(--red); border: 1px solid #3d1f1f; }
+
+    .btn-primary:hover:not(:disabled)   { opacity: .88; }
+    .btn-secondary:hover:not(:disabled) { background: #252d38; }
+    .btn-ghost:hover:not(:disabled)     { background: var(--accent-dim); }
+    .btn-danger:hover:not(:disabled)    { background: #2d1515; }
+
+    .btn-row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+
+    /* ── Status/Toast ── */
+    .toast {
+      font-size: .82rem;
+      padding: .5rem .9rem;
+      border-radius: 6px;
+      display: none;
+    }
+
+    .toast.success { background: #0d2818; color: var(--green); border: 1px solid #1b4a2a; display: block; }
+    .toast.error   { background: #2d1515; color: var(--red); border: 1px solid #5a2020; display: block; }
+    .toast.info    { background: var(--accent-dim); color: var(--accent); border: 1px solid #2b4a7a; display: block; }
+
+    /* ── Preview thumbnail ── */
+    .thumb-wrap {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      width: 100%;
+      aspect-ratio: 16/10;
+      background: var(--surface2);
+      display: none;
+    }
+
+    .thumb-wrap.visible { display: block; }
+    .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
+
+    /* ── Tool list ── */
+    .tool-list { display: flex; flex-direction: column; gap: .5rem; }
+
+    .tool-item {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: .75rem 1rem;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .tool-item-info { flex: 1; min-width: 0; }
+    .tool-item-title { font-size: .85rem; font-weight: 600; margin-bottom: .15rem; }
+    .tool-item-url { font-size: .75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .tool-item-actions { display: flex; gap: .4rem; flex-shrink: 0; }
+
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      padding: .2rem;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      transition: color .15s, background .15s;
+    }
+
+    .icon-btn:hover { color: var(--red); background: #2d1515; }
+
+    /* ── Loading spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid transparent;
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Collapsed token display ── */
+    .token-display {
+      font-size: .78rem;
+      color: var(--green);
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+    }
+
+    .token-display::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="logo"><span class="logo-dot"></span>Gallery CMS</span>
+  <a class="back-link" href="index.html">← Back to gallery</a>
+</header>
+
+<main>
+
+  <!-- ── GitHub Config ── -->
+  <div class="section" id="config-section">
+    <div class="section-header">
+      GitHub Configuration
+      <div id="config-status"></div>
+    </div>
+    <div class="section-body">
+      <label>
+        <span>Repository (owner/repo)</span>
+        <input type="text" id="repo" placeholder="cepsai/cepsai.github.io" value="cepsai/cepsai.github.io">
+      </label>
+      <label>
+        <span>Personal Access Token <a href="https://github.com/settings/tokens/new?scopes=contents&description=gallery-cms" target="_blank" rel="noopener" style="color:var(--accent);font-weight:400">(create one)</a></span>
+        <input type="password" id="token" placeholder="ghp_…" autocomplete="off">
+      </label>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="save-config-btn">Save configuration</button>
+        <span id="config-toast" class="toast"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Add Tool ── -->
+  <div class="section">
+    <div class="section-header">Add New Tool</div>
+    <div class="section-body">
+
+      <label>
+        <span>Tool URL</span>
+        <input type="url" id="tool-url" placeholder="https://example.com/my-tool.html">
+      </label>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="fetch-btn">Fetch metadata</button>
+        <span id="fetch-status" class="toast"></span>
+      </div>
+
+      <!-- Screenshot preview -->
+      <div class="thumb-wrap" id="thumb-wrap">
+        <img id="thumb-img" src="" alt="Preview screenshot">
+      </div>
+
+      <label>
+        <span>Title</span>
+        <input type="text" id="tool-title" placeholder="My Tool">
+      </label>
+
+      <label>
+        <span>Description</span>
+        <textarea id="tool-desc" placeholder="What does this tool do?"></textarea>
+      </label>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="add-btn">Add to gallery</button>
+        <span id="add-toast" class="toast"></span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Existing Tools ── -->
+  <div class="section" id="tools-section">
+    <div class="section-header">
+      Current Tools
+      <button class="btn btn-ghost" id="refresh-btn" style="font-size:.75rem;padding:.25rem .6rem">Refresh</button>
+    </div>
+    <div class="section-body" id="tools-body">
+      <div style="color:var(--muted);font-size:.85rem">Save config above to load tools.</div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let cachedTools = [];
+  let cachedSha   = null;
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function toast(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = `toast ${type}`;
+    if (type !== 'info') setTimeout(() => { el.className = 'toast'; }, 4000);
+  }
+
+  function getConfig() {
+    return {
+      repo:  document.getElementById('repo').value.trim(),
+      token: document.getElementById('token').value.trim()
+    };
+  }
+
+  function loadStoredConfig() {
+    const repo  = localStorage.getItem('gallery_repo');
+    const token = localStorage.getItem('gallery_token');
+    if (repo)  document.getElementById('repo').value  = repo;
+    if (token) document.getElementById('token').value = token;
+  }
+
+  function slugify(str) {
+    return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+
+  // ── GitHub API ─────────────────────────────────────────────────────────────
+  async function ghGetFile(repo, token, path) {
+    const res = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+      headers: { Authorization: `token ${token}`, Accept: 'application/vnd.github.v3+json' }
+    });
+    if (!res.ok) throw new Error(`GitHub: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  async function ghPutFile(repo, token, path, content, sha, message) {
+    const res = await fetch(`https://api.github.com/repos/${repo}/contents/${path}`, {
+      method:  'PUT',
+      headers: {
+        Authorization:  `token ${token}`,
+        'Content-Type': 'application/json',
+        Accept:         'application/vnd.github.v3+json'
+      },
+      body: JSON.stringify({ message, content: btoa(unescape(encodeURIComponent(content))), sha })
+    });
+    if (!res.ok) throw new Error(`GitHub: ${res.status} ${await res.text()}`);
+    return res.json();
+  }
+
+  // ── Load tools from GitHub ─────────────────────────────────────────────────
+  async function loadToolsFromGitHub() {
+    const { repo, token } = getConfig();
+    if (!repo || !token) return;
+
+    const toolsBody = document.getElementById('tools-body');
+    toolsBody.innerHTML = '<div style="color:var(--muted);font-size:.85rem;display:flex;align-items:center;gap:.5rem"><span class="spinner"></span>Loading…</div>';
+
+    try {
+      const file = await ghGetFile(repo, token, 'MVP/tools.json');
+      cachedSha   = file.sha;
+      cachedTools = JSON.parse(atob(file.content.replace(/\n/g, '')));
+      renderToolList();
+    } catch (e) {
+      toolsBody.innerHTML = `<div style="color:var(--red);font-size:.82rem">Error: ${e.message}</div>`;
+    }
+  }
+
+  // ── Render tool list ───────────────────────────────────────────────────────
+  function renderToolList() {
+    const toolsBody = document.getElementById('tools-body');
+    if (!cachedTools.length) {
+      toolsBody.innerHTML = '<div style="color:var(--muted);font-size:.85rem">No tools yet.</div>';
+      return;
+    }
+    toolsBody.innerHTML = '';
+    const list = document.createElement('div');
+    list.className = 'tool-list';
+
+    cachedTools.forEach((tool, idx) => {
+      const item = document.createElement('div');
+      item.className = 'tool-item';
+      item.innerHTML = `
+        <div class="tool-item-info">
+          <div class="tool-item-title">${escapeHtml(tool.title)}</div>
+          <div class="tool-item-url">${escapeHtml(tool.url)}</div>
+        </div>
+        <div class="tool-item-actions">
+          <button class="icon-btn" data-idx="${idx}" title="Remove tool" aria-label="Remove tool">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+              <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+            </svg>
+          </button>
+        </div>
+      `;
+      list.appendChild(item);
+    });
+
+    toolsBody.appendChild(list);
+
+    list.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-idx]');
+      if (!btn) return;
+      const idx = parseInt(btn.dataset.idx, 10);
+      const tool = cachedTools[idx];
+      if (!confirm(`Remove "${tool.title}"?`)) return;
+      await removeTool(idx);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Fetch metadata via microlink.io ────────────────────────────────────────
+  async function fetchMetadata(url) {
+    const endpoint = `https://api.microlink.io/?url=${encodeURIComponent(url)}&screenshot=true&embed=screenshot.url&meta=true`;
+    const res = await fetch(endpoint);
+    if (!res.ok) throw new Error('Microlink request failed');
+    const json = await res.json();
+    if (json.status !== 'success') throw new Error(json.message || 'Metadata fetch failed');
+    return {
+      title:       json.data?.title       || '',
+      description: json.data?.description || '',
+      screenshot:  json.data?.screenshot?.url || null
+    };
+  }
+
+  // ── Add tool ───────────────────────────────────────────────────────────────
+  async function addTool() {
+    const { repo, token } = getConfig();
+    if (!token) { toast('add-toast', 'Save GitHub config first', 'error'); return; }
+
+    const url   = document.getElementById('tool-url').value.trim();
+    const title = document.getElementById('tool-title').value.trim();
+    const desc  = document.getElementById('tool-desc').value.trim();
+
+    if (!url || !title) { toast('add-toast', 'URL and title are required', 'error'); return; }
+
+    const btn = document.getElementById('add-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Saving…';
+    toast('add-toast', '', '');
+
+    try {
+      // Re-fetch latest sha to avoid conflicts
+      const file = await ghGetFile(repo, token, 'MVP/tools.json');
+      cachedSha   = file.sha;
+      cachedTools = JSON.parse(atob(file.content.replace(/\n/g, '')));
+
+      const screenshotUrl = document.getElementById('thumb-img').src || null;
+
+      const newTool = {
+        id:          slugify(title),
+        url,
+        title,
+        description: desc,
+        screenshot:  screenshotUrl && screenshotUrl !== window.location.href ? screenshotUrl : null,
+        added:       new Date().toISOString().slice(0, 10)
+      };
+
+      cachedTools.push(newTool);
+
+      await ghPutFile(
+        repo, token,
+        'MVP/tools.json',
+        JSON.stringify(cachedTools, null, 2),
+        cachedSha,
+        `Add tool: ${title}`
+      );
+
+      toast('add-toast', 'Tool added! GitHub Pages will update in ~60s.', 'success');
+
+      // Reset form
+      document.getElementById('tool-url').value   = '';
+      document.getElementById('tool-title').value = '';
+      document.getElementById('tool-desc').value  = '';
+      document.getElementById('thumb-wrap').classList.remove('visible');
+
+      renderToolList();
+    } catch (e) {
+      toast('add-toast', `Error: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Add to gallery';
+    }
+  }
+
+  // ── Remove tool ────────────────────────────────────────────────────────────
+  async function removeTool(idx) {
+    const { repo, token } = getConfig();
+    if (!token) return;
+
+    try {
+      const file = await ghGetFile(repo, token, 'MVP/tools.json');
+      cachedSha   = file.sha;
+      cachedTools = JSON.parse(atob(file.content.replace(/\n/g, '')));
+      const removed = cachedTools.splice(idx, 1)[0];
+
+      await ghPutFile(
+        repo, token,
+        'MVP/tools.json',
+        JSON.stringify(cachedTools, null, 2),
+        cachedSha,
+        `Remove tool: ${removed.title}`
+      );
+
+      renderToolList();
+    } catch (e) {
+      alert(`Error removing tool: ${e.message}`);
+    }
+  }
+
+  // ── Event listeners ────────────────────────────────────────────────────────
+  document.getElementById('save-config-btn').addEventListener('click', () => {
+    const { repo, token } = getConfig();
+    if (!repo || !token) { toast('config-toast', 'Both fields required', 'error'); return; }
+    localStorage.setItem('gallery_repo',  repo);
+    localStorage.setItem('gallery_token', token);
+    toast('config-toast', 'Saved', 'success');
+    loadToolsFromGitHub();
+  });
+
+  document.getElementById('fetch-btn').addEventListener('click', async () => {
+    const url = document.getElementById('tool-url').value.trim();
+    if (!url) { toast('fetch-status', 'Enter a URL first', 'error'); return; }
+
+    const btn = document.getElementById('fetch-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Fetching…';
+    toast('fetch-status', '', '');
+
+    try {
+      const meta = await fetchMetadata(url);
+
+      if (meta.title) document.getElementById('tool-title').value = meta.title;
+      if (meta.description) document.getElementById('tool-desc').value = meta.description;
+
+      const thumbWrap = document.getElementById('thumb-wrap');
+      const thumbImg  = document.getElementById('thumb-img');
+      if (meta.screenshot) {
+        thumbImg.src = meta.screenshot;
+        thumbWrap.classList.add('visible');
+      } else {
+        thumbWrap.classList.remove('visible');
+      }
+
+      toast('fetch-status', 'Metadata loaded — review and edit if needed', 'success');
+    } catch (e) {
+      toast('fetch-status', `Could not fetch metadata: ${e.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Fetch metadata';
+    }
+  });
+
+  document.getElementById('add-btn').addEventListener('click', addTool);
+
+  document.getElementById('refresh-btn').addEventListener('click', loadToolsFromGitHub);
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  loadStoredConfig();
+
+  // Auto-load tools if config already stored
+  if (localStorage.getItem('gallery_token')) {
+    loadToolsFromGitHub();
+  }
+</script>
+</body>
+</html>

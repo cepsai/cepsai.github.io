@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tool Gallery — CEPS AI</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0d1117;
+      --surface:    #161b22;
+      --surface2:   #1c2128;
+      --border:     #30363d;
+      --text:       #e6edf3;
+      --muted:      #8b949e;
+      --accent:     #58a6ff;
+      --accent-dim: #1f3a5f;
+      --radius:     10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      z-index: 10;
+    }
+
+    .logo {
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: .02em;
+      color: var(--text);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+
+    .logo-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .submit-btn {
+      font-size: .8rem;
+      font-weight: 500;
+      color: var(--accent);
+      border: 1px solid var(--accent-dim);
+      background: transparent;
+      padding: .4rem .9rem;
+      border-radius: 6px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background .15s, border-color .15s;
+    }
+
+    .submit-btn:hover {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+    }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 3.5rem 2rem 2.5rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .hero h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      line-height: 1.25;
+      margin-bottom: .6rem;
+    }
+
+    .hero p {
+      color: var(--muted);
+      font-size: .95rem;
+      max-width: 520px;
+    }
+
+    /* ── Grid ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+      padding: 0 2rem 4rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: border-color .2s, transform .2s;
+    }
+
+    .card:hover {
+      border-color: #484f58;
+      transform: translateY(-2px);
+    }
+
+    /* Preview area */
+    .preview {
+      position: relative;
+      width: 100%;
+      height: 200px;
+      background: var(--surface2);
+      overflow: hidden;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+    }
+
+    .preview iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1280px;
+      height: 800px;
+      border: none;
+      transform-origin: top left;
+      pointer-events: none;
+    }
+
+    .preview-screenshot {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .preview-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: .8rem;
+      flex-direction: column;
+      gap: .4rem;
+    }
+
+    .preview-placeholder svg {
+      opacity: .4;
+    }
+
+    /* Hover overlay */
+    .preview-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+
+    .card:hover .preview-overlay {
+      opacity: 1;
+    }
+
+    .preview-overlay span {
+      font-size: .8rem;
+      font-weight: 500;
+      color: #fff;
+      background: rgba(255,255,255,.15);
+      padding: .35rem .8rem;
+      border-radius: 20px;
+      border: 1px solid rgba(255,255,255,.3);
+      backdrop-filter: blur(4px);
+    }
+
+    /* Card body */
+    .card-body {
+      padding: 1.1rem 1.2rem 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: .6rem;
+      flex: 1;
+    }
+
+    .card-title {
+      font-size: .95rem;
+      font-weight: 600;
+      line-height: 1.3;
+      color: var(--text);
+    }
+
+    .card-desc {
+      font-size: .82rem;
+      color: var(--muted);
+      line-height: 1.55;
+      flex: 1;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: .4rem;
+    }
+
+    .card-date {
+      font-size: .72rem;
+      color: #4d5562;
+    }
+
+    .open-btn {
+      font-size: .78rem;
+      font-weight: 500;
+      color: var(--accent);
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+      padding: .3rem .7rem;
+      border: 1px solid var(--accent-dim);
+      border-radius: 5px;
+      transition: background .15s;
+    }
+
+    .open-btn:hover {
+      background: var(--accent-dim);
+    }
+
+    .open-btn svg { flex-shrink: 0; }
+
+    /* ── Empty / error state ── */
+    .state-msg {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: var(--muted);
+      padding: 4rem 0;
+      font-size: .9rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="index.html">
+    <span class="logo-dot"></span>
+    CEPS AI — Tool Gallery
+  </a>
+  <a class="submit-btn" href="cms.html">+ Add Tool</a>
+</header>
+
+<div class="hero">
+  <h1>Our Tools</h1>
+  <p>A collection of web applications built by our team for data analysis, classification, and visualization.</p>
+</div>
+
+<div class="grid" id="grid">
+  <div class="state-msg">Loading tools…</div>
+</div>
+
+<script>
+  const IFRAME_W = 1280;
+  const IFRAME_H = 800;
+
+  function scaleIframes() {
+    document.querySelectorAll('.preview').forEach(preview => {
+      const iframe = preview.querySelector('iframe');
+      if (!iframe) return;
+      const scale = preview.offsetWidth / IFRAME_W;
+      iframe.style.transform = `scale(${scale})`;
+      preview.style.height = `${IFRAME_H * scale}px`;
+    });
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function buildCard(tool) {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    // Preview
+    const preview = document.createElement('div');
+    preview.className = 'preview';
+
+    if (tool.screenshot) {
+      const img = document.createElement('img');
+      img.className = 'preview-screenshot';
+      img.src = tool.screenshot;
+      img.alt = tool.title;
+      preview.appendChild(img);
+    } else {
+      const iframe = document.createElement('iframe');
+      iframe.src = tool.url;
+      iframe.loading = 'lazy';
+      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+      iframe.title = tool.title;
+      preview.appendChild(iframe);
+    }
+
+    const overlay = document.createElement('div');
+    overlay.className = 'preview-overlay';
+    overlay.innerHTML = '<span>Open tool ↗</span>';
+    preview.appendChild(overlay);
+
+    preview.addEventListener('click', () => window.open(tool.url, '_blank', 'noopener'));
+    card.appendChild(preview);
+
+    // Body
+    const body = document.createElement('div');
+    body.className = 'card-body';
+
+    const title = document.createElement('div');
+    title.className = 'card-title';
+    title.textContent = tool.title;
+
+    const desc = document.createElement('div');
+    desc.className = 'card-desc';
+    desc.textContent = tool.description;
+
+    const footer = document.createElement('div');
+    footer.className = 'card-footer';
+
+    const date = document.createElement('span');
+    date.className = 'card-date';
+    date.textContent = formatDate(tool.added);
+
+    const link = document.createElement('a');
+    link.className = 'open-btn';
+    link.href = tool.url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.innerHTML = `Open tool <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor"><path d="M3.5 3a.5.5 0 0 0 0 1H7.29L3.14 8.14a.5.5 0 1 0 .71.71L8 4.71V8.5a.5.5 0 0 0 1 0v-5a.5.5 0 0 0-.5-.5h-5z"/></svg>`;
+
+    footer.appendChild(date);
+    footer.appendChild(link);
+    body.appendChild(title);
+    body.appendChild(desc);
+    body.appendChild(footer);
+    card.appendChild(body);
+
+    return card;
+  }
+
+  async function loadTools() {
+    const grid = document.getElementById('grid');
+    try {
+      const res = await fetch('tools.json?_=' + Date.now());
+      if (!res.ok) throw new Error('Failed to fetch tools.json');
+      const tools = await res.json();
+
+      grid.innerHTML = '';
+      if (!tools.length) {
+        grid.innerHTML = '<div class="state-msg">No tools yet. <a href="cms.html" style="color:var(--accent)">Add one.</a></div>';
+        return;
+      }
+
+      tools.forEach(tool => grid.appendChild(buildCard(tool)));
+      requestAnimationFrame(scaleIframes);
+    } catch (e) {
+      grid.innerHTML = `<div class="state-msg">Could not load tools: ${e.message}</div>`;
+    }
+  }
+
+  loadTools();
+  window.addEventListener('resize', scaleIframes);
+</script>
+</body>
+</html>
