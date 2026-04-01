@@ -205,6 +205,45 @@
 
     .btn-row { display: flex; align-items: center; gap: .6rem; }
 
+    .token-notice {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: .6rem .9rem;
+      border-radius: 6px;
+      font-size: .82rem;
+    }
+
+    .token-notice.missing {
+      background: #fff8c5;
+      border: 1px solid #d4a72c;
+      color: var(--yellow);
+    }
+
+    .token-notice.ok {
+      background: var(--green-dim);
+      border: 1px solid #82cfaa;
+      color: var(--green);
+    }
+
+    .token-notice-btn {
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--surface);
+      border: 1px solid var(--accent-border);
+      border-radius: 5px;
+      padding: .2rem .6rem;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background .12s;
+    }
+
+    .token-notice-btn:hover { background: var(--accent-dim); }
+
     .toast {
       font-size: .8rem;
       padding: .35rem .7rem;
@@ -463,6 +502,7 @@
 <div class="panel" id="add-panel">
   <div class="panel-inner">
     <div class="panel-title">Add a Use Case</div>
+    <div id="token-notice" class="token-notice" style="display:none"></div>
     <div class="form-row">
       <label>Problem — what challenge needed solving?
         <textarea id="uc-problem" placeholder="Describe the problem…"></textarea>
@@ -773,6 +813,25 @@
     }
   }
 
+  // ── Token notice ───────────────────────────────────────────────────────────
+  function updateTokenNotice() {
+    const notice = document.getElementById('token-notice');
+    const token  = localStorage.getItem('uc_token');
+    if (token) {
+      notice.className = 'token-notice ok';
+      notice.style.display = 'flex';
+      notice.innerHTML = `<span>✓ GitHub token configured — ready to submit.</span>`;
+    } else {
+      notice.className = 'token-notice missing';
+      notice.style.display = 'flex';
+      notice.innerHTML = `<span>GitHub token required to submit. Set it up first.</span>
+        <button class="token-notice-btn" id="notice-cfg-btn">⚙ Configure token</button>`;
+      document.getElementById('notice-cfg-btn').addEventListener('click', () => {
+        togglePanel('settings-panel', document.getElementById('settings-toggle'));
+      });
+    }
+  }
+
   // ── Panel helpers ──────────────────────────────────────────────────────────
   function togglePanel(id, triggerBtn) {
     const panel  = document.getElementById(id);
@@ -788,6 +847,7 @@
   // ── Event listeners ────────────────────────────────────────────────────────
   document.getElementById('add-toggle').addEventListener('click', function() {
     togglePanel('add-panel', this);
+    updateTokenNotice();
   });
 
   document.getElementById('settings-toggle').addEventListener('click', function() {
@@ -806,6 +866,7 @@
     localStorage.setItem('uc_token', token);
     document.getElementById('settings-toggle').classList.add('configured');
     toast('cfg-toast', 'Saved', 'success');
+    updateTokenNotice();
     document.getElementById('settings-panel').classList.remove('open');
     document.getElementById('settings-toggle').classList.remove('active');
   });
