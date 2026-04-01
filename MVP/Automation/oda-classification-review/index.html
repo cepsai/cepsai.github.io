@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Manually audit LLM-generated digital ODA classifications — binary, 3-way tech category, and non-tech reclassification review.">
+<meta property="og:title" content="ODA Digital Classification Review">
+<meta property="og:description" content="Human-in-the-loop evaluation of LLM classifications on 427K ODA projects.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<title>ODA Digital Classification Review — AI World</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Roboto', system-ui, -apple-system, sans-serif; background: #f5f6f8; color: #1a1a2e; min-height: 100vh; }
+
+/* Layout */
+.app { display: grid; grid-template-rows: auto auto 1fr; height: calc(100vh - 52px); }
+.top-bar { background: #1a1a2e; color: #fff; padding: 12px 24px; display: flex; align-items: center; gap: 16px; }
+.top-bar h1 { font-size: 1rem; font-weight: 600; flex: 1; }
+.main { display: grid; grid-template-columns: 260px 1fr; gap: 0; overflow: hidden; height: 100%; }
+.sidebar { background: #fff; border-right: 1px solid #e0e0e8; padding: 16px; overflow-y: auto; }
+.content { padding: 20px; overflow-y: auto; }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; background: rgba(255,255,255,0.1); border-radius: 8px; padding: 4px; }
+.tab { padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; font-weight: 500; color: rgba(255,255,255,0.7); border: none; background: transparent; }
+.tab.active { background: #fff; color: #1a1a2e; }
+.tab:hover:not(.active) { background: rgba(255,255,255,0.15); color: #fff; }
+
+/* Stats bar */
+.stats-bar { display: flex; align-items: center; gap: 12px; padding: 10px 20px; background: #fff; border-bottom: 1px solid #e0e0e8; font-size: 0.85rem; flex-wrap: wrap; }
+.stat { display: flex; align-items: center; gap: 6px; }
+.stat-label { color: #888; }
+.stat-value { font-weight: 600; }
+.stat-agree { color: #22863a; }
+.stat-disagree { color: #d73a49; }
+.stat-unsure { color: #e36209; }
+.stat-sep { color: #ddd; }
+
+/* Sidebar filters */
+.filter-section { margin-bottom: 20px; }
+.filter-label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #888; margin-bottom: 8px; letter-spacing: 0.05em; }
+.reviewer-input { width: 100%; padding: 7px 10px; border: 2px solid #e0e0e8; border-radius: 6px; font-size: 0.85rem; font-family: inherit; color: #333; }
+.reviewer-input:focus { outline: none; border-color: #6366f1; }
+.reviewer-input.filled { border-color: #22863a; background: #f0faf4; }
+.filter-btn { display: block; width: 100%; text-align: left; padding: 7px 10px; border-radius: 6px; border: 1px solid #e0e0e8; background: #fff; cursor: pointer; font-size: 0.85rem; margin-bottom: 4px; color: #444; }
+.filter-btn:hover { background: #f0f4ff; border-color: #b0c4ff; }
+.filter-btn.active { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+.filter-btn .count { float: right; color: #888; font-size: 0.8rem; }
+.filter-btn.active .count { color: rgba(255,255,255,0.6); }
+
+select { width: 100%; padding: 7px 10px; border: 1px solid #e0e0e8; border-radius: 6px; font-size: 0.85rem; background: #fff; color: #444; margin-bottom: 4px; }
+
+/* Progress */
+.progress-wrap { margin-bottom: 16px; }
+.progress-text { font-size: 0.8rem; color: #888; margin-bottom: 4px; }
+.progress-bar { height: 4px; background: #e0e0e8; border-radius: 2px; }
+.progress-fill { height: 100%; background: #1a1a2e; border-radius: 2px; transition: width 0.3s; }
+
+/* Nav buttons in sidebar */
+.nav-btns { display: flex; gap: 6px; margin-bottom: 16px; }
+.nav-btn { flex: 1; padding: 8px; border: 1px solid #e0e0e8; border-radius: 6px; background: #fff; cursor: pointer; font-size: 0.85rem; color: #444; text-align: center; }
+.nav-btn:hover:not(:disabled) { background: #f0f4ff; border-color: #b0c4ff; }
+.nav-btn:disabled { opacity: 0.4; cursor: default; }
+.btn-random { background: #f8f0ff; border-color: #d0b0ff; color: #6a0dad; }
+.btn-random:hover { background: #f0e0ff; }
+
+/* Card */
+.card { background: #fff; border: 1px solid #e0e0e8; border-radius: 12px; padding: 24px; max-width: 820px; }
+.card.wide { max-width: 100%; }
+.card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.card-meta { font-size: 0.8rem; color: #888; }
+.card-meta span { margin-right: 10px; }
+.card-number { font-size: 0.8rem; color: #aaa; }
+
+.card-text { font-size: 0.95rem; line-height: 1.65; color: #222; background: #fafbfc; border: 1px solid #eee; border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; white-space: pre-wrap; word-break: break-word; }
+
+.badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+.badge-digital { background: #d1fae5; color: #065f46; }
+.badge-notdigital { background: #fee2e2; color: #7f1d1d; }
+.badge-gov { background: #dbeafe; color: #1e3a5f; }
+.badge-inc { background: #fef3c7; color: #78350f; }
+.badge-infra { background: #ede9fe; color: #3b0764; }
+.badge-nontech { background: #f3f4f6; color: #374151; }
+.badge-conf { background: #f0f0f0; color: #555; }
+
+.section-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #888; letter-spacing: 0.05em; margin-bottom: 6px; }
+
+.reason-box { background: #f9f9fb; border-left: 3px solid #c0c8e0; border-radius: 0 6px 6px 0; padding: 10px 14px; font-size: 0.85rem; color: #444; line-height: 1.5; margin-bottom: 16px; }
+
+/* Non-tech special layout */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.classif-box { border-radius: 8px; padding: 12px 14px; }
+.classif-box.original { background: #fff3e0; border: 1px solid #ffcc80; }
+.classif-box.reclassified { background: #e8f5e9; border: 1px solid #a5d6a7; }
+.classif-box .box-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+.classif-box.original .box-label { color: #e65100; }
+.classif-box.reclassified .box-label { color: #2e7d32; }
+.classif-box .box-cat { font-size: 0.95rem; font-weight: 600; color: #1a1a2e; margin-bottom: 6px; }
+.classif-box .box-reason { font-size: 0.8rem; color: #555; line-height: 1.4; }
+
+/* Rating buttons */
+.rating-row { display: flex; gap: 10px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.rate-btn.nontech-correct { border-color: #16a34a; color: #16a34a; }
+.rate-btn.nontech-correct:hover, .rate-btn.nontech-correct.selected { background: #16a34a; color: #fff; border-color: #16a34a; }
+.rate-btn.correct-recl { border-color: #2563eb; color: #2563eb; }
+.rate-btn.correct-recl:hover, .rate-btn.correct-recl.selected { background: #2563eb; color: #fff; border-color: #2563eb; }
+.rate-btn.diff-recl { border-color: #dc2626; color: #dc2626; }
+.rate-btn.diff-recl:hover, .rate-btn.diff-recl.selected { background: #dc2626; color: #fff; border-color: #dc2626; }
+.rating-row.nontech-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.rating-row.nontech-row .rate-btn { padding: 8px 6px; font-size: 0.8rem; justify-content: center; white-space: nowrap; }
+.notes-wrap { margin-top: 12px; }
+.notes-wrap textarea { width: 100%; min-height: 64px; padding: 9px 12px; border: 1px solid #e0e0e8; border-radius: 8px; font-size: 0.85rem; font-family: inherit; color: #333; resize: vertical; line-height: 1.5; transition: border-color 0.15s; }
+.notes-wrap textarea:focus { outline: none; border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+.notes-wrap textarea.has-note { border-color: #6366f1; background: #fafafe; }
+.notes-saved { font-size: 0.72rem; color: #6366f1; margin-top: 3px; opacity: 0; transition: opacity 0.3s; }
+.notes-saved.show { opacity: 1; }
+.rate-btn { display: flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 8px; border: 2px solid #e0e0e8; background: #fff; cursor: pointer; font-size: 0.9rem; font-weight: 600; transition: all 0.15s; }
+.rate-btn:hover { transform: translateY(-1px); }
+.rate-btn.agree { border-color: #22863a; color: #22863a; }
+.rate-btn.agree:hover, .rate-btn.agree.selected { background: #22863a; color: #fff; border-color: #22863a; }
+.rate-btn.disagree { border-color: #d73a49; color: #d73a49; }
+.rate-btn.disagree:hover, .rate-btn.disagree.selected { background: #d73a49; color: #fff; border-color: #d73a49; }
+.rate-btn.unsure { border-color: #e36209; color: #e36209; }
+.rate-btn.unsure:hover, .rate-btn.unsure.selected { background: #e36209; color: #fff; border-color: #e36209; }
+.key-hint { font-size: 0.75rem; color: #aaa; margin-left: auto; }
+
+/* Empty state */
+.empty { text-align: center; padding: 60px 20px; color: #aaa; }
+.empty h3 { font-size: 1.1rem; margin-bottom: 8px; color: #888; }
+
+/* Export / actions */
+.action-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.action-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid #e0e0e8; background: #fff; cursor: pointer; font-size: 0.8rem; color: #444; }
+.action-btn:hover { background: #f0f4ff; }
+.action-btn.primary { background: #1a1a2e; color: #fff; border-color: #1a1a2e; }
+.action-btn.primary:hover { background: #2d2d5e; }
+
+/* Divider */
+.divider { border: none; border-top: 1px solid #eee; margin: 14px 0; }
+
+/* Purpose/sector pill */
+.meta-pill { display: inline-block; background: #f0f4ff; color: #4455aa; border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; margin-bottom: 12px; }
+
+/* Defs panel */
+.content-wrap { display: flex; gap: 16px; align-items: flex-start; }
+.defs-panel { width: 260px; flex-shrink: 0; display: none; }
+.defs-panel.visible { display: block; }
+.def-card { border-radius: 10px; border: 2px solid #e0e0e8; padding: 12px 14px; margin-bottom: 10px; background: #fff; transition: all 0.2s; }
+.def-card.active-gov { border-color: #3b82f6; background: #eff6ff; }
+.def-card.active-inc { border-color: #f59e0b; background: #fffbeb; }
+.def-card.active-infra { border-color: #8b5cf6; background: #f5f3ff; }
+.def-card.active-nontech { border-color: #9ca3af; background: #f9fafb; }
+.def-card .def-name { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 5px; }
+.def-card.active-gov .def-name { color: #1d4ed8; }
+.def-card.active-inc .def-name { color: #b45309; }
+.def-card.active-infra .def-name { color: #6d28d9; }
+.def-card .def-body { font-size: 0.78rem; color: #555; line-height: 1.55; }
+.def-card .def-examples { font-size: 0.74rem; color: #888; margin-top: 5px; font-style: italic; }
+.defs-panel .defs-heading { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; color: #aaa; letter-spacing: 0.06em; margin-bottom: 8px; }
+
+@media (max-width: 700px) {
+  .main { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .two-col { grid-template-columns: 1fr; }
+  .defs-panel { display: none !important; }
+}
+/* ── Site nav ── */
+.site-nav { background: #fff; border-bottom: 1px solid #e0e0e8; padding: 0 24px; display: flex; align-items: center; height: 52px; position: sticky; top: 0; z-index: 200; box-shadow: 0 1px 3px rgba(0,0,0,0.06); flex-shrink: 0; }
+.site-nav .nav-logo { font-size: 0.95rem; font-weight: 700; color: #1976d2; letter-spacing: -0.2px; text-decoration: none; white-space: nowrap; }
+.site-nav .nav-logo span { font-weight: 300; color: #888; margin-left: 4px; }
+.site-nav .nav-sep { color: #ddd; margin: 0 10px; }
+.site-nav .nav-page { font-size: 0.9rem; color: #444; font-weight: 500; }
+.site-nav .nav-right { margin-left: auto; display: flex; gap: 20px; align-items: center; }
+.site-nav .nav-right a { font-size: 0.85rem; color: #888; text-decoration: none; }
+.site-nav .nav-right a:hover { color: #1976d2; }
+
+/* ── Loading overlay ── */
+#loadingOverlay { position: fixed; inset: 0; background: #f5f6f8; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; gap: 16px; }
+#loadingOverlay.hidden { display: none; }
+.spinner { width: 36px; height: 36px; border: 3px solid #e0e0e8; border-top-color: #1a1a2e; border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#loadingOverlay p { font-size: 0.9rem; color: #888; }
+#loadError { color: #d73a49; font-size: 0.85rem; display: none; }
+</style>
+</head>
+<body>
+<!-- Loading overlay -->
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  <p>Loading classification data…</p>
+  <p id="loadError"></p>
+</div>
+
+<!-- Site nav -->
+<nav class="site-nav">
+  <a href="https://viz.aiworld.eu" class="nav-logo">AI World <span>viz</span></a>
+  <span class="nav-sep">/</span>
+  <span class="nav-page">ODA Classification Review</span>
+  <div class="nav-right">
+    <a href="https://viz.aiworld.eu/MVP/Automation/">← Automation tools</a>
+  </div>
+</nav>
+
+<div class="app">
+
+<!-- Top bar -->
+<div class="top-bar">
+  <h1>ODA Classification Review</h1>
+  <div class="tabs">
+    <button class="tab active" onclick="setMode('binary')" id="tab-binary">Binary (is_digital)</button>
+    <button class="tab" onclick="setMode('multiway')" id="tab-multiway">3/4-way (tech type)</button>
+    <button class="tab" onclick="setMode('nontech')" id="tab-nontech">Non-tech Reclassified</button>
+  </div>
+  <div class="action-btns">
+    <button class="action-btn" onclick="jumpRandom()">Random</button>
+    <button class="action-btn primary" onclick="exportCSV()">Export CSV</button>
+  </div>
+</div>
+
+<!-- Stats bar -->
+<div class="stats-bar" id="statsBar">
+  <div class="stat"><span class="stat-label">Viewing</span> <span class="stat-value" id="statMode">—</span></div>
+  <span class="stat-sep">|</span>
+  <div class="stat"><span class="stat-label">Item</span> <span class="stat-value" id="statIdx">—</span></div>
+  <span class="stat-sep">|</span>
+  <div class="stat"><span class="stat-agree" id="statAgree">✓ 0</span></div>
+  <div class="stat"><span class="stat-disagree" id="statDisagree">✗ 0</span></div>
+  <div class="stat"><span class="stat-unsure" id="statUnsure">? 0</span></div>
+  <span class="stat-sep">|</span>
+  <div class="stat"><span class="stat-label">Reviewed</span> <span class="stat-value" id="statReviewed">0 / 0</span></div>
+</div>
+
+<div class="main">
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="filter-section">
+    <div class="filter-label">Donor</div>
+    <select id="donorFilter" onchange="applyFilters()">
+      <option value="">All donors</option>
+      <option value="EU Institutions">EU Institutions</option>
+      <option value="Germany">Germany</option>
+      <option value="Switzerland">Switzerland</option>
+      <option value="France">France</option>
+      <option value="Norway">Norway</option>
+    </select>
+  </div>
+
+  <div class="filter-section" id="catFilterSection">
+    <div class="filter-label">Category</div>
+    <button class="filter-btn active" onclick="setCatFilter('')" id="catAll">All <span class="count" id="countAll">—</span></button>
+    <button class="filter-btn" onclick="setCatFilter('digital_governance')" id="catGov">Governance <span class="count" id="countGov">—</span></button>
+    <button class="filter-btn" onclick="setCatFilter('digital_inclusion')" id="catInc">Inclusion <span class="count" id="countInc">—</span></button>
+    <button class="filter-btn" onclick="setCatFilter('hard_infrastructure')" id="catInfra">Hard Infra <span class="count" id="countInfra">—</span></button>
+    <button class="filter-btn" onclick="setCatFilter('non_tech')" id="catNontech" style="display:none">Non-tech (orig) <span class="count" id="countNontech">—</span></button>
+  </div>
+
+  <div class="filter-section" id="binaryFilterSection" style="display:none">
+    <div class="filter-label">Decision</div>
+    <button class="filter-btn active" onclick="setBinaryFilter('')" id="binAll">All <span class="count" id="binCountAll">—</span></button>
+    <button class="filter-btn" onclick="setBinaryFilter('yes')" id="binYes">Digital <span class="count" id="binCountYes">—</span></button>
+    <button class="filter-btn" onclick="setBinaryFilter('no')" id="binNo">Not digital <span class="count" id="binCountNo">—</span></button>
+  </div>
+
+  <hr class="divider">
+
+  <div class="progress-wrap">
+    <div class="progress-text" id="progressText">0 / 0</div>
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+  </div>
+
+  <div class="nav-btns">
+    <button class="nav-btn" id="btnPrev" onclick="navigate(-1)">← Prev</button>
+    <button class="nav-btn" id="btnNext" onclick="navigate(1)">Next →</button>
+  </div>
+
+  <div class="filter-section">
+    <div class="filter-label">Your name</div>
+    <input class="reviewer-input" id="reviewerInput" type="text" placeholder="Enter your name…" oninput="saveReviewer(this.value)" autocomplete="off">
+    <div style="font-size:0.72rem;color:#aaa;margin-top:4px;">Added to CSV export</div>
+  </div>
+
+  <div class="filter-section">
+    <div class="filter-label">Keyboard shortcuts</div>
+    <div style="font-size:0.78rem; color:#666; line-height:1.8;">
+      <b>←/→</b> Navigate<br>
+      <b>Y</b> Agree<br>
+      <b>N</b> Disagree<br>
+      <b>U</b> Unsure<br>
+      <b>R</b> Random jump
+    </div>
+  </div>
+</div>
+
+<!-- Main content -->
+<div class="content">
+  <div class="content-wrap">
+    <div class="card" id="mainCard">
+      <div class="empty"><h3>Loading...</h3></div>
+    </div>
+    <div class="defs-panel" id="defsPanel">
+      <div class="defs-heading">Category definitions</div>
+      <div class="def-card" id="def-gov">
+        <div class="def-name">Digital Governance</div>
+        <div class="def-body">E-government systems, ICT policy & regulation, cybersecurity frameworks, digital ID, public sector digital transformation, open data portals.</div>
+        <div class="def-examples">e.g. national ID systems, e-procurement platforms, cybersecurity capacity building, regulatory reform for telecoms</div>
+      </div>
+      <div class="def-card" id="def-inc">
+        <div class="def-name">Digital Inclusion</div>
+        <div class="def-body">Digital skills & literacy training, ICT education programmes, internet access for underserved groups, mobile money & fintech for the unbanked, e-learning platforms.</div>
+        <div class="def-examples">e.g. computer literacy for women, rural broadband access programmes, mobile banking for refugees, online education content</div>
+      </div>
+      <div class="def-card" id="def-infra">
+        <div class="def-name">Hard Infrastructure</div>
+        <div class="def-body">Physical digital infrastructure: fiber optic cables, mobile towers, satellites, submarine cables, data centers, network hardware deployment.</div>
+        <div class="def-examples">e.g. fiber backbone projects, tower rollouts, satellite connectivity, national data center construction</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div><!-- end main -->
+
+</div><!-- end app -->
+
+<script>
+
+
+let mode = 'binary';
+let allItems = { binary: [], multiway: [], nontech: [] };
+let filtered = [];
+let ratings = {};  // key: mode+':'+origIdx → 'agree'|'disagree'|'unsure'
+let reviewer = '';
+let notes = {};    // key: mode+':'+origIdx → string
+let currentIdx = 0;
+let donorFilter = '';
+let catFilter = '';
+let binaryFilter = '';
+
+// Load from localStorage
+try { ratings = JSON.parse(localStorage.getItem('oda_review_ratings') || '{}'); } catch(e) {}
+try { notes = JSON.parse(localStorage.getItem('oda_review_notes') || '{}'); } catch(e) {}
+try { reviewer = localStorage.getItem('oda_review_reviewer') || ''; } catch(e) {}
+
+// initData is handled in the fetch() callback for the hosted version
+
+function ratingKey(item) { return mode + ':' + item._origIdx; }
+
+function getStats() {
+  if (mode === 'nontech') {
+    const nc = filtered.filter(r => ratings[ratingKey(r)] === 'nontech_correct').length;
+    const cr = filtered.filter(r => ratings[ratingKey(r)] === 'correct_recl').length;
+    const dr = filtered.filter(r => ratings[ratingKey(r)] === 'diff_recl').length;
+    const u  = filtered.filter(r => ratings[ratingKey(r)] === 'unsure').length;
+    return { nontech_correct: nc, correct_recl: cr, diff_recl: dr, unsure: u, agree: nc+cr, disagree: dr, total: filtered.length };
+  }
+  const a = filtered.filter(r => ratings[ratingKey(r)] === 'agree').length;
+  const d = filtered.filter(r => ratings[ratingKey(r)] === 'disagree').length;
+  const u = filtered.filter(r => ratings[ratingKey(r)] === 'unsure').length;
+  return { agree: a, disagree: d, unsure: u, total: filtered.length };
+}
+
+function updateStats() {
+  const s = getStats();
+  document.getElementById('statMode').textContent = { binary: 'Binary', multiway: '3/4-way', nontech: 'Non-tech' }[mode];
+  document.getElementById('statIdx').textContent = (currentIdx + 1) + ' of ' + filtered.length;
+  if (mode === 'nontech') {
+    document.getElementById('statAgree').textContent = '✓ ' + (s.nontech_correct||0) + ' nt · ' + (s.correct_recl||0) + ' cr';
+    document.getElementById('statDisagree').textContent = '✗ ' + (s.diff_recl||0) + ' diff';
+  } else {
+    document.getElementById('statAgree').textContent = '✓ ' + s.agree;
+    document.getElementById('statDisagree').textContent = '✗ ' + s.disagree;
+  }
+  document.getElementById('statUnsure').textContent = '? ' + s.unsure;
+  document.getElementById('statReviewed').textContent = (s.agree + s.disagree + s.unsure) + ' / ' + s.total;
+  document.getElementById('progressText').textContent = (currentIdx + 1) + ' / ' + filtered.length;
+  const pct = filtered.length ? ((currentIdx + 1) / filtered.length * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('btnPrev').disabled = currentIdx === 0;
+  document.getElementById('btnNext').disabled = currentIdx >= filtered.length - 1;
+}
+
+function catBadge(cat) {
+  const map = {
+    digital_governance: ['badge-gov', 'Governance'],
+    digital_inclusion: ['badge-inc', 'Inclusion'],
+    hard_infrastructure: ['badge-infra', 'Hard Infra'],
+    non_tech: ['badge-nontech', 'Non-tech'],
+  };
+  const [cls, label] = map[cat] || ['badge-nontech', cat];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function confBadge(conf) {
+  if (conf === null || conf === undefined) return '';
+  const c = Math.round(conf);
+  const color = c >= 80 ? '#22863a' : c >= 60 ? '#e36209' : '#d73a49';
+  return `<span class="badge badge-conf" style="color:${color}">conf: ${c}</span>`;
+}
+
+function renderCard() {
+  if (!filtered.length) {
+    document.getElementById('mainCard').innerHTML = '<div class="empty"><h3>No items match the current filter.</h3></div>';
+    return;
+  }
+  const item = filtered[currentIdx];
+  const key = ratingKey(item);
+  const rated = ratings[key];
+
+  let inner = '';
+
+  // Header
+  inner += `<div class="card-header">
+    <div class="card-meta">
+      <span><b>${item.year}</b></span>
+      <span>${item.recipient}</span>
+      <span style="color:#aaa">${item.donor}</span>
+    </div>
+    <div class="card-number">#${currentIdx + 1} / ${filtered.length}</div>
+  </div>`;
+
+  if (item.purpose && item.purpose !== item.sector && item.purpose.length < 80) {
+    inner += `<span class="meta-pill">${item.purpose}</span> `;
+  }
+  if (item.sector && item.sector.length < 80) {
+    inner += `<span class="meta-pill">${item.sector}</span>`;
+  }
+  inner += '<br style="margin:4px 0">';
+
+  // Text
+  inner += `<div class="section-title" style="margin-top:10px;">Project description</div>
+  <div class="card-text">${escHtml(item.text || '(no description)')}</div>`;
+
+  // Mode-specific classification display
+  if (mode === 'binary') {
+    const isDigital = item.is_digital === 'yes';
+    inner += `<div class="badges">
+      <span class="badge ${isDigital ? 'badge-digital' : 'badge-notdigital'}">${isDigital ? '✓ DIGITAL' : '✗ NOT DIGITAL'}</span>
+      ${confBadge(item.confidence)}
+    </div>`;
+
+  } else if (mode === 'multiway') {
+    inner += `<div class="badges">
+      <span class="badge badge-digital">DIGITAL</span>
+      ${catBadge(item.tech_category)}
+      ${confBadge(item.tech_confidence)}
+    </div>`;
+    if (item.tech_reason) {
+      inner += `<div class="section-title">Model reasoning</div>
+      <div class="reason-box">${escHtml(item.tech_reason)}</div>`;
+    }
+    // highlight active def card after render
+    requestAnimationFrame(() => {
+      const cat = item.tech_category;
+      const map = { digital_governance: 'gov', digital_inclusion: 'inc', hard_infrastructure: 'infra' };
+      const cls = { gov: 'active-gov', inc: 'active-inc', infra: 'active-infra' };
+      ['gov','inc','infra'].forEach(k => {
+        const el = document.getElementById('def-' + k);
+        if (!el) return;
+        el.className = 'def-card' + (map[cat] === k ? ' ' + cls[k] : '');
+      });
+    });
+
+  } else if (mode === 'nontech') {
+    // Show original non_tech vs reclassified side by side
+    inner += `<div class="two-col">
+      <div class="classif-box original">
+        <div class="box-label">Original (4-way) — non_tech</div>
+        <div class="box-cat">non_tech</div>
+        <div class="box-reason">The model chose non_tech when given 4 options — meaning it was classified digital but didn't fit governance, inclusion, or hard infrastructure.</div>
+      </div>
+      <div class="classif-box reclassified">
+        <div class="box-label">Forced 3-way reclassification</div>
+        <div class="box-cat">${item.tech_category || '—'}</div>
+        <div class="box-reason">${escHtml(item.tech_reason || '—')}</div>
+      </div>
+    </div>
+    <div class="badges">
+      <span class="badge badge-nontech">was: non_tech</span>
+      <span style="color:#888;font-size:1rem">→</span>
+      ${catBadge(item.tech_category)}
+      ${confBadge(item.tech_confidence)}
+    </div>
+    <div class="section-title" style="margin-top:8px;">Binary classification</div>
+    <div class="badges"><span class="badge badge-digital">✓ DIGITAL</span>${confBadge(item.confidence)}</div>`;
+  }
+
+  // Rating buttons
+  inner += `<hr class="divider">`;
+
+  if (mode === 'nontech') {
+    inner += `<div class="section-title">Your judgment on the non_tech classification</div>
+  <div class="rating-row nontech-row">
+    <button class="rate-btn nontech-correct ${rated==='nontech_correct'?'selected':''}" onclick="rate('nontech_correct')" title="The project is digital but genuinely doesn't fit any tech category — non_tech was right">✓ non_tech correct</button>
+    <button class="rate-btn correct-recl ${rated==='correct_recl'?'selected':''}" onclick="rate('correct_recl')" title="The forced reclassification into this category is a good fit">✓ Correct reclassification</button>
+    <button class="rate-btn diff-recl ${rated==='diff_recl'?'selected':''}" onclick="rate('diff_recl')" title="It should go into a different category than what was assigned">✗ Different reclassification needed</button>
+    <button class="rate-btn unsure ${rated==='unsure'?'selected':''}" onclick="rate('unsure')">? Unsure</button>
+  </div>
+  <div style="font-size:0.72rem;color:#aaa;margin-top:4px;">1 = non_tech correct &nbsp;·&nbsp; 2 = correct reclassification &nbsp;·&nbsp; 3 = different needed &nbsp;·&nbsp; U = unsure</div>`;
+  } else {
+    const rateLabel = mode === 'binary'
+      ? 'Does the binary digital/not-digital label look correct?'
+      : 'Does the tech category assignment look correct?';
+    inner += `<div class="section-title">${rateLabel}</div>
+  <div class="rating-row">
+    <button class="rate-btn agree ${rated==='agree'?'selected':''}" onclick="rate('agree')">✓ Agree</button>
+    <button class="rate-btn disagree ${rated==='disagree'?'selected':''}" onclick="rate('disagree')">✗ Disagree</button>
+    <button class="rate-btn unsure ${rated==='unsure'?'selected':''}" onclick="rate('unsure')">? Unsure</button>
+    <span class="key-hint">Y / N / U</span>
+  </div>`;
+  }
+
+  const noteKey = ratingKey(item);
+  const savedNote = notes[noteKey] || '';
+  inner += `<div class="notes-wrap">
+    <textarea id="noteArea" placeholder="Notes (saved automatically)…" onblur="saveNote()" oninput="markNoteUnsaved()">${escHtml(savedNote)}</textarea>
+    <div class="notes-saved" id="noteSaved">Saved</div>
+  </div>`;
+
+  document.getElementById('mainCard').innerHTML = inner;
+  document.getElementById('mainCard').classList.toggle('wide', mode === 'nontech');
+  if (savedNote) document.getElementById('noteArea').classList.add('has-note');
+  updateStats();
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function rate(verdict) {
+  if (!filtered.length) return;
+  const item = filtered[currentIdx];
+  const key = ratingKey(item);
+  if (ratings[key] === verdict) {
+    delete ratings[key];  // toggle off
+  } else {
+    ratings[key] = verdict;
+    // auto-advance if not last item
+    if (currentIdx < filtered.length - 1) {
+      setTimeout(() => { currentIdx++; renderCard(); }, 220);
+      localStorage.setItem('oda_review_ratings', JSON.stringify(ratings));
+      return;
+    }
+  }
+  localStorage.setItem('oda_review_ratings', JSON.stringify(ratings));
+  renderCard();
+}
+
+function navigate(dir) {
+  saveNote();
+  currentIdx = Math.max(0, Math.min(filtered.length - 1, currentIdx + dir));
+  renderCard();
+}
+
+function jumpRandom() {
+  saveNote();
+  if (!filtered.length) return;
+  currentIdx = Math.floor(Math.random() * filtered.length);
+  renderCard();
+}
+
+function setMode(m) {
+  mode = m;
+  catFilter = '';
+  binaryFilter = '';
+  currentIdx = 0;
+  ['binary','multiway','nontech'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === m);
+  });
+  // Show/hide filter panels
+  document.getElementById('catFilterSection').style.display = (m === 'binary') ? 'none' : '';
+  document.getElementById('binaryFilterSection').style.display = (m === 'binary') ? '' : 'none';
+  document.getElementById('catNontech').style.display = (m === 'nontech') ? '' : 'none';
+  // Show defs panel only in multiway mode
+  const dp = document.getElementById('defsPanel');
+  if (dp) dp.classList.toggle('visible', m === 'multiway');
+  applyFilters();
+}
+
+function applyFilters() {
+  donorFilter = document.getElementById('donorFilter').value;
+  let items = allItems[mode];
+
+  if (donorFilter) {
+    items = items.filter(r => r.donor === donorFilter);
+  }
+
+  if (mode === 'binary') {
+    if (binaryFilter) {
+      items = items.filter(r => r.is_digital === binaryFilter);
+    }
+    // Update counts
+    const base = donorFilter ? allItems[mode].filter(r => r.donor === donorFilter) : allItems[mode];
+    document.getElementById('binCountAll').textContent = base.length;
+    document.getElementById('binCountYes').textContent = base.filter(r => r.is_digital === 'yes').length;
+    document.getElementById('binCountNo').textContent = base.filter(r => r.is_digital === 'no').length;
+    // Active state
+    ['binAll','binYes','binNo'].forEach(id => {
+      document.getElementById(id).classList.remove('active');
+    });
+    const activeId = binaryFilter === 'yes' ? 'binYes' : binaryFilter === 'no' ? 'binNo' : 'binAll';
+    document.getElementById(activeId).classList.add('active');
+
+  } else {
+    if (catFilter) {
+      if (mode === 'nontech') {
+        items = items.filter(r => r.tech_category === catFilter);
+      } else {
+        items = items.filter(r => r.tech_category === catFilter);
+      }
+    }
+    // Update counts
+    const base = donorFilter ? allItems[mode].filter(r => r.donor === donorFilter) : allItems[mode];
+    document.getElementById('countAll').textContent = base.length;
+    document.getElementById('countGov').textContent = base.filter(r => r.tech_category === 'digital_governance').length;
+    document.getElementById('countInc').textContent = base.filter(r => r.tech_category === 'digital_inclusion').length;
+    document.getElementById('countInfra').textContent = base.filter(r => r.tech_category === 'hard_infrastructure').length;
+    if (mode === 'nontech') document.getElementById('countNontech').textContent = base.filter(r => r.orig_tech_category === 'non_tech').length;
+    // Active state
+    ['catAll','catGov','catInc','catInfra','catNontech'].forEach(id => {
+      document.getElementById(id).classList.remove('active');
+    });
+    const activeId = catFilter === 'digital_governance' ? 'catGov'
+      : catFilter === 'digital_inclusion' ? 'catInc'
+      : catFilter === 'hard_infrastructure' ? 'catInfra'
+      : catFilter === 'non_tech' ? 'catNontech' : 'catAll';
+    document.getElementById(activeId).classList.add('active');
+  }
+
+  filtered = items;
+  currentIdx = Math.min(currentIdx, Math.max(0, filtered.length - 1));
+  renderCard();
+}
+
+function setCatFilter(cat) {
+  catFilter = cat;
+  applyFilters();
+}
+
+function setBinaryFilter(val) {
+  binaryFilter = val;
+  applyFilters();
+}
+
+function saveReviewer(val) {
+  reviewer = val.trim();
+  localStorage.setItem('oda_review_reviewer', reviewer);
+  const el = document.getElementById('reviewerInput');
+  if (el) el.classList.toggle('filled', reviewer.length > 0);
+}
+
+function saveNote() {
+  if (!filtered.length) return;
+  const item = filtered[currentIdx];
+  const key = ratingKey(item);
+  const ta = document.getElementById('noteArea');
+  if (!ta) return;
+  const val = ta.value.trim();
+  if (val) {
+    notes[key] = val;
+    ta.classList.add('has-note');
+  } else {
+    delete notes[key];
+    ta.classList.remove('has-note');
+  }
+  localStorage.setItem('oda_review_notes', JSON.stringify(notes));
+  const saved = document.getElementById('noteSaved');
+  if (saved) { saved.classList.add('show'); setTimeout(() => saved.classList.remove('show'), 1200); }
+}
+
+function markNoteUnsaved() {
+  const saved = document.getElementById('noteSaved');
+  if (saved) saved.classList.remove('show');
+}
+
+function exportCSV() {
+  const esc = s => '"' + String(s || '').replace(/"/g, '""') + '"';
+  let csv = 'mode,orig_idx,year,donor,recipient,is_digital,tech_category,was_nontech,rating,verdict_label,notes,reviewer\n';
+  ['binary','multiway','nontech'].forEach(m => {
+    allItems[m].forEach(item => {
+      const key = m + ':' + item._origIdx;
+      if (ratings[key] || notes[key]) {
+        const r = ratings[key] || '';
+        // for nontech mode, also expand verdict to a readable label
+        const verdict_label = {
+          nontech_correct: 'non_tech correct',
+          correct_recl: 'correct reclassification',
+          diff_recl: 'different reclassification needed',
+          agree: 'agree', disagree: 'disagree', unsure: 'unsure'
+        }[r] || r;
+        csv += [m, item._origIdx, item.year, esc(item.donor), esc(item.recipient),
+          esc(item.is_digital), esc(item.tech_category), item.was_nontech,
+          esc(r), esc(verdict_label), esc(notes[key] || '')
+        , esc(reviewer || 'anonymous')
+        ].join(',') + '\n';
+      }
+    });
+  });
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'oda_classification_review.csv';
+  a.click();
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  const k = e.key.toLowerCase();
+  if (k === 'arrowleft') navigate(-1);
+  else if (k === 'arrowright') navigate(1);
+  else if (k === 'u') rate('unsure');
+  else if (k === 'r') jumpRandom();
+  else if (mode === 'nontech') {
+    if (k === '1') rate('nontech_correct');
+    else if (k === '2') rate('correct_recl');
+    else if (k === '3') rate('diff_recl');
+  } else {
+    if (k === 'y') rate('agree');
+    else if (k === 'n') rate('disagree');
+    else if (e.key === '1') setMode('binary');
+    else if (e.key === '2') setMode('multiway');
+    else if (e.key === '3') setMode('nontech');
+  }
+});
+
+// Load data from separate file (hosted version)
+fetch('data.json')
+  .then(r => {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(data => {
+    // Populate allItems
+    ['binary','multiway','nontech'].forEach(m => {
+      allItems[m] = (data[m] || []).map((r, i) => ({ ...r, _origIdx: i }));
+    });
+    document.getElementById('loadingOverlay').classList.add('hidden');
+    const ri = document.getElementById('reviewerInput');
+    if (ri) { ri.value = reviewer; ri.classList.toggle('filled', reviewer.length > 0); }
+    setMode('binary');
+  })
+  .catch(err => {
+    const el = document.getElementById('loadError');
+    el.style.display = 'block';
+    el.textContent = 'Failed to load data.json: ' + err.message;
+    console.error(err);
+  });
+</script>
+</body>
+</html>
