@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>HF Orgs Line Chart</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --fg: #111;
+            --text: #333;
+            --text-muted: #777;
+            --text-label: #333;
+            --link: #2756d3;
+            --border: rgba(0, 0, 0, 0.1);
+            --tooltip-bg: #fff;
+            --tooltip-border: #d9d9df;
+            --tooltip-shadow: rgba(0, 0, 0, 0.08);
+            --tooltip-fg: inherit;
+            --axis-stroke: #cfd2d7;
+            --axis-text: #333;
+            --grid-stroke: rgba(230, 232, 239, 0.45);
+            --final-label-shadow: rgba(255, 255, 255, 0.6);
+            --node-fill: #ffffff;
+            --dot-stroke: #fff;
+        }
+
+        body.dark {
+            --bg: #0b0f14;
+            --fg: #e5e7eb;
+            --text: #cbd5e1;
+            --text-muted: #9aa5b1;
+            --text-label: #cbd5e1;
+            --link: #8ab4ff;
+            --border: rgba(255, 255, 255, 0.08);
+            --tooltip-bg: #0f141b;
+            --tooltip-border: #2a3240;
+            --tooltip-shadow: rgba(0, 0, 0, 0.5);
+            --tooltip-fg: #e5e7eb;
+            --axis-stroke: #2f3542;
+            --axis-text: #cbd5e1;
+            --grid-stroke: rgba(255, 255, 255, 0.08);
+            --final-label-shadow: rgba(0, 0, 0, 0.7);
+            --node-fill: #0b0f14;
+            --dot-stroke: #fff;
+        }
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            height: 100vh;
+        }
+
+        .viz-layout {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: stretch;
+            justify-content: flex-start;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .viz-grid {
+            display: grid;
+            /*grid-template-rows: 1fr auto 0.1fr;*/
+            grid-template-rows: 17.5fr 0.5fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            row-gap: clamp(6px, 1.5vh, 12px);
+            padding: 0 clamp(12px, 2vw, 20px) env(safe-area-inset-bottom) clamp(12px, 2vw, 20px);
+            /*padding-bottom:clamp(8px,2vh,18px)*/
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            display: flex;
+            overflow: hidden;
+            min-height: 0;
+            column-gap: 0;
+            padding: 0;
+        }
+
+        .y-axis-container {
+            flex: 0 0 clamp(28px, 3vw, 46px);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            min-width: 0;
+            border-right: 1px solid var(--border);
+            box-sizing: border-box;
+            padding: 0 6px;
+        }
+
+        .y-axis-label {
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            text-align: center;
+            font-weight: 600;
+            font-size: clamp(10px, 1.2vw, 16px);
+            color: var(--text-label);
+            line-height: 1.2;
+            letter-spacing: 0.04em;
+        }
+
+        .chart-wrapper {
+            flex: 1 1 auto;
+            display: flex;
+            min-width: 0;
+            height: 100%;
+            margin-left: -6px;
+        }
+
+        .chart-wrapper-inner {
+            flex: 1 1 auto;
+            display: flex;
+            min-width: 0;
+            height: 100%;
+        }
+
+        #viz {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #chart {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        #tooltip {
+            position: absolute;
+            background: var(--tooltip-bg);
+            border: 1px solid var(--tooltip-border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: 0 4px 14px var(--tooltip-shadow);
+            transition: opacity .12s ease;
+            max-width: 220px;
+            color: var(--tooltip-fg);
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            min-width: 0;
+            padding: clamp(4px, 0.5vh, 8px) 0;
+        }
+
+        #container3 {
+            grid-row: 3;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: clamp(10px, 2vw, 16px);
+            min-width: 0;
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: var(--link);
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .source-text a:visited {
+            color: var(--link);
+        }
+
+        .logo-note {
+            font-size: clamp(10px, 1.2vw, 12px);
+            color: var(--text-muted);
+            font-style: italic;
+            white-space: nowrap;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: 100%;
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .axis path,
+        .axis line {
+            stroke: var(--axis-stroke);
+        }
+
+        .axis text {
+            fill: var(--axis-text);
+            font-size: 12px;
+        }
+
+        .x-axis text {
+            font-size: clamp(11px, 1.2vw, 18px);
+        }
+
+        .grid line {
+            stroke: var(--grid-stroke);
+        }
+
+        .grid .domain {
+            display: none;
+        }
+
+        .final-label {
+            font-weight: 600;
+            pointer-events: none;
+            font-size: 12px;
+            text-shadow: 0 1px 2px var(--final-label-shadow);
+        }
+
+        .series-dots .dot {
+            cursor: pointer;
+        }
+
+        .final-node {
+            cursor: pointer;
+        }
+
+        .date-display {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 12px;
+            border: 1px solid var(--axis-stroke);
+            border-radius: 10px;
+            background: var(--tooltip-bg);
+            font-weight: 700;
+            color: var(--text);
+            font-size: clamp(12px, 1.4vw, 16px);
+            line-height: 1;
+            min-width: clamp(160px, 20vw, 220px);
+            width: clamp(160px, 20vw, 220px);
+            box-sizing: border-box;
+        }
+
+        body.anim #container2 {
+            justify-content: center;
+            gap: clamp(12px, 2vw, 20px);
+            position: relative;
+        }
+
+        body.anim .logo-note {
+            position: absolute;
+            right: 0;
+        }
+
+        @media (max-width: 640px) {
+            #container3 {
+                display: none;
+            }
+        }
+
+        @media (max-width: 460px),
+        (max-height: 520px) {
+            #container2 {
+                display: none;
+            }
+        }
+
+        @media (max-height: 480px) {
+            .viz-grid {
+                grid-template-rows: 1fr;
+            }
+
+            #container2,
+            #container3,
+            #container4 {
+                display: none;
+            }
+        }
+    </style>
+    <script>
+        // Apply dark mode class before first paint to avoid flash
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("mode") === "dark") {
+            document.documentElement.style.background = "#0b0f14";
+        }
+    </script>
+</head>
+
+<body>
+    <div class="viz-layout" id="vizLayout">
+        <div class="viz-grid">
+            <div id="container1" class="container chart-container">
+                <div class="y-axis-container">
+                    <div class="y-axis-label" id="yLabel">Downloads</div>
+                </div>
+                <div class="chart-wrapper">
+                    <div class="chart-wrapper-inner">
+                        <div id="viz">
+                            <svg id="chart" role="img"></svg>
+                            <div id="tooltip"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="container2" class="container note-container">
+                <div id="dateDisplay" class="date-display" style="display:none"></div>
+                <span class="logo-note">* Considering repos in 2025 above 500 downloads or 10 likes for spaces</span>
+            </div>
+            <div id="container3" class="container source-container">
+                <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank"
+                        rel="noopener">HuggingFace</a></div>
+            </div>
+            <div id="container4" class="container logo-container">
+                <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                    <img src="../logo.svg" class="logo" alt="AI World logo" crossorigin="anonymous">
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const _params = new URLSearchParams(window.location.search);
+        const DARK = _params.get("mode") === "dark";
+        const ANIM = _params.get("animation") === "1";
+        if (DARK) document.body.classList.add("dark");
+        if (ANIM) document.body.classList.add("anim");
+
+        const svg = d3.select("#chart");
+        const tooltip = d3.select("#tooltip");
+        const yLabelEl = document.getElementById("yLabel");
+        const vizEl = document.getElementById("viz");
+        const dateDisplayEl = document.getElementById("dateDisplay");
+
+        const TARGET_YEAR = 2025;
+        const INCLUDED_PERCENT = 50;
+        const METRIC = { key: "repos_total", label: "Repos" };
+
+        const DEFAULT_START_DATE = new Date(Date.UTC(2023, 9, 1));
+        const DEFAULT_END_DATE = new Date(Date.UTC(2024, 9, 1));
+        const STEP_MIN = 1;
+        const STEP_MAX = 16;
+        const DELAY_MIN = 60;
+        const DELAY_MAX = 4000;
+        const REPLAY_DELAY = 4000;
+        let autoStep = 1;
+        let autoDelay = 160;
+
+        const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
+        const formatComma = d3.format(",.0f");
+        const formatShort = d3.format(".2s");
+        const dateFormatter = d3.utcFormat("%b %-d, %Y");
+
+        let orgMeta = new Map();
+        let chartSeries = [];
+        let timelineDates = [];
+
+        let xScale = null;
+        let yScale = null;
+        let lineGenerator = null;
+        let currentStart = 0;
+        let currentEnd = 0;
+        let autoTimer = null;
+        let replayTimeout = null;
+        let animDefaultStart = 0;
+        let animDefaultEnd = 0;
+        let animWindowSize = 1;
+        let animTargetEnd = 0;
+
+        init();
+
+        async function init() {
+            try {
+                const [rawData, orgs] = await Promise.all([
+                    fetchJSON("./data.json"),
+                    fetchJSON("../orgs.json")
+                ]);
+                orgMeta = buildOrgMeta(orgs);
+                const processed = ANIM ? buildSeriesAll(rawData) : buildSeries(rawData);
+                chartSeries = processed.series;
+                timelineDates = processed.timeline;
+                if (processed.totalCompanies === 0 || chartSeries.length === 0) {
+                    render();
+                    return;
+                }
+                yLabelEl.textContent = METRIC.label;
+                render();
+                if (ANIM) {
+                    dateDisplayEl.style.display = "";
+                    setupAnimation();
+                    bindSpeedKeys();
+                }
+            } catch (err) {
+                console.error("Failed to load visualization data:", err);
+            }
+        }
+
+        function buildOrgMeta(list) {
+            const map = new Map();
+            if (Array.isArray(list)) {
+                list.forEach(item => {
+                    if (!item || !item.id) { return; }
+                    map.set(item.id, {
+                        ...item,
+                        company: item.company === true,
+                        regionKey: normalizeRegion(item.region)
+                    });
+                });
+            }
+            return map;
+        }
+
+        function normalizeRegion(value) {
+            return String(value ?? "").trim().toLowerCase();
+        }
+
+        async function fetchJSON(url) {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status} while fetching ${url}`);
+            }
+            return response.json();
+        }
+
+        function buildSeries(rawData) {
+            if (!Array.isArray(rawData)) {
+                return { series: [], timeline: [], totalCompanies: 0, includedCount: 0 };
+            }
+            const yearStart = new Date(Date.UTC(TARGET_YEAR, 0, 1));
+            const companyIds = new Set();
+            orgMeta.forEach(meta => { if (meta && meta.company) { companyIds.add(meta.id); } });
+            const groups = d3.group(rawData, d => d.id);
+            const perOrgAll = [];
+            groups.forEach((entries, id) => {
+                if (!companyIds.has(id)) { return; }
+                const all = entries.map(entry => {
+                    const date = parseDate(entry.week_date || entry.month_date || null);
+                    const total = Number(entry[METRIC.key]);
+                    const week = Number(entry.week_count) || null;
+                    return { id, date, total: Number.isFinite(total) ? total : 0, week };
+                }).filter(p => p.date instanceof Date && !Number.isNaN(p.date.valueOf()));
+                all.sort((a, b) => a.date - b.date);
+                if (!all.length) { return; }
+                perOrgAll.push({ id, all });
+            });
+            if (!perOrgAll.length) {
+                return { series: [], timeline: [], totalCompanies: 0, includedCount: 0 };
+            }
+            let globalFinalDate = null;
+            perOrgAll.forEach(({ all }) => {
+                const within = all.filter(p => p.date >= yearStart);
+                if (within.length) {
+                    const last = within[within.length - 1].date;
+                    if (!globalFinalDate || last > globalFinalDate) { globalFinalDate = last; }
+                }
+            });
+            if (!globalFinalDate) { globalFinalDate = yearStart; }
+            const addDaysUTC = (date, days) => { const d = new Date(date.getTime()); d.setUTCDate(d.getUTCDate() + days); return d; };
+            const weekStepDates = [];
+            for (let d = new Date(yearStart.getTime()); d <= globalFinalDate; d = addDaysUTC(d, 7)) {
+                weekStepDates.push(new Date(d.getTime()));
+            }
+            const series = [];
+            perOrgAll.forEach(({ id, all }) => {
+                let baseTotal = 0;
+                for (let i = 0; i < all.length; i++) {
+                    if (all[i].date < yearStart) { baseTotal = all[i].total; } else { break; }
+                }
+                const within = all.filter(p => p.date >= yearStart && p.date <= globalFinalDate);
+                if (!within.length) { return; }
+                const byDate = new Map(within.map(p => [p.date.getTime(), Math.max(0, p.total - baseTotal)]));
+                const pts = [];
+                let prevEnd = 0;
+                for (let i = 0; i < weekStepDates.length; i++) {
+                    const d = weekStepDates[i];
+                    const key = d.getTime();
+                    const end = byDate.has(key) ? byDate.get(key) : prevEnd;
+                    const startValue = prevEnd;
+                    const delta = end - prevEnd;
+                    pts.push({ id, date: d, value: startValue, end, delta, week: null });
+                    prevEnd = end;
+                }
+                if (pts.length && pts[0].date.getTime() !== yearStart.getTime()) {
+                    pts.unshift({ id, date: yearStart, value: 0, end: 0, delta: 0, week: null });
+                }
+                const finalValue = pts.length ? pts[pts.length - 1].value : 0;
+                series.push({ id, values: pts, finalValue });
+            });
+            series.sort((a, b) => (b.finalValue || 0) - (a.finalValue || 0));
+            const totalCompanies = series.length;
+            const keepCount = totalCompanies ? Math.max(1, Math.round(totalCompanies * INCLUDED_PERCENT / 100)) : 0;
+            const kept = keepCount ? series.slice(0, keepCount) : [];
+            const timeline = weekStepDates.slice();
+            return { series: kept, timeline, totalCompanies, includedCount: kept.length };
+        }
+
+        function buildSeriesAll(rawData) {
+            if (!Array.isArray(rawData)) { return { series: [], timeline: [], totalCompanies: 0, includedCount: 0 }; }
+            const companyIds = new Set();
+            orgMeta.forEach(meta => { if (meta && meta.company) { companyIds.add(meta.id); } });
+            const groups = d3.group(rawData, d => d.id);
+            const perOrgAll = [];
+            groups.forEach((entries, id) => {
+                if (!companyIds.has(id)) { return; }
+                const all = entries.map(entry => {
+                    const date = parseDate(entry.week_date || entry.month_date || null);
+                    const total = Number(entry[METRIC.key]);
+                    return { id, date, total: Number.isFinite(total) ? total : 0 };
+                }).filter(p => p.date instanceof Date && !Number.isNaN(p.date.valueOf()));
+                all.sort((a, b) => a.date - b.date);
+                if (!all.length) { return; }
+                perOrgAll.push({ id, all });
+            });
+            if (!perOrgAll.length) { return { series: [], timeline: [], totalCompanies: 0, includedCount: 0 }; }
+            let globalMin = null, globalMax = null;
+            perOrgAll.forEach(({ all }) => {
+                if (!globalMin || all[0].date < globalMin) { globalMin = all[0].date; }
+                if (!globalMax || all[all.length - 1].date > globalMax) { globalMax = all[all.length - 1].date; }
+            });
+            const addDaysUTC = (date, days) => { const d = new Date(date.getTime()); d.setUTCDate(d.getUTCDate() + days); return d; };
+            const weekStepDates = [];
+            for (let d = new Date(Date.UTC(globalMin.getUTCFullYear(), globalMin.getUTCMonth(), globalMin.getUTCDate())); d <= globalMax; d = addDaysUTC(d, 7)) {
+                weekStepDates.push(new Date(d.getTime()));
+            }
+            const dummy0 = weekStepDates[0] ? new Date(weekStepDates[0].getTime()) : new Date(globalMin.getTime());
+            const timeline = [dummy0, ...weekStepDates];
+            const series = [];
+            perOrgAll.forEach(({ id, all }) => {
+                let baseTotal = 0;
+                for (let i = 0; i < all.length; i++) {
+                    if (all[i].date < weekStepDates[0]) { baseTotal = all[i].total; } else { break; }
+                }
+                const within = all.filter(p => p.date >= weekStepDates[0] && p.date <= weekStepDates[weekStepDates.length - 1]);
+                let j = 0;
+                let carry = within.length > 0 ? Math.max(0, within[0].total - baseTotal) : 0;
+                const pts = [];
+                for (let i = 0; i < weekStepDates.length; i++) {
+                    const d = weekStepDates[i];
+                    while (j < within.length && within[j].date <= d) {
+                        carry = Math.max(0, within[j].total - baseTotal);
+                        j += 1;
+                    }
+                    pts.push({ id, date: d, end: carry, delta: 0, index: i + 1 });
+                }
+                const ptsWithZero = [{ id, date: dummy0, end: 0, delta: 0, index: 0 }, ...pts];
+                for (let k = 1; k < ptsWithZero.length; k++) {
+                    ptsWithZero[k].delta = ptsWithZero[k].end - ptsWithZero[k - 1].end;
+                }
+                const finalValue = ptsWithZero.length ? ptsWithZero[ptsWithZero.length - 1].end : 0;
+                series.push({ id, values: ptsWithZero, finalValue });
+            });
+            series.sort((a, b) => (b.finalValue || 0) - (a.finalValue || 0));
+            const totalCompanies = series.length;
+            const keepCount = totalCompanies ? Math.max(1, Math.round(totalCompanies * INCLUDED_PERCENT / 100)) : 0;
+            const kept = keepCount ? series.slice(0, keepCount) : [];
+            return { series: kept, timeline, totalCompanies, includedCount: kept.length };
+        }
+
+        function getMonthTickStep(innerW) {
+            if (innerW < 360) { return 6; }
+            if (innerW < 680) { return 3; }
+            if (innerW < 900) { return 2; }
+            return 1;
+        }
+
+        function parseDate(input) {
+            if (!input) { return null; }
+            const text = String(input).trim();
+            if (!text) { return null; }
+            const iso = text.includes("T") ? text : `${text}T00:00:00Z`;
+            const date = new Date(iso);
+            return Number.isNaN(date.valueOf()) ? null : date;
+        }
+
+        function getOrgColor(id) {
+            const meta = orgMeta.get(id);
+            if (meta) {
+                if (DARK && meta.dark_color) { return meta.dark_color; }
+                if (meta.color) { return meta.color; }
+            }
+            return colorScale(id);
+        }
+
+        function getNodeFill(id, defaultFill) {
+            if (DARK) {
+                const meta = orgMeta.get(id);
+                if (meta && meta.dark_bg) { return meta.dark_bg; }
+            }
+            return defaultFill;
+        }
+
+        function formatValue(value) {
+            if (!Number.isFinite(value)) {
+                return "0";
+            }
+            const abs = Math.abs(value);
+            if (abs >= 1e9) {
+                return formatShort(value).replace("G", "B");
+            }
+            if (abs >= 1e6) {
+                return formatShort(value);
+            }
+            if (abs >= 1e3) {
+                return formatShort(value);
+            }
+            return formatComma(value);
+        }
+
+        function getOrgLogo(id) {
+            const meta = orgMeta.get(id) || {};
+            const raw = meta.logo || meta.logo_url || meta.avatar || meta.icon || null;
+            if (!raw) return null;
+            // _orgs.json paths are relative to ../  (the gtc/ folder)
+            return raw.startsWith("http") ? raw : `../${raw}`;
+        }
+
+        function render() {
+            if (!chartSeries.length) { svg.selectAll("*").remove(); return; }
+            const cs = getComputedStyle(document.body);
+            const gridStroke = cs.getPropertyValue("--grid-stroke").trim();
+            const axisStroke = cs.getPropertyValue("--axis-stroke").trim();
+            const nodeFill = cs.getPropertyValue("--node-fill").trim();
+            const dotStroke = cs.getPropertyValue("--dot-stroke").trim();
+
+            if (ANIM) {
+                renderAnim(gridStroke, axisStroke, nodeFill, dotStroke);
+            } else {
+                renderStatic(gridStroke, axisStroke, nodeFill, dotStroke);
+            }
+        }
+
+        function renderStatic(gridStroke, axisStroke, nodeFill, dotStroke) {
+            const margin = { top: 28, right: 36, bottom: 40, left: 68 };
+            const rect = vizEl.getBoundingClientRect();
+            const width = Math.max(margin.left + margin.right + 240, rect.width || 960);
+            const height = Math.max(margin.top + margin.bottom + 220, rect.height || 560);
+            const innerWidth = Math.max(80, width - margin.left - margin.right);
+            const innerHeight = Math.max(80, height - margin.top - margin.bottom);
+            const sizeBase = Math.max(innerWidth, innerHeight);
+            const dotR = Math.round(Math.max(2, Math.min(6, sizeBase / 250)));
+
+            svg.attr("viewBox", `0 0 ${width} ${height}`);
+            svg.attr("aria-label", `${METRIC.label} line chart for ${TARGET_YEAR}`);
+
+            const defs = svg.selectAll("defs").data([null]).join("defs");
+            const logoClip = defs.selectAll("clipPath#logoCircleClip").data([null]).join("clipPath").attr("id", "logoCircleClip").attr("clipPathUnits", "objectBoundingBox");
+            logoClip.selectAll("circle").data([null]).join("circle").attr("cx", 0.5).attr("cy", 0.5).attr("r", 0.5);
+
+            const root = svg.selectAll("g.chart-root").data([null]).join("g").attr("class", "chart-root").attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const allDates = timelineDates.length ? timelineDates : chartSeries.flatMap(s => s.values.map(p => p.date));
+            if (!allDates.length) { svg.selectAll("*").remove(); return; }
+            let xDomain = d3.extent(allDates);
+            if (!xDomain[0] || !xDomain[1] || xDomain[0].getTime() === xDomain[1].getTime()) {
+                const base = xDomain[0] || new Date(Date.UTC(TARGET_YEAR, 0, 1));
+                xDomain = [d3.utcDay.offset(base, -3), d3.utcDay.offset(base, 3)];
+            }
+
+            const valuesFlat = chartSeries.flatMap(s => s.values.map(p => p.value));
+            const yMax = d3.max(valuesFlat);
+            if (!Number.isFinite(yMax)) { svg.selectAll("*").remove(); return; }
+
+            const _xScale = d3.scaleUtc().domain(xDomain).range([0, innerWidth]);
+            const _yScale = d3.scaleLinear().domain([0, yMax]).nice().range([innerHeight, 0]);
+            const xAxis = d3.axisBottom(_xScale).ticks(d3.utcMonth.every(1)).tickFormat(d3.utcFormat("%b '%y"));
+            const yAxis = d3.axisLeft(_yScale).ticks(6).tickFormat(formatValue);
+
+            const grid = root.selectAll("g.grid-y").data([null]).join("g").attr("class", "grid grid-y").call(d3.axisLeft(_yScale).ticks(6).tickSize(-innerWidth).tickFormat(""));
+            grid.select(".domain").remove();
+            grid.selectAll("line").attr("stroke", gridStroke);
+
+            const xAxisGroup = root.selectAll("g.x-axis").data([null]).join("g").attr("class", "axis x-axis").attr("transform", `translate(0,${innerHeight})`).call(xAxis);
+            const yAxisGroup = root.selectAll("g.y-axis").data([null]).join("g").attr("class", "axis y-axis").call(yAxis);
+            yAxisGroup.select(".domain").remove();
+            xAxisGroup.select(".domain").attr("stroke", axisStroke);
+
+            const _lineGen = d3.line().defined(p => Number.isFinite(p.value)).x(p => _xScale(p.date)).y(p => _yScale(p.value));
+
+            const seriesGroups = root.selectAll("g.series-group").data(chartSeries, d => d.id);
+            const seriesEnter = seriesGroups.enter().append("g").attr("class", "series-group");
+            seriesEnter.append("path").attr("class", "series-line").attr("fill", "none").attr("stroke-width", 2);
+            seriesEnter.append("g").attr("class", "series-dots");
+            const finalNode = seriesEnter.append("g").attr("class", "final-node");
+            finalNode.append("circle").attr("class", "final-outline");
+            finalNode.append("image").attr("class", "final-logo");
+
+            const seriesMerged = seriesEnter.merge(seriesGroups);
+            seriesMerged.each(function (series) {
+                d3.select(this).select("path.series-line").attr("stroke", getOrgColor(series.id)).attr("d", _lineGen(series.values));
+                const dots = d3.select(this).select("g.series-dots").selectAll("circle.dot")
+                    .data(series.values.map(p => ({ ...p, seriesId: series.id })), p => p.date.getTime());
+
+                const lastPoint = series.values[series.values.length - 1];
+                const cx = _xScale(lastPoint.date);
+                const cy = _yScale(lastPoint.value);
+                const logoSize = Math.round(Math.max(24, Math.min(44, innerWidth / 24)));
+                const r = Math.round(logoSize / 2 + 2);
+
+                dots.enter().append("circle").attr("class", "dot").attr("r", dotR)
+                    .attr("fill", getOrgColor(series.id)).attr("stroke", dotStroke).attr("stroke-width", 1)
+                    .on("mouseenter", function (event, point) {
+                        const seriesGroup = d3.select(this.parentNode.parentNode);
+                        const g = seriesGroup.select("g.final-node");
+                        seriesGroup.raise(); g.raise();
+                        d3.select(this).transition().duration(120).attr("r", dotR + 3).attr("stroke-width", 2);
+                        const outline = g.select("circle.final-outline");
+                        const logo = g.select("image.final-logo");
+                        outline.transition().duration(120).attr("r", r + 3).attr("stroke-width", 3);
+                        logo.transition().duration(120)
+                            .attr("x", cx - (logoSize + 6) / 2).attr("y", cy - (logoSize + 6) / 2)
+                            .attr("width", logoSize + 6).attr("height", logoSize + 6);
+                        showTooltip(event, point);
+                    })
+                    .on("mousemove", function (event, point) { moveTooltip(event, point); })
+                    .on("mouseleave", function () {
+                        const seriesGroup = d3.select(this.parentNode.parentNode);
+                        const g = seriesGroup.select("g.final-node");
+                        d3.select(this).transition().duration(120).attr("r", dotR).attr("stroke-width", 1);
+                        g.select("circle.final-outline").transition().duration(120).attr("r", r).attr("stroke-width", 2);
+                        g.select("image.final-logo").transition().duration(120)
+                            .attr("x", cx - logoSize / 2).attr("y", cy - logoSize / 2)
+                            .attr("width", logoSize).attr("height", logoSize);
+                        hideTooltip();
+                    })
+                    .merge(dots).attr("r", dotR)
+                    .attr("cx", p => _xScale(p.date)).attr("cy", p => _yScale(p.value));
+                dots.exit().remove();
+
+                const logoUrl = getOrgLogo(series.id) || "";
+                const node = d3.select(this).select("g.final-node");
+                node.raise();
+                node.select("circle.final-outline").attr("cx", cx).attr("cy", cy).attr("r", r)
+                    .attr("fill", getNodeFill(series.id, nodeFill)).attr("stroke", getOrgColor(series.id)).attr("stroke-width", 2);
+                node.select("image.final-logo").attr("href", logoUrl)
+                    .attr("x", cx - logoSize / 2).attr("y", cy - logoSize / 2)
+                    .attr("width", logoSize).attr("height", logoSize)
+                    .attr("preserveAspectRatio", "xMidYMid slice").attr("clip-path", "url(#logoCircleClip)");
+                node.style("pointer-events", "all")
+                    .on("mouseenter", (event) => {
+                        const g = d3.select(event.currentTarget);
+                        const sg = d3.select(event.currentTarget.parentNode);
+                        sg.raise(); g.raise();
+                        g.select("circle.final-outline").transition().duration(120).attr("r", r + 3).attr("stroke-width", 3);
+                        g.select("image.final-logo").transition().duration(120)
+                            .attr("x", cx - (logoSize + 6) / 2).attr("y", cy - (logoSize + 6) / 2)
+                            .attr("width", logoSize + 6).attr("height", logoSize + 6);
+                        showTooltip(event, { ...lastPoint, seriesId: series.id });
+                    })
+                    .on("mousemove", (event) => { moveTooltip(event, { ...lastPoint, seriesId: series.id }); })
+                    .on("mouseleave", (event) => {
+                        const g = d3.select(event.currentTarget);
+                        g.select("circle.final-outline").transition().duration(120).attr("r", r).attr("stroke-width", 2);
+                        g.select("image.final-logo").transition().duration(120)
+                            .attr("x", cx - logoSize / 2).attr("y", cy - logoSize / 2)
+                            .attr("width", logoSize).attr("height", logoSize);
+                        hideTooltip();
+                    });
+            });
+            seriesGroups.exit().remove();
+        }
+
+        function renderAnim(gridStroke, axisStroke, nodeFill, dotStroke) {
+            const margin = { top: 32, right: 40, bottom: 56, left: 74 };
+            const rect = vizEl.getBoundingClientRect();
+            const width = Math.max(margin.left + margin.right + 360, rect.width || 960);
+            const height = Math.max(margin.top + margin.bottom + 280, rect.height || 560);
+            svg.attr("viewBox", `0 0 ${width} ${height}`);
+            svg.attr("aria-label", `${METRIC.label} animated line chart`);
+
+            const defs = svg.selectAll("defs").data([null]).join("defs");
+            const logoClip = defs.selectAll("clipPath#logoCircleClip").data([null]).join("clipPath").attr("id", "logoCircleClip").attr("clipPathUnits", "objectBoundingBox");
+            logoClip.selectAll("circle").data([null]).join("circle").attr("cx", 0.5).attr("cy", 0.5).attr("r", 0.5);
+
+            const root = svg.selectAll("g.chart-root").data([null]).join("g").attr("class", "chart-root").attr("transform", `translate(${margin.left},${margin.top})`);
+            const allDates = timelineDates.length ? timelineDates : chartSeries.flatMap(s => s.values.map(p => p.date));
+            if (!allDates.length) { svg.selectAll("*").remove(); return; }
+            let xDomain = d3.extent(allDates);
+            if (!xDomain[0] || !xDomain[1] || xDomain[0].getTime() === xDomain[1].getTime()) {
+                const base = xDomain[0] || new Date(Date.UTC(TARGET_YEAR, 0, 1));
+                xDomain = [d3.utcDay.offset(base, -3), d3.utcDay.offset(base, 3)];
+            }
+            const valuesFlat = chartSeries.flatMap(s => s.values.map(p => p.end));
+            const yMax = d3.max(valuesFlat);
+            const innerW = Math.max(120, width - margin.left - margin.right);
+            const innerH = Math.max(120, height - margin.top - margin.bottom);
+            xScale = d3.scaleUtc().domain(xDomain).range([0, innerW]);
+            yScale = d3.scaleLinear().domain([0, yMax]).nice().range([innerH, 0]);
+
+            const xTickStep = getMonthTickStep(innerW);
+            const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(xTickStep)).tickFormat(d3.utcFormat("%b %Y"));
+            const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
+
+            const grid = root.selectAll("g.grid-y").data([null]).join("g").attr("class", "grid grid-y").call(d3.axisLeft(yScale).ticks(6).tickSize(-innerW).tickFormat(""));
+            grid.select(".domain").remove();
+            grid.selectAll("line").attr("stroke", gridStroke);
+
+            const xAxisGroup = root.selectAll("g.x-axis").data([null]).join("g").attr("class", "axis x-axis").attr("transform", `translate(0,${innerH})`).call(xAxis);
+            const yAxisGroup = root.selectAll("g.y-axis").data([null]).join("g").attr("class", "axis y-axis").call(yAxis);
+            yAxisGroup.select(".domain").remove();
+            xAxisGroup.select(".domain").attr("stroke", axisStroke);
+
+            lineGenerator = d3.line().defined(p => Number.isFinite(p.end)).x(p => xScale(p.date)).y(p => yScale(p.end));
+
+            const seriesGroups = root.selectAll("g.series-group").data(chartSeries, d => d.id);
+            const seriesEnter = seriesGroups.enter().append("g").attr("class", "series-group");
+            seriesEnter.append("path").attr("class", "series-line").attr("fill", "none").attr("stroke-width", 2);
+            seriesEnter.append("g").attr("class", "series-dots");
+            const finalNode = seriesEnter.append("g").attr("class", "final-node");
+            finalNode.append("circle").attr("class", "final-outline");
+            finalNode.append("image").attr("class", "final-logo");
+
+            const seriesMerged = seriesEnter.merge(seriesGroups);
+            seriesMerged.each(function (series) {
+                d3.select(this).select("path.series-line").attr("stroke", getOrgColor(series.id));
+            });
+            seriesGroups.exit().remove();
+
+            updateFrameRange(currentStart, currentEnd);
+        }
+
+        function updateFrameRange(startIndex, endIndex) {
+            if (!chartSeries.length || !timelineDates.length || !xScale || !yScale || !lineGenerator) { return; }
+            currentStart = Math.max(0, Math.min(startIndex, timelineDates.length - 1));
+            currentEnd = Math.max(currentStart, Math.min(endIndex, timelineDates.length - 1));
+
+            const cs = getComputedStyle(document.body);
+            const gridStroke = cs.getPropertyValue("--grid-stroke").trim();
+            const axisStroke = cs.getPropertyValue("--axis-stroke").trim();
+            const nodeFill = cs.getPropertyValue("--node-fill").trim();
+            const dotStroke = cs.getPropertyValue("--dot-stroke").trim();
+
+            const root = svg.select("g.chart-root");
+            const innerWidth = xScale.range()[1];
+            const isTinyW = innerWidth < 420;
+            const compact = innerWidth < 720 && !isTinyW;
+            const logoSize = isTinyW ? Math.round(Math.max(14, Math.min(22, innerWidth / 40))) : compact ? Math.round(Math.max(16, Math.min(28, innerWidth / 36))) : Math.round(Math.max(22, Math.min(42, innerWidth / 26)));
+            const r = Math.round(logoSize / 2 + 2);
+            const recomputedDotR = isTinyW ? Math.max(1, Math.min(3, Math.round(innerWidth / 360))) : compact ? Math.round(Math.max(2, Math.min(4, innerWidth / 300))) : Math.round(Math.max(3, Math.min(6, innerWidth / 250)));
+
+            const xTickStep = getMonthTickStep(innerWidth);
+            const domainStartDate = timelineDates[currentStart];
+            const domainEndDate = timelineDates[currentEnd];
+            xScale.domain([domainStartDate, domainEndDate]);
+
+            const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(xTickStep)).tickFormat(d3.utcFormat("%b %Y"));
+            root.select("g.x-axis").attr("transform", `translate(0,${yScale.range()[0]})`).call(xAxis);
+            root.select("g.x-axis .domain").attr("stroke", axisStroke);
+
+            const adjustedById = new Map();
+            chartSeries.forEach(s => {
+                const vis = s.values.filter(v => v.index >= currentStart && v.index <= currentEnd);
+                const baseIndex = currentStart - 1;
+                const basePt = baseIndex >= 0 ? s.values.find(v => v.index === baseIndex) : null;
+                const baseline = basePt ? basePt.end : 0;
+                const adj = vis.map(v => ({ ...v, end: Math.max(0, v.end - baseline) }));
+                adjustedById.set(s.id, { adj, last: adj[adj.length - 1] || null });
+            });
+
+            const yMaxWindow = d3.max(Array.from(adjustedById.values(), d => d3.max(d.adj, p => p.end))) || 0;
+            yScale.domain([0, yMaxWindow > 0 ? yMaxWindow : 1]).nice();
+
+            const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
+            root.select("g.y-axis").call(yAxis);
+            const gridCall = d3.axisLeft(yScale).ticks(6).tickSize(-innerWidth).tickFormat("");
+            const grid = root.select("g.grid-y").call(gridCall);
+            grid.select(".domain").remove();
+            grid.selectAll("line").attr("stroke", gridStroke);
+
+            root.selectAll("g.series-group").each(function (series) {
+                const rec = adjustedById.get(series.id) || { adj: [], last: null };
+                d3.select(this).select("path.series-line").attr("d", lineGenerator(rec.adj));
+                const dotsSel = d3.select(this).select("g.series-dots").selectAll("circle.dot")
+                    .data(rec.adj, d => d.date.getTime());
+                dotsSel.enter().append("circle").attr("class", "dot")
+                    .attr("fill", getOrgColor(series.id)).attr("stroke", dotStroke).attr("stroke-width", 1)
+                    .merge(dotsSel).attr("r", recomputedDotR)
+                    .attr("cx", p => xScale(p.date)).attr("cy", p => yScale(p.end))
+                    .on("mouseenter", function (event, point) {
+                        d3.select(this.parentNode.parentNode).raise();
+                        d3.select(this).transition().duration(120).attr("r", recomputedDotR + 3).attr("stroke-width", 2);
+                        showTooltip(event, { ...point, seriesId: series.id });
+                    })
+                    .on("mousemove", function (event, point) { moveTooltip(event, { ...point, seriesId: series.id }); })
+                    .on("mouseleave", function () {
+                        d3.select(this).transition().duration(120).attr("r", recomputedDotR).attr("stroke-width", 1);
+                        hideTooltip();
+                    });
+                dotsSel.exit().remove();
+
+                const lastPoint = rec.last;
+                const node = d3.select(this).select("g.final-node");
+                if (lastPoint) {
+                    const cx = xScale(lastPoint.date);
+                    const cy = yScale(lastPoint.end);
+                    const logoUrl = getOrgLogo(series.id) || "";
+                    node.raise();
+                    node.style("display", null);
+                    node.select("circle.final-outline").attr("cx", cx).attr("cy", cy).attr("r", r)
+                        .attr("fill", getNodeFill(series.id, nodeFill)).attr("stroke", getOrgColor(series.id)).attr("stroke-width", 2);
+                    node.select("image.final-logo").attr("href", logoUrl)
+                        .attr("x", cx - logoSize / 2).attr("y", cy - logoSize / 2)
+                        .attr("width", logoSize).attr("height", logoSize)
+                        .attr("preserveAspectRatio", "xMidYMid slice").attr("clip-path", "url(#logoCircleClip)");
+                    node.style("pointer-events", "all")
+                        .on("mouseenter", (event) => { showTooltip(event, { ...lastPoint, seriesId: series.id }); })
+                        .on("mousemove", (event) => { moveTooltip(event, { ...lastPoint, seriesId: series.id }); })
+                        .on("mouseleave", () => { hideTooltip(); });
+                } else {
+                    node.style("display", "none");
+                }
+            });
+            updateDateUI();
+        }
+
+        function setupAnimation() {
+            if (!timelineDates.length) { return; }
+            const clampIndex = v => Math.max(0, Math.min(v, timelineDates.length - 1));
+            const findStartIdx = (date) => { let i = timelineDates.findIndex(d => d.getTime() >= date.getTime()); return clampIndex(i === -1 ? timelineDates.length - 1 : i); };
+            const findEndIdx = (date) => { let idx = timelineDates.length - 1; for (let i = idx; i >= 0; i--) { if (timelineDates[i].getTime() <= date.getTime()) { idx = i; break; } } return clampIndex(idx); };
+            const startIdx = findStartIdx(DEFAULT_START_DATE);
+            const endIdx = findEndIdx(DEFAULT_END_DATE);
+            animDefaultStart = startIdx;
+            animDefaultEnd = endIdx;
+            animWindowSize = Math.max(1, animDefaultEnd - animDefaultStart);
+            currentEnd = animDefaultEnd;
+            currentStart = Math.max(0, currentEnd - animWindowSize);
+            animTargetEnd = timelineDates.length - 1;
+            updateFrameRange(currentStart, currentEnd);
+            startTimer();
+        }
+
+        function tick() {
+            const hardStop = Math.min(animTargetEnd, timelineDates.length - 1);
+            if (currentEnd >= hardStop) {
+                stopTimer();
+                if (replayTimeout) { window.clearTimeout(replayTimeout); }
+                replayTimeout = window.setTimeout(() => {
+                    currentEnd = animDefaultEnd;
+                    currentStart = Math.max(0, currentEnd - animWindowSize);
+                    updateFrameRange(currentStart, currentEnd);
+                    startTimer();
+                }, REPLAY_DELAY);
+                return;
+            }
+            const nextEnd = Math.min(hardStop, currentEnd + autoStep);
+            const nextStart = Math.max(0, nextEnd - animWindowSize);
+            currentStart = nextStart;
+            currentEnd = nextEnd;
+            updateFrameRange(currentStart, currentEnd);
+        }
+
+        function startTimer() { stopTimer(); autoTimer = window.setInterval(tick, autoDelay); }
+        function stopTimer() { if (autoTimer) { window.clearInterval(autoTimer); autoTimer = null; } }
+        function restartTimerIfPlaying() { if (autoTimer) { startTimer(); } }
+
+        function setAutoStep(n) { autoStep = Math.max(STEP_MIN, Math.min(STEP_MAX, Math.round(n))); restartTimerIfPlaying(); }
+        function setAutoDelay(ms) { autoDelay = Math.max(DELAY_MIN, Math.min(DELAY_MAX, Math.round(ms))); restartTimerIfPlaying(); }
+
+        function bindSpeedKeys() {
+            window.addEventListener("keydown", e => {
+                if (e.key === "-" || e.key === "_") { setAutoDelay(autoDelay + 150); }
+                else if (e.key === "=" || e.key === "+") { setAutoDelay(autoDelay - 120); }
+                else if (e.key === "[") { setAutoStep(autoStep - 1); }
+                else if (e.key === "]") { setAutoStep(autoStep + 1); }
+            });
+            window.AnimationSpeed = { setAutoStep, setAutoDelay };
+        }
+
+        function updateDateUI() {
+            if (!timelineDates.length || !dateDisplayEl) { return; }
+            const idx = Math.max(0, Math.min(currentEnd, timelineDates.length - 1));
+            const d = timelineDates[idx];
+            const endDate = new Date(d.getTime());
+            endDate.setUTCDate(endDate.getUTCDate() + 7);
+            dateDisplayEl.textContent = idx === timelineDates.length - 1 ? "Today" : dateFormatter(endDate);
+        }
+
+        function showTooltip(event, point) {
+            tooltip.style("opacity", 1);
+            moveTooltip(event, point);
+        }
+
+        function moveTooltip(event, point) {
+            const [x, y] = d3.pointer(event, vizEl);
+            const dateText = point.date ? dateFormatter(point.date) : (point.week ? `Week ${point.week}` : "Week");
+            const deltaText = Number.isFinite(point.delta) ? formatValue(point.delta) : "0";
+            const metricVal = ANIM ? (Number.isFinite(point.end) ? point.end : 0) : (Number.isFinite(point.value) ? point.value : 0);
+            tooltip.html(`<strong>${point.id}</strong><br>${dateText}<br>${METRIC.label} so far: ${formatValue(metricVal)}<br>This week: ${deltaText}`);
+            const ttNode = tooltip.node();
+            const ttWidth = ttNode ? ttNode.offsetWidth : 0;
+            const left = Math.max(6, x - ttWidth - 14);
+            const top = Math.max(6, y - 28);
+            tooltip.style("left", `${left}px`).style("top", `${top}px`);
+        }
+
+        function hideTooltip() {
+            tooltip.style("opacity", 0);
+        }
+
+        function onResize() {
+            render();
+            if (ANIM) { updateFrameRange(currentStart, currentEnd); }
+        }
+        if (typeof ResizeObserver !== "undefined" && vizEl) {
+            const chartObserver = new ResizeObserver(onResize);
+            chartObserver.observe(vizEl);
+        }
+        window.addEventListener("resize", onResize);
+        svg.on("mouseleave", hideTooltip);
+    </script>
+</body>
+
+</html>

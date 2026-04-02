@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HF Orgs Line Chart — Basic 2025</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+html, body { height: 100%; }
+body {
+  margin: 0;
+  overflow: hidden;
+  background: #0b0f14;
+  color: #e5e7eb;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+  height: 100vh;
+}
+
+.viz-layout {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  overflow: hidden;
+  min-width: 0;
+}
+.viz-grid {
+  display: grid;
+  grid-template-rows: 17.5fr 0.5fr 1fr;
+  grid-template-columns: 1fr 1fr;
+  height: 100vh;
+  width: 100vw;
+  box-sizing: border-box;
+  row-gap: clamp(6px, 1.5vh, 12px);
+  padding: 0 clamp(12px, 2vw, 20px) env(safe-area-inset-bottom) clamp(12px, 2vw, 20px);
+}
+
+#container1 {
+  grid-row: 1;
+  grid-column: 1 / span 2;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+  column-gap: 0;
+  padding: 0;
+}
+.y-axis-container {
+  flex: 0 0 clamp(28px, 3vw, 46px);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-sizing: border-box;
+  padding: 0 6px;
+}
+.y-axis-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-align: center;
+  font-weight: 600;
+  font-size: clamp(10px, 1.2vw, 16px);
+  color: #cbd5e1;
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+}
+.chart-wrapper { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; margin-left: -6px; }
+.chart-wrapper-inner { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; }
+#viz { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; }
+#chart { display: block; width: 100%; height: 100%; }
+
+#tooltip {
+  position: absolute;
+  background: #0f141b;
+  border: 1px solid #2a3240;
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  transition: opacity .12s ease;
+  max-width: 220px;
+  color: #e5e7eb;
+}
+
+#container2 {
+  grid-row: 2;
+  grid-column: 1 / span 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  padding: clamp(4px, 0.5vh, 8px) 0;
+}
+#container3 {
+  grid-row: 3;
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+}
+#container4 {
+  grid-row: 3;
+  grid-column: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: clamp(10px, 2vw, 16px);
+  min-width: 0;
+}
+#container4 a{
+  height:100%;
+  display:flex;
+  align-items:center;
+}
+.source-text {
+  font-size: clamp(10px, 1.6vw, 16px);
+  font-weight: 600;
+  color: #cbd5e1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  font-style: normal;
+}
+.source-text a { color: #8ab4ff; text-decoration: underline; cursor: pointer; }
+.source-text a:visited { color: #8ab4ff; }
+.logo-note { font-size: clamp(10px, 1.2vw, 12px); color: #9aa5b1; font-style: italic; white-space: nowrap;}
+.logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
+
+.axis path, .axis line { stroke: #2f3542; }
+.axis text { fill: #cbd5e1; font-size: 12px; }
+.x-axis text { font-size: clamp(11px, 1.2vw, 18px); }
+.grid line { stroke: rgba(255, 255, 255, 0.08); }
+.grid .domain { display: none; }
+.final-label { font-weight: 600; pointer-events: none; font-size: 12px; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7); }
+.series-dots .dot { cursor: pointer; }
+.final-node { cursor: pointer; }
+
+@media (max-width: 640px) {
+  #container3 { display: none; }
+}
+@media (max-width: 460px), (max-height: 520px) {
+  #container2 { display: none; }
+}
+@media (max-height: 480px) {
+  .viz-grid { grid-template-rows: 1fr; }
+  #container2, #container3, #container4 { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="viz-layout" id="vizLayout">
+  <div class="viz-grid">
+    <div id="container1" class="container chart-container">
+      <div class="y-axis-container">
+        <div class="y-axis-label" id="yLabel">Downloads</div>
+      </div>
+      <div class="chart-wrapper">
+        <div class="chart-wrapper-inner">
+          <div id="viz">
+            <svg id="chart" role="img"></svg>
+            <div id="tooltip"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="container2" class="container note-container">
+      <span class="logo-note">* Considering repos in 2025 above 500 downloads or 10 likes for spaces</span>
+    </div>
+    <div id="container3" class="container source-container">
+      <div class="source-text">Source: <a href="https://huggingface.co/" target="_blank" rel="noopener">HuggingFace</a></div>
+    </div>
+    <div id="container4" class="container logo-container">
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="logo.svg" class="logo" alt="AI World logo" crossorigin="anonymous">
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+const svg = d3.select("#chart");
+const tooltip = d3.select("#tooltip");
+const yLabelEl = document.getElementById("yLabel");
+const vizEl = document.getElementById("viz");
+
+const TARGET_YEAR = 2025;
+const INCLUDED_PERCENT = 50;
+const METRIC = { key: "repos_total", label: "Repos" };
+
+const colorScale = d3.scaleOrdinal(d3.schemeTableau10);
+const formatComma = d3.format(",.0f");
+const formatShort = d3.format(".2s");
+const dateFormatter = d3.utcFormat("%b %-d, %Y");
+
+let orgMeta = new Map();
+let chartSeries = [];
+let timelineDates = [];
+
+init();
+
+async function init(){
+  try{
+    const [rawData, orgs] = await Promise.all([
+      fetchJSON("./org_weeks.json"),
+      fetchJSON("./orgs_test.json")
+    ]);
+    orgMeta = buildOrgMeta(orgs);
+    const processed = buildSeries(rawData);
+    chartSeries = processed.series;
+    timelineDates = processed.timeline;
+    if(processed.totalCompanies === 0 || chartSeries.length === 0){
+      render();
+      return;
+    }
+    yLabelEl.textContent = METRIC.label;
+    render();
+  }catch(err){
+    console.error("Failed to load visualization data:", err);
+  }
+}
+
+function buildOrgMeta(list){
+  const map = new Map();
+  if(Array.isArray(list)){
+    list.forEach(item=>{
+      if(!item || !item.id){ return; }
+      map.set(item.id, {
+        ...item,
+        company: item.company === true,
+        regionKey: normalizeRegion(item.region)
+      });
+    });
+  }
+  return map;
+}
+
+function normalizeRegion(value){
+  return String(value ?? "").trim().toLowerCase();
+}
+
+async function fetchJSON(url){
+  const response = await fetch(url);
+  if(!response.ok){
+    throw new Error(`HTTP ${response.status} while fetching ${url}`);
+  }
+  return response.json();
+}
+
+function buildSeries(rawData){
+  if(!Array.isArray(rawData)){
+    return { series: [], timeline: [], totalCompanies: 0, includedCount: 0 };
+  }
+  const yearStart = new Date(Date.UTC(TARGET_YEAR, 0, 1));
+  const yearEnd = new Date(Date.UTC(TARGET_YEAR, 11, 31));
+  const companyIds = new Set();
+  orgMeta.forEach(meta=>{ if(meta && meta.company){ companyIds.add(meta.id); } });
+  const groups = d3.group(rawData, d => d.id);
+  const perOrgAll = [];
+  groups.forEach((entries, id)=>{
+    if(!companyIds.has(id)){ return; }
+    const all = entries.map(entry=>{
+      const date = parseDate(entry.week_date || entry.month_date || null);
+      const total = Number(entry[METRIC.key]);
+      const week = Number(entry.week_count) || null;
+      return { id, date, total: Number.isFinite(total) ? total : 0, week };
+    }).filter(p => p.date instanceof Date && !Number.isNaN(p.date.valueOf()));
+    all.sort((a, b) => a.date - b.date);
+    if(!all.length){ return; }
+    perOrgAll.push({ id, all });
+  });
+  if(!perOrgAll.length){
+    return { series: [], timeline: [], totalCompanies: 0, includedCount: 0 };
+  }
+
+  const nowUtc = new Date();
+  const sampleDate = perOrgAll[0].all.find(p => p.date >= yearStart);
+  let weekStartDay = 2;
+  if(sampleDate && sampleDate.date){
+    weekStartDay = sampleDate.date.getUTCDay();
+  }
+
+  const currentWeekStartUtc = new Date(nowUtc.getTime());
+  const daysSinceWeekStart = (currentWeekStartUtc.getUTCDay() - weekStartDay + 7) % 7;
+  currentWeekStartUtc.setUTCDate(currentWeekStartUtc.getUTCDate() - daysSinceWeekStart);
+  currentWeekStartUtc.setUTCHours(0, 0, 0, 0);
+
+  const addDaysUTC = (date, days)=>{ const d = new Date(date.getTime()); d.setUTCDate(d.getUTCDate() + days); return d; };
+
+  const weekStepDates = [];
+  for(let d = new Date(yearStart.getTime()); d <= currentWeekStartUtc; d = addDaysUTC(d, 7)){
+    weekStepDates.push(new Date(d.getTime()));
+  }
+
+  const series = [];
+  perOrgAll.forEach(({ id, all })=>{
+    let baseTotal = 0;
+    for(let i = 0; i < all.length; i++){
+      if(all[i].date < yearStart){ baseTotal = all[i].total; } else { break; }
+    }
+    const within = all.filter(p => p.date >= yearStart && p.date <= currentWeekStartUtc);
+    if(!within.length){ return; }
+    const byDate = new Map(within.map(p => [p.date.getTime(), Math.max(0, p.total - baseTotal)]));
+    const pts = [];
+    let prevEnd = 0;
+    for(let i = 0; i < weekStepDates.length; i++){
+      const d = weekStepDates[i];
+      const key = d.getTime();
+      const end = byDate.has(key) ? byDate.get(key) : prevEnd;
+      const startValue = prevEnd;
+      const delta = end - prevEnd;
+      pts.push({ id, date: d, value: startValue, end, delta, week: null });
+      prevEnd = end;
+    }
+    if(pts.length && pts[0].date.getTime() !== yearStart.getTime()){
+      pts.unshift({ id, date: yearStart, value: 0, end: 0, delta: 0, week: null });
+    }
+
+    for(let i = 0; i < pts.length; i++){
+      if(i === pts.length - 1){
+        pts[i].yForPlot = pts[i].end;
+      } else {
+        pts[i].yForPlot = pts[i].value;
+      }
+    }
+
+    const finalValue = pts.length ? pts[pts.length - 1].end : 0;
+    series.push({ id, values: pts, finalValue });
+  });
+  series.sort((a, b) => (b.finalValue || 0) - (a.finalValue || 0));
+  const totalCompanies = series.length;
+  const keepCount = totalCompanies ? Math.max(1, Math.round(totalCompanies * INCLUDED_PERCENT / 100)) : 0;
+  const kept = keepCount ? series.slice(0, keepCount) : [];
+  const timeline = weekStepDates.slice();
+  return { series: kept, timeline, totalCompanies, includedCount: kept.length };
+}
+
+function parseDate(input){
+  if(!input){ return null; }
+  const text = String(input).trim();
+  if(!text){ return null; }
+  const iso = text.includes("T") ? text : `${text}T00:00:00Z`;
+  const date = new Date(iso);
+  return Number.isNaN(date.valueOf()) ? null : date;
+}
+
+function getOrgColor(id){
+  if(String(id).trim().toLowerCase() === "z.ai"){ return "#ffffff"; }
+  const meta = orgMeta.get(id);
+  if(meta && meta.color){
+    return meta.color;
+  }
+  return colorScale(id);
+}
+
+function formatValue(value){
+  if(!Number.isFinite(value)){
+    return "0";
+  }
+  const abs = Math.abs(value);
+  if(abs >= 1e9){
+    return formatShort(value).replace("G", "B");
+  }
+  if(abs >= 1e6){
+    return formatShort(value);
+  }
+  if(abs >= 1e3){
+    return formatShort(value);
+  }
+  return formatComma(value);
+}
+
+function getOrgLogo(id){
+  const meta = orgMeta.get(id) || {};
+  return meta.logo || meta.logo_url || meta.avatar || meta.icon || null;
+}
+
+function render(){
+  if(!chartSeries.length){
+    svg.selectAll("*").remove();
+    return;
+  }
+  const margin = { top: 28, right: 36, bottom: 40, left: 68 };
+  const rect = vizEl.getBoundingClientRect();
+  const width = Math.max(margin.left + margin.right + 240, rect.width || 960);
+  const height = Math.max(margin.top + margin.bottom + 220, rect.height || 560);
+  const innerWidth = Math.max(80, width - margin.left - margin.right);
+  const innerHeight = Math.max(80, height - margin.top - margin.bottom);
+  const sizeBase = Math.max(innerWidth, innerHeight);
+  const dotR = Math.round(Math.max(2, Math.min(6, sizeBase / 250)));
+
+  svg.attr("viewBox", `0 0 ${width} ${height}`);
+  svg.attr("aria-label", `${METRIC.label} line chart for ${TARGET_YEAR}`);
+
+  const defs = svg.selectAll("defs").data([null]).join("defs");
+  const logoClip = defs.selectAll("clipPath#logoCircleClip").data([null]).join("clipPath").attr("id", "logoCircleClip").attr("clipPathUnits", "objectBoundingBox");
+  logoClip.selectAll("circle").data([null]).join("circle").attr("cx", 0.5).attr("cy", 0.5).attr("r", 0.5);
+
+  const root = svg.selectAll("g.chart-root").data([null]).join("g").attr("class", "chart-root").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const allDates = timelineDates.length ? timelineDates : chartSeries.flatMap(series => series.values.map(point => point.date));
+  if(!allDates.length){
+    svg.selectAll("*").remove();
+    return;
+  }
+  let xDomain = d3.extent(allDates);
+  if(!xDomain[0] || !xDomain[1] || xDomain[0].getTime() === xDomain[1].getTime()){
+    const base = xDomain[0] || new Date(Date.UTC(TARGET_YEAR, 0, 1));
+    xDomain = [d3.utcDay.offset(base, -3), d3.utcDay.offset(base, 3)];
+  }
+
+  const valuesFlat = chartSeries.flatMap(series => series.values.map(point => point.yForPlot));
+  const yMax = d3.max(valuesFlat);
+  if(!Number.isFinite(yMax)){
+    svg.selectAll("*").remove();
+    return;
+  }
+
+  const xScale = d3.scaleUtc().domain(xDomain).range([0, innerWidth]);
+  const yScale = d3.scaleLinear().domain([0, yMax]).nice().range([innerHeight, 0]);
+  const xAxis = d3.axisBottom(xScale).ticks(d3.utcMonth.every(1)).tickFormat(d3.utcFormat("%b"));
+  const yAxis = d3.axisLeft(yScale).ticks(6).tickFormat(formatValue);
+
+  const grid = root.selectAll("g.grid-y").data([null]).join("g").attr("class", "grid grid-y").call(d3.axisLeft(yScale).ticks(6).tickSize(-innerWidth).tickFormat(""));
+  grid.select(".domain").remove();
+  grid.selectAll("line").attr("stroke", "rgba(255,255,255,0.08)");
+
+  const xAxisGroup = root.selectAll("g.x-axis").data([null]).join("g").attr("class", "axis x-axis").attr("transform", `translate(0,${innerHeight})`).call(xAxis);
+  const yAxisGroup = root.selectAll("g.y-axis").data([null]).join("g").attr("class", "axis y-axis").call(yAxis);
+  yAxisGroup.select(".domain").remove();
+  xAxisGroup.select(".domain").attr("stroke", "#2f3542");
+
+  const lineGenerator = d3.line().defined(point => Number.isFinite(point.yForPlot)).x(point => xScale(point.date)).y(point => yScale(point.yForPlot));
+
+  const seriesGroups = root.selectAll("g.series-group").data(chartSeries, d => d.id);
+  const seriesEnter = seriesGroups.enter().append("g").attr("class", "series-group");
+  seriesEnter.append("path").attr("class", "series-line").attr("fill", "none").attr("stroke-width", 2);
+  seriesEnter.append("g").attr("class", "series-dots");
+  const finalNode = seriesEnter.append("g").attr("class", "final-node");
+  finalNode.append("circle").attr("class", "final-outline");
+  finalNode.append("image").attr("class", "final-logo");
+
+  const seriesMerged = seriesEnter.merge(seriesGroups);
+  seriesMerged.each(function(series){
+    d3.select(this).select("path.series-line").attr("stroke", getOrgColor(series.id)).attr("d", lineGenerator(series.values));
+    const dots = d3.select(this)
+      .select("g.series-dots")
+      .selectAll("circle.dot")
+      .data(
+        series.values.map(point => ({ ...point, seriesId: series.id })),
+        point => point.date.getTime()
+      );
+    dots.enter()
+      .append("circle")
+      .attr("class", "dot")
+      .attr("r", dotR)
+      .attr("fill", getOrgColor(series.id))
+      .attr("stroke", "#fff")
+      .attr("stroke-width", 1)
+      .on("mouseenter", function(event, point){
+        const seriesGroup = d3.select(this.parentNode.parentNode);
+        const g = seriesGroup.select("g.final-node");
+        seriesGroup.raise();
+        g.raise();
+        d3.select(this).transition().duration(120).attr("r", dotR + 3).attr("stroke-width", 2);
+        const outline = g.select("circle.final-outline");
+        const logo = g.select("image.final-logo");
+        outline.transition().duration(120).attr("r", r + 3).attr("stroke-width", 3);
+        logo.transition().duration(120)
+          .attr("x", cx - (logoSize + 6) / 2)
+          .attr("y", cy - (logoSize + 6) / 2)
+          .attr("width", logoSize + 6)
+          .attr("height", logoSize + 6);
+        showTooltip(event, point);
+      })
+      .on("mousemove", function(event, point){
+        moveTooltip(event, point);
+      })
+      .on("mouseleave", function(){
+        const seriesGroup = d3.select(this.parentNode.parentNode);
+        const g = seriesGroup.select("g.final-node");
+        d3.select(this).transition().duration(120).attr("r", dotR).attr("stroke-width", 1);
+        const outline = g.select("circle.final-outline");
+        const logo = g.select("image.final-logo");
+        outline.transition().duration(120).attr("r", r).attr("stroke-width", 2);
+        logo.transition().duration(120)
+          .attr("x", cx - logoSize / 2)
+          .attr("y", cy - logoSize / 2)
+          .attr("width", logoSize)
+          .attr("height", logoSize);
+        hideTooltip();
+      })
+      .merge(dots)
+      .attr("r", dotR)
+      .attr("cx", point => xScale(point.date))
+      .attr("cy", point => yScale(point.yForPlot));
+    dots.exit().remove();
+
+    const lastPoint = series.values[series.values.length - 1];
+    const cx = xScale(lastPoint.date);
+    const cy = yScale(lastPoint.yForPlot);
+    const logoSize = Math.round(Math.max(24, Math.min(44, innerWidth / 24)));
+    const r = Math.round(logoSize / 2 + 2);
+    const logoUrl = getOrgLogo(series.id) || "";
+    const node = d3.select(this).select("g.final-node");
+    node.raise();
+    node.select("circle.final-outline")
+    .attr("cx", cx)
+    .attr("cy", cy)
+    .attr("r", r)
+    .attr("fill", String(series.id).trim().toLowerCase() === "z.ai" ? "#ffffff" : "#0b0f14")
+    .attr("stroke", getOrgColor(series.id))
+    .attr("stroke-width", 2);
+    node.select("image.final-logo")
+      .attr("href", logoUrl)
+      .attr("x", cx - logoSize / 2)
+      .attr("y", cy - logoSize / 2)
+      .attr("width", logoSize)
+      .attr("height", logoSize)
+      .attr("preserveAspectRatio", "xMidYMid slice")
+      .attr("clip-path", "url(#logoCircleClip)");
+    node.style("pointer-events", "all")
+      .on("mouseenter", (event)=>{
+        const g = d3.select(event.currentTarget);
+        const seriesGroup = d3.select(event.currentTarget.parentNode);
+        seriesGroup.raise();
+        g.raise();
+        const outline = g.select("circle.final-outline");
+        const logo = g.select("image.final-logo");
+        outline.transition().duration(120).attr("r", r + 3).attr("stroke-width", 3);
+        logo.transition().duration(120)
+          .attr("x", cx - (logoSize + 6) / 2)
+          .attr("y", cy - (logoSize + 6) / 2)
+          .attr("width", logoSize + 6)
+          .attr("height", logoSize + 6);
+        showTooltip(event, { ...lastPoint, seriesId: series.id });
+      })
+      .on("mousemove", (event)=>{
+        moveTooltip(event, { ...lastPoint, seriesId: series.id });
+      })
+      .on("mouseleave", (event)=>{
+        const g = d3.select(event.currentTarget);
+        const outline = g.select("circle.final-outline");
+        const logo = g.select("image.final-logo");
+        outline.transition().duration(120).attr("r", r).attr("stroke-width", 2);
+        logo.transition().duration(120)
+          .attr("x", cx - logoSize / 2)
+          .attr("y", cy - logoSize / 2)
+          .attr("width", logoSize)
+          .attr("height", logoSize);
+        hideTooltip();
+      });
+  });
+  seriesGroups.exit().remove();
+}
+
+function showTooltip(event, point){
+  tooltip.style("opacity", 1);
+  moveTooltip(event, point);
+}
+
+function moveTooltip(event, point){
+  const [x, y] = d3.pointer(event, vizEl);
+  let dateText;
+  if(point.date){
+    const weekStart = point.date;
+    const plannedEnd = new Date(weekStart.getTime());
+    plannedEnd.setUTCDate(plannedEnd.getUTCDate() + 7);
+    const nowUtc = new Date();
+    if(nowUtc < plannedEnd){
+      dateText = `${dateFormatter(weekStart)} - now`;
+    } else {
+      dateText = `${dateFormatter(weekStart)} - ${dateFormatter(plannedEnd)}`;
+    }
+  }else{
+    dateText = point.week ? `Week ${point.week}` : "Week";
+  }
+  const deltaText = Number.isFinite(point.delta) ? formatValue(point.delta) : "0";
+  const metricValue = Number.isFinite(point.yForPlot) ? point.yForPlot : point.value;
+  tooltip.html(`<strong>${point.id}</strong><br>${dateText}<br>${METRIC.label} so far: ${formatValue(metricValue)}<br>This week: ${deltaText}`);
+  const ttNode = tooltip.node();
+  const ttWidth = ttNode ? ttNode.offsetWidth : 0;
+  const left = Math.max(6, x - ttWidth - 14);
+  const top = Math.max(6, y - 28);
+  tooltip.style("left", `${left}px`).style("top", `${top}px`);
+}
+
+function hideTooltip(){
+  tooltip.style("opacity", 0);
+}
+
+if(typeof ResizeObserver !== "undefined" && vizEl){
+  const chartObserver = new ResizeObserver(()=>{ render(); });
+  chartObserver.observe(vizEl);
+}
+window.addEventListener("resize", render);
+svg.on("mouseleave", hideTooltip);
+</script>
+</body>
+</html>
