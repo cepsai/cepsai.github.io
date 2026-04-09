@@ -249,6 +249,13 @@ select { width: 100%; padding: 7px 10px; border: 1px solid #e0e0e8; border-radiu
     </select>
   </div>
 
+  <div class="filter-section">
+    <div class="filter-label">Recipient country</div>
+    <select id="recipientFilter" onchange="applyFilters()">
+      <option value="">All recipients</option>
+    </select>
+  </div>
+
   <div class="filter-section" id="catFilterSection">
     <div class="filter-label">Category</div>
     <button class="filter-btn active" onclick="setCatFilter('')" id="catAll">All <span class="count" id="countAll">—</span></button>
@@ -336,6 +343,7 @@ let reviewer = '';
 let notes = {};    // key: mode+':'+origIdx → string
 let currentIdx = 0;
 let donorFilter = '';
+let recipientFilter = '';
 let catFilter = '';
 let binaryFilter = '';
 
@@ -581,18 +589,28 @@ function setMode(m) {
 
 function applyFilters() {
   donorFilter = document.getElementById('donorFilter').value;
+  recipientFilter = document.getElementById('recipientFilter').value;
   let items = allItems[mode];
 
   if (donorFilter) {
     items = items.filter(r => r.donor === donorFilter);
   }
+  if (recipientFilter) {
+    items = items.filter(r => r.recipient === recipientFilter);
+  }
+
+  // Base population for category/decision counts respects donor + recipient filters
+  const baseAll = allItems[mode].filter(r =>
+    (!donorFilter || r.donor === donorFilter) &&
+    (!recipientFilter || r.recipient === recipientFilter)
+  );
 
   if (mode === 'binary') {
     if (binaryFilter) {
       items = items.filter(r => r.is_digital === binaryFilter);
     }
     // Update counts
-    const base = donorFilter ? allItems[mode].filter(r => r.donor === donorFilter) : allItems[mode];
+    const base = baseAll;
     document.getElementById('binCountAll').textContent = base.length;
     document.getElementById('binCountYes').textContent = base.filter(r => r.is_digital === 'yes').length;
     document.getElementById('binCountNo').textContent = base.filter(r => r.is_digital === 'no').length;
@@ -612,7 +630,7 @@ function applyFilters() {
       }
     }
     // Update counts
-    const base = donorFilter ? allItems[mode].filter(r => r.donor === donorFilter) : allItems[mode];
+    const base = baseAll;
     document.getElementById('countAll').textContent = base.length;
     document.getElementById('countGov').textContent = base.filter(r => r.tech_category === 'digital_governance').length;
     document.getElementById('countInc').textContent = base.filter(r => r.tech_category === 'digital_inclusion').length;
@@ -736,6 +754,18 @@ fetch('data.json')
     // Populate allItems
     ['binary','multiway','nontech'].forEach(m => {
       allItems[m] = (data[m] || []).map((r, i) => ({ ...r, _origIdx: i }));
+    });
+    // Populate recipient filter — union across all modes, alphabetised
+    const recSet = new Set();
+    ['binary','multiway','nontech'].forEach(m => {
+      allItems[m].forEach(r => { if (r.recipient) recSet.add(r.recipient); });
+    });
+    const recSel = document.getElementById('recipientFilter');
+    [...recSet].sort((a, b) => a.localeCompare(b)).forEach(rname => {
+      const opt = document.createElement('option');
+      opt.value = rname;
+      opt.textContent = rname;
+      recSel.appendChild(opt);
     });
     document.getElementById('loadingOverlay').classList.add('hidden');
     const ri = document.getElementById('reviewerInput');
