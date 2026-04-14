@@ -482,6 +482,7 @@
       var allVenueNames = [];
       var combinedVenueConfigs = [];
       var combinedVenueMap = {};
+      var initialVenueParam = null;
 
       function configureCombinedVenuesForYear(year) {
         combinedVenueConfigs = [
@@ -826,6 +827,11 @@
           }
         }
 
+        var typeVal = params.get("type");
+        if (typeVal !== null) {
+          initialVenueParam = typeVal.trim();
+        }
+
         var topVal = params.get("top");
         if (topVal !== null) {
           if (topVal.toLowerCase() === "all") {
@@ -975,6 +981,11 @@
           nextVenue = previousVenue;
         } else if (currentVenue && venueTotals.some(function (v) { return v.name === currentVenue; })) {
           nextVenue = currentVenue;
+        } else if (initialVenueParam) {
+          var paramLower = initialVenueParam.toLowerCase();
+          var match = venueTotals.find(function (v) { return v.display.toLowerCase() === paramLower; });
+          if (match) nextVenue = match.name;
+          else nextVenue = venueTotals.length ? venueTotals[0].name : null;
         } else {
           nextVenue = venueTotals.length ? venueTotals[0].name : null;
         }
