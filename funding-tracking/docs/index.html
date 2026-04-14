@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Funding Opportunities Dashboard</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --panel: #ffffff;
+    --border: #e3e6ea;
+    --border-strong: #d0d5dc;
+    --text: #1a1f24;
+    --muted: #6a737d;
+    --accent: #0969da;
+    --accent-soft: #ddf4ff;
+    --chip-bg: #f1f3f5;
+    --row-hover: #f3f6fa;
+    --row-selected: #e8f1fb;
+    --warn: #b45309;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  header {
+    padding: 24px 32px 12px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0 0 4px; font-size: 22px; font-weight: 600; }
+  header .meta { color: var(--muted); font-size: 13px; }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 14px 32px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    align-items: center;
+  }
+  .toolbar input[type=search] {
+    flex: 1;
+    min-width: 220px;
+    background: #fff;
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .toolbar input[type=search]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    background: var(--chip-bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 5px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 12px;
+    user-select: none;
+    transition: all 0.15s;
+  }
+  .chip:hover { color: var(--text); border-color: var(--border-strong); }
+  .chip.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .chip[data-tooltip] { position: relative; }
+  .chip[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 0;
+    top: calc(100% + 6px);
+    z-index: 10;
+    width: 320px;
+    background: #1a1f24;
+    color: #fff;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    pointer-events: none;
+  }
+  .actionbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 32px;
+    background: var(--accent-soft);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .actionbar.hidden { display: none; }
+  .btn {
+    background: #fff;
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #0860c8; border-color: #0860c8; color: #fff; }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+  }
+  .btn-ghost:hover { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); }
+  thead th {
+    text-align: left;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-strong);
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    user-select: none;
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+    z-index: 1;
+  }
+  thead th:hover { color: var(--text); }
+  thead th.sorted::after { content: " ↓"; color: var(--accent); }
+  thead th.sorted.asc::after { content: " ↑"; }
+  thead th.col-check { width: 36px; cursor: default; }
+  tbody td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tbody tr:hover { background: var(--row-hover); }
+  tbody tr.selected { background: var(--row-selected); }
+  tbody tr.archived { opacity: 0.5; }
+  td.col-check { width: 36px; }
+  td.col-check input { cursor: pointer; }
+  td.title a {
+    color: var(--text);
+    font-weight: 500;
+    text-decoration: none;
+  }
+  td.title a:hover { color: var(--accent); text-decoration: underline; }
+  td.title .funder {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  td.tracker { white-space: nowrap; }
+  .src-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .src-global-dev { background: #ddf4ff; color: #0969da; }
+  .src-ai-work    { background: #fbefff; color: #8250df; }
+  .src-ai-agents  { background: #dafbe1; color: #1a7f37; }
+  .src-ai-eval    { background: #fff8c5; color: #9a6700; }
+  td.deadline { white-space: nowrap; color: var(--muted); }
+  td.deadline.soon { color: var(--warn); font-weight: 600; }
+  td.deadline.rolling { color: var(--accent); font-style: italic; }
+  td.amount { white-space: nowrap; color: var(--muted); }
+  .empty {
+    padding: 64px;
+    text-align: center;
+    color: var(--muted);
+  }
+  footer {
+    padding: 24px 32px;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle input { cursor: pointer; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Funding Opportunities Dashboard</h1>
+  <div class="meta" id="meta">Loading…</div>
+</header>
+<div class="toolbar">
+  <input type="search" id="q" placeholder="Search title, funder, description…" />
+  <div class="chips" id="trackerChips"></div>
+  <label class="toggle">
+    <input type="checkbox" id="showArchived" />
+    Show archived
+  </label>
+</div>
+<div class="actionbar hidden" id="actionbar">
+  <span id="selCount">0 selected</span>
+  <button class="btn btn-primary" id="archiveBtn">Archive selected</button>
+  <button class="btn" id="unarchiveBtn" style="display:none">Unarchive selected</button>
+  <button class="btn btn-ghost" id="clearSelBtn">Clear selection</button>
+  <span style="flex:1"></span>
+  <button class="btn" id="exportArchiveBtn" title="Download an updated central/archived.json so the change is shared with everyone after you commit + push.">Export archive</button>
+</div>
+<table>
+  <thead>
+    <tr>
+      <th class="col-check"><input type="checkbox" id="checkAll" title="Select all visible"></th>
+      <th data-sort="title">Title</th>
+      <th data-sort="source_tracker">Tracker</th>
+      <th data-sort="deadline" class="sorted asc">Deadline</th>
+      <th data-sort="amount_raw">Amount</th>
+      <th data-sort="thematic_fit">Fit</th>
+    </tr>
+  </thead>
+  <tbody id="rows"></tbody>
+</table>
+<div class="empty" id="empty" style="display:none">No opportunities match your filters.</div>
+<footer>
+  Generated by the funding aggregator. Data files:
+  <a href="../central/funding.csv">funding.csv</a> ·
+  <a href="data.json">data.json</a> ·
+  <code>central/funding.sqlite</code>
+  <br>
+  Archive state is shared via <code>central/archived.json</code> in this repo. Local changes are kept in your browser too — click <em>Export archive</em> to download a merged copy and commit it so other viewers see the same archive.
+</footer>
+
+<script>
+const ARCHIVE_KEY = "funding_archive_v2";        // local pending additions (offline / failed POSTs)
+const LOCAL_UNARCH_KEY = "funding_unarchive_v1"; // local pending removals (offline / failed POSTs)
+const SHEET_CACHE_KEY = "funding_sheet_cache_v1";
+let DATA = [];
+let TRACKER_META = {};                            // loaded from trackers.json
+let CONFIG = { fundingCsvUrl: "", scriptUrl: "", actor: "" }; // loaded from config.json
+// Server-side archive: union of (a) Sheet contents if scriptUrl is set,
+// (b) the static fallback inside data.json from central/archived.json.
+let SERVER_ARCHIVED = new Set();
+// Local pending changes — applied immediately, retried until the Sheet write succeeds:
+let LOCAL_ARCHIVED = new Set(JSON.parse(localStorage.getItem(ARCHIVE_KEY) || "[]"));
+let LOCAL_UNARCHIVED = new Set(JSON.parse(localStorage.getItem(LOCAL_UNARCH_KEY) || "[]"));
+let SELECTED = new Set();
+const STATE = { q: "", trackers: new Set(), sort: "deadline", asc: true, showArchived: false };
+const TRACKERS = ["global-dev", "ai-work", "ai-agents", "ai-eval"];
+
+function rowKey(r) {
+  // Prefer stable source_id; fall back to url/title for older data.json shapes.
+  return `${r.source_tracker}::${r.source_id || r.url || r.title}`;
+}
+
+function isArchived(key) {
+  if (LOCAL_UNARCHIVED.has(key)) return false;
+  return SERVER_ARCHIVED.has(key) || LOCAL_ARCHIVED.has(key);
+}
+
+function saveLocalArchive() {
+  localStorage.setItem(ARCHIVE_KEY, JSON.stringify([...LOCAL_ARCHIVED]));
+  localStorage.setItem(LOCAL_UNARCH_KEY, JSON.stringify([...LOCAL_UNARCHIVED]));
+}
+
+// ----- Google Sheets archive backend ------------------------------------
+// Read: GET <scriptUrl>?fmt=json → { archived: [{key,...}] }
+// Write: POST <scriptUrl> with text/plain body { action, key } so the browser
+// skips the CORS preflight (Apps Script doesn't handle OPTIONS).
+
+function loadSheetCache() {
+  try {
+    const raw = localStorage.getItem(SHEET_CACHE_KEY);
+    if (!raw) return null;
+    const c = JSON.parse(raw);
+    return Array.isArray(c.keys) ? new Set(c.keys) : null;
+  } catch { return null; }
+}
+function saveSheetCache(keys) {
+  localStorage.setItem(SHEET_CACHE_KEY, JSON.stringify({
+    keys: [...keys], at: Date.now(),
+  }));
+}
+
+// Minimal CSV parser (handles quoted fields and escaped quotes). Good enough
+// for Google Sheets' publish-to-web CSV output.
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQ = false;
+      } else field += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ',') { row.push(field); field = ""; }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ""; }
+      else if (c === '\r') { /* skip */ }
+      else field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  if (!rows.length) return [];
+  const headers = rows[0];
+  return rows.slice(1).filter(r => r.some(v => v !== "")).map(r => {
+    const o = {};
+    headers.forEach((h, i) => { o[h] = r[i] == null ? "" : r[i]; });
+    return o;
+  });
+}
+
+function coerceRow(r) {
+  // Normalize types coming out of a Sheet CSV.
+  const out = { ...r };
+  const truthy = v => {
+    const s = String(v || "").trim().toLowerCase();
+    return s === "true" || s === "1" || s === "yes" || s === "y";
+  };
+  out.archived = truthy(r.archived);
+  out.rolling = truthy(r.rolling);
+  if (r.thematic_fit !== "" && r.thematic_fit != null) {
+    const n = Number(r.thematic_fit);
+    out.thematic_fit = Number.isFinite(n) ? n : null;
+  } else {
+    out.thematic_fit = null;
+  }
+  return out;
+}
+
+async function fetchFundingFromSheet() {
+  if (!CONFIG.fundingCsvUrl) return null;
+  try {
+    const r = await fetch(CONFIG.fundingCsvUrl, { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const text = await r.text();
+    const rows = parseCsv(text).map(coerceRow);
+    return rows;
+  } catch (e) {
+    console.warn("Funding sheet read failed, falling back to data.json:", e);
+    return null;
+  }
+}
+
+async function postSheet(action, key) {
+  if (!CONFIG.scriptUrl) return { ok: false, error: "no script url" };
+  // text/plain body avoids CORS preflight; Apps Script reads e.postData.contents.
+  const r = await fetch(CONFIG.scriptUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action, key, actor: CONFIG.actor || "" }),
+  });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+
+// Drain the LOCAL_* sets by replaying them against the Sheet. Anything that
+// fails stays in the set and we'll try again next time.
+async function flushPending() {
+  if (!CONFIG.scriptUrl) return;
+  let dirty = false;
+  for (const k of [...LOCAL_ARCHIVED]) {
+    try { await postSheet("archive", k); LOCAL_ARCHIVED.delete(k); SERVER_ARCHIVED.add(k); dirty = true; }
+    catch (e) { console.warn("flush archive failed for", k, e); }
+  }
+  for (const k of [...LOCAL_UNARCHIVED]) {
+    try { await postSheet("unarchive", k); LOCAL_UNARCHIVED.delete(k); SERVER_ARCHIVED.delete(k); dirty = true; }
+    catch (e) { console.warn("flush unarchive failed for", k, e); }
+  }
+  if (dirty) { saveLocalArchive(); saveSheetCache(SERVER_ARCHIVED); render(); }
+}
+
+function fmtDeadline(row) {
+  if (row.rolling) return { text: "rolling", cls: "rolling" };
+  if (!row.deadline) return { text: "—", cls: "" };
+  const d = new Date(row.deadline);
+  const days = Math.ceil((d - Date.now()) / 86400000);
+  let cls = "";
+  if (days >= 0 && days <= 21) cls = "soon";
+  return {
+    text: d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) +
+          (days >= 0 ? ` (${days}d)` : ""),
+    cls,
+  };
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+function visibleRows() {
+  const q = STATE.q.toLowerCase();
+  const trackerFilter = STATE.trackers;
+  let rows = DATA.filter(r => {
+    const archived = isArchived(rowKey(r));
+    if (!STATE.showArchived && archived) return false;
+    if (STATE.showArchived && !archived) return false;
+    if (trackerFilter.size && !trackerFilter.has(r.source_tracker)) return false;
+    if (!q) return true;
+    return [r.title, r.funder, r.description, r.category]
+      .filter(Boolean).some(s => s.toLowerCase().includes(q));
+  });
+  rows.sort((a, b) => {
+    const av = a[STATE.sort], bv = b[STATE.sort];
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1;
+    if (bv == null) return -1;
+    if (av < bv) return STATE.asc ? -1 : 1;
+    if (av > bv) return STATE.asc ? 1 : -1;
+    return 0;
+  });
+  return rows;
+}
+
+function render() {
+  const rows = visibleRows();
+  const tbody = document.getElementById("rows");
+  tbody.innerHTML = "";
+  for (const r of rows) {
+    const key = rowKey(r);
+    const tr = document.createElement("tr");
+    if (SELECTED.has(key)) tr.classList.add("selected");
+    if (isArchived(key)) tr.classList.add("archived");
+    const dl = fmtDeadline(r);
+    tr.innerHTML = `
+      <td class="col-check"><input type="checkbox" data-key="${escapeHtml(key)}" ${SELECTED.has(key) ? "checked" : ""}></td>
+      <td class="title">
+        <a href="${r.url || "#"}" target="_blank" rel="noopener">${escapeHtml(r.title)}</a>
+        ${r.funder ? `<span class="funder">${escapeHtml(r.funder)}</span>` : ""}
+      </td>
+      <td class="tracker"><span class="src-tag src-${r.source_tracker}">${r.source_tracker}</span></td>
+      <td class="deadline ${dl.cls}">${dl.text}</td>
+      <td class="amount">${escapeHtml(r.amount_raw || "—")}</td>
+      <td>${r.thematic_fit ? "★".repeat(r.thematic_fit) : "—"}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+  document.getElementById("empty").style.display = rows.length ? "none" : "block";
+  const totalArchived = DATA.filter(r => isArchived(rowKey(r))).length;
+  const pending = LOCAL_ARCHIVED.size + LOCAL_UNARCHIVED.size;
+  document.getElementById("meta").textContent =
+    `${rows.length} ${STATE.showArchived ? "archived" : "active"} · ${DATA.length} total · ${totalArchived} archived` +
+    (pending ? ` · ${pending} unsynced local change${pending === 1 ? "" : "s"}` : "");
+  updateActionBar();
+  document.getElementById("checkAll").checked = false;
+}
+
+function updateActionBar() {
+  const bar = document.getElementById("actionbar");
+  if (SELECTED.size === 0) {
+    bar.classList.add("hidden");
+    return;
+  }
+  bar.classList.remove("hidden");
+  document.getElementById("selCount").textContent = `${SELECTED.size} selected`;
+  document.getElementById("archiveBtn").style.display = STATE.showArchived ? "none" : "";
+  document.getElementById("unarchiveBtn").style.display = STATE.showArchived ? "" : "none";
+}
+
+function buildChips() {
+  const wrap = document.getElementById("trackerChips");
+  wrap.innerHTML = "";
+  for (const t of TRACKERS) {
+    const meta = TRACKER_META[t] || {};
+    const el = document.createElement("div");
+    el.className = "chip";
+    el.textContent = t;
+    if (meta.title || meta.description) {
+      const lines = [];
+      if (meta.title) lines.push(meta.title);
+      if (meta.description) lines.push("", meta.description);
+      if (meta.keywords && meta.keywords.length) {
+        lines.push("", "Keywords: " + meta.keywords.join(", "));
+      }
+      if (meta.example_queries && meta.example_queries.length) {
+        lines.push("", "Example queries:");
+        for (const q of meta.example_queries) lines.push("  • " + q);
+      }
+      el.setAttribute("data-tooltip", lines.join("\n"));
+    }
+    el.onclick = () => {
+      if (STATE.trackers.has(t)) STATE.trackers.delete(t);
+      else STATE.trackers.add(t);
+      el.classList.toggle("active");
+      render();
+    };
+    wrap.appendChild(el);
+  }
+}
+
+document.getElementById("rows").addEventListener("change", e => {
+  if (e.target.matches("input[type=checkbox][data-key]")) {
+    const key = e.target.dataset.key;
+    if (e.target.checked) SELECTED.add(key);
+    else SELECTED.delete(key);
+    e.target.closest("tr").classList.toggle("selected", e.target.checked);
+    updateActionBar();
+  }
+});
+
+document.getElementById("checkAll").addEventListener("change", e => {
+  const rows = visibleRows();
+  if (e.target.checked) {
+    for (const r of rows) SELECTED.add(rowKey(r));
+  } else {
+    for (const r of rows) SELECTED.delete(rowKey(r));
+  }
+  render();
+});
+
+document.getElementById("archiveBtn").onclick = async () => {
+  const keys = [...SELECTED];
+  // Optimistic local update.
+  for (const k of keys) {
+    LOCAL_UNARCHIVED.delete(k);
+    LOCAL_ARCHIVED.add(k);
+  }
+  SELECTED.clear();
+  saveLocalArchive();
+  render();
+  // Background sync.
+  if (CONFIG.scriptUrl) {
+    for (const k of keys) {
+      try { await postSheet("archive", k); LOCAL_ARCHIVED.delete(k); SERVER_ARCHIVED.add(k); }
+      catch (e) { console.warn("archive POST failed", k, e); }
+    }
+    saveLocalArchive();
+    saveSheetCache(SERVER_ARCHIVED);
+    render();
+  }
+};
+document.getElementById("unarchiveBtn").onclick = async () => {
+  const keys = [...SELECTED];
+  for (const k of keys) {
+    LOCAL_ARCHIVED.delete(k);
+    LOCAL_UNARCHIVED.add(k);
+  }
+  SELECTED.clear();
+  saveLocalArchive();
+  render();
+  if (CONFIG.scriptUrl) {
+    for (const k of keys) {
+      try { await postSheet("unarchive", k); LOCAL_UNARCHIVED.delete(k); SERVER_ARCHIVED.delete(k); }
+      catch (e) { console.warn("unarchive POST failed", k, e); }
+    }
+    saveLocalArchive();
+    saveSheetCache(SERVER_ARCHIVED);
+    render();
+  }
+};
+document.getElementById("exportArchiveBtn").onclick = () => {
+  // Compute the merged archive set (server + local additions − local removals).
+  const merged = new Set([...SERVER_ARCHIVED, ...LOCAL_ARCHIVED]);
+  for (const k of LOCAL_UNARCHIVED) merged.delete(k);
+  const out = {
+    _comment: "Shared archive state. Each entry is '<source_tracker>::<source_id>'. The aggregator marks matching rows as archived in data.json. Replace central/archived.json with this file, commit, and push to share.",
+    archived: [...merged].sort(),
+  };
+  const blob = new Blob([JSON.stringify(out, null, 2) + "\n"], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "archived.json";
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+};
+document.getElementById("clearSelBtn").onclick = () => {
+  SELECTED.clear();
+  render();
+};
+
+document.querySelectorAll("th[data-sort]").forEach(th => {
+  th.onclick = () => {
+    const key = th.dataset.sort;
+    if (STATE.sort === key) STATE.asc = !STATE.asc;
+    else { STATE.sort = key; STATE.asc = true; }
+    document.querySelectorAll("th[data-sort]").forEach(t => t.classList.remove("sorted", "asc"));
+    th.classList.add("sorted");
+    if (STATE.asc) th.classList.add("asc");
+    render();
+  };
+});
+document.getElementById("q").oninput = e => { STATE.q = e.target.value; render(); };
+document.getElementById("showArchived").onchange = e => {
+  STATE.showArchived = e.target.checked;
+  SELECTED.clear();
+  render();
+};
+
+function applyData(rows) {
+  DATA = rows;
+  SERVER_ARCHIVED = new Set(DATA.filter(r => r.archived).map(rowKey));
+}
+
+Promise.all([
+  fetch("trackers.json").then(r => r.ok ? r.json() : {}).catch(() => ({})),
+  fetch("config.json").then(r => r.ok ? r.json() : {}).catch(() => ({})),
+  fetch("data.json").then(r => r.json()),
+]).then(async ([meta, cfg, d]) => {
+  TRACKER_META = meta || {};
+  CONFIG = Object.assign(CONFIG, cfg || {});
+
+  // Initial render from the static fallback so the page paints immediately.
+  applyData(d);
+  const cached = loadSheetCache();
+  if (cached) for (const k of cached) SERVER_ARCHIVED.add(k);
+  buildChips();
+  render();
+
+  // Prefer live Sheet data when configured. Replace the dataset entirely.
+  if (CONFIG.fundingCsvUrl) {
+    const rows = await fetchFundingFromSheet();
+    if (rows && rows.length) {
+      applyData(rows);
+      saveSheetCache(SERVER_ARCHIVED);
+      render();
+    }
+  }
+  // Replay any queued local writes (from offline or a past failed POST).
+  if (CONFIG.scriptUrl) await flushPending();
+}).catch(e => {
+  buildChips();
+  document.getElementById("meta").textContent = "Failed to load data.json: " + e.message;
+});
+</script>
+</body>
+</html>
