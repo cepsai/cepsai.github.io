@@ -229,71 +229,6 @@ a{color:inherit;text-decoration:none}
 .th-tx{border-top:4px solid var(--tx-c-active)}
 .th-ut{border-top:4px solid var(--ut-c-active)}
 </style>
-
-<style>
-html[data-theme='dark'],
-html[data-theme='auto']:where([data-os-dark]) {
-  color-scheme: dark;
-  --bg:#0F1318; --bg2:#161B22; --card:#1C2229; --surf:#222A33;
-  --ink:#E8ECF0; --ink-s:#8A9BB0; --ink-h:#6A7888;
-  --bd:#2D3748; --bd-s:#374151;
-  --accent:#4A9FD4; --accent-d:#7BBFE6; --accent-l:#1A3550; --accent-hover:#7BBFE6;
-  --ceps-bg:#0F1F35; --ceps-border:#3B82F6; --ceps-text:#93C5FD; --ceps-hover:#172B45;
-  --eu-bd:#5C2A22; --ca-bd:#6B3C15; --co-bd:#5C4A0E;
-  --ny-bd:#1F4A2C; --tx-bd:#1B3A55; --ut-bd:#4A2C5C;
-}
-.theme-toggle {
-  background:none; border:1px solid var(--bd); border-radius:var(--r-md,8px);
-  width:32px; height:32px; cursor:pointer; display:flex; align-items:center;
-  justify-content:center; color:var(--ink-s); font-size:14px;
-  margin-left:8px; transition:background .15s,color .15s,border-color .15s;
-  padding:0;
-}
-.theme-toggle:hover { color:var(--ink); border-color:var(--ink-s); background:var(--surf); }
-.theme-toggle .icon-moon { display:none; }
-html[data-theme='dark'] .theme-toggle .icon-sun,
-html[data-theme='auto']:where([data-os-dark]) .theme-toggle .icon-sun { display:none; }
-html[data-theme='dark'] .theme-toggle .icon-moon,
-html[data-theme='auto']:where([data-os-dark]) .theme-toggle .icon-moon { display:inline; }
-</style>
-<script>
-(function(){
-  var root = document.documentElement;
-  var saved;
-  try { saved = localStorage.getItem('lex-theme'); } catch(e) {}
-  root.setAttribute('data-theme', saved || 'auto');
-  function syncOs(){
-    var d = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    if (d) root.setAttribute('data-os-dark',''); else root.removeAttribute('data-os-dark');
-  }
-  syncOs();
-  if (window.matchMedia) window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', syncOs);
-  window.__cycleTheme = function(){
-    var cur = root.getAttribute('data-theme') || 'auto';
-    var next = cur === 'light' ? 'dark' : (cur === 'dark' ? 'auto' : 'light');
-    root.setAttribute('data-theme', next);
-    try { if (next === 'auto') localStorage.removeItem('lex-theme'); else localStorage.setItem('lex-theme', next); } catch(e) {}
-    var btn = document.querySelector('.theme-toggle');
-    if (btn) btn.title = 'Theme: ' + next + ' (click to cycle)';
-  };
-  // Inject the toggle into the nav on DOMContentLoaded.
-  function mountToggle(){
-    if (document.querySelector('.theme-toggle')) return;
-    var nav = document.querySelector('.nav');
-    if (!nav) return;
-    var btn = document.createElement('button');
-    btn.className = 'theme-toggle';
-    btn.setAttribute('aria-label', 'Cycle theme (light/dark/auto)');
-    btn.title = 'Theme: ' + (root.getAttribute('data-theme') || 'auto') + ' (click to cycle)';
-    btn.innerHTML = '<span class="icon-sun" aria-hidden="true">☀</span><span class="icon-moon" aria-hidden="true">☾</span>';
-    btn.onclick = window.__cycleTheme;
-    nav.appendChild(btn);
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountToggle);
-  else mountToggle();
-})();
-</script>
-
 </head>
 <body>
 
@@ -889,66 +824,42 @@ const METHODOLOGY_PROSE = {"text": "Methodology\n\nThe methodology applied to el
     const drawer = document.getElementById('drawer');
     const overlay = document.getElementById('drawer-overlay');
     if(!drawer) return;
+    const juris = document.getElementById('drawer-juris');
+    const dim   = document.getElementById('drawer-dim');
+    const ref   = document.getElementById('drawer-ref');
+    const body  = document.getElementById('drawer-verbatim');
+    const nav   = document.getElementById('drawer-nav');
+    juris.textContent = (blob && blob.title) || lawId;
+    dim.textContent   = articleId ? 'Article / Section ' + articleId : 'Full text';
+    ref.textContent   = (blob && blob.url) || '';
+    // Build jurisdiction-like nav that lists articles.
     const items = (full && (full.articles || full.sections)) || [];
-    const art = articleId
-      ? items.find(x => String(x.id) === String(articleId)) || items[0]
-      : items[0];
-    const idx = items.indexOf(art);
-    const prev = idx > 0 ? items[idx - 1] : null;
-    const next = idx >= 0 && idx + 1 < items.length ? items[idx + 1] : null;
-
-    document.getElementById('drawer-juris').textContent = (blob && blob.title) || lawId;
-    document.getElementById('drawer-dim').textContent =
-      art ? (art.title || ('Section ' + art.id)) : (articleId ? 'Article ' + articleId : 'Full text');
-    document.getElementById('drawer-ref').textContent = (blob && blob.url) || '';
-
-    // Top nav: prev/next arrows + a dropdown of all articles (first 40).
-    const nav = document.getElementById('drawer-nav');
-    let navHtml = '';
-    navHtml += prev
-      ? '<button class="drawer-nav-btn" onclick="openLawDrawerById(\''+lawId+'\',\''+prev.id+'\')">← '+escH(prev.id)+'</button>'
-      : '<button class="drawer-nav-btn" disabled>←</button>';
-    navHtml += next
-      ? '<button class="drawer-nav-btn" onclick="openLawDrawerById(\''+lawId+'\',\''+next.id+'\')">'+escH(next.id)+' →</button>'
-      : '<button class="drawer-nav-btn" disabled>→</button>';
-    // Jump-to dropdown for every article/section (up to 200).
-    if (items.length > 1) {
-      navHtml += '<select class="drawer-nav-btn" style="min-width:180px;" onchange="openLawDrawerById(\''+lawId+'\', this.value)">'
-              +  items.slice(0, 200).map(a =>
-                   '<option value="'+escH(a.id)+'"'+(a===art?' selected':'')+'>'
-                   +  escH(a.id)+(a.title?' — '+escH(a.title.replace(/^Article \\S+:\\s*/,'')).slice(0,60):'')
-                   + '</option>'
-                 ).join('')
-              + '</select>';
+    if(items.length){
+      nav.innerHTML = items.slice(0, 20).map(a =>
+        '<button class="drawer-nav-btn" onclick="openLawDrawerById(\''+lawId+'\',\''+a.id+'\')">'+
+          escH(a.id||'')+': '+escH((a.title||'').replace('Article '+a.id+': ',''))+
+        '</button>'
+      ).join('');
+    } else {
+      nav.innerHTML = '';
     }
-    nav.innerHTML = navHtml;
-
-    // Body: article text, plus a mini TOC at the bottom so users can see the whole law.
     let content = '';
-    if (full && art) {
-      content = '<div style="white-space:pre-wrap;font-family:var(--serif);font-size:14px;line-height:1.7;">'
-              + escH(art.text||'') + '</div>';
-      if (items.length > 1) {
-        content += '<hr style="border:none;border-top:1px solid var(--bd-s);margin:20px 0;">'
-                +  '<div style="font-size:11px;color:var(--ink-s);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;">All articles</div>'
-                +  '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:4px;font-size:12px;">'
-                +  items.map(a =>
-                     '<a style="color:var(--ink-s);text-decoration:none;padding:4px 6px;border-radius:4px;cursor:pointer;'+(a===art?'background:var(--accent-l);color:var(--accent);':'')+'"'
-                     + ' onclick="openLawDrawerById(\''+lawId+'\',\''+a.id+'\')">'
-                     + escH(a.id)+(a.title?': '+escH(a.title.replace(/^Article \\S+:\\s*/,'').slice(0,40)):'')
-                     + '</a>'
-                   ).join('')
-                + '</div>';
-      }
-    } else if (full && full.raw_text) {
+    if(full && items.length){
+      const art = articleId
+        ? items.find(x => String(x.id) === String(articleId)) || items[0]
+        : items[0];
+      content = '<h3 style="margin-bottom:10px;">'+escH(art.title || ('Section '+art.id))+'</h3>'
+              + '<pre style="white-space:pre-wrap;font-family:var(--serif);font-size:14px;line-height:1.7;margin:0;">'
+              + escH(art.text||'') + '</pre>';
+    } else if(full && full.raw_text){
       content = '<pre style="white-space:pre-wrap;font-family:var(--serif);font-size:14px;line-height:1.7;margin:0;">'
               + escH(full.raw_text) + '</pre>';
     } else {
       content = '<p style="color:var(--ink-s);">Full text not embedded. ';
-      if (stub && stub.url) content += '<a href="'+stub.url+'" target="_blank" rel="noopener" style="color:var(--accent);">Open official source ↗</a>';
+      if(stub && stub.url) content += '<a href="'+stub.url+'" target="_blank" rel="noopener" style="color:var(--accent);">Open official source ↗</a>';
       content += '</p>';
     }
-    document.getElementById('drawer-verbatim').innerHTML = content;
+    body.innerHTML = content;
     overlay.classList.add('open');
     drawer.classList.add('open');
   }
