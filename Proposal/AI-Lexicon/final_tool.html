@@ -231,6 +231,19 @@ a{color:inherit;text-decoration:none}
 </style>
 
 <style>
+/* v12_draft's @media (prefers-color-scheme: dark) fires whenever the OS is
+   in dark mode — even when the user explicitly picks light. Override it by
+   restoring the light tokens whenever data-theme='light' is set. */
+html[data-theme='light'] {
+  color-scheme: light;
+  --bg:#EAEDF2; --bg2:#F0F2F5; --card:#fff; --surf:#F4F6F8;
+  --ink:#131A24; --ink-s:#5A6B82; --ink-h:#6A7380;
+  --bd:#D1D5DB; --bd-s:#E5E6EA;
+  --accent:#0D659D; --accent-d:#054066; --accent-l:#E7F3FE; --accent-hover:#0A5080;
+  --ceps-bg:#EFF6FF; --ceps-border:#3B82F6; --ceps-text:#1E3A5F; --ceps-hover:#DBEAFE;
+  --eu-bd:#F5B7B1; --ca-bd:#FAD7A0; --co-bd:#F9E79F;
+  --ny-bd:#A9DFBF; --tx-bd:#AED6F1; --ut-bd:#D7BDE2;
+}
 html[data-theme='dark'],
 html[data-theme='auto']:where([data-os-dark]) {
   color-scheme: dark;
@@ -876,6 +889,21 @@ const METHODOLOGY_PROSE = {"text": "Methodology\n\nThe methodology applied to el
 
 <script>
 (function(){
+  // Always land on Home on reload. v12_draft's loadState() restores the
+  // previously-visited page from localStorage, which makes reloads feel
+  // "sticky" in a way users don't expect for a document-style tool.
+  function forceHomeOnLoad(){
+    if (typeof state === 'undefined') return;
+    state.page = 'home';
+    if (typeof saveState === 'function') saveState();
+    if (typeof go === 'function') go('home');
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', forceHomeOnLoad);
+  } else {
+    forceHomeOnLoad();
+  }
+
   function lawBlob(lawId){
     const el = document.getElementById('law-blob-'+lawId);
     if(!el) return null;
