@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Atlas of European AI Makers — CEPS-DST research preview</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1>Atlas of European AI Makers</h1>
+      <p class="subtitle">CEPS-DST research preview — the economic map behind lovable.dev's 10,000 European companies</p>
+    </div>
+    <div class="topbar-right" id="topbar-contextual">
+      <!-- Per-tab controls mount here via JS -->
+    </div>
+  </header>
+
+  <nav class="tab-nav" id="tab-nav" role="tablist">
+    <button type="button" class="tab-link active" data-tab="advent" role="tab">Advent <span class="count">10</span></button>
+    <button type="button" class="tab-link" data-tab="atlas" role="tab">Apps Atlas <span class="count" id="nav-count-atlas">–</span></button>
+    <button type="button" class="tab-link" data-tab="founders" role="tab">Founders <span class="count" id="nav-count-founders">–</span></button>
+    <button type="button" class="tab-link tab-link-stealth" data-tab="index" role="tab" title="In stealth — coming in Q4 2026">Sovereign AI Index <span class="stealth-chip">stealth</span></button>
+  </nav>
+
+  <main>
+
+    <!-- ============================================================ -->
+    <!--  TAB: ADVENT  (10 headline visualisations)                   -->
+    <!-- ============================================================ -->
+    <section class="tab-panel active" id="tab-advent" role="tabpanel">
+      <div class="tab-intro">
+        <h2>Advent <span class="tab-intro-sub">ten views of Lovable at a glance</span></h2>
+        <p class="tab-desc">Headline visualisations on the Lovable ecosystem. Where the chart uses real data from our own scrape (82 founders + 366 discovered apps), it says so. Where the platform-level numbers aren't yet sourced from Lovable itself, the chart is marked <span class="synthetic-tag">synthetic</span> — illustrative of what the real cut would look like.</p>
+      </div>
+
+      <div class="advent-grid">
+        <section class="section advent-tile advent-wide">
+          <header class="section-head"><h2>1. Cumulative projects on Lovable <span class="synthetic-tag">synthetic</span></h2><p class="section-desc">Weekly cumulative count of new projects created on the Lovable platform, calibrated to the public 2025 claim of ≥10,000 European companies started on the platform.</p></header>
+          <div class="chart-wrap tall"><canvas id="advent-projects-line"></canvas></div>
+        </section>
+
+        <section class="section advent-tile">
+          <header class="section-head"><h2>2. Problem areas <span class="real-tag">real · 82 founders</span></h2><p class="section-desc">Each tile is one taxonomy category; tile size = number of founders solving a problem in that category.</p></header>
+          <div class="chart-wrap tall"><canvas id="advent-treemap"></canvas></div>
+        </section>
+
+        <section class="section advent-tile">
+          <header class="section-head"><h2>3. Where users live <span class="synthetic-tag">synthetic</span></h2><p class="section-desc">Dot-sized by estimated monthly-active-user count per country. Europe-focused but global. Click a dot to see country name.</p></header>
+          <div id="advent-world-map" class="advent-map"></div>
+        </section>
+
+        <section class="section advent-tile">
+          <header class="section-head"><h2>4. Top countries <span class="real-tag">real · 82 founders + 366 apps</span></h2><p class="section-desc">Ranked by count of Lovable-built companies located there. Real aggregation across both datasets.</p></header>
+          <div class="chart-wrap tall"><canvas id="advent-countries-bar"></canvas></div>
+        </section>
+
+        <section class="section advent-tile advent-wide">
+          <header class="section-head"><h2>5. Launch → revenue funnel <span class="synthetic-tag">synthetic</span></h2><p class="section-desc">Cohort transitions from project created → public launch → first revenue → €10k ARR → €100k ARR → €1M+ ARR. Drop-offs match what we'd expect from a no-code / vibe-coded ecosystem.</p></header>
+          <div class="chart-wrap"><canvas id="advent-funnel"></canvas></div>
+        </section>
+
+        <section class="section advent-tile">
+          <header class="section-head"><h2>6. Team size distribution <span class="real-tag">real · 82 founders</span></h2><p class="section-desc">Lovable's marketing emphasises solo founders; the real data spreads wider.</p></header>
+          <div class="chart-wrap"><canvas id="advent-team-size"></canvas></div>
+        </section>
+
+        <section class="section advent-tile">
+          <header class="section-head"><h2>7. Founder background <span class="real-tag">real · 82 founders</span></h2><p class="section-desc">Technical / non-technical / mixed split across co-founder teams. Lovable's thesis is that non-technical founders matter most; the data suggests mixed teams are more common than pure non-tech.</p></header>
+          <div class="chart-wrap"><canvas id="advent-background-donut"></canvas></div>
+        </section>
+
+        <section class="section advent-tile">
+          <header class="section-head"><h2>8. Industry split <span class="synthetic-tag">synthetic</span></h2><p class="section-desc">NACE-sector distribution — illustrative only until we publish the sector classifier. Gives the shape of the ecosystem.</p></header>
+          <div class="chart-wrap tall"><canvas id="advent-industry-donut"></canvas></div>
+        </section>
+
+        <section class="section advent-tile advent-wide">
+          <header class="section-head"><h2>9. Build-activity heatmap <span class="synthetic-tag">synthetic</span></h2><p class="section-desc">New project creations by day-of-week × hour-of-day (UTC). Mirrors the "weekend-builder" pattern you see on Product Hunt — peaks Sunday afternoons and Monday mornings.</p></header>
+          <div id="advent-heatmap" class="advent-heatmap"></div>
+        </section>
+
+        <section class="section advent-tile advent-wide">
+          <header class="section-head"><h2>10. Traction vs launch date <span class="real-tag">real · founder ARR data</span></h2><p class="section-desc">Each dot is one Lovable-built company from the Founders dataset, plotted by disclosed launch date (x) against reported ARR in EUR (y, log scale). Dot colour = problem category.</p></header>
+          <div class="chart-wrap tall"><canvas id="advent-traction-scatter"></canvas></div>
+        </section>
+      </div>
+    </section><!-- /tab-advent -->
+
+    <!-- ============================================================ -->
+    <!--  TAB: FOUNDERS  (the v0.1 founder-stories research dashboard) -->
+    <!-- ============================================================ -->
+    <section class="tab-panel" id="tab-founders" role="tabpanel">
+      <div class="tab-intro">
+        <h2>Founders <span class="tab-intro-sub">v0.1 research — 82 European founder stories, source-verified</span></h2>
+        <p class="tab-desc">Hand-curated profiles of founders who built on Lovable. Traction tier, geography, problem taxonomy, failure/pivot capture. This is the original proof-of-capability that the rest of the Atlas extends.</p>
+        <div class="founders-controls">
+          <div class="toggle" data-toggle="view">
+            <button type="button" data-value="balanced" class="toggle-btn active">Balanced <span class="count" id="count-balanced">–</span></button>
+            <button type="button" data-value="breadth" class="toggle-btn">Breadth <span class="count" id="count-breadth">–</span></button>
+          </div>
+          <label class="checkbox">
+            <input type="checkbox" id="europe-only" checked />
+            <span>Europe only</span>
+          </label>
+        </div>
+      </div>
+
+      <section class="stats-strip" id="stats-strip"></section>
+
+      <section class="section" id="section-taxonomy">
+        <header class="section-head">
+          <h2>What problems are they solving?</h2>
+          <p class="section-desc">Click a category to filter. Click again to clear.</p>
+          <button type="button" id="clear-category" class="clear-btn hidden">Clear filter</button>
+        </header>
+        <div class="taxonomy-grid">
+          <div class="chart-wrap"><canvas id="category-donut"></canvas></div>
+          <div class="chart-wrap"><canvas id="subcategory-bar"></canvas></div>
+        </div>
+      </section>
+
+      <section class="section" id="section-map">
+        <header class="section-head">
+          <h2>Where in Europe are they building?</h2>
+          <p class="section-desc">Each dot is one founder-built company at its HQ city. Size = traction tier, colour = problem category.</p>
+        </header>
+        <div id="map"></div>
+      </section>
+
+      <section class="section" id="section-traction">
+        <header class="section-head">
+          <h2>Traction distribution</h2>
+          <p class="section-desc">Tier spread coloured by problem category.</p>
+        </header>
+        <div class="chart-wrap tall"><canvas id="traction-bar"></canvas></div>
+      </section>
+
+      <section class="section" id="section-cards">
+        <header class="section-head">
+          <h2>Founders</h2>
+          <p class="section-desc" id="card-count-desc"></p>
+        </header>
+        <div class="cards-grid" id="cards-grid"></div>
+      </section>
+    </section><!-- /tab-founders -->
+
+    <!-- ============================================================ -->
+    <!--  TAB: APPS ATLAS (row table primary)                          -->
+    <!-- ============================================================ -->
+    <section class="tab-panel" id="tab-atlas" role="tabpanel">
+      <div class="tab-intro">
+        <h2>Apps Atlas <span class="tab-intro-sub">v0.2 — every live Lovable-deployed app we could find, with the economic work it does</span></h2>
+        <p class="tab-desc">Discovered from madewithlovable.com's project sitemap + Certificate Transparency logs. Each app is liveness-checked and — where classification succeeded — mapped to an ESCO occupation. Traction indicators are <span class="synthetic-tag">synthetic for demo</span> where marked.</p>
+      </div>
+
+      <section class="stats-strip" id="atlas-stats-strip"></section>
+
+      <section class="section">
+        <div class="atlas-filters">
+          <label class="checkbox"><input type="checkbox" id="atlas-live-only" checked><span>Live only</span></label>
+          <label class="checkbox"><input type="checkbox" id="atlas-classified-only"><span>Classified only</span></label>
+          <div class="atlas-platform-toggle">
+            <button type="button" class="toggle-btn active" data-platform="any">All <span class="count" id="atlas-count-any">–</span></button>
+            <button type="button" class="toggle-btn" data-platform="lovable.app">lovable.app <span class="count" id="atlas-count-lovable-app">–</span></button>
+            <button type="button" class="toggle-btn" data-platform="custom_domain">Custom <span class="count" id="atlas-count-custom-domain">–</span></button>
+          </div>
+          <div class="atlas-occupation-select-wrap">
+            <label for="atlas-occupation-select">Occupation</label>
+            <select id="atlas-occupation-select"><option value="">All occupations</option></select>
+          </div>
+          <input type="search" id="atlas-search" placeholder="Search app, problem, task..." class="atlas-search" />
+        </div>
+      </section>
+
+      <section class="section">
+        <header class="section-head">
+          <h2>Apps</h2>
+          <p class="section-desc" id="atlas-count-desc"></p>
+        </header>
+        <div class="atlas-table-wrap">
+          <table class="atlas-table" id="atlas-table">
+            <thead>
+              <tr>
+                <th class="col-expand"></th>
+                <th class="col-app">App</th>
+                <th class="col-problem">Problem solved</th>
+                <th class="col-tasks">Task / Occupation</th>
+                <th class="col-traction">Traction indicators</th>
+              </tr>
+            </thead>
+            <tbody id="atlas-table-body"></tbody>
+          </table>
+        </div>
+        <div class="atlas-more-wrap">
+          <button type="button" id="atlas-show-more" class="atlas-show-more">Show 10 more</button>
+          <button type="button" id="atlas-show-all" class="atlas-show-all">Show all</button>
+          <span id="atlas-shown-indicator" class="atlas-shown-indicator"></span>
+        </div>
+        <details class="atlas-cards-details">
+          <summary>Also show as cards (secondary view)</summary>
+          <div class="atlas-grid" id="atlas-grid"></div>
+        </details>
+      </section>
+    </section><!-- /tab-atlas -->
+
+    <!-- ============================================================ -->
+    <!--  TAB: SOVEREIGN AI INDEX (with charts)                       -->
+    <!-- ============================================================ -->
+    <section class="tab-panel" id="tab-index" role="tabpanel">
+      <div class="tab-intro">
+        <h2>Sovereign AI Index <span class="tab-intro-sub">annual cross-platform benchmark of European AI-native entrepreneurship</span></h2>
+        <p class="tab-desc">Measures the <strong>supply side</strong>: how many EU companies, in which sectors, at what traction, built across AI-native platforms. All charts below use <span class="synthetic-tag">synthetic illustrative data</span> — real numbers land in the first edition (Q4 2026), sourced from Lovable + cross-platform comparators + CEPS methodology.</p>
+      </div>
+
+      <section class="stats-strip">
+        <div class="stat"><div class="stat-value">5</div><div class="stat-label">Platforms benchmarked</div></div>
+        <div class="stat"><div class="stat-value">28</div><div class="stat-label">EU/EEA + UK countries ranked</div></div>
+        <div class="stat"><div class="stat-value">Q4&nbsp;2026</div><div class="stat-label">First edition target</div></div>
+        <div class="stat"><div class="stat-value">DG CONNECT · EIT · Sifted</div><div class="stat-label">Distribution channels</div></div>
+      </section>
+
+      <section class="section">
+        <header class="section-head">
+          <h2>EU-built apps per platform <span class="synthetic-tag">synthetic</span></h2>
+          <p class="section-desc">Lovable is the flagship subject. Comparators give the Index institutional credibility — without them it would read as vendor-commissioned. Lovable number (≥10,000) reflects their public 2025 claim; others are placeholder estimates.</p>
+        </header>
+        <div class="chart-wrap"><canvas id="index-platforms-chart"></canvas></div>
+      </section>
+
+      <section class="section">
+        <header class="section-head">
+          <h2>EU country rankings <span class="synthetic-tag">synthetic</span></h2>
+          <p class="section-desc">Composite Sovereign AI Index score per country (0–100). Weighted sum of (apps-built-here, active-founder-density, cross-border-traction, institutional-funding-share). Scores here are illustrative; the methodology is what we'd publish.</p>
+        </header>
+        <div class="chart-wrap tall"><canvas id="index-countries-chart"></canvas></div>
+      </section>
+
+      <section class="section">
+        <header class="section-head">
+          <h2>Growth trajectory <span class="synthetic-tag">synthetic</span></h2>
+          <p class="section-desc">Quarterly count of new EU-built AI-native apps, by platform. The flywheel is obvious in the trend line; the Index measures whether it compounds or stalls.</p>
+        </header>
+        <div class="chart-wrap"><canvas id="index-growth-chart"></canvas></div>
+      </section>
+
+      <section class="section">
+        <header class="section-head">
+          <h2>EU in the AI supply chain</h2>
+          <p class="section-desc">The sovereignty question isn't just "how many apps does Europe ship" — it's "where in the stack does Europe actually sit." Five layers from silicon to the end-user. The Index scores Europe at each layer so policy readers can see where the sovereignty argument is real and where it's still aspirational.</p>
+        </header>
+        <div class="supply-chain-legend">
+          <div class="supply-layer"><span class="supply-dot" style="background:#8c564b"></span><strong>1. Compute / silicon</strong> — chips, accelerators, data centres. (Graphcore, SiPearl, Axelera, Kalray)</div>
+          <div class="supply-layer"><span class="supply-dot" style="background:#9467bd"></span><strong>2. Foundation models</strong> — frontier LLMs and multi-modal base models. (Mistral, Aleph Alpha, Black Forest Labs, H, Poolside)</div>
+          <div class="supply-layer"><span class="supply-dot" style="background:#2ca02c"></span><strong>3. Model-infra / tooling</strong> — hosting, fine-tuning, evaluation, orchestration. (Hugging Face, Synthesia, ElevenLabs, Stability)</div>
+          <div class="supply-layer"><span class="supply-dot" style="background:#1f77b4"></span><strong>4. Vertical applications</strong> — AI-native products targeting end customers. (DeepL, Helsing, Wayve, Klarna-AI, Bending Spoons)</div>
+          <div class="supply-layer"><span class="supply-dot" style="background:#ff5c3a"></span><strong>5. AI app-builders</strong> — platforms where non-technical founders ship apps. (Lovable, Bolt, v0, Replit, Cursor)</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <header class="section-head">
+          <h2>Regional share of each supply-chain layer <span class="synthetic-tag">synthetic · calibrated</span></h2>
+          <p class="section-desc">Percent share of global activity by region, layer by layer. Numbers are analyst-consensus-style estimates, not measured — real methodology would combine funding data, active-user data, compute capacity, and market-share reports. The <em>shape</em> is what matters: Europe is weakest at compute and strongest at app-builders.</p>
+        </header>
+        <div class="chart-wrap tall"><canvas id="index-supply-share-chart"></canvas></div>
+      </section>
+
+      <section class="section">
+        <header class="section-head">
+          <h2>Notable EU AI companies by layer <span class="synthetic-tag">approx. funding</span></h2>
+          <p class="section-desc">A sample of significant EU-HQ'd AI companies, positioned by layer and sized by total disclosed funding (EUR, log scale). Funding figures are rounded and should be re-verified against Dealroom / Crunchbase for the first edition — shown here to sketch the shape of the European AI supply chain.</p>
+        </header>
+        <div class="chart-wrap tall"><canvas id="index-companies-chart"></canvas></div>
+      </section>
+
+      <section class="section">
+        <header class="section-head">
+          <h2>Sovereignty of the EU app stack <span class="synthetic-tag">synthetic</span></h2>
+          <p class="section-desc">When an EU-built app ships, how much of its underlying stack is actually European? The stacked bars below decompose each layer into EU-sourced, US-sourced, Chinese-sourced, and other-sourced components. A 100% green column would mean a fully sovereign stack; anything less is a policy conversation about dependency.</p>
+        </header>
+        <div class="chart-wrap"><canvas id="index-sovereignty-chart"></canvas></div>
+      </section>
+    </section><!-- /tab-index -->
+
+
+    <footer class="page-footer">
+      <p>Dataset last refreshed 2026-04-19. <a href="README.md">README.md</a> · <a href="research/sources.md">research/sources.md</a> · <a href="scripts/discover.py">discover.py</a> · <a href="scripts/classify.py">classify.py</a>. Independent research by <a href="https://www.ceps.eu">CEPS-DST</a>, Brussels.</p>
+    </footer>
+  </main>
+
+  <div id="hover-pop" class="hover-pop hidden" role="tooltip"></div>
+  <div id="card-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-backdrop" data-dismiss="modal"></div>
+    <div class="modal-panel" role="dialog" aria-modal="true">
+      <button type="button" class="modal-close" data-dismiss="modal" aria-label="Close">×</button>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-treemap@2.3.1/dist/chartjs-chart-treemap.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
