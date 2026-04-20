@@ -28,7 +28,7 @@ import openpyxl
 
 HERE = Path(__file__).parent
 HTML_IN = HERE / "digital_lexicon_v11.html"
-XLSX = HERE / "AI terminology and taxonomy-5.xlsx"
+XLSX = HERE / "AI terminology and taxonomy-final.xlsx"
 HTML_OUT = HERE / "digital_lexicon_v13.html"
 LAWS_DIR = HERE / "laws"
 

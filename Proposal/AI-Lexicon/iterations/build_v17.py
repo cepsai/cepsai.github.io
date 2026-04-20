@@ -674,6 +674,18 @@ def main() -> None:
     print(f"  vs reference: {final - ref_size:+,}")
     print(f"  vs v16:       {final - v16_size:+,}")
 
+    # Run the v17 smoke test. Any regression fails the build.
+    import subprocess, sys
+    test_path = HERE / "test_lexicon_v17.py"
+    if test_path.exists():
+        print("\n[v17 smoke test]")
+        rc = subprocess.run([sys.executable, str(test_path)], cwd=HERE).returncode
+        if rc != 0:
+            raise SystemExit(
+                f"v17 smoke test failed (rc={rc}). Build artifact is "
+                f"still written, but review the failures before shipping."
+            )
+
 
 if __name__ == "__main__":
     main()

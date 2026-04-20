@@ -82,7 +82,7 @@ replace_const   = _v14.replace_const
 
 HERE = Path(__file__).parent
 HTML_IN = HERE / "digital_lexicon_v12_draft.html"
-XLSX    = HERE / "AI terminology and taxonomy-5.xlsx"
+XLSX    = HERE / "AI terminology and taxonomy-final.xlsx"
 HTML_OUT = HERE / "digital_lexicon_v15.html"
 
 
@@ -461,36 +461,93 @@ def build_sub_concepts_v15(concept: dict, tab_analyses: list, jid_order: list[st
             "term", "definition", "scope", "exemptions", "exemption",
             "exclusions",
         }
+
+        def _extract_sub(node_label: str, row_label: str) -> str:
+            """Given a legal-entry node.label and the parent dim's rowLabel,
+            return the sub-dimension tail if the label is of the form
+            'rowLabel — subLabel' or just 'subLabel' when the node's own
+            label differs from rowLabel."""
+            if not node_label:
+                return ""
+            if " \u2014 " in node_label:
+                return node_label.split(" \u2014 ", 1)[1].strip()
+            if row_label and node_label.strip().lower() != row_label.strip().lower():
+                return node_label.strip()
+            return ""
+
         for ridx, row in enumerate(ana_card["rows"]):
             dim_label = (row.get("dim") or "").strip()
             if not dim_label:
                 continue
-            cells: dict[str, dict] = {}
+            key_a = dim_label.lower()
+            key_b = DIM_ALIASES.get(key_a, key_a)
+
+            # Collect per-jurisdiction legal nodes for this dim row.
+            nodes_by_jid: dict[str, list[dict]] = {}
             for jid in juris:
-                analysis_text = row.get(jid) or ""
-                # Find verbatim by exact dim match first, then alias.
-                key_a = dim_label.lower()
-                key_b = DIM_ALIASES.get(key_a, key_a)
-                nodes = legal_by_dim.get((jid, key_a)) or legal_by_dim.get((jid, key_b)) or []
-                verbatim = "\n\n".join((n.get("text") or "") for n in nodes if n.get("text")).strip()
-                reference = "; ".join((n.get("reference") or "") for n in nodes if n.get("reference")).strip("; ")
-                # Only fall back to the concept-wide concatenation for dims
-                # whose content is the concept's overall definition. Avoid
-                # the fallback when the analysis cell is empty or "-": an
-                # empty cell should render as "—", not as the whole bill's
-                # boilerplate Frontier-developer definition.
-                if not verbatim and key_a in _FULL_VERBATIM_DIMS and (analysis_text and analysis_text.strip() != "-"):
-                    verbatim = full_verbatim_by_jid.get(jid, "")
-                    reference = reference or full_ref_by_jid.get(jid, "")
-                if not analysis_text and not verbatim:
+                nodes_by_jid[jid] = (
+                    legal_by_dim.get((jid, key_a))
+                    or legal_by_dim.get((jid, key_b))
+                    or []
+                )
+
+            # Discover sub-dimension variants used in the legal sheet across
+            # all jurisdictions. Example: Incident dim "Scope" resolves to
+            # legal entries with sub-labels "High-risk AI systems" and
+            # "GPAI models with systemic risks" — each becomes its own row
+            # under the same parent dim header.
+            sub_labels: list[str] = []
+            for jid, nodes in nodes_by_jid.items():
+                for n in nodes:
+                    sub = _extract_sub(n.get("label") or "", dim_label)
+                    if sub and sub not in sub_labels:
+                        sub_labels.append(sub)
+
+            # Build either a single dim row (no sub-variants) or one row
+            # per sub-label (when the legal sheet splits this dim).
+            dim_variants = sub_labels if len(sub_labels) >= 2 else [""]
+
+            for si, sub_label in enumerate(dim_variants):
+                cells: dict[str, dict] = {}
+                for jid in juris:
+                    analysis_text = row.get(jid) or ""
+                    # Pick the specific legal node whose sub matches the current row.
+                    nodes = nodes_by_jid.get(jid, [])
+                    if sub_label:
+                        nodes = [n for n in nodes
+                                 if _extract_sub(n.get("label") or "", dim_label).strip().lower()
+                                 == sub_label.strip().lower()]
+                    verbatim = "\n\n".join((n.get("text") or "") for n in nodes if n.get("text")).strip()
+                    reference = "; ".join((n.get("reference") or "") for n in nodes if n.get("reference")).strip("; ")
+                    # Only fall back to the concept-wide concatenation for dims
+                    # whose content is the concept's overall definition. Avoid
+                    # the fallback when the analysis cell is empty or "-": an
+                    # empty cell should render as "—", not as the whole bill's
+                    # boilerplate Frontier-developer definition.
+                    if not verbatim and key_a in _FULL_VERBATIM_DIMS and (
+                        analysis_text and analysis_text.strip() != "-"
+                    ) and not sub_label:
+                        verbatim = full_verbatim_by_jid.get(jid, "")
+                        reference = reference or full_ref_by_jid.get(jid, "")
+                    if not analysis_text and not verbatim:
+                        continue
+                    cells[jid] = {
+                        "analysis":  analysis_text,
+                        "verbatim":  verbatim,
+                        "reference": reference,
+                    }
+                if not cells:
                     continue
-                cells[jid] = {
-                    "analysis":  analysis_text,
-                    "verbatim":  verbatim,
-                    "reference": reference,
+                dim_entry = {
+                    "id":    slugify(dim_label + ("-" + sub_label if sub_label else ""))[:40] + f"-{ridx}-{si}",
+                    "label": dim_label,
+                    "cells": cells,
                 }
-            if not cells:
-                continue
+                if sub_label:
+                    dim_entry["sub_label"] = sub_label
+                dim_list.append(dim_entry)
+            # Skip the original single-append path (done in the loop above).
+            continue
             dim_list.append({
                 "id":    slugify(dim_label)[:32] + f"-{ridx}",
                 "label": dim_label,

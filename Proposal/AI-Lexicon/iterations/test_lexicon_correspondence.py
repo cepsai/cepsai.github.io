@@ -30,7 +30,7 @@ from pathlib import Path
 from openpyxl import load_workbook
 
 HERE = Path(__file__).parent
-XLSX = HERE / "AI terminology and taxonomy-5.xlsx"
+XLSX = HERE / "AI terminology and taxonomy-final.xlsx"
 HTML = HERE / "digital_lexicon_v16.html"
 LAWS = HERE / "laws"
 
