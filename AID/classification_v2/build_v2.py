@@ -479,6 +479,102 @@ buildMainPanel = function() {
 })();
 """
 
+FOCUS_COUNTRIES = ["Fiji", "Palau", "Timor-Leste", "Eswatini", "Kenya", "Nigeria"]
+FOCUS_PLACEHOLDER = ["Mozambique"]
+FOCUS_YEAR_MIN = 2019
+FOCUS_YEAR_MAX = 2024
+
+
+def _focus_project_groups(rows):
+    """Collapse rows into project cards (merges digital + non-digital in one shape).
+
+    Returns list of cards sorted in-use-first (year_last >= 2023), then newest,
+    then biggest pledge. Cards dropped if project_title is blank."""
+    out = []
+    gg = rows[rows["project_title"].fillna("").str.strip() != ""]
+    for (title, cat), g in gg.groupby(["project_title", "tech_category"], sort=False):
+        donors = g["donor_name"].value_counts()
+        years = g["year"].astype(int)
+        def mode_nonempty(series):
+            s = series.fillna("").astype(str)
+            s = s[s.str.strip() != ""]
+            if s.empty: return ""
+            return s.mode().iat[0]
+        out.append({
+            "title": str(title)[:220],
+            "cat": cat,
+            "donor": donors.index[0],
+            "n_donors": int(donors.shape[0]),
+            "desc": mode_nonempty(g["short_description"])[:280],
+            "sector": mode_nonempty(g["sector_name"]),
+            "total_commit": round(float(g["usd_commitment"].fillna(0).sum()), 3),
+            "total_disb":   round(float(g["usd_disbursement"].fillna(0).sum()), 3),
+            "n_entries": int(len(g)),
+            "year_first": int(years.min()),
+            "year_last":  int(years.max()),
+            "year_range": f"{years.min()}-{years.max()}" if years.min() != years.max() else f"{years.min()}",
+        })
+    out.sort(key=lambda p: (0 if p["year_last"] >= 2023 else 1,
+                            -p["year_last"], -p["total_commit"]))
+    return out
+
+
+def _focus_bundle(rows):
+    """Compute {kpis, yearly, projects} for a row subset already filtered to 2019-FOCUS_YEAR_MAX."""
+    is_dig = rows["tech_category"].isin(CAT_MAP)
+    dig = rows[is_dig]
+    nondig = rows[~is_dig]
+    total = len(rows)
+    kpis = {
+        "digital_count":    int(len(dig)),
+        "nondigital_count": int(len(nondig)),
+        "digital_share":    round(len(dig) / total, 4) if total else 0,
+        "pledged":          round(float(dig["usd_commitment"].fillna(0).sum()), 3),
+        "disbursed":        round(float(dig["usd_disbursement"].fillna(0).sum()), 3),
+    }
+    yearly = []
+    for year in range(FOCUS_YEAR_MIN, FOCUS_YEAR_MAX + 1):
+        y = rows[rows["year"] == year]
+        yd = y[y["tech_category"].isin(CAT_MAP)]
+        yn = y[~y["tech_category"].isin(CAT_MAP)]
+        yearly.append({
+            "year": year,
+            "digital":    int(len(yd)),
+            "nondigital": int(len(yn)),
+            "digital_usd":    round(float(yd["usd_commitment"].fillna(0).sum()), 3),
+            "nondigital_usd": round(float(yn["usd_commitment"].fillna(0).sum()), 3),
+        })
+    return {"kpis": kpis, "yearly": yearly, "projects": _focus_project_groups(rows)}
+
+
+def build_country_focus(df):
+    """Build FOCUS_DATA for country_focus.html.
+
+    6 target countries (all present in v3.1 CSV) + all_countries aggregate across
+    the full 12-recipient set + Mozambique placeholder (classification pending)."""
+    d = df[(df["year"] >= FOCUS_YEAR_MIN) & (df["year"] <= FOCUS_YEAR_MAX)].copy()
+    d = d.drop_duplicates(DEDUP_KEYS)
+    out = {}
+    for country in FOCUS_COUNTRIES:
+        out[country] = _focus_bundle(d[d["recipient_name"] == country])
+    for country in FOCUS_PLACEHOLDER:
+        out[country] = {"placeholder": True}
+    out["all_countries"] = _focus_bundle(d)
+    return out
+
+
+def patch_country_focus(html_path, focus_data):
+    """Inject var FOCUS_DATA into the country_focus.html template in place."""
+    html = html_path.read_text()
+    payload = json.dumps(focus_data, ensure_ascii=False, separators=(",", ":"))
+    html = re.sub(
+        r"var FOCUS_DATA = \{.*?\}\s*;\s*/\*END_FOCUS\*/",
+        "var FOCUS_DATA = " + payload + "; /*END_FOCUS*/",
+        html, count=1, flags=re.DOTALL,
+    )
+    html_path.write_text(html)
+
+
 def patch_profiles_v2(html_path):
     """Add the non-digital toggle + newest-first sort to all_country_profiles_v2.html."""
     html = html_path.read_text()
@@ -532,6 +628,22 @@ def main():
           f"{sum(len(v) for v in nd_data.values()):,} project groups across {len(nd_data)} countries)")
     patch_profiles_v2(OUT / "all_country_profiles_v2.html")
     print(f"  patched all_country_profiles_v2.html with non-digital toggle")
+
+    # Country focus viewer (7 targets + all_countries baseline, 2019-2024 only)
+    print("\nBuilding country_focus.html payload...")
+    focus_data = build_country_focus(df)
+    cf_path = OUT / "country_focus.html"
+    patch_country_focus(cf_path, focus_data)
+    for c in ["Fiji", "Palau", "Timor-Leste", "Eswatini", "Kenya", "Nigeria", "all_countries"]:
+        v = focus_data.get(c, {})
+        if "kpis" not in v:
+            print(f"  {c:18s}  placeholder")
+            continue
+        k = v["kpis"]
+        print(f"  {c:18s}  dig={k['digital_count']:5d}  nd={k['nondigital_count']:5d}  "
+              f"share={k['digital_share']*100:5.1f}%  pledged=${k['pledged']:,.0f}M")
+    print(f"  wrote {cf_path.relative_to(AID.parent)}  ({cf_path.stat().st_size/1024:.0f} KB)")
+
 
 if __name__ == "__main__":
     main()
