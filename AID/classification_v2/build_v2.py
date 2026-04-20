@@ -314,6 +314,7 @@ NON_DIGITAL_CSS = """
 .nd-toggle.on .nd-sw{background:#16a34a}
 .nd-toggle.on .nd-sw::after{left:16px}
 .nd-toggle .nd-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.04em;font-weight:600}
+.nd-toggle.hidden{display:none}
 .nd-status{font-size:10px;color:rgba(255,255,255,.55);margin-left:2px}
 .proj-card.oth{border-left-color:#94a3b8}
 .proj-card.oth .badge{background:#e2e8f0;color:#475569}
@@ -436,12 +437,23 @@ showCardTooltip = function(p, evt) {
   _origShowCardTooltip(p, evt);
 };
 
+// Show the toggle only while the Project focus tab is active (that's the only
+// place it changes anything). Re-runs after every buildMainPanel() call.
+var _origBuildMainPanel = buildMainPanel;
+buildMainPanel = function() {
+  _origBuildMainPanel.apply(this, arguments);
+  var tg = document.querySelector(".nd-toggle");
+  if (tg) tg.classList.toggle("hidden", state.view !== "projects");
+};
+
 // Render the toggle in the header.
 (function() {
   var yrCtrl = document.querySelector(".yr-ctrl");
   if (!yrCtrl) return;
   var t = document.createElement("div");
-  t.className = "nd-toggle";
+  // Hidden on initial render — buildMainPanel wrapper will show it when the
+  // user opens Project focus.
+  t.className = "nd-toggle hidden";
   t.innerHTML = '<span class="nd-lbl">Non-digital</span>' +
     '<span class="nd-sw"></span>' +
     '<span class="nd-status" id="nd-status">off</span>';
@@ -453,14 +465,14 @@ showCardTooltip = function(p, evt) {
         state.includeND = true;
         t.classList.add("on");
         document.getElementById("nd-status").textContent = "on";
-        if (state.view === "projects") renderCardsOnly(DATA[state.country]);
+        renderCardsOnly(DATA[state.country]);
       });
     } else {
       state.includeND = false;
       t.classList.remove("on");
       document.getElementById("nd-status").textContent = "off";
       if (state.catFilter === "non_digital") state.catFilter = "all";
-      if (state.view === "projects") renderCardsOnly(DATA[state.country]);
+      renderCardsOnly(DATA[state.country]);
     }
   });
   yrCtrl.parentNode.insertBefore(t, yrCtrl.nextSibling);
