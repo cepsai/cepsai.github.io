@@ -8,78 +8,17 @@
     <link rel="stylesheet" href="styles.css">
     <style>
         .header {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-        }
-
-        #model-select {
-            min-width: 380px;
-        }
-
-        .pagination-ctrl {
-            display: flex;
-            align-items: center;
-            background: #fff;
-            border: 1px solid #bbb;
-            border-radius: 4px;
-            height: 31px;
-        }
-
-        .pagination-ctrl button {
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            padding: 0 8px;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            color: #555;
-        }
-
-        .pagination-ctrl button:hover:not(:disabled) {
-            background: #f0f0f0;
-        }
-
-        .pagination-ctrl button:disabled {
-            opacity: 0.3;
-            cursor: default;
-        }
-
-        .pagination-ctrl span {
-            font-size: 12px;
-            color: #666;
-            font-weight: 500;
-            padding: 0 10px;
-            border-left: 1px solid #eee;
-            border-right: 1px solid #eee;
-            min-width: 80px;
             text-align: center;
         }
 
-        .loading-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: 100px;
-            color: #555;
-            font-size: 14px;
-            font-weight: 500;
+        .header select {
+            min-width: 380px;
+            vertical-align: middle;
         }
 
-        .spinner {
-            width: 32px;
-            height: 32px;
-            border: 3px solid #eee;
-            border-top-color: #1565c0;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-bottom: 12px;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .hf-btn {
+            margin-left: 10px;
+            vertical-align: middle;
         }
     </style>
 </head>
@@ -87,21 +26,11 @@
 <body>
 
     <div class="header">
-        <select id="sort-select">
+        <select id="sort-select"
+            style="vertical-align: middle; margin-right: 10px; min-width: auto;">
             <option value="desc" selected>Default Order</option>
             <option value="asc">Alphabetical</option>
         </select>
-
-        <div class="pagination-ctrl">
-            <button id="prev-page-btn" title="Previous 100 models" disabled>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-            </button>
-            <span id="page-info">Page 1 / ?</span>
-            <button id="next-page-btn" title="Next 100 models">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-            </button>
-        </div>
-
         <select id="model-select">
             <option value="">-- Select a model --</option>
         </select>
@@ -109,10 +38,7 @@
     </div>
 
     <div class="diagram" id="diagram">
-        <div class="loading-container">
-            <div class="spinner"></div>
-            <div>Fetching massive results from HF Dataset...</div>
-        </div>
+        <p class="empty">Select a model</p>
     </div>
 
     <script>
@@ -120,8 +46,6 @@
         let DATA = [];
         let currentStatsMode = 'results';
         let currentYearMetric = 'count';
-        let currentPage = 1;
-        const modelsPerPage = 100;
 
         function distinctYears() {
             const years = new Set();
@@ -152,49 +76,21 @@
         function renderModelSelect() {
             const sel = document.getElementById('model-select');
             sel.innerHTML = '<option value="">-- Select a model --</option>';
-
-            const startIdx = (currentPage - 1) * modelsPerPage;
-            const endIdx = Math.min(startIdx + modelsPerPage, DATA.length);
-
-            for (let i = startIdx; i < endIdx; i++) {
-                const m = DATA[i];
+            DATA.forEach(m => {
                 const opt = document.createElement('option');
                 opt.value = m.original_index;
                 opt.textContent = m.id;
                 sel.appendChild(opt);
-            }
-
-            const totalPages = Math.ceil(DATA.length / modelsPerPage) || 1;
-            document.getElementById('page-info').textContent = `Page ${currentPage} / ${totalPages}`;
-            document.getElementById('prev-page-btn').disabled = currentPage === 1;
-            document.getElementById('next-page-btn').disabled = currentPage >= totalPages;
+            });
         }
 
-        document.getElementById('prev-page-btn').addEventListener('click', function() {
-            if (currentPage > 1) {
-                currentPage--;
-                renderModelSelect();
-                document.getElementById('model-select').value = "";
-                document.getElementById('model-select').dispatchEvent(new Event('change'));
-            }
-        });
-
-        document.getElementById('next-page-btn').addEventListener('click', function() {
-            const totalPages = Math.ceil(DATA.length / modelsPerPage);
-            if (currentPage < totalPages) {
-                currentPage++;
-                renderModelSelect();
-                document.getElementById('model-select').value = "";
-                document.getElementById('model-select').dispatchEvent(new Event('change'));
-            }
-        });
-
         document.getElementById('sort-select').addEventListener('change', function () {
-            currentPage = 1;
+            const currentSelected = document.getElementById('model-select').value;
             applySort();
             renderModelSelect();
-            document.getElementById('model-select').value = "";
-            document.getElementById('model-select').dispatchEvent(new Event('change'));
+            if (currentSelected !== '') {
+                document.getElementById('model-select').value = currentSelected;
+            }
         });
 
         function setStatsMode(mode) {
@@ -227,6 +123,7 @@
         }
 
         function confColor(val) {
+            // Red (low) → Orange (mid) → Green (high)
             if (val >= 0.7) return '#4caf50';
             if (val >= 0.4) return '#ff9800';
             return '#ef5350';
@@ -245,6 +142,7 @@
         }
 
         function connector(labels) {
+            // labels: array of {text, cls}
             let h = '<div class="connector"><div class="connector-line"></div>';
             labels.forEach(l => { h += `<span class="connector-label ${l.cls || ''}">${l.text}</span>`; });
             h += '<div class="connector-arrow">▼</div></div>';
@@ -332,19 +230,22 @@
                     </div>
                 `;
             } else if (currentStatsMode === 'year') {
-                const byYear = {};
+                const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+                const byMonth = {};
                 RAW_DATA.forEach(d => {
-                    if (d.year == null) return;
-                    const yr = d.year;
+                    if (d.year == null || d.month == null) return;
+                    const key = d.year * 100 + d.month;
                     const provider = (d.conclusion && d.conclusion.chip_provider) ? d.conclusion.chip_provider : 'unknown';
-                    if (!byYear[yr]) byYear[yr] = {};
-                    byYear[yr][provider] = (byYear[yr][provider] || 0) + 1;
+                    if (!byMonth[key]) byMonth[key] = {};
+                    byMonth[key][provider] = (byMonth[key][provider] || 0) + 1;
                 });
 
-                const years = Object.keys(byYear).map(Number).sort((a, b) => a - b);
+                const monthKeys = Object.keys(byMonth).map(Number).sort((a, b) => a - b);
+                const years = Array.from(new Set(monthKeys.map(k => Math.floor(k / 100)))).sort((a, b) => a - b);
 
-                if (years.length < 2) {
-                    chartHTML = `<p class="empty" style="margin-top:0;">Year Mode needs results spanning at least 2 years. Re-run the pipeline with <code>--years 2023,2024</code> (or similar).</p>`;
+                if (monthKeys.length < 2) {
+                    chartHTML = `<p class="empty" style="margin-top:0;">Year Mode needs at least 2 months of data with a <code>year</code> and <code>month</code> field.</p>`;
                 } else {
                     const colors = {
                         'nvidia': '#4caf50',
@@ -358,7 +259,7 @@
                     };
 
                     const providers = new Set();
-                    years.forEach(y => Object.keys(byYear[y]).forEach(p => providers.add(p)));
+                    monthKeys.forEach(k => Object.keys(byMonth[k]).forEach(p => providers.add(p)));
                     const providerList = Array.from(providers).sort((a, b) => {
                         if (a === 'unknown') return 1;
                         if (b === 'unknown') return -1;
@@ -369,11 +270,11 @@
 
                     const series = {};
                     providerList.forEach(p => {
-                        series[p] = years.map(y => {
-                            const yearData = byYear[y];
-                            const count = yearData[p] || 0;
+                        series[p] = monthKeys.map(k => {
+                            const monthData = byMonth[k];
+                            const count = monthData[p] || 0;
                             if (metric === 'percent') {
-                                const t = Object.values(yearData).reduce((a, b) => a + b, 0);
+                                const t = Object.values(monthData).reduce((a, b) => a + b, 0);
                                 return t > 0 ? count / t * 100 : 0;
                             }
                             return count;
@@ -391,11 +292,11 @@
                         })();
 
                     const W = 720, H = 380;
-                    const padL = 55, padR = 30, padT = 20, padB = 40;
+                    const padL = 55, padR = 30, padT = 20, padB = 50;
                     const plotW = W - padL - padR;
                     const plotH = H - padT - padB;
 
-                    const xFor = (i) => padL + (years.length === 1 ? plotW / 2 : i / (years.length - 1) * plotW);
+                    const xFor = (i) => padL + (monthKeys.length === 1 ? plotW / 2 : i / (monthKeys.length - 1) * plotW);
                     const yFor = (v) => padT + plotH - (v / niceMax * plotH);
 
                     const gridTicks = 5;
@@ -408,11 +309,20 @@
                         grid += `<text x="${padL - 8}" y="${y + 4}" text-anchor="end" font-size="11" fill="#888">${label}</text>`;
                     }
 
+                    const labelStride = Math.max(1, Math.ceil(monthKeys.length / 12));
                     let xLabels = '';
-                    years.forEach((y, i) => {
+                    monthKeys.forEach((k, i) => {
                         const x = xFor(i);
-                        xLabels += `<text x="${x}" y="${padT + plotH + 22}" text-anchor="middle" font-size="12" fill="#555">${y}</text>`;
-                        xLabels += `<line x1="${x}" x2="${x}" y1="${padT + plotH}" y2="${padT + plotH + 5}" stroke="#888" stroke-width="1"/>`;
+                        const m = k % 100;
+                        const y = Math.floor(k / 100);
+                        const isJan = m === 1;
+                        const tickLen = isJan ? 6 : 3;
+                        const tickColor = isJan ? '#888' : '#bbb';
+                        xLabels += `<line x1="${x}" x2="${x}" y1="${padT + plotH}" y2="${padT + plotH + tickLen}" stroke="${tickColor}" stroke-width="1"/>`;
+                        if (i % labelStride === 0 || i === monthKeys.length - 1) {
+                            const lbl = `${MONTH_NAMES[m - 1]} '${String(y).slice(-2)}`;
+                            xLabels += `<text x="${x}" y="${padT + plotH + 22}" text-anchor="middle" font-size="11" fill="#555">${lbl}</text>`;
+                        }
                     });
 
                     const axes = `
@@ -422,20 +332,27 @@
 
                     let lines = '';
                     let legendHTML = '';
+                    const pointRadius = monthKeys.length > 24 ? 2.5 : 3.5;
                     providerList.forEach(p => {
                         const color = colors[p] || '#999';
                         const points = series[p].map((v, i) => `${xFor(i)},${yFor(v)}`).join(' ');
-                        lines += `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+                        lines += `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
                         series[p].forEach((v, i) => {
                             const tip = metric === 'percent' ? v.toFixed(1) + '%' : v;
-                            lines += `<circle cx="${xFor(i)}" cy="${yFor(v)}" r="4" fill="${color}" stroke="#fff" stroke-width="1.5"><title>${p} ${years[i]}: ${tip}</title></circle>`;
+                            const k = monthKeys[i];
+                            const m = k % 100;
+                            const y = Math.floor(k / 100);
+                            const monthLabel = `${MONTH_NAMES[m - 1]} ${y}`;
+                            lines += `<circle cx="${xFor(i)}" cy="${yFor(v)}" r="${pointRadius}" fill="${color}" stroke="#fff" stroke-width="1"><title>${p} ${monthLabel}: ${tip}</title></circle>`;
                         });
                         legendHTML += `<div style="display:flex; align-items:center; gap:6px;"><span style="display:inline-block; width:14px; height:14px; background:${color}; border-radius:3px;"></span> ${p}</div>`;
                     });
 
                     let totalsHTML = '<div style="margin-top:18px; display:flex; justify-content:center; gap:18px; font-size:11px; color:#888;">';
                     years.forEach(y => {
-                        const t = Object.values(byYear[y]).reduce((a, b) => a + b, 0);
+                        const t = monthKeys
+                            .filter(k => Math.floor(k / 100) === y)
+                            .reduce((acc, k) => acc + Object.values(byMonth[k]).reduce((a, b) => a + b, 0), 0);
                         totalsHTML += `<div>${y}: <strong style="color:#444">${t}</strong> models</div>`;
                     });
                     totalsHTML += '</div>';
@@ -618,6 +535,7 @@
 
             let h = '';
 
+            // ── Step 1: Model Card Analysis ──
             h += '<div class="node">';
             h += '<div class="node-title">1. Model Card Analysis</div>';
             h += '<div class="two-col">';
@@ -637,6 +555,7 @@
             }
             h += '</div>';
 
+            // ── Connector: Model Card → GitHub Resolution ──
             const numGhCandidates = (gr.candidate_links || []).length;
             if (numGhCandidates > 0) {
                 h += connector([{ text: `${numGhCandidates} GitHub link${numGhCandidates > 1 ? 's' : ''} found in model card`, cls: '' }]);
@@ -644,6 +563,7 @@
                 h += connector([{ text: 'No GitHub links in model card', cls: 'skip' }]);
             }
 
+            // ── Step 2: GitHub Resolution ──
             h += `<div class="node${!hasGithub && numGhCandidates === 0 ? ' dimmed' : ''}">`;
             h += '<div class="node-title">2. GitHub Link Selection</div>';
 
@@ -676,6 +596,7 @@
             }
             h += '</div>';
 
+            // ── Connector: GitHub Resolution → GitHub Code Analysis ──
             if (hasGithub) {
                 const connLabels = [];
                 if (gr.source === 'llm') {
@@ -689,6 +610,7 @@
                 h += connector([{ text: 'No repo to analyze — skipping code scan', cls: 'skip' }]);
             }
 
+            // ── Step 3: GitHub Code Analysis ──
             h += `<div class="node${!hasGithub ? ' dimmed' : ''}">`;
             h += '<div class="node-title">3. GitHub Code Analysis</div>';
             if (hasGithub) {
@@ -712,6 +634,7 @@
             }
             h += '</div>';
 
+            // ── Connector: GitHub Code → ArXiv Paper ──
             const numAxCandidates = (ar.candidate_links || []).length;
             if (numAxCandidates > 0) {
                 h += connector([{ text: `${numAxCandidates} arXiv paper${numAxCandidates > 1 ? 's' : ''} found in model card`, cls: '' }]);
@@ -719,12 +642,14 @@
                 h += connector([{ text: 'No arXiv papers in model card', cls: 'skip' }]);
             }
 
+            // ── Step 4: ArXiv Paper Analysis ──
             h += `<div class="node${!hasArxiv && numAxCandidates === 0 ? ' dimmed' : ''}">`;
             h += '<div class="node-title">4. ArXiv Paper Analysis</div>';
 
             if (numAxCandidates === 0) {
                 h += '<div style="color:#aaa;font-style:italic">Skipped — no arXiv papers found</div>';
             } else {
+                // Show selected paper
                 if (hasArxiv) {
                     const paperLink = ar.selected_link;
                     const paperId = paperLink.replace('https://arxiv.org/abs/', '');
@@ -747,6 +672,7 @@
                         h += '</div>';
                     }
 
+                    // Show chip/framework analysis
                     if (ap.chip_provider && ap.chip_provider !== 'unknown' || ap.framework && ap.framework !== 'unknown') {
                         h += '<div class="two-col" style="margin-top:6px">';
                         h += '<div>';
@@ -773,6 +699,7 @@
             }
             h += '</div>';
 
+            // ── Connector: ArXiv → LLM Verification ──
             const usedLlm = chipWin === 'llm_chip';
             if (usedLlm) {
                 h += connector([{ text: 'Heuristics conflicted or were too low — triggering AI fallback', cls: 'llm-call' }]);
@@ -780,6 +707,7 @@
                 h += connector([{ text: 'Heuristics were sufficiently confident', cls: 'skip' }]);
             }
 
+            // ── Step 5: LLM Verification ──
             h += `<div class="node${!usedLlm ? ' dimmed' : ''}">`;
             h += '<div class="node-title">5. AI Chip Verification</div>';
             if (usedLlm) {
@@ -790,8 +718,9 @@
             }
             h += '</div>';
 
+            // ── Connector: Verification → Conclusion ──
             const decLabels = [];
-
+            // Chip decision
             if (chipWin === 'llm_chip') {
                 decLabels.push({ text: `Chip: AI verified as ${co.chip_provider}`, cls: 'win' });
             } else if (chipWin === 'arxiv_paper') {
@@ -808,7 +737,7 @@
             } else {
                 decLabels.push({ text: 'Chip: all sources unknown', cls: 'skip' });
             }
-
+            // Framework decision
             if (fwWin === 'arxiv_paper') {
                 decLabels.push({ text: `Framework: arXiv paper (${Math.round((ap.framework_confidence || 0) * 100)}%) wins — highest priority`, cls: 'win' });
             } else if (fwWin === 'github_code') {
@@ -823,16 +752,17 @@
             }
             h += connector(decLabels);
 
+            // ── Step 6: Conclusion ──
             h += '<div class="node node-conclusion">';
             h += '<div class="node-title">6. Conclusion</div>';
             h += '<div class="conclusion-row">';
-
+            // Chip
             h += `<div class="conclusion-dim src-${chipWin || ''}">`;
             h += `<div class="conclusion-val val-${co.chip_provider || 'unknown'}">${co.chip_provider || 'unknown'}</div>`;
             h += `<div class="kv"><span class="k">Chip Provider</span>${badgeHTML(chipWin)}</div>`;
             h += confBarHTML(co.chip_provider_confidence);
             h += '</div>';
-
+            // Framework
             h += `<div class="conclusion-dim src-${fwWin || ''}">`;
             h += `<div class="conclusion-val val-${co.framework || 'unknown'}">${co.framework || 'unknown'}</div>`;
             h += `<div class="kv"><span class="k">Framework</span>${badgeHTML(fwWin)}</div>`;
