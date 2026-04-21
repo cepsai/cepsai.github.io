@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>AI Job Postings Europe</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+      background-color: white;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 19fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding-bottom: clamp(8px, 2vh, 18px);
+    }
+
+    #container1 {
+      grid-row: 1;
+      grid-column: 1 / span 2;
+      overflow: hidden;
+      min-height: 0;
+      position: relative;
+    }
+
+    #container3 {
+      grid-row: 2;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #container4 {
+      grid-row: 2;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    .floating-panel {
+      position: absolute;
+      left: 50%;
+      bottom: clamp(10px, 2vh, 20px);
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(4px, 0.8vh, 10px);
+      padding: clamp(8px, 1.2vh, 14px) clamp(12px, 1.6vw, 20px);
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(17, 24, 39, 0.08);
+      border-radius: 12px;
+      z-index: 1000;
+      max-width: calc(100% - 8px);
+      width: auto;
+    }
+
+    #container4 a {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    #viz {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(6px, 1vw, 14px);
+      background: transparent;
+      padding: 0;
+      max-width: 100%;
+      max-height: 100%;
+      font-size: clamp(0.625rem, 1.4vw, 1rem);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: clamp(4px, 1vw, 8px);
+      font-weight: 600;
+      color: #333;
+      font-size: inherit;
+      padding: 2px 6px;
+      cursor: default;
+      white-space: nowrap;
+    }
+
+    .legend-square {
+      width: clamp(8px, 0.9vw, 12px);
+      height: clamp(8px, 0.9vw, 12px);
+      border-radius: 0;
+      flex-shrink: 0;
+    }
+
+    .source-text {
+      font-size: clamp(10px, 1.6vw, 16px);
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .source-text a {
+      color: #2756d3;
+      text-decoration: underline;
+      cursor: default;
+    }
+
+    .source-text a:visited {
+      color: #2756d3;
+    }
+
+    .logo {
+      height: 100%;
+      width: auto;
+      max-height: 100%;
+      max-width: 100%;
+      pointer-events: auto;
+      object-fit: contain;
+    }
+
+    #slider-container {
+      display: flex;
+      align-items: center;
+      gap: clamp(8px, 1vw, 16px);
+      padding: 0;
+      overflow: visible;
+      min-height: 0;
+      width: clamp(320px, 42vw, 560px);
+      max-width: 100%;
+    }
+
+    .selector-group {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(2px, 0.5vw, 6px);
+      padding: clamp(2px, 0.4vw, 4px);
+      border-radius: 6px;
+      border: 1px solid rgba(17, 24, 39, 0.15);
+      background: #f8fafc;
+      flex-shrink: 0;
+    }
+
+    .selector-button {
+      border: none;
+      background: transparent;
+      padding: clamp(3px, 0.7vh, 6px) clamp(10px, 1.6vw, 16px);
+      border-radius: 6px;
+      font-size: clamp(11px, 1.3vw, 13px);
+      font-weight: 700;
+      color: #475569;
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+      white-space: nowrap;
+      min-width: 0;
+      font-family: inherit;
+    }
+
+    .selector-button.active {
+      background: #2756d3;
+      color: #fff;
+    }
+
+    .checkbox-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: clamp(4px, 0.8vw, 8px);
+      cursor: pointer;
+      padding: clamp(3px, 0.7vh, 6px) clamp(10px, 1.6vw, 14px);
+      border-radius: 6px;
+      border: 1px solid rgba(17, 24, 39, 0.15);
+      background: #f8fafc;
+      font-size: clamp(11px, 1.3vw, 13px);
+      font-weight: 700;
+      color: #475569;
+      font-family: inherit;
+      user-select: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .checkbox-chip input[type="checkbox"] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .checkbox-chip .checkbox-box {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1.5px solid #94a3b8;
+      background: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    .checkbox-chip .checkbox-check {
+      width: 12px;
+      height: 12px;
+      opacity: 0;
+      transition: opacity 0.12s ease;
+    }
+
+    .checkbox-chip input:checked~.checkbox-box {
+      background: #2756d3;
+      border-color: #2756d3;
+    }
+
+    .checkbox-chip input:checked~.checkbox-box .checkbox-check {
+      opacity: 1;
+    }
+
+    .checkbox-chip input:focus-visible~.checkbox-box {
+      outline: 2px solid #2756d3;
+      outline-offset: 2px;
+    }
+
+    .country-label {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 11px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      text-shadow:
+        0 0 3px rgba(255, 255, 255, 0.95),
+        0 0 3px rgba(255, 255, 255, 0.95),
+        0 0 3px rgba(255, 255, 255, 0.95);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .country-label::before {
+      display: none !important;
+    }
+
+    .country-label.hidden {
+      visibility: hidden;
+    }
+
+    .slider-label {
+      font-size: clamp(10px, 1.2vw, 13px);
+      font-weight: 700;
+      color: #475569;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .slider-wrapper {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 40px;
+    }
+
+    .slider-track-bg {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+
+    .year-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: transparent;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+      position: relative;
+      z-index: 2;
+    }
+
+    .year-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #3b82f6;
+      border: 3px solid #fff;
+      cursor: pointer;
+      transition: box-shadow 0.2s;
+    }
+
+    .year-slider::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.15);
+    }
+
+    .year-slider::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #3b82f6;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
+      cursor: pointer;
+    }
+
+    .slider-year-label {
+      font-size: clamp(12px, 1.4vw, 15px);
+      font-weight: 800;
+      color: #0f172a;
+      min-width: 44px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+
+    .leaflet-container {
+      background: #e0f2fe;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+
+    .leaflet-control-zoom a {
+      border-radius: 4px !important;
+      color: #475569 !important;
+      border: 1px solid rgba(17, 24, 39, 0.12) !important;
+    }
+
+    .eu-outline {
+      pointer-events: none;
+    }
+
+    #tooltip {
+      position: fixed;
+      padding: 6px 8px;
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 2px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+      color: #444;
+      z-index: 9999;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+      transition: opacity 0.1s ease;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+
+    #tooltip .t-name {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 13px;
+    }
+
+    #tooltip .t-count {
+      font-weight: 800;
+      color: #2756d3;
+      font-size: 17px;
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #tooltip .t-meta {
+      color: #64748b;
+      font-size: 11px;
+      margin-top: 1px;
+    }
+
+    @media (max-height: 500px) {
+      .viz-grid {
+        grid-template-rows: 1fr !important;
+        grid-template-columns: 1fr !important;
+        padding-bottom: 0;
+      }
+
+      #container1 {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+      }
+
+      #container3,
+      #container4,
+      .floating-panel {
+        display: none !important;
+      }
+    }
+
+    @media (max-width: 500px) {
+      .floating-panel {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="viz-grid">
+    <div id="container1" class="container viz-container">
+      <div id="viz">
+        <div id="map"></div>
+      </div>
+      <div class="floating-panel">
+        <div class="legend" id="legend"></div>
+        <div id="slider-container">
+          <span class="slider-label">Year</span>
+          <div class="slider-wrapper">
+            <div class="slider-track-bg"></div>
+            <input type="range" class="year-slider" id="year-slider" min="2018" max="2025" value="2025" step="1">
+          </div>
+          <span class="slider-year-label" id="year-label">2025</span>
+          <div class="selector-group" id="mode-toggle" role="tablist" aria-label="Value format">
+            <button class="selector-button active" data-mode="count" type="button">#</button>
+            <button class="selector-button" data-mode="pct" type="button">%</button>
+          </div>
+          <label class="checkbox-chip" id="per-capita-chip">
+            <input type="checkbox" id="per-capita-input">
+            <span class="checkbox-box" aria-hidden="true">
+              <svg class="checkbox-check" viewBox="0 0 12 12">
+                <path d="M2.5 6 L5 8.5 L9.5 3.5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </span>
+            <span>Per 1M</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div id="container3" class="container source-container">
+      <div class="source-text">
+        Source: <a href="https://lightcast.io/" target="_blank" rel="noopener">Lightcast</a>
+      </div>
+    </div>
+
+    <div id="container4" class="container logo-container">
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+      </a>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <script>
+
+    const SHOW_CONTAINER_2 = 1;
+    const SHOW_CONTAINER_3 = 1;
+    const SHOW_CONTAINER_4 = 1;
+    const SHOW_CONTAINER_5 = 0;
+
+    const DATA_TO_ISO = { EL: "GR", UK: "GB" };
+
+    const COLORS = ["#eff3ff", "#c6dbef", "#9ecae1", "#6baed6", "#3182bd", "#08519c", "#08306b"];
+    const NO_DATA_COLOR = "#e5e7eb";
+
+    const NAME_TO_ISO = {
+      "France": "FR",
+      "Norway": "NO",
+      "Kosovo": "XK",
+      "Ukraine": "UA",
+      "Somaliland": null,
+      "N. Cyprus": null,
+    };
+
+    (function applyContainerVisibility() {
+      if (!SHOW_CONTAINER_3) document.getElementById('container3').style.display = 'none';
+      if (!SHOW_CONTAINER_4) document.getElementById('container4').style.display = 'none';
+    })();
+
+    const map = L.map("map", {
+      zoomControl: true,
+      attributionControl: false,
+      minZoom: 3,
+      maxZoom: 7,
+      worldCopyJump: false,
+    }).setView([54, 12], 4);
+
+    const tooltipEl = document.getElementById("tooltip");
+    function showTooltip(props, year) {
+      const iso = getFeatureIso(props);
+      const name = props.ADMIN || props.NAME || iso || "Unknown";
+      const value = iso ? lookup[`${iso}|${year}`] : null;
+      let primary = "—";
+      let metaPrefix = "AI postings";
+      if (value != null) {
+        if (currentMode === "pct") {
+          primary = formatPct(pctFor(iso, year));
+        } else if (perCapita) {
+          const p = per1MFor(iso, year);
+          primary = p == null ? "—" : formatPer1M(p);
+          metaPrefix = "AI postings per 1M";
+        } else {
+          primary = d3.format(",")(value);
+        }
+      }
+      tooltipEl.innerHTML =
+        `<div class="t-name">${name}</div>` +
+        `<div class="t-count">${primary}</div>` +
+        `<div class="t-meta">${metaPrefix} · ${year}</div>`;
+      tooltipEl.style.opacity = "1";
+    }
+    function moveTooltip(evt) {
+      tooltipEl.style.left = (evt.clientX + 14) + "px";
+      tooltipEl.style.top = (evt.clientY - 24) + "px";
+    }
+    function hideTooltip() {
+      tooltipEl.style.opacity = "0";
+    }
+
+    function getFeatureIso(props) {
+      let iso = props.ISO_A2;
+      if (!iso || iso === "-99") iso = props.ISO_A2_EH;
+      if (!iso || iso === "-99") {
+        const name = props.ADMIN || props.NAME;
+        if (name in NAME_TO_ISO) iso = NAME_TO_ISO[name];
+      }
+      return iso && iso !== "-99" ? iso : null;
+    }
+
+    const lookup = {};
+    const popLookup = {};
+    const EU_ISO = new Set();
+    const euTotalByYear = {};
+    const BREAKS_RAW = [100, 1000, 5000, 10000, 30000, 60000];
+    const BREAKS_RAW_LABELS = ["< 100", "< 1k", "< 5k", "< 10k", "< 30k", "< 60k", "≥ 60k"];
+    const BREAKS_PER_1M = [10, 50, 100, 250, 500, 1000];
+    const BREAKS_PER_1M_LABELS = ["< 10", "< 50", "< 100", "< 250", "< 500", "< 1k", "≥ 1k"];
+    let geoLayer = null;
+    let currentYear = +document.getElementById("year-slider").value;
+    let currentMode = "count";
+    let perCapita = false;
+    let hoveredLayer = null;
+
+    function pctFor(iso, year) {
+      const total = euTotalByYear[year];
+      if (!total) return 0;
+      const v = lookup[`${iso}|${year}`];
+      if (v == null) return 0;
+      return (v / total) * 100;
+    }
+    function formatPct(pct) {
+      if (!isFinite(pct) || pct <= 0) return "0%";
+      if (pct < 0.1) return "<0.1%";
+      if (pct < 10) return d3.format(".1f")(pct) + "%";
+      return d3.format(".0f")(pct) + "%";
+    }
+    function per1MFor(iso, year) {
+      const v = lookup[`${iso}|${year}`];
+      const pop = popLookup[`${iso}|${year}`];
+      if (v == null || !pop) return null;
+      return (v / pop) * 1e6;
+    }
+    function formatPer1M(v) {
+      if (!isFinite(v)) return "—";
+      if (v >= 1000) return d3.format(",")(Math.round(v));
+      if (v >= 100) return d3.format(".0f")(v);
+      if (v >= 10) return d3.format(".1f")(v);
+      if (v >= 1) return d3.format(".2f")(v);
+      return d3.format(".2f")(v);
+    }
+    function labelFor(iso, year, mode) {
+      const v = lookup[`${iso}|${year}`];
+      if (v == null || v <= 0) return "";
+      if (mode === "pct") return formatPct(pctFor(iso, year));
+      if (perCapita) {
+        const p = per1MFor(iso, year);
+        return p == null ? "" : formatPer1M(p);
+      }
+      return formatNum(v);
+    }
+
+    function colorValue(iso, year) {
+      const v = lookup[`${iso}|${year}`];
+      if (v == null) return null;
+      if (currentMode !== "pct" && perCapita) return per1MFor(iso, year);
+      return v;
+    }
+    function colorFor(value) {
+      if (value == null || value <= 0 || !isFinite(value)) return NO_DATA_COLOR;
+      const breaks = (currentMode !== "pct" && perCapita) ? BREAKS_PER_1M : BREAKS_RAW;
+      for (let i = 0; i < breaks.length; i++) {
+        if (value < breaks[i]) return COLORS[i];
+      }
+      return COLORS[COLORS.length - 1];
+    }
+    function formatNum(v) {
+      if (v >= 1e6) return d3.format(".2~s")(v).replace("G", "B");
+      if (v >= 1e3) return d3.format(",.2~s")(v).replace("G", "B");
+      return d3.format(",")(v);
+    }
+    function isEuFeature(feature) {
+      const iso = getFeatureIso(feature.properties);
+      return iso && EU_ISO.has(iso);
+    }
+
+    function styleFor(year) {
+      return function (feature) {
+        const iso = getFeatureIso(feature.properties);
+        const inDataset = iso && EU_ISO.has(iso);
+        const value = inDataset ? colorValue(iso, year) : null;
+        return {
+          weight: 0.6,
+          color: inDataset ? "#fff" : "#d1d5db",
+          fillColor: inDataset ? colorFor(value) : "#e5e7eb",
+          fillOpacity: inDataset ? 0.92 : 0.9,
+          opacity: 1,
+          interactive: inDataset,
+        };
+      };
+    }
+
+    function setLabelHidden(layer, hidden) {
+      const t = layer.getTooltip && layer.getTooltip();
+      if (!t || !t._container) return;
+      t._container.classList.toggle("hidden", hidden);
+    }
+
+    function shouldShowLabel(layer) {
+      const b = layer.getBounds();
+      if (!b.isValid()) return false;
+      const nw = map.latLngToLayerPoint(b.getNorthWest());
+      const se = map.latLngToLayerPoint(b.getSouthEast());
+      const w = Math.abs(se.x - nw.x);
+      const h = Math.abs(se.y - nw.y);
+      return w > 46 && h > 22;
+    }
+
+    function updateLabels() {
+      if (!geoLayer) return;
+      geoLayer.eachLayer((layer) => {
+        const feat = layer.feature;
+        if (!feat || !isEuFeature(feat)) return;
+        const iso = getFeatureIso(feat.properties);
+        const text = labelFor(iso, currentYear, currentMode);
+        const fits = shouldShowLabel(layer);
+        if (fits && text) {
+          if (layer.getTooltip()) {
+            layer.setTooltipContent(text);
+          } else {
+            layer.bindTooltip(text, {
+              permanent: true,
+              direction: "center",
+              className: "country-label",
+              opacity: 1,
+              interactive: false,
+            });
+          }
+        } else if (layer.getTooltip()) {
+          layer.unbindTooltip();
+        }
+      });
+    }
+
+    function highlightFeature(e) {
+      const layer = e.target;
+      hoveredLayer = layer;
+      layer.setStyle({ weight: 2, color: "#0f172a", fillOpacity: 0.96 });
+      layer.bringToFront();
+      setLabelHidden(layer, true);
+      showTooltip(layer.feature.properties, currentYear);
+      moveTooltip(e.originalEvent);
+    }
+    function trackTooltip(e) {
+      moveTooltip(e.originalEvent);
+    }
+    function resetHighlight(e) {
+      if (geoLayer) geoLayer.resetStyle(e.target);
+      setLabelHidden(e.target, false);
+      hoveredLayer = null;
+      hideTooltip();
+    }
+
+    function onEachFeature(feature, layer) {
+      if (!isEuFeature(feature)) {
+        layer.once("add", () => {
+          if (layer._path) {
+            layer._path.style.pointerEvents = "none";
+            layer._path.style.cursor = "default";
+          }
+        });
+        return;
+      }
+      layer.once("add", () => {
+        if (layer._path) layer._path.style.cursor = "pointer";
+      });
+      layer.on({
+        mouseover: highlightFeature,
+        mousemove: trackTooltip,
+        mouseout: resetHighlight,
+        click: (e) => map.fitBounds(e.target.getBounds(), { padding: [40, 40] }),
+      });
+    }
+
+    function buildLegend() {
+      const legend = document.getElementById("legend");
+      legend.innerHTML = "";
+      const labels = (currentMode !== "pct" && perCapita) ? BREAKS_PER_1M_LABELS : BREAKS_RAW_LABELS;
+      for (let i = 0; i < COLORS.length; i++) {
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        item.innerHTML = `<span class="legend-square" style="background:${COLORS[i]}"></span><span>${labels[i]}</span>`;
+        legend.appendChild(item);
+      }
+      const nd = document.createElement("div");
+      nd.className = "legend-item";
+      nd.innerHTML = `<span class="legend-square" style="background:${NO_DATA_COLOR}"></span><span>No data</span>`;
+      legend.appendChild(nd);
+    }
+
+    const EUROPE_BOUNDS = [[34.5, -13], [71, 42]];
+
+    function bboxOverlaps(ring, bounds) {
+      const [[s, w], [n, e]] = bounds;
+      let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+      for (const [lon, lat] of ring) {
+        if (lon < minLon) minLon = lon;
+        if (lon > maxLon) maxLon = lon;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+      }
+      return maxLat >= s && minLat <= n && maxLon >= w && minLon <= e;
+    }
+    function clipFeatures(features, bounds) {
+      const out = [];
+      for (const f of features) {
+        const g = f.geometry;
+        if (!g) continue;
+        if (g.type === "MultiPolygon") {
+          const inBounds = g.coordinates.filter((poly) => bboxOverlaps(poly[0], bounds));
+          if (inBounds.length === 0) {
+            out.push(f);
+          } else if (inBounds.length < g.coordinates.length) {
+            out.push({ ...f, geometry: { ...g, coordinates: inBounds } });
+          } else {
+            out.push(f);
+          }
+        } else if (g.type === "MultiLineString") {
+          const inBounds = g.coordinates.filter((ls) => bboxOverlaps(ls, bounds));
+          if (inBounds.length === 0) {
+            out.push(f);
+          } else if (inBounds.length < g.coordinates.length) {
+            out.push({ ...f, geometry: { ...g, coordinates: inBounds } });
+          } else {
+            out.push(f);
+          }
+        } else {
+          out.push(f);
+        }
+      }
+      return out;
+    }
+
+    const DATA_URL = "jobs_ai_europe.csv";
+    const COUNTRIES_URL =
+      "https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson";
+    const COASTLINE_URL =
+      "https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_coastline.geojson";
+
+    Promise.all([
+      fetch(DATA_URL).then((r) => {
+        if (!r.ok) throw new Error(`CSV fetch failed: ${r.status}`);
+        return r.text();
+      }),
+      fetch(COUNTRIES_URL).then((r) => {
+        if (!r.ok) throw new Error(`Countries fetch failed: ${r.status}`);
+        return r.json();
+      }),
+      fetch(COASTLINE_URL).then((r) => {
+        if (!r.ok) throw new Error(`Coastline fetch failed: ${r.status}`);
+        return r.json();
+      }),
+    ])
+      .then(([csvText, countries, coastlines]) => {
+        const rows = d3.csvParse(csvText);
+        const annual = d3.rollup(
+          rows.filter((r) => +r.is_eu === 1),
+          (v) => ({
+            jobs: d3.sum(v, (d) => +d.ai_job_count),
+            pop: d3.max(v, (d) => +d.population) || 0,
+          }),
+          (d) => DATA_TO_ISO[d.country] || d.country,
+          (d) => +d.year
+        );
+        for (const [iso, yearMap] of annual) {
+          EU_ISO.add(iso);
+          for (const [year, agg] of yearMap) {
+            lookup[`${iso}|${year}`] = agg.jobs;
+            if (agg.pop > 0) popLookup[`${iso}|${year}`] = agg.pop;
+            euTotalByYear[year] = (euTotalByYear[year] || 0) + agg.jobs;
+          }
+        }
+
+        buildLegend();
+
+        countries.features = clipFeatures(countries.features, EUROPE_BOUNDS);
+
+        geoLayer = L.geoJson(countries, {
+          style: styleFor(currentYear),
+          onEachFeature: onEachFeature,
+        }).addTo(map);
+
+        L.geoJson(coastlines, {
+          style: { className: "eu-outline", color: "#0f172a", weight: 1, opacity: 1 },
+          interactive: false,
+        }).addTo(map);
+
+        map.fitBounds(EUROPE_BOUNDS, { padding: [10, 10] });
+        updateLabels();
+        map.on("zoomend", updateLabels);
+      })
+      .catch((err) => {
+        const box = document.createElement("div");
+        box.style.cssText =
+          "position:fixed;top:12px;left:12px;z-index:9999;background:#fff;" +
+          "padding:10px 14px;border:1px solid #fecaca;border-radius:6px;" +
+          "color:#b91c1c;font-family:system-ui;font-size:13px;" +
+          "box-shadow:0 2px 8px rgba(0,0,0,.12);";
+        box.textContent = `Map data failed to load: ${err.message}`;
+        document.body.appendChild(box);
+      });
+
+    const slider = document.getElementById("year-slider");
+    const yearLabel = document.getElementById("year-label");
+    slider.addEventListener("input", () => {
+      currentYear = +slider.value;
+      yearLabel.textContent = currentYear;
+      if (geoLayer) {
+        geoLayer.options.style = styleFor(currentYear);
+        geoLayer.setStyle(styleFor(currentYear));
+        updateLabels();
+        if (hoveredLayer) {
+          hoveredLayer.setStyle({ weight: 2, color: "#0f172a", fillOpacity: 0.96 });
+          hoveredLayer.bringToFront();
+          setLabelHidden(hoveredLayer, true);
+          showTooltip(hoveredLayer.feature.properties, currentYear);
+        }
+      }
+    });
+
+    document.querySelectorAll("#mode-toggle .selector-button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const mode = btn.dataset.mode;
+        if (mode === currentMode) return;
+        currentMode = mode;
+        document.querySelectorAll("#mode-toggle .selector-button").forEach((b) => {
+          b.classList.toggle("active", b.dataset.mode === currentMode);
+        });
+        buildLegend();
+        if (geoLayer) {
+          geoLayer.options.style = styleFor(currentYear);
+          geoLayer.setStyle(styleFor(currentYear));
+        }
+        updateLabels();
+        if (hoveredLayer) {
+          hoveredLayer.setStyle({ weight: 2, color: "#0f172a", fillOpacity: 0.96 });
+          hoveredLayer.bringToFront();
+          setLabelHidden(hoveredLayer, true);
+          showTooltip(hoveredLayer.feature.properties, currentYear);
+        }
+      });
+    });
+
+    document.getElementById("per-capita-input").addEventListener("change", (e) => {
+      perCapita = !!e.target.checked;
+      buildLegend();
+      if (geoLayer) {
+        geoLayer.options.style = styleFor(currentYear);
+        geoLayer.setStyle(styleFor(currentYear));
+      }
+      updateLabels();
+      if (hoveredLayer) {
+        hoveredLayer.setStyle({ weight: 2, color: "#0f172a", fillOpacity: 0.96 });
+        hoveredLayer.bringToFront();
+        setLabelHidden(hoveredLayer, true);
+        showTooltip(hoveredLayer.feature.properties, currentYear);
+      }
+    });
+  </script>
+</body>
+
+</html>
