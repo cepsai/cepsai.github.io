@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="utf-8">
-  <title>Europe AI Job Postings</title>
+  <title>AI Job Postings Europe</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
   <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -26,6 +26,7 @@
       display: grid;
       grid-template-rows: 19fr 1fr;
       grid-template-columns: 1fr 1fr;
+      row-gap: clamp(8px, 2vh, 18px);
       height: 100vh;
       width: 100vw;
       box-sizing: border-box;
@@ -182,11 +183,6 @@
       min-height: 0;
     }
 
-    .checkbox-chip.disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-
     .selector-group {
       display: flex;
       align-items: center;
@@ -217,66 +213,6 @@
     .selector-button.active {
       background: #2756d3;
       color: #fff;
-    }
-
-    .checkbox-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: clamp(4px, 0.8vw, 8px);
-      cursor: pointer;
-      padding: clamp(3px, 0.7vh, 6px) clamp(10px, 1.6vw, 14px);
-      border-radius: 6px;
-      border: 1px solid rgba(17, 24, 39, 0.15);
-      background: #f8fafc;
-      font-size: clamp(11px, 1.3vw, 13px);
-      font-weight: 700;
-      color: #475569;
-      font-family: inherit;
-      user-select: none;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .checkbox-chip input[type="checkbox"] {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .checkbox-chip .checkbox-box {
-      width: 14px;
-      height: 14px;
-      border-radius: 3px;
-      border: 1.5px solid #94a3b8;
-      background: #fff;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: background 0.15s ease, border-color 0.15s ease;
-    }
-
-    .checkbox-chip .checkbox-check {
-      width: 12px;
-      height: 12px;
-      opacity: 0;
-      transition: opacity 0.12s ease;
-    }
-
-    .checkbox-chip input:checked~.checkbox-box {
-      background: #2756d3;
-      border-color: #2756d3;
-    }
-
-    .checkbox-chip input:checked~.checkbox-box .checkbox-check {
-      opacity: 1;
-    }
-
-    .checkbox-chip input:focus-visible~.checkbox-box {
-      outline: 2px solid #2756d3;
-      outline-offset: 2px;
     }
 
     .country-label {
@@ -489,16 +425,6 @@
               <button class="selector-button" data-mode="pctCountry" type="button"
                 title="AI postings as a share of this country's total postings">% of country</button>
             </div>
-            <label class="checkbox-chip" id="per-capita-chip">
-              <input type="checkbox" id="per-capita-input">
-              <span class="checkbox-box" aria-hidden="true">
-                <svg class="checkbox-check" viewBox="0 0 12 12">
-                  <path d="M2.5 6 L5 8.5 L9.5 3.5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round"
-                    stroke-linejoin="round" />
-                </svg>
-              </span>
-              <span>Per 1M</span>
-            </label>
           </div>
         </div>
       </div>
@@ -579,10 +505,6 @@
           primary = formatPct(p);
           metaLine = `of ${name}'s postings · ${year}`;
           if (p == null) metaLine = `total-postings data missing · ${year}`;
-        } else if (perCapita) {
-          const p = per1MFor(iso, year);
-          primary = p == null ? "—" : formatPer1M(p);
-          metaLine = `AI postings per 1M · ${year}`;
         } else {
           primary = d3.format(",")(value);
         }
@@ -613,13 +535,10 @@
 
     const lookup = {};
     const totalLookup = {};
-    const popLookup = {};
     const EU_ISO = new Set();
     const euTotalByYear = {};
     const BREAKS_RAW = [100, 1000, 5000, 10000, 30000, 60000];
     const BREAKS_RAW_LABELS = ["< 100", "< 1k", "< 5k", "< 10k", "< 30k", "< 60k", "≥ 60k"];
-    const BREAKS_PER_1M = [10, 50, 100, 250, 500, 1000];
-    const BREAKS_PER_1M_LABELS = ["< 10", "< 50", "< 100", "< 250", "< 500", "< 1k", "≥ 1k"];
     const BREAKS_PCT_EU = [0.1, 0.5, 2, 5, 10, 25];
     const BREAKS_PCT_EU_LABELS = ["< 0.1%", "< 0.5%", "< 2%", "< 5%", "< 10%", "< 25%", "≥ 25%"];
     const BREAKS_PCT_COUNTRY = [0.05, 0.2, 0.5, 1, 2, 5];
@@ -627,7 +546,6 @@
     let geoLayer = null;
     let currentYear = +document.getElementById("year-slider").value;
     let currentMode = "count";
-    let perCapita = false;
     let hoveredLayer = null;
 
     function pctEuFor(iso, year) {
@@ -650,20 +568,6 @@
       if (pct < 10) return d3.format(".1f")(pct) + "%";
       return d3.format(".0f")(pct) + "%";
     }
-    function per1MFor(iso, year) {
-      const v = lookup[`${iso}|${year}`];
-      const pop = popLookup[`${iso}|${year}`];
-      if (v == null || !pop) return null;
-      return (v / pop) * 1e6;
-    }
-    function formatPer1M(v) {
-      if (!isFinite(v)) return "—";
-      if (v >= 1000) return d3.format(",")(Math.round(v));
-      if (v >= 100) return d3.format(".0f")(v);
-      if (v >= 10) return d3.format(".1f")(v);
-      if (v >= 1) return d3.format(".2f")(v);
-      return d3.format(".2f")(v);
-    }
     function labelFor(iso, year, mode) {
       const v = lookup[`${iso}|${year}`];
       if (v == null || v <= 0) return "";
@@ -672,31 +576,22 @@
         const p = pctCountryFor(iso, year);
         return p == null ? "" : formatPct(p);
       }
-      if (perCapita) {
-        const p = per1MFor(iso, year);
-        return p == null ? "" : formatPer1M(p);
-      }
       return formatNum(v);
     }
 
     function colorValue(iso, year) {
       if (currentMode === "pctEu") return pctEuFor(iso, year);
       if (currentMode === "pctCountry") return pctCountryFor(iso, year);
-      const v = lookup[`${iso}|${year}`];
-      if (v == null) return null;
-      if (perCapita) return per1MFor(iso, year);
-      return v;
+      return lookup[`${iso}|${year}`] ?? null;
     }
     function activeBreaks() {
       if (currentMode === "pctEu") return BREAKS_PCT_EU;
       if (currentMode === "pctCountry") return BREAKS_PCT_COUNTRY;
-      if (perCapita) return BREAKS_PER_1M;
       return BREAKS_RAW;
     }
     function activeBreakLabels() {
       if (currentMode === "pctEu") return BREAKS_PCT_EU_LABELS;
       if (currentMode === "pctCountry") return BREAKS_PCT_COUNTRY_LABELS;
-      if (perCapita) return BREAKS_PER_1M_LABELS;
       return BREAKS_RAW_LABELS;
     }
     function colorFor(value) {
@@ -874,14 +769,6 @@
 
     function buildLegend() { }
 
-    function updatePerCapitaChipState() {
-      const chip = document.getElementById("per-capita-chip");
-      const input = document.getElementById("per-capita-input");
-      const enabled = currentMode === "count";
-      chip.classList.toggle("disabled", !enabled);
-      input.disabled = !enabled;
-    }
-
     const EUROPE_BOUNDS = [[34.5, -13], [71, 42]];
 
     function bboxOverlaps(ring, bounds) {
@@ -953,7 +840,6 @@
           (v) => ({
             jobs: d3.sum(v, (d) => +d.ai_job_count),
             total: hasTotal ? d3.sum(v, (d) => +d.total_job_count || 0) : 0,
-            pop: d3.max(v, (d) => +d.population) || 0,
           }),
           (d) => DATA_TO_ISO[d.country] || d.country,
           (d) => +d.year
@@ -963,12 +849,10 @@
           for (const [year, agg] of yearMap) {
             lookup[`${iso}|${year}`] = agg.jobs;
             if (hasTotal && agg.total > 0) totalLookup[`${iso}|${year}`] = agg.total;
-            if (agg.pop > 0) popLookup[`${iso}|${year}`] = agg.pop;
             euTotalByYear[year] = (euTotalByYear[year] || 0) + agg.jobs;
           }
         }
 
-        updatePerCapitaChipState();
         buildLegend();
 
         countries.features = clipFeatures(countries.features, EUROPE_BOUNDS);
@@ -1024,7 +908,6 @@
         document.querySelectorAll("#mode-toggle .selector-button").forEach((b) => {
           b.classList.toggle("active", b.dataset.mode === currentMode);
         });
-        updatePerCapitaChipState();
         buildLegend();
         if (geoLayer) {
           geoLayer.options.style = styleFor(currentYear);
@@ -1040,22 +923,6 @@
       });
     });
 
-    document.getElementById("per-capita-input").addEventListener("change", (e) => {
-      if (e.target.disabled) return;
-      perCapita = !!e.target.checked;
-      buildLegend();
-      if (geoLayer) {
-        geoLayer.options.style = styleFor(currentYear);
-        geoLayer.setStyle(styleFor(currentYear));
-      }
-      updateLabels();
-      if (hoveredLayer) {
-        hoveredLayer.setStyle({ weight: 2, color: "#0f172a", fillOpacity: 0.96 });
-        hoveredLayer.bringToFront();
-        setLabelHidden(hoveredLayer, true);
-        showTooltip(hoveredLayer.feature.properties, currentYear);
-      }
-    });
   </script>
 </body>
 
