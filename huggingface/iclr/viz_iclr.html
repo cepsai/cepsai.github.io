@@ -95,7 +95,7 @@
 
     .viz-grid {
       display: grid;
-      grid-template-rows: 17fr 2fr 1fr;
+      grid-template-rows: 1fr auto;
       grid-template-columns: 1fr;
       height: 100vh;
       width: 100vw;
@@ -114,31 +114,28 @@
       grid-row: 2;
       grid-column: 1;
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: clamp(8px, 1vh, 18px);
-      padding: clamp(10px, 1.5vh, 18px) clamp(12px, 2vw, 24px);
-      overflow: hidden;
-    }
-
-    #container3 {
-      grid-row: 3;
-      grid-column: 1;
-      display: flex;
+      flex-direction: row;
       align-items: center;
       justify-content: space-between;
-      padding: 0 clamp(12px, 2vw, 24px);
+      gap: clamp(10px, 2vw, 28px);
+      padding: clamp(8px, 1.5vh, 16px) clamp(14px, 2.5vw, 28px);
       overflow: visible;
-      min-width: 0;
-      gap: clamp(8px, 1.5vw, 20px);
       flex-wrap: wrap;
+      min-height: clamp(44px, 7vh, 80px);
     }
 
-    #container3 a {
-      height: 100%;
+    #container2 .logo-link {
+      height: clamp(28px, 4vh, 44px);
       display: flex;
       align-items: center;
+      flex-shrink: 0;
+    }
+
+    #container2 .logo {
+      height: 100%;
+      width: auto;
+      max-height: 100%;
+      object-fit: contain;
     }
 
     #treemap {
@@ -463,8 +460,7 @@
         grid-column: 1;
       }
 
-      #container2,
-      #container3 {
+      #container2 {
         display: none !important;
       }
 
@@ -487,32 +483,23 @@
     <div id="container1" class="container treemap-container">
       <div id="treemap"></div>
     </div>
-    <div id="container2" class="container legend-container">
+    <div id="container2" class="container source-container">
+      <div class="source-text" id="sourceText">Source: <a href="https://openreview.net/group?id=ICLR.cc/2026"
+          id="sourceLink" target="_blank" rel="noopener">ICLR 2026</a> <span id="paperTypeLabel" style="color:#666;font-weight:500;margin-left:6px;"></span></div>
       <div class="custom-legend" id="legend"></div>
-    </div>
-    <div id="container3" class="container source-container">
-      <div class="source-wrapper">
-        <div class="source-text" id="sourceText">Source: <a href="https://openreview.net/group?id=ICLR.cc/2026"
-            id="sourceLink" target="_blank" rel="noopener">ICLR 2026</a></div>
-        <div class="venue-selector" id="country-selector">
-          <button id="countryDropdownToggle" class="venue-dropdown-toggle" type="button" aria-haspopup="true" aria-expanded="false" style="width:clamp(140px,16vw,200px);">All countries</button>
-          <div class="venue-dropdown" id="countryDropdown" role="listbox" aria-label="Select country"></div>
-        </div>
-        <div class="venue-selector">
-          <button id="venueDropdownToggle" class="venue-dropdown-toggle" type="button" aria-haspopup="true"
-            aria-expanded="false">Select venue</button>
-          <div class="venue-dropdown" id="venueDropdown" role="listbox" aria-label="Lista de venues"></div>
-        </div>
-      </div>
-      <div class="controls-wrapper">
-        <div class="year-filter" id="yearFilter" role="group" aria-label="Seleccionar año de ICLR"></div>
-        <div class="top-filter" id="orgTypeFilter" role="group" aria-label="Filter by org type">
-          <button class="top-filter-button active" data-orgtype="">All</button>
-          <button class="top-filter-button" data-orgtype="university">University</button>
-          <button class="top-filter-button" data-orgtype="company">Company</button>
-          <button class="top-filter-button" data-orgtype="research">Research</button>
-        </div>
-        <div class="top-filter" id="topFilter" role="group" aria-label="Filtro Top de instituciones"></div>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener" class="logo-link">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+      </a>
+      <!-- Hidden legacy controls kept so JS wiring continues to work; UI removed -->
+      <div style="display:none" aria-hidden="true">
+        <button id="countryDropdownToggle" type="button"></button>
+        <div id="countryDropdown" role="listbox"></div>
+        <button id="venueDropdownToggle" type="button"></button>
+        <div id="venueDropdown" role="listbox"></div>
+        <div id="yearFilter" role="group"></div>
+        <div id="orgTypeFilter" role="group"></div>
+        <div id="topFilter" role="group"></div>
+        <div id="paperTypeFilter" role="group"></div>
       </div>
     </div>
   </div>
@@ -969,11 +956,41 @@
         }
       }
 
+      var HASH_TO_VENUE_ID = {
+        all: "__all_venues__",
+        oral: "__oral__",
+        poster: "__poster__"
+      };
+      var VENUE_ID_TO_LABEL = {
+        __all_venues__: "",
+        __oral__: "Oral only",
+        __poster__: "Poster only"
+      };
+
+      function getVenueFromHash() {
+        var h = (window.location.hash || "").replace(/^#/, "").toLowerCase().trim();
+        return HASH_TO_VENUE_ID[h] || null;
+      }
+
+      function applyVenueFromHash() {
+        var vid = getVenueFromHash() || "__all_venues__";
+        currentVenue = vid;
+        closeVenueDropdown();
+        updatePaperTypeFilterState();
+        updateVisualization();
+        var lbl = document.getElementById("paperTypeLabel");
+        if (lbl) {
+          var labelText = VENUE_ID_TO_LABEL[vid] || "";
+          lbl.textContent = labelText ? "— " + labelText : "";
+        }
+      }
+
       function init() {
         parseQueryParams();
         buildTopFilter();
         buildYearFilter();
         bindVenueSelectorEvents();
+        window.addEventListener("hashchange", applyVenueFromHash);
         setYear(currentYear);
       }
 
@@ -1035,9 +1052,10 @@
           currentVenue = null;
           buildVenueList(previousVenue);
           buildVenueDropdown();
+          buildPaperTypeFilter();
           buildCountryDropdown();
           buildLegend();
-          updateVisualization();
+          applyVenueFromHash();
           renderToContainerSize();
         }).catch(function (err) {
           if (requestId !== loadRequestId) return;
@@ -1173,6 +1191,7 @@
           updateLegendState();
           updateVenueToggleLabel();
           updateTopFilterState();
+          updatePaperTypeFilterState();
           return;
         }
         var dataset = prepareDataForVenue(currentVenue);
@@ -1181,6 +1200,7 @@
         updateLegendState();
         updateVenueToggleLabel();
         updateTopFilterState();
+        updatePaperTypeFilterState();
       }
 
       function buildVenueDropdown() {
@@ -1394,7 +1414,40 @@
         }
         currentVenue = name;
         closeVenueDropdown();
+        updatePaperTypeFilterState();
         updateVisualization();
+      }
+
+      function buildPaperTypeFilter() {
+        var container = document.getElementById("paperTypeFilter");
+        if (!container) return;
+        container.innerHTML = "";
+        combinedVenueConfigs.forEach(function (cfg) {
+          var totalEntry = venueTotals.find(function (v) { return v.name === cfg.id; });
+          if (!totalEntry || totalEntry.total <= 0) return;
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "top-filter-button";
+          button.textContent = cfg.label;
+          button.setAttribute("data-venue-id", cfg.id);
+          button.title = "Show " + cfg.label + " papers (" + totalEntry.total + ")";
+          button.setAttribute("aria-label", "Show " + cfg.label + " papers");
+          button.addEventListener("click", function () {
+            if (currentVenue === cfg.id) return;
+            setVenue(cfg.id);
+          });
+          container.appendChild(button);
+        });
+        updatePaperTypeFilterState();
+      }
+
+      function updatePaperTypeFilterState() {
+        document.querySelectorAll("#paperTypeFilter .top-filter-button").forEach(function (btn) {
+          var venueId = btn.getAttribute("data-venue-id");
+          var isActive = currentVenue === venueId;
+          btn.classList.toggle("active", isActive);
+          btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+        });
       }
 
       function buildTopFilter() {
