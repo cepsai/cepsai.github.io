@@ -332,6 +332,14 @@
       color: #fff;
     }
 
+    /* Paper-type buttons are the primary filter — make them more prominent */
+    #paperTypeFilter .top-filter-button {
+      padding: clamp(7px, 1.4vh, 12px) clamp(14px, 2.4vw, 24px);
+      font-size: clamp(11px, 1.5vw, 17px);
+      letter-spacing: 0.5px;
+      min-width: clamp(60px, 7vw, 90px);
+    }
+
     /* 
 @media (max-width: 500px) {
   .year-filter-button,
@@ -485,8 +493,10 @@
     </div>
     <div id="container2" class="container source-container">
       <div class="source-text" id="sourceText">Source: <a href="https://openreview.net/group?id=ICLR.cc/2026"
-          id="sourceLink" target="_blank" rel="noopener">ICLR 2026</a> <span id="paperTypeLabel" style="color:#666;font-weight:500;margin-left:6px;"></span></div>
+          id="sourceLink" target="_blank" rel="noopener">ICLR 2026</a></div>
       <div class="custom-legend" id="legend"></div>
+      <div class="top-filter" id="paperTypeFilter" role="group" aria-label="Filter by paper type"></div>
+      <div class="top-filter" id="topFilter" role="group" aria-label="Top N institutions"></div>
       <a href="https://aiworld.eu/" target="_blank" rel="noopener" class="logo-link">
         <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
       </a>
@@ -498,8 +508,7 @@
         <div id="venueDropdown" role="listbox"></div>
         <div id="yearFilter" role="group"></div>
         <div id="orgTypeFilter" role="group"></div>
-        <div id="topFilter" role="group"></div>
-        <div id="paperTypeFilter" role="group"></div>
+        <span id="paperTypeLabel"></span>
       </div>
     </div>
   </div>
@@ -1418,6 +1427,12 @@
         updateVisualization();
       }
 
+      var VENUE_ID_TO_HASH = {
+        __all_venues__: "all",
+        __oral__: "oral",
+        __poster__: "poster"
+      };
+
       function buildPaperTypeFilter() {
         var container = document.getElementById("paperTypeFilter");
         if (!container) return;
@@ -1434,7 +1449,14 @@
           button.setAttribute("aria-label", "Show " + cfg.label + " papers");
           button.addEventListener("click", function () {
             if (currentVenue === cfg.id) return;
-            setVenue(cfg.id);
+            // Update URL hash; hashchange listener calls applyVenueFromHash
+            var h = VENUE_ID_TO_HASH[cfg.id] || "all";
+            if (("#" + h) === (window.location.hash || "")) {
+              // hash unchanged; call directly
+              applyVenueFromHash();
+            } else {
+              window.location.hash = h;
+            }
           });
           container.appendChild(button);
         });
