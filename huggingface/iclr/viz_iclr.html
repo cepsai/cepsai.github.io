@@ -1008,17 +1008,25 @@
            #oral&top=50
            #hide=buttons,legend
            #type=oral&top=100&hide=chrome
+           #regions=row              (show only Rest of World)
+           #regions=cn|us            (show only China + US)
+           #hide=buttons&regions=row
        */
+      var REGION_HASH_TO_NAME = {
+        cn: "China", china: "China",
+        us: "US", usa: "US",
+        eu: "Europe", europe: "Europe",
+        row: "Rest of World", rest: "Rest of World", rest_of_world: "Rest of World"
+      };
       function parseHashSettings() {
         var raw = (window.location.hash || "").replace(/^#/, "").toLowerCase().trim();
-        var out = {type: null, top: null, hide: new Set()};
+        var out = {type: null, top: null, hide: new Set(), regions: null};
         if (!raw) return out;
         var parts = raw.split(/[&,]/);
         parts.forEach(function (p) {
           p = p.trim(); if (!p) return;
           var eq = p.indexOf("=");
           if (eq < 0) {
-            // bare token — legacy paper-type shorthand
             if (HASH_TO_VENUE_ID[p]) out.type = p;
             return;
           }
@@ -1026,6 +1034,14 @@
           if (k === "type" && HASH_TO_VENUE_ID[v]) out.type = v;
           else if (k === "top") out.top = v;
           else if (k === "hide") v.split("|").forEach(function(x){ if(x) out.hide.add(x); });
+          else if (k === "regions" || k === "region") {
+            var names = new Set();
+            v.split("|").forEach(function(x) {
+              var n = REGION_HASH_TO_NAME[x];
+              if (n) names.add(n);
+            });
+            if (names.size) out.regions = names;
+          }
         });
         return out;
       }
@@ -1059,6 +1075,13 @@
           else if (tok === "chrome" || tok === "all" || tok === "ui") body.classList.add("hide-chrome");
         });
 
+        // Region filter (e.g. #regions=row → only show Rest of World in the treemap)
+        if (s.regions && groups.length) {
+          activeGroups = new Set(groups.filter(function (g) { return s.regions.has(g); }));
+          if (activeGroups.size === 0) activeGroups = new Set(groups); // safety fallback
+          updateLegendState();
+        }
+
         closeVenueDropdown();
         updatePaperTypeFilterState();
         updateTopFilterState();
@@ -1072,7 +1095,7 @@
       // from the last parsed state.
       var _suppressHashApply = false;
       function writeHashFromState() {
-        var s = parseHashSettings();   // grab current hide tokens
+        var s = parseHashSettings();   // grab current hide + regions tokens
         var venueToken = "all";
         for (var k in HASH_TO_VENUE_ID) {
           if (HASH_TO_VENUE_ID[k] === currentVenue) { venueToken = k; break; }
@@ -1083,6 +1106,11 @@
         else if (typeof currentTopLimit === "number") parts.push("top=" + currentTopLimit);
         if (s.hide.size) {
           parts.push("hide=" + Array.from(s.hide).join("|"));
+        }
+        if (s.regions) {
+          var REGION_NAME_TO_HASH = {"China":"cn","US":"us","Europe":"eu","Rest of World":"row"};
+          var toks = Array.from(s.regions).map(function(n){ return REGION_NAME_TO_HASH[n] || n; }).filter(Boolean);
+          if (toks.length) parts.push("regions=" + toks.join("|"));
         }
         var newHash = "#" + parts.join("&");
         if (newHash === (window.location.hash || "")) return;
