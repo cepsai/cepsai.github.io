@@ -317,6 +317,44 @@
       font-variant-numeric: tabular-nums;
     }
 
+    .play-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: clamp(24px, 2.4vw, 30px);
+      height: clamp(24px, 2.4vw, 30px);
+      padding: 0;
+      border-radius: 50%;
+      border: 1px solid rgba(17, 24, 39, 0.15);
+      background: #f8fafc;
+      color: #2756d3;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.1s ease;
+    }
+
+    .play-button:hover {
+      background: #2756d3;
+      color: #fff;
+      border-color: #2756d3;
+    }
+
+    .play-button:active {
+      transform: scale(0.94);
+    }
+
+    .play-button:focus-visible {
+      outline: 2px solid #2756d3;
+      outline-offset: 2px;
+    }
+
+    .play-button svg {
+      width: 50%;
+      height: 50%;
+      fill: currentColor;
+      pointer-events: none;
+    }
+
     #map {
       width: 100%;
       height: 100%;
@@ -335,6 +373,10 @@
 
     .eu-outline {
       pointer-events: none;
+    }
+
+    .leaflet-interactive {
+      transition: fill 0.8s ease;
     }
 
     #tooltip {
@@ -415,6 +457,11 @@
               <input type="range" class="year-slider" id="year-slider" min="2018" max="2025" value="2025" step="1">
             </div>
             <span class="slider-year-label" id="year-label">2025</span>
+            <button class="play-button" id="play-button" type="button" aria-label="Play animation">
+              <svg viewBox="0 0 12 12" aria-hidden="true">
+                <path d="M3 1.5 L10 6 L3 10.5 Z" />
+              </svg>
+            </button>
           </div>
           <div class="controls-row">
             <div class="selector-group" id="mode-toggle" role="tablist" aria-label="Value format">
@@ -899,6 +946,73 @@
         }
       }
     });
+    const PLAY_INTERVAL_MS = 1300;
+    const MIN_YEAR = +slider.min;
+    const MAX_YEAR = +slider.max;
+    const playButton = document.getElementById("play-button");
+    const PLAY_ICON = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5 L10 6 L3 10.5 Z"/></svg>';
+    const PAUSE_ICON = '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="2" width="2.5" height="8"/><rect x="7" y="2" width="2.5" height="8"/></svg>';
+
+    let playing = false;
+    let playTimer = null;
+
+    function setSliderYear(year) {
+      slider.value = year;
+      slider.dispatchEvent(new Event("input"));
+    }
+
+    function setPlayIcon(isPlaying) {
+      playButton.innerHTML = isPlaying ? PAUSE_ICON : PLAY_ICON;
+      playButton.setAttribute("aria-label", isPlaying ? "Pause animation" : "Play animation");
+    }
+
+    function startPlay() {
+      if (playing) return;
+      playing = true;
+      setPlayIcon(true);
+      if (+slider.value >= MAX_YEAR) setSliderYear(MIN_YEAR);
+      playTimer = setInterval(() => {
+        const next = +slider.value + 1;
+        if (next > MAX_YEAR) {
+          stopPlay();
+          return;
+        }
+        setSliderYear(next);
+      }, PLAY_INTERVAL_MS);
+    }
+
+    function stopPlay() {
+      if (!playing) return;
+      playing = false;
+      setPlayIcon(false);
+      if (playTimer) {
+        clearInterval(playTimer);
+        playTimer = null;
+      }
+    }
+
+    playButton.addEventListener("click", () => {
+      if (playing) stopPlay();
+      else startPlay();
+    });
+
+    // User dragging the slider stops playback
+    slider.addEventListener("mousedown", stopPlay);
+    slider.addEventListener("touchstart", stopPlay, { passive: true });
+    slider.addEventListener("keydown", stopPlay);
+
+    // Query param: anim=1 (default) auto-plays from first year, anim=0 starts at 2025
+    (function initAnimation() {
+      const params = new URLSearchParams(window.location.search);
+      const animParam = params.get("anim");
+      const autoPlay = animParam !== "0";
+      if (autoPlay) {
+        setSliderYear(MIN_YEAR);
+        startPlay();
+      } else {
+        setSliderYear(MAX_YEAR);
+      }
+    })();
 
     document.querySelectorAll("#mode-toggle .selector-button").forEach((btn) => {
       btn.addEventListener("click", () => {
