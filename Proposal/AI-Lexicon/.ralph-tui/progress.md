@@ -25,3 +25,14 @@ after each iteration and it's included in prompts for context.
   - Gotchas: (a) v27 HTML adds two extra Commission Guidelines that are out of Excel scope — do not preserve as primary frameworks in v28; (b) v27 HTML is missing `law-blob`s for SB 25B-004 and SB 149 even though Excel lists them; (c) "Frontier model" is in the Excel cluster matrix as a standalone term but v27 does not surface it as its own term entry; (d) terminology decisions (e.g., Developer/Deployer for limited-risk) are *symmetrical* — Colorado and Texas both have "Developer" AND "Deployer", not one term doing double duty.
 ---
 
+## 2026-04-28 - US-002 — Set up v28 scaffold from v27
+- Created `iterations/build_v28.py` as a copy of `build_v27.py` with HTML_V27 → HTML_V28, docstring/version labels, and RuntimeError prefixes updated. XLSX path, transformations, and v26 starting input are unchanged.
+- Created `iterations/test_lexicon_v28.py` as a copy of `test_lexicon_v27.py` with HTML path pointed to `digital_lexicon_v28.html`.
+- Verified byte-equivalence: SHA-256 of `digital_lexicon_v28.html` matches `digital_lexicon_v27.html` (`735f39487bc8...`); the `final_tool.html` / `final_lexicon_tool.html` mirrors share the same hash.
+- All 5 tests pass (`python3 test_lexicon_v28.py` → 5/5; `pytest -q` → `.....`).
+- Files changed: `iterations/build_v28.py` (new), `iterations/test_lexicon_v28.py` (new), `iterations/digital_lexicon_v28.html` (build output, byte-identical to v27).
+- **Learnings:**
+  - The v27 `len(html)` print reports character count (3,123,682), not byte count — UTF-8 multi-byte chars (em-dash, curly quotes, ²⁵, ²⁶) push the on-disk size to 3,137,366 bytes. Don't compare by `print` output; use `wc -c` / `shasum`.
+  - `shutil.copy2` to `final_tool.html` / `final_lexicon_tool.html` happens unconditionally in the v27 build pattern. v28 preserves this — for a scaffold release this is a no-op (byte-equivalent overwrite), but be aware future xx + 1 versions will overwrite the published mirrors on every run.
+---
+
