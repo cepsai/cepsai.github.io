@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Belgium AI Dashboard — BE in EU context</title>
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; min-height: 100%;
+    font-family: Arial, sans-serif;
+    background: #ffffff;
+    color: #222;
+  }
+
+  .page {
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-columns: 1fr;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 18px 8px;
+    gap: 10px;
+  }
+
+  /* ---- Header / summary ---- */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .card {
+    background: #f7f8fb;
+    border: 1px solid #e3e6ee;
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .card .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #5a6275;
+    letter-spacing: 0.04em;
+  }
+  .card .value {
+    font-size: 22px;
+    font-weight: 700;
+    color: #102b66;
+  }
+  .card .sub {
+    font-size: 11px;
+    color: #5a6275;
+  }
+  .card.be-accent {
+    background: #eef3ff;
+    border-color: #c4d2f5;
+  }
+  .card.be-accent .value { color: #1f3fa6; }
+
+  /* ---- Controls ---- */
+  .controls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px 24px;
+    padding: 8px 4px;
+  }
+  .control-block {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .control-block .control-label {
+    font-size: 11px; font-weight: 700;
+    color: #5a6275;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .button-group {
+    display: flex; gap: 0;
+    border-radius: 4px; overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .control-btn {
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border: none;
+    background: #fff;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .control-btn:not(:last-child) {
+    border-right: 1px solid #e0e0e0;
+  }
+  .control-btn:hover:not(.active) { background: #f5f5f5; }
+  .control-btn.active { background: #4169E1; color: #fff; }
+
+  .slider-container {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .slider-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .range-wrapper {
+    position: relative;
+    width: clamp(180px, 26vw, 300px);
+    height: 26px;
+  }
+  .range-wrapper::before {
+    content: "";
+    position: absolute; left: 0; right: 0; top: 50%;
+    transform: translateY(-50%);
+    height: 4px; background: #e0e0e0; border-radius: 3px;
+  }
+  .range-wrapper input[type=range] {
+    position: absolute; left: 0; right: 0; top: 50%;
+    transform: translateY(-50%);
+    margin: 0; width: 100%;
+    -webkit-appearance: none;
+    background: transparent;
+    pointer-events: none;
+  }
+  .year-slider-top { z-index: 2; }
+  .range-wrapper input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background: #4169E1;
+    cursor: pointer; pointer-events: auto;
+    margin-top: -4.5px;
+  }
+  .range-wrapper input[type=range]::-moz-range-thumb {
+    width: 13px; height: 13px;
+    border-radius: 50%;
+    background: #4169E1;
+    border: none; cursor: pointer; pointer-events: auto;
+  }
+  .year-value {
+    font-size: 11px;
+    font-weight: 700;
+    color: #4169E1;
+    min-width: 30px;
+    text-align: center;
+  }
+
+  /* ---- Chart grid ---- */
+  .charts {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 10px;
+    min-height: 580px;
+  }
+  .panel {
+    border: 1px solid #e3e6ee;
+    border-radius: 8px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0;
+    min-height: 0;
+  }
+  .panel-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #5a6275;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 8px 12px;
+    border-bottom: 1px solid #eef0f6;
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .panel-title .panel-sub {
+    font-size: 11px; font-weight: 500; color: #888;
+    text-transform: none; letter-spacing: 0;
+  }
+  .panel-body { flex: 1; min-height: 0; min-width: 0; position: relative; }
+  .panel-body svg { display: block; width: 100%; height: 100%; }
+
+  #panel-map { grid-row: 1 / span 2; grid-column: 1; }
+  #panel-line { grid-row: 1; grid-column: 2; }
+  #panel-tree { grid-row: 2; grid-column: 2; }
+
+  /* Map style */
+  .land { fill: #e9eaee; stroke: #fff; stroke-width: 0.5px; }
+  .country-boundary { fill: none; stroke: #c0c2cb; stroke-width: 0.4px; }
+  circle.bubble {
+    fill: #b8c2e0;
+    fill-opacity: 0.65;
+    stroke: #fff;
+    stroke-width: 1px;
+  }
+  circle.bubble.be {
+    fill: #4169E1;
+    fill-opacity: 0.85;
+    stroke: #102b66;
+    stroke-width: 1.5px;
+  }
+
+  /* Line style */
+  path.line-eu { fill: none; stroke: #cdd2dc; stroke-width: 1.2px; opacity: 0.85; }
+  path.line-be { fill: none; stroke: #4169E1; stroke-width: 2.6px; }
+  path.line-eu-avg { fill: none; stroke: #5a6275; stroke-width: 1.4px; stroke-dasharray: 4 3; }
+
+  /* Treemap style */
+  .tree-rect { stroke: #fff; stroke-width: 1px; fill: #cdd2dc; }
+  .tree-rect.be { fill: #4169E1; stroke: #102b66; stroke-width: 2px; }
+  .tree-label { font-size: 10px; pointer-events: none; fill: #333; }
+  .tree-label.be { fill: #fff; font-weight: 700; }
+
+  /* Tooltip */
+  .tooltip {
+    position: fixed;
+    background: #fff;
+    padding: 6px 9px;
+    border: 1px solid #c4d2f5;
+    border-radius: 4px;
+    pointer-events: none;
+    opacity: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    font-size: 11.5px;
+    z-index: 2000;
+  }
+
+  /* Footer */
+  .footer {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #555;
+    padding: 4px 4px 0;
+  }
+  .footer a { color: #2756d3; text-decoration: underline; }
+  .footer .logo { height: 28px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="summary">
+    <div class="card be-accent">
+      <span class="label">Belgium total</span>
+      <span class="value" id="card-be-total">—</span>
+      <span class="sub" id="card-metric-label">Investments (USD)</span>
+    </div>
+    <div class="card">
+      <span class="label">Share of EU</span>
+      <span class="value" id="card-share-eu">—</span>
+      <span class="sub">BE / EU-27 total</span>
+    </div>
+    <div class="card">
+      <span class="label">EU rank (latest year)</span>
+      <span class="value" id="card-rank">—</span>
+      <span class="sub" id="card-rank-sub">—</span>
+    </div>
+    <div class="card">
+      <span class="label">Top BE city</span>
+      <span class="value" id="card-top-city">—</span>
+      <span class="sub" id="card-top-city-sub">—</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="control-block">
+      <span class="control-label">Metric</span>
+      <div class="button-group" id="metric-group">
+        <button class="control-btn active" data-metric="investments">INVESTMENTS</button>
+        <button class="control-btn" data-metric="patents">PATENTS</button>
+        <button class="control-btn" data-metric="publications">PUBLICATIONS</button>
+      </div>
+    </div>
+    <div class="control-block">
+      <span class="control-label">Year range</span>
+      <div class="slider-container">
+        <div class="slider-row">
+          <span class="year-value" id="year-start-value">2000</span>
+          <div class="range-wrapper">
+            <input type="range" id="year-start" min="2000" max="2025" value="2000">
+            <input type="range" id="year-end"   min="2000" max="2025" value="2025" class="year-slider-top">
+          </div>
+          <span class="year-value" id="year-end-value">2025</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="charts">
+    <div class="panel" id="panel-map">
+      <div class="panel-title">EU country activity <span class="panel-sub">bubble = total in selected years; <b style="color:#4169E1">BE</b> highlighted</span></div>
+      <div class="panel-body" id="map-body"><svg></svg></div>
+    </div>
+    <div class="panel" id="panel-line">
+      <div class="panel-title">Year-on-year <span class="panel-sub">grey = other EU; <b style="color:#4169E1">BE</b>; dashed = EU-27 avg</span></div>
+      <div class="panel-body" id="line-body"><svg></svg></div>
+    </div>
+    <div class="panel" id="panel-tree">
+      <div class="panel-title">EU shares <span class="panel-sub">size = country total; <b style="color:#4169E1">BE</b> highlighted</span></div>
+      <div class="panel-body" id="tree-body"><svg></svg></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div>Source: <a id="source-link" href="https://www.crunchbase.com/" target="_blank">Crunchbase</a> &middot; AI activity, EU-27 + BE focus</div>
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+    </a>
+  </div>
+
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://unpkg.com/topojson@3"></script>
+<script>
+/* ------------------------------ Config ------------------------------ */
+const metricConfig = {
+  investments: {
+    label: 'Crunchbase',
+    sourceUrl: 'https://www.crunchbase.com/',
+    basePathCountry: 'country/crunchbase',
+    summaryKey: 'crunchbase',
+    valueLabel: 'Investments (USD)',
+    valueFormatter: d => formatCurrency(d)
+  },
+  patents: {
+    label: 'RegPat',
+    sourceUrl: 'https://www.oecd.org/sti/inno/oecdpatentdatabase.htm',
+    basePathCountry: 'country/regpat',
+    summaryKey: 'regpat',
+    valueLabel: 'Patents',
+    valueFormatter: d => formatCount(d)
+  },
+  publications: {
+    label: 'OpenAlex',
+    sourceUrl: 'https://openalex.org/',
+    basePathCountry: 'country/openalex',
+    summaryKey: 'openalex',
+    valueLabel: 'Publications',
+    valueFormatter: d => formatCount(d)
+  }
+};
+
+const EU = ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR",
+            "DE","GR","HU","IE","IT","LV","LT","LU","MT","NL",
+            "PL","PT","RO","SK","SI","ES","SE"];
+
+/* Approximate country reference points (capitals) for the bubble map */
+const EU_REF = {
+  AT:[48.21,16.37,'Austria'],   BE:[50.85, 4.35,'Belgium'],
+  BG:[42.70,23.32,'Bulgaria'],  HR:[45.81,15.98,'Croatia'],
+  CY:[35.17,33.36,'Cyprus'],    CZ:[50.08,14.44,'Czechia'],
+  DK:[55.68,12.57,'Denmark'],   EE:[59.44,24.75,'Estonia'],
+  FI:[60.17,24.94,'Finland'],   FR:[48.86, 2.35,'France'],
+  DE:[52.52,13.41,'Germany'],   GR:[37.98,23.73,'Greece'],
+  HU:[47.50,19.04,'Hungary'],   IE:[53.35,-6.26,'Ireland'],
+  IT:[41.90,12.50,'Italy'],     LV:[56.95,24.11,'Latvia'],
+  LT:[54.69,25.27,'Lithuania'], LU:[49.61, 6.13,'Luxembourg'],
+  MT:[35.90,14.51,'Malta'],     NL:[52.37, 4.90,'Netherlands'],
+  PL:[52.23,21.01,'Poland'],    PT:[38.72,-9.14,'Portugal'],
+  RO:[44.43,26.10,'Romania'],   SK:[48.15,17.11,'Slovakia'],
+  SI:[46.06,14.51,'Slovenia'],  ES:[40.42,-3.70,'Spain'],
+  SE:[59.33,18.07,'Sweden']
+};
+
+/* ------------------------------ State ------------------------------ */
+let currentMetric = 'investments';
+let yearStart = 2000;
+let yearEnd = 2025;
+
+let summaryJson = null;        // be_numbers.json
+let yearlyByMetric = {};       // metric -> {year -> [{iso, value}]}
+let worldTopo = null;
+
+/* ------------------------------ Utils ------------------------------ */
+const tooltip = d3.select('#tooltip');
+
+function showTip(html, evt) {
+  tooltip.style('opacity', 1).html(html);
+  moveTip(evt);
+}
+function moveTip(evt) {
+  tooltip
+    .style('left', (evt.clientX + 12) + 'px')
+    .style('top',  (evt.clientY - 10) + 'px');
+}
+function hideTip() { tooltip.style('opacity', 0); }
+
+function formatCount(n) {
+  n = +n || 0;
+  if (n >= 1e9) return (n/1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return d3.format(',')(Math.round(n));
+}
+function formatCurrency(n) {
+  n = +n || 0;
+  if (n >= 1e9) return '$' + (n/1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return '$' + (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return '$' + (n/1e3).toFixed(1) + 'K';
+  return '$' + d3.format(',')(Math.round(n));
+}
+function formatPct(p) {
+  if (!isFinite(p)) return '—';
+  return (p * 100).toFixed(1) + '%';
+}
+function isoFromGeo(geo) {
+  const m = (geo || '').match(/\(([^)]+)\)\s*$/);
+  return m ? m[1].trim().toUpperCase() : null;
+}
+
+/* -------------------------- Data loading --------------------------- */
+async function loadSummary() {
+  try {
+    summaryJson = await d3.json('be_numbers.json');
+  } catch (e) {
+    console.warn('be_numbers.json not found — header stats disabled. Run belgium_numbers.py first.');
+    summaryJson = null;
+  }
+}
+
+async function loadYearlyForMetric(metric) {
+  if (yearlyByMetric[metric]) return yearlyByMetric[metric];
+  const cfg = metricConfig[metric];
+  const years = d3.range(2000, 2026);
+
+  const safeCsv = p => d3.csv(p).catch(() => []);
+  const results = await Promise.all(
+    years.map(y => safeCsv(`${cfg.basePathCountry}/${y}.csv`).then(rows => ({ y, rows })))
+  );
+
+  const byYear = {};
+  results.forEach(({ y, rows }) => {
+    const filtered = rows.filter(r => {
+      const dom = (r.domain || '').trim().replace(/^"(.*)"$/, '$1');
+      const geo = (r.geo || '').trim();
+      return dom === 'Artificial Intelligence' && geo && geo !== 'nan (NA) (NA)';
+    });
+    const acc = {};
+    filtered.forEach(r => {
+      const code = isoFromGeo(r.geo);
+      if (!code) return;
+      acc[code] = (acc[code] || 0) + (+r.count || 0);
+    });
+    byYear[y] = Object.entries(acc).map(([iso, value]) => ({ iso, value }));
+  });
+
+  yearlyByMetric[metric] = byYear;
+  return byYear;
+}
+
+async function loadWorldTopo() {
+  if (worldTopo) return worldTopo;
+  worldTopo = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+  return worldTopo;
+}
+
+/* -------------------------- Aggregation ---------------------------- */
+function euValuesForRange(metric) {
+  /* returns [{iso, name, value}] for EU-27, summed yearStart..yearEnd */
+  const byYear = yearlyByMetric[metric] || {};
+  const acc = {};
+  EU.forEach(c => acc[c] = 0);
+  for (let y = yearStart; y <= yearEnd; y++) {
+    (byYear[y] || []).forEach(r => {
+      if (acc[r.iso] !== undefined) acc[r.iso] += r.value;
+    });
+  }
+  return EU.map(c => ({
+    iso: c,
+    name: (EU_REF[c] && EU_REF[c][2]) || c,
+    value: acc[c]
+  }));
+}
+
+function euYearSeries(metric) {
+  /* returns { iso -> [{year, value}] } across full range, plus eu-avg series */
+  const byYear = yearlyByMetric[metric] || {};
+  const series = {};
+  EU.forEach(c => series[c] = []);
+  for (let y = yearStart; y <= yearEnd; y++) {
+    const counts = {};
+    EU.forEach(c => counts[c] = 0);
+    (byYear[y] || []).forEach(r => {
+      if (counts[r.iso] !== undefined) counts[r.iso] += r.value;
+    });
+    EU.forEach(c => series[c].push({ year: y, value: counts[c] }));
+  }
+  return series;
+}
+
+/* ----------------------------- Header ------------------------------ */
+function renderHeader() {
+  const cfg = metricConfig[currentMetric];
+  document.getElementById('card-metric-label').textContent = cfg.valueLabel;
+  document.getElementById('source-link').textContent = cfg.label;
+  document.getElementById('source-link').href = cfg.sourceUrl;
+
+  const fmt = cfg.valueFormatter;
+  const eu = euValuesForRange(currentMetric);
+  const beRow = eu.find(d => d.iso === 'BE') || { value: 0 };
+  const euTotal = d3.sum(eu, d => d.value);
+  const sortedDesc = [...eu].sort((a,b) => b.value - a.value);
+  const beRank = sortedDesc.findIndex(d => d.iso === 'BE') + 1;
+
+  document.getElementById('card-be-total').textContent = fmt(beRow.value);
+  document.getElementById('card-share-eu').textContent =
+    euTotal ? formatPct(beRow.value / euTotal) : '—';
+
+  document.getElementById('card-rank').textContent = beRank ? `#${beRank} / 27` : '—';
+  document.getElementById('card-rank-sub').textContent =
+    `${yearStart}–${yearEnd} cumulative`;
+
+  // top BE city — read from summary JSON (covers full range, not slider, but useful)
+  if (summaryJson && summaryJson.be && summaryJson.be.top_cities) {
+    const top = (summaryJson.be.top_cities[cfg.summaryKey] || [])[0];
+    if (top) {
+      document.getElementById('card-top-city').textContent = top.name;
+      document.getElementById('card-top-city-sub').textContent = `${fmt(top.value)} all-time`;
+    } else {
+      document.getElementById('card-top-city').textContent = '—';
+      document.getElementById('card-top-city-sub').textContent = '—';
+    }
+  }
+}
+
+/* ------------------------------- Map ------------------------------- */
+const mapSvg = d3.select('#map-body svg');
+const mapG = mapSvg.append('g');
+const landG = mapG.append('g');
+const bubbleG = mapG.append('g');
+
+function renderMap() {
+  const node = document.getElementById('map-body');
+  const W = node.clientWidth || 600;
+  const H = node.clientHeight || 480;
+
+  const projection = d3.geoMercator()
+    .center([10, 52])
+    .scale(Math.min(W * 0.95, H * 1.5))
+    .translate([W/2, H/2]);
+  const path = d3.geoPath().projection(projection);
+
+  mapSvg.attr('width', W).attr('height', H);
+
+  // Land
+  if (worldTopo) {
+    landG.selectAll('*').remove();
+    landG.append('path')
+      .datum(topojson.feature(worldTopo, worldTopo.objects.countries))
+      .attr('class', 'land')
+      .attr('d', path);
+    landG.append('path')
+      .datum(topojson.mesh(worldTopo, worldTopo.objects.countries, (a,b) => a !== b))
+      .attr('class', 'country-boundary')
+      .attr('d', path);
+  }
+
+  // Bubbles
+  const data = euValuesForRange(currentMetric).map(d => {
+    const ref = EU_REF[d.iso];
+    if (!ref) return null;
+    const [x, y] = projection([ref[1], ref[0]]);
+    return { ...d, x, y };
+  }).filter(d => d && isFinite(d.x) && isFinite(d.y));
+
+  const maxV = d3.max(data, d => d.value) || 1;
+  const r = d3.scaleSqrt().domain([0, maxV]).range([2, Math.min(W, H) * 0.07]);
+
+  const fmt = metricConfig[currentMetric].valueFormatter;
+  const sel = bubbleG.selectAll('circle.bubble').data(data, d => d.iso);
+  sel.exit().remove();
+  sel.enter().append('circle')
+      .attr('class', d => 'bubble' + (d.iso === 'BE' ? ' be' : ''))
+      .on('mouseover', (e, d) =>
+        showTip(`<b>${d.name} (${d.iso})</b><br>${fmt(d.value)}`, e))
+      .on('mousemove', (e) => moveTip(e))
+      .on('mouseout', hideTip)
+    .merge(sel)
+      .attr('class', d => 'bubble' + (d.iso === 'BE' ? ' be' : ''))
+      .attr('cx', d => d.x)
+      .attr('cy', d => d.y)
+      .attr('r', d => r(d.value));
+
+  // Bring BE to front
+  bubbleG.selectAll('circle.bubble.be').raise();
+}
+
+/* ------------------------------- Line ------------------------------ */
+const lineSvg = d3.select('#line-body svg');
+const lineRoot = lineSvg.append('g');
+const lineXAxis = lineRoot.append('g').attr('class', 'x-axis');
+const lineYAxis = lineRoot.append('g').attr('class', 'y-axis');
+const lineSeriesG = lineRoot.append('g');
+
+function renderLine() {
+  const node = document.getElementById('line-body');
+  const W = node.clientWidth || 500;
+  const H = node.clientHeight || 280;
+  const margin = { top: 14, right: 12, bottom: 22, left: 50 };
+  const innerW = Math.max(W - margin.left - margin.right, 100);
+  const innerH = Math.max(H - margin.top - margin.bottom, 80);
+
+  lineSvg.attr('width', W).attr('height', H);
+  lineRoot.attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const series = euYearSeries(currentMetric);
+  const years = d3.range(yearStart, yearEnd + 1);
+  const x = d3.scaleLinear().domain([yearStart, yearEnd]).range([0, innerW]);
+
+  // y max across non-BE EU + BE (BE is one of them already)
+  let yMax = 0;
+  EU.forEach(iso => {
+    series[iso].forEach(p => { if (p.value > yMax) yMax = p.value; });
+  });
+  yMax = yMax || 1;
+  const y = d3.scaleLinear().domain([0, yMax]).nice().range([innerH, 0]);
+
+  // EU-27 average per year
+  const avg = years.map(yr => {
+    const sum = EU.reduce((s, iso) => {
+      const p = series[iso].find(p => p.year === yr);
+      return s + (p ? p.value : 0);
+    }, 0);
+    return { year: yr, value: sum / EU.length };
+  });
+
+  const lineGen = d3.line()
+    .x(d => x(d.year))
+    .y(d => y(d.value))
+    .defined(d => d.value != null && !isNaN(d.value));
+
+  // Axes
+  const tickCount = Math.max(2, Math.floor(innerW / 70));
+  lineXAxis
+    .attr('transform', `translate(0,${innerH})`)
+    .call(d3.axisBottom(x).ticks(tickCount).tickFormat(d3.format('d')));
+  lineYAxis.call(d3.axisLeft(y).ticks(5).tickFormat(d => formatCount(d)));
+
+  // Other-EU lines
+  const others = EU.filter(c => c !== 'BE');
+  const otherSel = lineSeriesG.selectAll('path.line-eu').data(others, d => d);
+  otherSel.exit().remove();
+  otherSel.enter().append('path')
+      .attr('class', 'line-eu')
+      .on('mouseover', (e, iso) => {
+        const s = series[iso];
+        const last = s[s.length - 1];
+        showTip(`<b>${(EU_REF[iso] && EU_REF[iso][2]) || iso} (${iso})</b><br>` +
+                `${last.year}: ${metricConfig[currentMetric].valueFormatter(last.value)}`, e);
+      })
+      .on('mousemove', moveTip)
+      .on('mouseout', hideTip)
+    .merge(otherSel)
+      .attr('d', iso => lineGen(series[iso]));
+
+  // EU avg
+  let avgPath = lineSeriesG.selectAll('path.line-eu-avg').data([avg]);
+  avgPath.exit().remove();
+  avgPath.enter().append('path').attr('class', 'line-eu-avg')
+    .merge(avgPath).attr('d', d => lineGen(d));
+
+  // BE line
+  let bePath = lineSeriesG.selectAll('path.line-be').data([series.BE]);
+  bePath.exit().remove();
+  bePath.enter().append('path').attr('class', 'line-be')
+      .on('mouseover', (e) => {
+        const s = series.BE;
+        const last = s[s.length - 1];
+        showTip(`<b>Belgium (BE)</b><br>${last.year}: ${metricConfig[currentMetric].valueFormatter(last.value)}`, e);
+      })
+      .on('mousemove', moveTip)
+      .on('mouseout', hideTip)
+    .merge(bePath).attr('d', d => lineGen(d));
+
+  lineSeriesG.selectAll('path.line-be').raise();
+}
+
+/* ----------------------------- Treemap ----------------------------- */
+const treeSvg = d3.select('#tree-body svg');
+const treeRoot = treeSvg.append('g');
+
+function renderTree() {
+  const node = document.getElementById('tree-body');
+  const W = node.clientWidth || 500;
+  const H = node.clientHeight || 280;
+
+  treeSvg.attr('width', W).attr('height', H);
+  treeRoot.selectAll('*').remove();
+
+  const data = euValuesForRange(currentMetric).filter(d => d.value > 0);
+  if (!data.length) return;
+
+  const root = d3.hierarchy({ children: data })
+    .sum(d => d.value)
+    .sort((a, b) => b.value - a.value);
+
+  d3.treemap()
+    .size([W, H])
+    .paddingInner(1)
+    .round(true)(root);
+
+  const fmt = metricConfig[currentMetric].valueFormatter;
+
+  const cells = treeRoot.selectAll('g.cell')
+    .data(root.leaves())
+    .enter().append('g')
+    .attr('class', 'cell')
+    .attr('transform', d => `translate(${d.x0},${d.y0})`);
+
+  cells.append('rect')
+    .attr('class', d => 'tree-rect' + (d.data.iso === 'BE' ? ' be' : ''))
+    .attr('width', d => Math.max(0, d.x1 - d.x0))
+    .attr('height', d => Math.max(0, d.y1 - d.y0))
+    .on('mouseover', (e, d) =>
+      showTip(`<b>${d.data.name} (${d.data.iso})</b><br>${fmt(d.data.value)}`, e))
+    .on('mousemove', moveTip)
+    .on('mouseout', hideTip);
+
+  cells.append('text')
+    .attr('class', d => 'tree-label' + (d.data.iso === 'BE' ? ' be' : ''))
+    .attr('x', 4)
+    .attr('y', 12)
+    .text(d => {
+      const w = d.x1 - d.x0, h = d.y1 - d.y0;
+      if (w < 40 || h < 18) return '';
+      return d.data.iso;
+    });
+
+  cells.append('text')
+    .attr('class', d => 'tree-label' + (d.data.iso === 'BE' ? ' be' : ''))
+    .attr('x', 4)
+    .attr('y', 24)
+    .text(d => {
+      const w = d.x1 - d.x0, h = d.y1 - d.y0;
+      if (w < 60 || h < 32) return '';
+      return fmt(d.data.value);
+    });
+}
+
+/* --------------------------- Render all ---------------------------- */
+function renderAll() {
+  renderHeader();
+  renderMap();
+  renderLine();
+  renderTree();
+}
+
+/* --------------------------- Controls ------------------------------ */
+function wireControls() {
+  document.querySelectorAll('#metric-group .control-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      document.querySelectorAll('#metric-group .control-btn')
+        .forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentMetric = btn.dataset.metric;
+      await loadYearlyForMetric(currentMetric);
+      renderAll();
+    });
+  });
+
+  const startSlider = document.getElementById('year-start');
+  const endSlider   = document.getElementById('year-end');
+  const startLabel  = document.getElementById('year-start-value');
+  const endLabel    = document.getElementById('year-end-value');
+
+  startSlider.addEventListener('input', e => {
+    if (+e.target.value > +endSlider.value) e.target.value = endSlider.value;
+    yearStart = +e.target.value;
+    startLabel.textContent = yearStart;
+    renderAll();
+  });
+  endSlider.addEventListener('input', e => {
+    if (+e.target.value < +startSlider.value) e.target.value = startSlider.value;
+    yearEnd = +e.target.value;
+    endLabel.textContent = yearEnd;
+    renderAll();
+  });
+
+  window.addEventListener('resize', () => renderAll());
+}
+
+/* ------------------------------- Init ------------------------------ */
+(async function init() {
+  wireControls();
+  await Promise.all([loadSummary(), loadWorldTopo(), loadYearlyForMetric(currentMetric)]);
+  renderAll();
+})();
+</script>
+</body>
+</html>

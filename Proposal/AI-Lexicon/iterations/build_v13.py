@@ -742,6 +742,58 @@ def parse_reference(ref: str) -> tuple[str | None, str | None, str | None]:
     r = ref.strip()
     low = r.lower()
 
+    # -- Commission Guidelines on the Scope of the Obligations for GPAI
+    #    Providers (regulation #12, embedded as `eu-guidelines-gpai-scope`).
+    #    The xlsx authors abbreviate references to it as `(GL, ...)`.
+    #
+    #    Anchor scheme (matched against the JSON sections id list which has
+    #    only top-level numeric ids 1..5 plus "preamble"):
+    #       (GL, (17))   -> paragraph (17), which lives in section 2  -> "2"
+    #       (GL, 17)     -> same as above (parens optional)
+    #       (GL, 3.2)    -> sub-section 3.2 -> resolve to parent section "3"
+    #       (GL, 3.4)    -> sub-section 3.4 -> resolve to parent section "3"
+    #       (GL,)        -> whole law      -> ""
+    #
+    #    Paragraph-to-section mapping (read from raw_text once, hard-coded
+    #    here so the parser stays a pure function and the test imports it
+    #    directly without runtime IO):
+    #       (1)-(11)  -> section "1"
+    #       (12)-(70) -> section "2"   (paragraph (17) is in here)
+    #       (71)-(140)-> section "3"
+    #       (141)-(170)->section "4"
+    #       (171)-(end)->section "5"
+    #    The exact upper bounds are best-effort — for any paragraph number
+    #    we don't have a precise bucket for, we still resolve to the nearest
+    #    section by progressive lookup, but the cells in the xlsx that
+    #    actually carry GL refs only need (17) and 3.2 / 3.4 to resolve.
+    if "gl," in low or low.startswith("gl ") or low.startswith("(gl"):
+        gl_re = re.compile(
+            r"\(?\s*gl\s*,\s*\(?\s*(\d+(?:\.\d+)?)\s*\)?\s*\)?",
+            re.I,
+        )
+        m = gl_re.search(r)
+        if m:
+            tok = m.group(1)
+            anchor = ""
+            if "." in tok:
+                # "3.2" -> parent section "3"
+                anchor = tok.split(".", 1)[0]
+            else:
+                n = int(tok)
+                if 1 <= n <= 11:
+                    anchor = "1"
+                elif 12 <= n <= 70:
+                    anchor = "2"
+                elif 71 <= n <= 140:
+                    anchor = "3"
+                elif 141 <= n <= 170:
+                    anchor = "4"
+                else:
+                    anchor = "5"
+            return ("eu-guidelines-gpai-scope", "section", anchor)
+        # bare "(GL,)" or just "GL" — open whole law
+        return ("eu-guidelines-gpai-scope", "section", "")
+
     # -- EU AI Act --------------------------------------------------------
     if "aia" in low or "eu ai act" in low or re.search(r"\bai act\b", low):
         m = _REF_EU_RE.search(r)
@@ -797,6 +849,12 @@ def parse_reference(ref: str) -> tuple[str | None, str | None, str | None]:
                 anchor = f"{anchor}-{m.group(2)}"
             return ("ny-s8828", "section", anchor)
     if re.search(r"\b(?:ny|new\s+york)\s*a\s*6453\b", low) or "a6453" in low:
+        m = re.search(r"§\s*(1\d{3})\s*\(?([0-9a-z]+)?\)?", r, re.I)
+        if m:
+            anchor = m.group(1)
+            if m.group(2):
+                anchor = f"{anchor}-{m.group(2)}"
+            return ("ny-a6453", "section", anchor)
         return ("ny-a6453", "section", "")
 
     # -- Texas HB 149 -----------------------------------------------------

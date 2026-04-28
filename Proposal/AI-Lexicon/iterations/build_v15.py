@@ -416,12 +416,28 @@ def build_sub_concepts_v15(concept: dict, tab_analyses: list, jid_order: list[st
     dim_list: list[dict] = []
 
     # Index legal entries by (jid, normalized_dim) for verbatim lookup.
+    # Index under the entry's rowLabel (the col-A dim) AND under the node's
+    # sub-label (col B, e.g. "AI literacy" in "Obligations / AI literacy"),
+    # since analysis-sheet dims often match the sub-label, not the parent.
     legal_by_dim: dict[tuple[str, str], list[dict]] = {}
     for entry in concept.get("entries", []):
         d = (entry.get("rowLabel") or "").strip().lower()
         for jid, node in (entry.get("jdata") or {}).items():
-            if node:
+            if not node:
+                continue
+            if d:
                 legal_by_dim.setdefault((jid, d), []).append(node)
+            nlab = (node.get("label") or "").strip()
+            sub = ""
+            if " \u2014 " in nlab:
+                sub = nlab.split(" \u2014 ", 1)[1].strip()
+            elif nlab and nlab.lower() != d:
+                sub = nlab
+            sub_key = sub.lower()
+            if sub_key and sub_key != d:
+                bucket = legal_by_dim.setdefault((jid, sub_key), [])
+                if node not in bucket:
+                    bucket.append(node)
 
     # Aliases bridge the analysis-sheet labels to legal-sheet labels when
     # the concepts are equivalent. Keep this small and surgical.

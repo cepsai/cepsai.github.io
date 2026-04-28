@@ -1,0 +1,179 @@
+{
+  "name": "Digital Lexicon Tool v28 - Article Link Audit, Superscript FLOPs, and Terminology Fixes",
+  "branchName": "feature/digital-lexicon-v28",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Inventory the Excel reference and document expected mappings",
+      "description": "As a developer, I want a single document listing every regulatory text covered by the tool, every article reference per term, and every terminology decision so that downstream stories can be verified against a checked baseline.",
+      "acceptanceCriteria": [
+        "Open /Users/robertpraas/Downloads/Cross-checked_AI terminology and taxonomy_analysis_final.xlsx and inspect every sheet; do not infer from filename",
+        "Produce iterations/v28_excel_inventory.md listing: (a) the 12 regulatory texts the tool covers, (b) each term/row with its expected article references per regulatory text, (c) terminology resolutions (including 'Developer' vs 'Deployer' for limited-risk AI systems based on what the Excel actually says)",
+        "Echo back the inventory structure to the user (sheets, columns, row counts) before proceeding to fixes",
+        "Flag any rows where the Excel reference is ambiguous or conflicts with v27 HTML"
+      ],
+      "priority": 1,
+      "passes": true,
+      "dependsOn": [],
+      "completionNotes": "Completed by agent"
+    },
+    {
+      "id": "US-002",
+      "title": "Set up v28 scaffold from v27",
+      "description": "As a developer, I want build_v28.py and digital_lexicon_v28.html created in iterations/ so that subsequent fixes have a working baseline to modify.",
+      "acceptanceCriteria": [
+        "iterations/build_v28.py created by copying iterations/build_v27.py",
+        "Running python iterations/build_v28.py produces iterations/digital_lexicon_v28.html byte-equivalent to the v27 output (no behavior changes yet)",
+        "iterations/test_lexicon_v28.py created by copying the v27 test file with paths updated to v28",
+        "All tests pass on the unchanged scaffold"
+      ],
+      "priority": 1,
+      "passes": false,
+      "dependsOn": []
+    },
+    {
+      "id": "US-003",
+      "title": "Render all exponent notation as HTML superscript",
+      "description": "As a user reading the lexicon, I want exponent notation (FLOPs thresholds, parameter counts, any other powers) to render as proper superscript so that the values are unambiguous and look professional.",
+      "acceptanceCriteria": [
+        "Identify every occurrence of exponent notation in build_v28.py source data (training compute thresholds like 10^25, 10^23; parameter counts; any other powers)",
+        "Replace ASCII forms (e.g., 10^25, 10**25, 10²⁵, plain '10 to the 25th') with HTML <sup> markup in the rendered output",
+        "Superscript rendering verified in browser across at least 3 different tables and the opening overview table",
+        "No regression in non-exponent numeric content"
+      ],
+      "priority": 2,
+      "passes": false,
+      "dependsOn": [
+        "US-002"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Correct opening category table terminology",
+      "description": "As a user, I want the opening category table to label the limited-risk roles consistently with CEPS' chosen terminology so that the categorization is clear at a glance.",
+      "acceptanceCriteria": [
+        "In the opening category table only (per user spec 4C), the limited-risk row labels read 'provider of limited-risk AI systems' and 'Developer of limited-risk AI systems' — exact capitalization as stated, unless the Excel reference dictates otherwise",
+        "If the Excel reference says 'Deployer' rather than 'Developer', flag this to the user before changing and document the resolution",
+        "Detail tables (the dedicated provider/deployer tables) are NOT renamed in this story",
+        "Visual check in browser confirms the opening table reads correctly"
+      ],
+      "priority": 2,
+      "passes": false,
+      "dependsOn": [
+        "US-001",
+        "US-002"
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "Fix the 'provider of limited-risk AI systems' table content",
+      "description": "As a user, I want the limited-risk-AI-systems provider table to reflect the corrected content from the Excel reference so that the listed obligations and articles are accurate.",
+      "acceptanceCriteria": [
+        "Diff the v27 limited-risk provider table against the Excel reference; document each discrepancy",
+        "Apply all corrections (rows, articles, descriptions) to build_v28.py",
+        "Pop-ups for every article in this table link to the correct regulatory text passage",
+        "Browser verification: every article cell in this table opens the right pop-up"
+      ],
+      "priority": 2,
+      "passes": false,
+      "dependsOn": [
+        "US-001",
+        "US-002"
+      ]
+    },
+    {
+      "id": "US-006",
+      "title": "Audit article links — EU regulatory texts",
+      "description": "As a user, I want every article reference across all tables to open the correct passage from the cited EU regulatory text (AI Act, GDPR, DSA, DMA, and any other EU text covered by the tool).",
+      "acceptanceCriteria": [
+        "Enumerate every EU regulatory text covered by v27 (per the Excel inventory from US-001)",
+        "For each EU text, verify every article reference in every table pop-up against the Excel reference",
+        "Fix every mismatch in build_v28.py",
+        "Browser verification: spot-check at least 5 article links per EU text, confirming pop-up content matches the cited article"
+      ],
+      "priority": 2,
+      "passes": false,
+      "dependsOn": [
+        "US-001",
+        "US-002"
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "Audit article links — US federal regulatory texts",
+      "description": "As a user, I want every article reference to US federal regulatory texts to open the correct passage so that US-context citations are reliable.",
+      "acceptanceCriteria": [
+        "Enumerate every US federal text covered by v27 (per the Excel inventory)",
+        "Verify every article reference against the Excel reference",
+        "Fix every mismatch in build_v28.py",
+        "Browser verification: spot-check at least 3 article links per US federal text"
+      ],
+      "priority": 2,
+      "passes": false,
+      "dependsOn": [
+        "US-001",
+        "US-002"
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Audit article links — US state laws",
+      "description": "As a user, I want every article reference to US state laws to open the correct passage so that state-level citations are reliable.",
+      "acceptanceCriteria": [
+        "Enumerate every US state law covered by v27 (per the Excel inventory — e.g., Colorado AI Act, California laws, etc.)",
+        "Verify every article reference against the Excel reference",
+        "Fix every mismatch in build_v28.py",
+        "Browser verification: spot-check at least 3 article links per state law"
+      ],
+      "priority": 2,
+      "passes": false,
+      "dependsOn": [
+        "US-001",
+        "US-002"
+      ]
+    },
+    {
+      "id": "US-009",
+      "title": "Audit article links — remaining regulatory texts",
+      "description": "As a user, I want any regulatory texts not covered by US-006/007/008 (international, sectoral, or other) to also have correct article links so that the audit covers all 12 texts in scope.",
+      "acceptanceCriteria": [
+        "Confirm every regulatory text from the Excel inventory has been audited (US-006 + US-007 + US-008 + this story = 12 total)",
+        "Fix any remaining mismatches in build_v28.py",
+        "Browser verification: spot-check at least 3 article links per remaining text"
+      ],
+      "priority": 2,
+      "passes": false,
+      "dependsOn": [
+        "US-006",
+        "US-007",
+        "US-008"
+      ]
+    },
+    {
+      "id": "US-010",
+      "title": "Update tests and run full quality gate",
+      "description": "As a developer, I want the test suite extended to cover the v28-specific invariants so that future regressions are caught automatically.",
+      "acceptanceCriteria": [
+        "Add tests asserting every <sup> superscript renders for known exponent values",
+        "Add tests asserting opening-table labels match the agreed strings",
+        "Add a smoke test that every article reference in the rendered HTML resolves to a non-empty pop-up content block",
+        "python iterations/test_lexicon_v28.py passes",
+        "Final browser verification via /browse: walk through the lexicon, click through all 12 regulatory tables, confirm no broken pop-ups"
+      ],
+      "priority": 3,
+      "passes": false,
+      "dependsOn": [
+        "US-003",
+        "US-004",
+        "US-005",
+        "US-006",
+        "US-007",
+        "US-008",
+        "US-009"
+      ]
+    }
+  ],
+  "metadata": {
+    "updatedAt": "2026-04-28T20:55:53.890Z"
+  }
+}

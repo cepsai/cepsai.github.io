@@ -732,26 +732,8 @@ def _extend_laws_nav(laws_nav: list, new_law_ids: list[str]) -> int:
             touched += 1
         region["laws"] = existing
         break
-    # Add Commission Guidelines on Prohibited AI Practices as the final
-    # EU-region entry (Robert's 2026-04-24 "show the missing EU one" ask).
-    prohibited_entry = {
-        "code":      "Comm. Guidelines — Prohibited practices",
-        "title":     "Commission Guidelines on Prohibited AI Practices",
-        "effective": "2025-07-29",
-        "desc":      ("Detailed guidance on the Article 5 prohibitions "
-                      "(social scoring, emotion recognition, untargeted "
-                      "scraping, etc.). COM(2025) 5052 final, 29.7.2025."),
-        "law_id":    "eu-guidelines-prohibited",
-    }
-    for region in laws_nav:
-        if region.get("region") != "European Union":
-            continue
-        already = any(l.get("law_id") == "eu-guidelines-prohibited"
-                      for l in region.get("laws") or [])
-        if not already:
-            region["laws"].append(prohibited_entry)
-            touched += 1
-        break
+    # Prohibited Practices stays DEFERRED — blob still ingested for REF_MAP
+    # but NOT in the nav (Robert: "prohibited practices can come later").
     return touched
 
 
@@ -1060,6 +1042,34 @@ def main() -> None:
         html = html.replace(old, new)
         n_repl += n
     print(f"  filter-UI rename:    {n_repl} occurrence(s) swapped Governance → Actors")
+
+    # 5a. Update hardcoded framework counts to reflect the new total
+    # (11 → 12) and the EU-region jurisdiction card (2 → 3 frameworks).
+    _count_patches = [
+        ("43 terms across 11 regulatory frameworks",
+         "43 terms across 12 regulatory frameworks"),
+        ('v17-home-card-desc">11 regulatory frameworks',
+         'v17-home-card-desc">12 regulatory frameworks'),
+        ('<span class="landing-stat-n">11</span>',
+         '<span class="landing-stat-n">12</span>'),
+    ]
+    n_counts = 0
+    for old, new in _count_patches:
+        c = html.count(old)
+        if c:
+            html = html.replace(old, new)
+            n_counts += c
+    # EU juris-block-count — use the `id="juris-eu-h"` anchor to target
+    # just the EU block (not California / Colorado / etc. which all have
+    # "2 frameworks" too).
+    eu_pat = re.compile(
+        r'(id="juris-eu-h"[^<]*</h2>\s*<span class="juris-block-count">)'
+        r'\d+ frameworks?',
+    )
+    if eu_pat.search(html):
+        html = eu_pat.sub(r"\g<1>3 frameworks", html)
+        n_counts += 1
+    print(f"  framework counts:    {n_counts} display spot(s) updated to 12")
 
     # 5. Inject v22 overrides (hide mode bar + pin analysis mode).
     html = html.replace("</body>", _v22_overrides() + "\n</body>", 1)
