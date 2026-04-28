@@ -521,6 +521,52 @@ def _replace_step_body(html: str, num: int, step_text: str,
 
 
 # --------------------------------------------------------------------------- #
+# Terminology fixes (US-004)                                                  #
+# --------------------------------------------------------------------------- #
+
+# Opening category-table EU cell for the limited-risk Deployer row carries the
+# bare label "Deployer" in v26. The Excel reference (Provider_Developer /
+# Deployer_Supplier_Analysis sheets) names this anchor "Deployer of
+# limited-risk AI systems", matching the Provider row's EU cell which already
+# uses the full label. The Colorado/Texas Deployer cells (bill="SB24-205" /
+# bill="HB149") stay as bare "Deployer" — those are the U.S.-state equivalents
+# per Excel.
+LIMITED_RISK_DEPLOYER_EU_OLD = (
+    '"name":"Deployer","bill":"","sub_id":"deployer","jid":"eu"'
+)
+LIMITED_RISK_DEPLOYER_EU_NEW = (
+    '"name":"Deployer of limited-risk AI systems",'
+    '"bill":"","sub_id":"deployer","jid":"eu"'
+)
+
+
+def apply_terminology_fixes(html: str) -> tuple[str, dict]:
+    """Apply opening-category-table terminology corrections.
+
+    Currently only fixes the EU cell for the limited-risk Deployer row.
+    The Provider row's EU cell already reads "Provider of limited-risk AI
+    systems" in v26, and detail (per-jurisdiction) tables are out of scope
+    for this story.
+    """
+    stats = {"limited_risk_deployer_eu": 0}
+    if LIMITED_RISK_DEPLOYER_EU_OLD in html:
+        html = html.replace(
+            LIMITED_RISK_DEPLOYER_EU_OLD,
+            LIMITED_RISK_DEPLOYER_EU_NEW,
+            1,
+        )
+        stats["limited_risk_deployer_eu"] = 1
+    elif LIMITED_RISK_DEPLOYER_EU_NEW in html:
+        # Idempotent — already applied.
+        pass
+    else:
+        raise RuntimeError(
+            "build_v28: limited-risk Deployer EU cell anchor not found"
+        )
+    return html, stats
+
+
+# --------------------------------------------------------------------------- #
 # Main build                                                                  #
 # --------------------------------------------------------------------------- #
 
@@ -578,6 +624,13 @@ def main() -> None:
         extra = GL_LI_HTML if n == 3 else None
         html = _replace_step_body(html, n, data["steps"][n], extra_li=extra)
     print("  methodology:               swapped steps 1-6")
+
+    # ---- TERMINOLOGY FIXES ----------------------------------------------- #
+    html, term_stats = apply_terminology_fixes(html)
+    print(
+        "  terminology:               "
+        f"limited-risk Deployer EU label fix: {term_stats['limited_risk_deployer_eu']}"
+    )
 
     # ---- SUPERSCRIPT RENDERING ------------------------------------------- #
     html, sup_stats = apply_superscripts(html)

@@ -17,6 +17,10 @@ Tests:
   T6. US-003 — every exponent occurrence renders as either <sup>
       markup (static HTML) or a Unicode superscript run (script
       blobs); no plain ASCII `10^25` / `10**25` / `10(^25)` remains.
+  T7. US-004 — opening category-table EU cells for the limited-risk
+      anchor terms read "Provider of limited-risk AI systems" and
+      "Deployer of limited-risk AI systems" (Excel-canonical;
+      "Deployer", not "Developer").
 
 Run:
     python3 -m pytest test_lexicon_v28.py -q
@@ -222,6 +226,58 @@ def test_exponents_render_as_superscript():
     # for verbatim drawer).  Confirm a few representative cells.
     assert "10²⁶ FLOPs" in html or "10²⁵ FLOPs" in html, (
         "Script-embedded Unicode superscripts unexpectedly missing."
+    )
+
+
+# --------------------------------------------------------------------------- #
+# T7.  US-004 — limited-risk anchor labels in opening category table.         #
+# --------------------------------------------------------------------------- #
+
+def test_opening_table_limited_risk_labels():
+    html = _html()
+
+    # The opening category table renders each cluster_summary row's
+    # EU cell as the row label. The two limited-risk anchor cells must
+    # carry the full Excel-canonical labels.
+    assert (
+        '"name":"Provider of limited-risk AI systems",'
+        '"bill":"","sub_id":"provider","jid":"eu"'
+    ) in html, (
+        "Opening category table EU cell for the limited-risk Provider "
+        "row is missing the canonical 'Provider of limited-risk AI "
+        "systems' label."
+    )
+    assert (
+        '"name":"Deployer of limited-risk AI systems",'
+        '"bill":"","sub_id":"deployer","jid":"eu"'
+    ) in html, (
+        "Opening category table EU cell for the limited-risk Deployer "
+        "row is missing the canonical 'Deployer of limited-risk AI "
+        "systems' label (Excel says 'Deployer', not 'Developer')."
+    )
+
+    # The bare "Deployer" name must NOT appear as the EU cell for the
+    # limited-risk row anymore.
+    assert (
+        '"name":"Deployer","bill":"","sub_id":"deployer","jid":"eu"'
+    ) not in html, (
+        "Opening category table still has the bare 'Deployer' label for "
+        "the limited-risk EU cell — the US-004 fix did not apply."
+    )
+
+    # Colorado/Texas U.S.-state Deployer cells must remain bare "Deployer"
+    # — those are the state-equivalents per Excel §3.3.
+    assert (
+        '"name":"Deployer","bill":"SB24-205","sub_id":"deployer","jid":"co"'
+    ) in html, (
+        "Colorado limited-risk Deployer cell should remain 'Deployer' "
+        "(not renamed). The US-004 fix is over-broad."
+    )
+    assert (
+        '"name":"Deployer","bill":"HB149","sub_id":"deployer","jid":"tx"'
+    ) in html, (
+        "Texas limited-risk Deployer cell should remain 'Deployer' "
+        "(not renamed). The US-004 fix is over-broad."
     )
 
 
