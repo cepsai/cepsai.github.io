@@ -567,6 +567,307 @@ def apply_terminology_fixes(html: str) -> tuple[str, dict]:
 
 
 # --------------------------------------------------------------------------- #
+# Limited-risk Provider table cell fixes (US-005)                              #
+# --------------------------------------------------------------------------- #
+#
+# Excel `Provider_Developer_Analysis` rows 1-19 (sub-table §4.1, "Limited-risk
+# Provider / Developer") is the source of truth. The v26 baseline matches
+# Excel for analysis text in every cell, but several cells have empty or
+# wrong verbatim/reference fields, breaking the popup ("verbatim drawer"):
+#
+#   * Scope EU — verbatim is Article 3 (3) (general "provider" definition);
+#     the analysis cell cites Article 50, so the popup links to the wrong
+#     article. Replace with Article 50 (1) text.
+#   * Reg trigger TX — analysis cites 552.103, but verbatim/ref are empty.
+#   * Transparency EU — analysis cites Article 50, verbatim/ref empty.
+#   * Transparency CO — analysis cites §6-1-1704, verbatim/ref empty
+#     (CO law-blob has no embedded sections, so we add the reference label
+#      only and rely on the drawer fallback for the verbatim).
+#   * General info disclosure TX — analysis cites 552.103, verbatim/ref empty.
+#   * Risk management TX — analysis cites 552.103, verbatim/ref empty.
+#   * AI literacy EU — analysis cites Article 4, verbatim/ref empty.
+#
+# Provider/dev info TX cell cites "(§6-1-1702.)" — which is a Colorado
+# section appearing in the Texas column. This is an Excel-side oddity that
+# we preserve verbatim per the Excel-wins rule (see v28_excel_inventory.md
+# §4.1); leaving verbatim/ref empty avoids fabricating a non-existent
+# Texas section.
+
+# EU AI Act Article 50 (1) — limited-risk transparency obligation.
+_AIA_ART_50_1 = (
+    '1. Providers shall ensure that AI systems intended to interact directly '
+    'with natural persons are designed and developed in such a way that the '
+    'natural persons concerned are informed that they are interacting with '
+    'an AI system, unless this is obvious from the point of view of a '
+    'natural person who is reasonably well-informed, observant and '
+    'circumspect, taking into account the circumstances and the context of '
+    'use. This obligation shall not apply to AI systems authorised by law to '
+    'detect, prevent, investigate or prosecute criminal offences, subject to '
+    'appropriate safeguards for the rights and freedoms of third parties, '
+    'unless those systems are available for the public to report a criminal '
+    'offence.'
+)
+
+# EU AI Act Article 50 (1) + (2) — interaction disclosure + machine-readable
+# marking of synthetic content (the two transparency obligations applicable
+# to limited-risk providers).
+_AIA_ART_50_1_2 = (
+    _AIA_ART_50_1
+    + '\n\n2. Providers of AI systems, including general-purpose AI '
+    'systems, generating synthetic audio, image, video or text content, '
+    'shall ensure that the outputs of the AI system are marked in a '
+    'machine-readable format and detectable as artificially generated or '
+    'manipulated. Providers shall ensure their technical solutions are '
+    'effective, interoperable, robust and reliable as far as this is '
+    'technically feasible, taking into account the specificities and '
+    'limitations of various types of content, the costs of implementation '
+    'and the generally acknowledged state of the art, as may be reflected '
+    'in relevant technical standards.'
+)
+
+# EU AI Act Article 4 — AI literacy obligation (full text).
+_AIA_ART_4 = (
+    'Providers and deployers of AI systems shall take measures to ensure, '
+    'to their best extent, a sufficient level of AI literacy of their '
+    'staff and other persons dealing with the operation and use of AI '
+    'systems on their behalf, taking into account their technical '
+    'knowledge, experience, education and training and the context the AI '
+    'systems are to be used in, and considering the persons or groups of '
+    'persons on whom the AI systems are to be used.'
+)
+
+# Texas HB 149 §552.103 (a)+(b) — investigative authority + the disclosure
+# items the AG can request. The same section underpins three different
+# cells (Reg trigger, General info, Risk management); the cells differ
+# only in which subsection of (b) their analysis text emphasises.
+_TX_552_103_A = (
+    '(a) If the attorney general receives a complaint through the online '
+    'mechanism under Section 552.102 alleging a violation of this chapter, '
+    'the attorney general may issue a civil investigative demand to '
+    'determine if a violation has occurred. The attorney general shall '
+    'issue demands in accordance with and under the procedures established '
+    'under Section 15.10.'
+)
+_TX_552_103_B_GENERAL = (
+    '(b) The attorney general may request from the person reported through '
+    'the online mechanism, pursuant to a civil investigative demand issued '
+    'under Subsection (a):\n'
+    '(1) a high-level description of the purpose, intended use, deployment '
+    'context, and associated benefits of the artificial intelligence '
+    'system with which the person is affiliated;\n'
+    '(2) a description of the type of data used to program or train the '
+    'artificial intelligence system;\n'
+    '(3) a high-level description of the categories of data processed as '
+    'inputs for the artificial intelligence system;\n'
+    '(4) a high-level description of the outputs produced by the '
+    'artificial intelligence system; (5) any metrics the person uses to '
+    'evaluate the performance of the artificial intelligence system.'
+)
+_TX_552_103_B_RISK = (
+    '(b) The attorney general may request from the person reported through '
+    'the online mechanism, pursuant to a civil investigative demand issued '
+    'under Subsection (a):\n'
+    '(6) a high-level description of any post-deployment monitoring of the '
+    'artificial intelligence system, where applicable;\n'
+    '(7) a high-level description of user safeguards in place for the '
+    'artificial intelligence system.'
+)
+
+
+def _json_str(value: str) -> str:
+    """Encode a Python string as a JSON-string LITERAL (without surrounding
+    quotes), matching the encoding used by the v26 CONCEPTS literal —
+    backslash-escape `"` and `\\`, encode line-feed as `\\n`."""
+    return (
+        value
+        .replace('\\', '\\\\')
+        .replace('"', '\\"')
+        .replace('\n', '\\n')
+    )
+
+
+# Each fix is (description, old_substring, new_substring). The old_substring
+# is the unique JSON cell triple `{"analysis":...,"verbatim":...,"reference":...}`
+# wrapped in its jurisdiction key so that the cell is unambiguously located.
+# Constructed programmatically to keep escape-sequence handling explicit.
+
+def _build_lr_fixes() -> list[tuple[str, str, str]]:
+    fixes: list[tuple[str, str, str]] = []
+
+    # 1. Scope EU — replace Article 3 (3) verbatim with Article 50 (1).
+    scope_eu_analysis = (
+        'A person that develops or has developed or makes a substantial '
+        'modification to and places on the market of an AI system that '
+        'interacts with natural persons (Article 50)'
+    )
+    scope_eu_old_verbatim = (
+        '(3) "provider" means a natural or legal person, public authority, '
+        'agency or other body that develops an AI system or a '
+        'general-purpose AI model or that has an AI system or a '
+        'general-purpose AI model developed and places it on the market or '
+        'puts the AI system into service under its own name or trademark, '
+        'whether for payment or free of charge.'
+    )
+    fixes.append((
+        "Scope EU: verbatim Article 3 (3) -> Article 50 (1)",
+        f'"eu":{{"analysis":"{_json_str(scope_eu_analysis)}",'
+        f'"verbatim":"{_json_str(scope_eu_old_verbatim)}",'
+        f'"reference":"EU AI Act, Article 3 (3)"}}',
+        f'"eu":{{"analysis":"{_json_str(scope_eu_analysis)}",'
+        f'"verbatim":"{_json_str(_AIA_ART_50_1)}",'
+        f'"reference":"EU AI Act, Article 50 (1)"}}',
+    ))
+
+    # 2. Regulatory trigger TX — add 552.103 (a) verbatim and reference.
+    rt_tx_analysis = (
+        'Upon request by attorney general, following investigative demand '
+        '(552.103.)'
+    )
+    fixes.append((
+        "Reg trigger TX: add 552.103 (a) verbatim/ref",
+        f'"tx":{{"analysis":"{_json_str(rt_tx_analysis)}",'
+        f'"verbatim":"","reference":""}}',
+        f'"tx":{{"analysis":"{_json_str(rt_tx_analysis)}",'
+        f'"verbatim":"{_json_str(_TX_552_103_A)}",'
+        f'"reference":"Texas HB149, 552.103. (a)"}}',
+    ))
+
+    # 3. Transparency EU — add Article 50 (1)+(2) verbatim and reference.
+    transp_eu_analysis = (
+        'Disclose AI interaction;\n'
+        'If generating synthetic content, put in place machine-readable '
+        'disclosure that content is AI-generated (Article 50)'
+    )
+    fixes.append((
+        "Transparency EU: add Article 50 (1)+(2) verbatim/ref",
+        f'"eu":{{"analysis":"{_json_str(transp_eu_analysis)}",'
+        f'"verbatim":"","reference":""}}',
+        f'"eu":{{"analysis":"{_json_str(transp_eu_analysis)}",'
+        f'"verbatim":"{_json_str(_AIA_ART_50_1_2)}",'
+        f'"reference":"EU AI Act, Article 50 (1, 2)"}}',
+    ))
+
+    # 4. Transparency CO — add reference only. Colorado law-blob has no
+    #    embedded sections, so we don't fabricate a verbatim quote; the
+    #    drawer falls back to showing the analysis text.
+    transp_co_analysis = (
+        'Must disclose to consumers interaction with AI system (§6-1-1704)'
+    )
+    fixes.append((
+        "Transparency CO: add §6-1-1704 reference label",
+        f'"co":{{"analysis":"{_json_str(transp_co_analysis)}",'
+        f'"verbatim":"","reference":""}}',
+        f'"co":{{"analysis":"{_json_str(transp_co_analysis)}",'
+        f'"verbatim":"",'
+        f'"reference":"Colorado SB24-205, 6-1-1704"}}',
+    ))
+
+    # 5. General information disclosure TX — add 552.103 (b)(1)-(5) verbatim.
+    gid_tx_analysis = (
+        'High-level description of the system, training data, outputs and '
+        'metrics for system evaluation (552.103.)'
+    )
+    fixes.append((
+        "Gen info disclosure TX: add 552.103 (b)(1-5) verbatim/ref",
+        f'"tx":{{"analysis":"{_json_str(gid_tx_analysis)}",'
+        f'"verbatim":"","reference":""}}',
+        f'"tx":{{"analysis":"{_json_str(gid_tx_analysis)}",'
+        f'"verbatim":"{_json_str(_TX_552_103_B_GENERAL)}",'
+        f'"reference":"Texas HB149, 552.103. (b)"}}',
+    ))
+
+    # 6. Risk management TX — add 552.103 (b)(6)-(7) verbatim.
+    rm_tx_analysis = (
+        'High-level description of the post-deployment monitoring and user '
+        'safeguards (552.103.)'
+    )
+    fixes.append((
+        "Risk management TX: add 552.103 (b)(6-7) verbatim/ref",
+        f'"tx":{{"analysis":"{_json_str(rm_tx_analysis)}",'
+        f'"verbatim":"","reference":""}}',
+        f'"tx":{{"analysis":"{_json_str(rm_tx_analysis)}",'
+        f'"verbatim":"{_json_str(_TX_552_103_B_RISK)}",'
+        f'"reference":"Texas HB149, 552.103. (b)"}}',
+    ))
+
+    # 7. AI literacy EU — add Article 4 verbatim/ref.
+    ail_eu_analysis = (
+        'Providers must ensure people operating / using AI systems on their '
+        'behalf have a sufficient level of AI literacy (Article 4)'
+    )
+    fixes.append((
+        "AI literacy EU: add Article 4 verbatim/ref",
+        f'"eu":{{"analysis":"{_json_str(ail_eu_analysis)}",'
+        f'"verbatim":"","reference":""}}',
+        f'"eu":{{"analysis":"{_json_str(ail_eu_analysis)}",'
+        f'"verbatim":"{_json_str(_AIA_ART_4)}",'
+        f'"reference":"EU AI Act, Article 4"}}',
+    ))
+
+    return fixes
+
+
+_LR_PROVIDER_START = (
+    '"id":"provider","title":"Provider of limited-risk AI systems"'
+)
+_LR_PROVIDER_END = '"id":"provider-of-high-risk-ai-systems"'
+
+
+def apply_limited_risk_provider_fixes(html: str) -> tuple[str, dict]:
+    """Patch the seven cells in the limited-risk Provider/Developer
+    analysis table whose verbatim/reference fields disagree with the
+    article references cited in their analysis text.
+
+    Replacements are scoped to the limited-risk Provider sub-concept JSON
+    segment — bounded above by the sub-concept header (`"id":"provider",
+    "title":"Provider of limited-risk AI systems"`) and below by the next
+    sub-concept's header (`"id":"provider-of-high-risk-ai-systems"`). This
+    is necessary because several cell triples (analysis text + empty
+    verbatim/reference) recur in the limited-risk Deployer table; scoping
+    by sub-concept disambiguates them without coupling the anchors to
+    dimension ids that encode row position.
+
+    Each fix is idempotent: if the new triple is already present, the
+    replacement is silently skipped.
+    """
+    stats: dict[str, int] = {}
+    s = html.find(_LR_PROVIDER_START)
+    if s == -1:
+        raise RuntimeError(
+            "build_v28: limited-risk Provider sub-concept header not found"
+        )
+    e = html.find(_LR_PROVIDER_END, s)
+    if e == -1:
+        raise RuntimeError(
+            "build_v28: high-risk Provider sub-concept header (used as "
+            "limited-risk end-marker) not found"
+        )
+    section = html[s:e]
+
+    fixes = _build_lr_fixes()
+    for desc, old, new in fixes:
+        key = desc.split(":")[0].strip().lower().replace(" ", "_")
+        if old in section:
+            count = section.count(old)
+            if count != 1:
+                raise RuntimeError(
+                    f"build_v28: limited-risk fix '{desc}' anchor matched "
+                    f"{count} times within the Provider sub-concept "
+                    "(expected exactly 1)"
+                )
+            section = section.replace(old, new, 1)
+            stats[key] = 1
+        elif new in section:
+            stats[key] = 0  # already applied (idempotent)
+        else:
+            raise RuntimeError(
+                f"build_v28: limited-risk fix '{desc}' anchor not found "
+                "within the Provider sub-concept"
+            )
+    return html[:s] + section + html[e:], stats
+
+
+# --------------------------------------------------------------------------- #
 # Main build                                                                  #
 # --------------------------------------------------------------------------- #
 
@@ -630,6 +931,15 @@ def main() -> None:
     print(
         "  terminology:               "
         f"limited-risk Deployer EU label fix: {term_stats['limited_risk_deployer_eu']}"
+    )
+
+    # ---- LIMITED-RISK PROVIDER TABLE FIXES (US-005) ---------------------- #
+    html, lr_stats = apply_limited_risk_provider_fixes(html)
+    applied = sum(lr_stats.values())
+    print(
+        "  limited-risk provider:     "
+        f"applied {applied} cell fix(es) "
+        f"({len(lr_stats)} target cells)"
     )
 
     # ---- SUPERSCRIPT RENDERING ------------------------------------------- #

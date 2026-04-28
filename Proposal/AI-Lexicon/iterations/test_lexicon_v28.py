@@ -21,6 +21,12 @@ Tests:
       anchor terms read "Provider of limited-risk AI systems" and
       "Deployer of limited-risk AI systems" (Excel-canonical;
       "Deployer", not "Developer").
+  T8. US-005 — limited-risk Provider table cells link to the article
+      cited in their analysis text (Scope EU → Art. 50; Transparency
+      EU → Art. 50; AI literacy EU → Art. 4; Reg trigger / General
+      info / Risk management TX → 552.103; Transparency CO → §6-1-1704)
+      and the misplaced Article 3 (3) verbatim no longer appears under
+      Scope EU.
 
 Run:
     python3 -m pytest test_lexicon_v28.py -q
@@ -278,6 +284,121 @@ def test_opening_table_limited_risk_labels():
     ) in html, (
         "Texas limited-risk Deployer cell should remain 'Deployer' "
         "(not renamed). The US-004 fix is over-broad."
+    )
+
+
+# --------------------------------------------------------------------------- #
+# T8.  US-005 — limited-risk Provider table popups link to the right          #
+#      regulatory text passages.                                               #
+# --------------------------------------------------------------------------- #
+
+def _lr_provider_section(html: str) -> str:
+    """Slice the limited-risk Provider sub-concept JSON segment out of the
+    minified CONCEPTS literal, the same way build_v28's
+    apply_limited_risk_provider_fixes does."""
+    start = html.find(
+        '"id":"provider","title":"Provider of limited-risk AI systems"'
+    )
+    assert start != -1, "limited-risk Provider sub-concept header not found"
+    end = html.find('"id":"provider-of-high-risk-ai-systems"', start)
+    assert end != -1, "high-risk Provider sub-concept end-marker not found"
+    return html[start:end]
+
+
+def test_limited_risk_provider_popups_link_to_correct_articles():
+    section = _lr_provider_section(_html())
+
+    # 1. Scope EU — must reference Article 50 (1), and the misplaced
+    #    Article 3 (3) verbatim must be gone.
+    assert '"reference":"EU AI Act, Article 50 (1)"' in section, (
+        "Scope EU is missing the corrected reference to Article 50 (1)."
+    )
+    assert '"reference":"EU AI Act, Article 3 (3)"' not in section, (
+        "Scope EU still carries the misplaced Article 3 (3) reference; "
+        "US-005 fix did not apply or was overwritten."
+    )
+    assert (
+        '1. Providers shall ensure that AI systems intended to interact '
+        'directly with natural persons'
+    ) in section, (
+        "Scope EU verbatim does not contain Article 50 (1) text."
+    )
+
+    # 2. Regulatory trigger TX — must reference 552.103 (a).
+    assert '"reference":"Texas HB149, 552.103. (a)"' in section, (
+        "Regulatory trigger TX is missing the 552.103 (a) reference."
+    )
+
+    # 3. Transparency EU — must reference Article 50 (1, 2) and contain
+    #    both paragraph (1) and paragraph (2) text in verbatim.
+    assert '"reference":"EU AI Act, Article 50 (1, 2)"' in section, (
+        "Transparency EU is missing the Article 50 (1, 2) reference."
+    )
+    assert (
+        '2. Providers of AI systems, including general-purpose AI '
+        'systems, generating synthetic'
+    ) in section, (
+        "Transparency EU verbatim does not contain Article 50 (2) text."
+    )
+
+    # 4. Transparency CO — must reference §6-1-1704 (verbatim left empty
+    #    because the CO law-blob has no embedded sections).
+    assert '"reference":"Colorado SB24-205, 6-1-1704"' in section, (
+        "Transparency CO is missing the §6-1-1704 reference label."
+    )
+
+    # 5+6. General info disclosure & Risk management TX — both reference
+    #      552.103 (b). Must appear at least twice in the section (once
+    #      per row).
+    assert section.count('"reference":"Texas HB149, 552.103. (b)"') == 2, (
+        "Expected exactly two cells (General info disclosure TX, Risk "
+        "management TX) referencing Texas HB149, 552.103. (b)."
+    )
+
+    # 7. AI literacy EU — must reference Article 4 and quote it.
+    assert '"reference":"EU AI Act, Article 4"' in section, (
+        "AI literacy EU is missing the Article 4 reference."
+    )
+    assert (
+        'Providers and deployers of AI systems shall take measures to '
+        'ensure, to their best extent, a sufficient level of AI literacy'
+    ) in section, (
+        "AI literacy EU verbatim does not contain the Article 4 text."
+    )
+
+    # No cell in this sub-concept should still have an article cite in
+    # its analysis text without a corresponding non-empty reference.
+    # We check the remaining empty-reference cells — they must have
+    # analysis text "-" (no obligation in this jurisdiction) or, in the
+    # Provider/dev info TX case, the Excel-preserved "(§6-1-1702.)" typo
+    # which is intentionally left without a reference.
+    import re
+    cell_re = re.compile(
+        r'\{"analysis":"([^"\\]*(?:\\.[^"\\]*)*)",'
+        r'"verbatim":"([^"\\]*(?:\\.[^"\\]*)*)",'
+        r'"reference":"([^"\\]*(?:\\.[^"\\]*)*)"\}'
+    )
+    article_re = re.compile(
+        r'\(Article\s+\d+\)|\(§\s*\d|\(\d+\.\d+|\(22757\.|'
+        r'\(§\s*\d|Articles?\s+\d',
+        re.IGNORECASE,
+    )
+    offenders = []
+    for m in cell_re.finditer(section):
+        analysis, _, reference = m.group(1), m.group(2), m.group(3)
+        if reference:
+            continue
+        if analysis == '-' or analysis == '':
+            continue
+        # Permit the Excel-preserved §6-1-1702 typo on the TX provider/dev
+        # info cell — see the docstring of apply_limited_risk_provider_fixes.
+        if '§6-1-1702' in analysis:
+            continue
+        if article_re.search(analysis):
+            offenders.append(analysis[:80])
+    assert not offenders, (
+        "Cells with article references in analysis but empty reference "
+        f"field still present: {offenders}"
     )
 
 
