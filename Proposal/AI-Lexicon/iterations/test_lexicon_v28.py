@@ -8,11 +8,15 @@ fixes, superscript FLOPs, and terminology adjustments.
 Tests:
   T1. Home page shows "43 terms across 12 regulatory frameworks".
   T2. Home page shows "NDICI FPN FPI /2022/432-762".
-  T3. Regulations page descs spot-check (AIA / GL / SB 53).
+  T3. Regulations page descs spot-check (AIA / GL / SB 53), with
+      exponents rendered as <sup> markup (US-003).
   T4. Methodology Step 1 body contains "EO 14179 (2025)" and
       "Export of the American AI Technology Stack".
   T5. Methodology Step 3 keeps the v26 GL bullet (Commission Guidelines
       / "(GL)" notation).
+  T6. US-003 — every exponent occurrence renders as either <sup>
+      markup (static HTML) or a Unicode superscript run (script
+      blobs); no plain ASCII `10^25` / `10**25` / `10(^25)` remains.
 
 Run:
     python3 -m pytest test_lexicon_v28.py -q
@@ -116,9 +120,9 @@ def test_regs_descs_from_xlsx():
         "The AI Act (hereafter, AIA) puts in place obligations for "
         "providers and deployers of AI systems in the EU"
     ) in aia, "AIA card description does not match xlsx C18."
-    # The Unicode superscript is preserved.
-    assert "10²⁵ FLOPs" in aia, (
-        "AIA card description missing literal 10²⁵ FLOPs typography."
+    # US-003: exponents render as <sup> markup in static HTML.
+    assert "10<sup>25</sup> FLOPs" in aia, (
+        "AIA card description missing 10<sup>25</sup> FLOPs typography."
     )
 
     # GL card — xlsx C20.
@@ -139,7 +143,7 @@ def test_regs_descs_from_xlsx():
     )
     assert (
         "This bill puts in place safety, reporting and risk management "
-        "obligations for providers of frontier models (over 10²⁶ FLOPs"
+        "obligations for providers of frontier models (over 10<sup>26</sup> FLOPs"
     ) in sb53, "SB 53 card description does not match xlsx C21."
 
 
@@ -170,6 +174,54 @@ def test_methodology_step3_keeps_gl_item():
     )
     assert ("(GL)" in step3 or "&quot;(GL)&quot;" in step3), (
         "Methodology Step 3 lost the (GL) notation."
+    )
+
+
+# --------------------------------------------------------------------------- #
+# T6.  US-003 — every exponent renders as <sup> markup or Unicode             #
+#      superscripts; no plain ASCII forms remain.                              #
+# --------------------------------------------------------------------------- #
+
+def test_exponents_render_as_superscript():
+    html = _html()
+
+    # No plain ASCII exponent forms anywhere.
+    ascii_caret = re.findall(r'\d+\^\d+', html)
+    ascii_paren = re.findall(r'\d+\(\^-?\d+\)', html)
+    ascii_star  = re.findall(r'\d+\*\*\d+', html)
+    assert not ascii_caret, (
+        f"Plain ASCII 10^N exponents still present: "
+        f"{sorted(set(ascii_caret))[:5]}"
+    )
+    assert not ascii_paren, (
+        f"Parenthesised 10(^N) exponents still present: "
+        f"{sorted(set(ascii_paren))[:5]}"
+    )
+    assert not ascii_star, (
+        f"ASCII 10**N exponents still present: "
+        f"{sorted(set(ascii_star))[:5]}"
+    )
+
+    # The three known static-HTML FLOPs thresholds are <sup>-wrapped.
+    aia = _card_html(html, "Artificial Intelligence Act (2024)")
+    assert "10<sup>25</sup>" in aia, "AIA static exponent is not <sup>-wrapped."
+    sb53 = _card_html(
+        html,
+        "SB 53 (2025) — Transparency in Frontier Artificial Intelligence (TFAI)",
+    )
+    assert "10<sup>26</sup>" in sb53, "SB 53 static exponent is not <sup>-wrapped."
+    raise_card = _card_html(
+        html,
+        "A6453B (2025) — Responsible AI Safety and Education Act (RAISE Act)",
+    )
+    assert "10<sup>26</sup>" in raise_card, (
+        "RAISE Act static exponent is not <sup>-wrapped."
+    )
+
+    # Script blobs retain Unicode superscripts (rendered via textContent
+    # for verbatim drawer).  Confirm a few representative cells.
+    assert "10²⁶ FLOPs" in html or "10²⁵ FLOPs" in html, (
+        "Script-embedded Unicode superscripts unexpectedly missing."
     )
 
 

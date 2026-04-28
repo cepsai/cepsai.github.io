@@ -33,6 +33,7 @@ Run:
 from __future__ import annotations
 
 import html as _html
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -66,6 +67,123 @@ def _date_str(dt) -> str:
     months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
               "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     return f"{dt.day} {months[dt.month - 1]} {dt.year}"
+
+
+# --------------------------------------------------------------------------- #
+# Exponent / superscript rendering                                            #
+# --------------------------------------------------------------------------- #
+
+_SUP_DIGITS  = str.maketrans("0123456789-+", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺")
+_INV_SUP     = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺", "0123456789-+")
+
+# `10(^25)` parenthesised caret — used in some law-blob verbatim cells.
+_RE_PAREN_CARET = re.compile(r'(\d+)\(\^(-?\d+)\)')
+# `10^25` and `10**25`.
+_RE_PLAIN_EXP   = re.compile(r'(\d+)(?:\^|\*\*)(-?\d+)')
+# Run of unicode superscript digits / signs.
+_RE_UNI_SUP     = re.compile(r'([⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]+)')
+
+# `<script ...>...</script>` blocks (non-greedy, multiline).
+_RE_SCRIPT_BLOCK = re.compile(
+    r'(<script\b[^>]*>)(.*?)(</script\s*>)',
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _exponents_to_sup_html(text: str) -> str:
+    """Convert every exponent form to `<sup>…</sup>` markup.
+
+    Handles:
+      * `10²⁵` (Unicode-superscript run)
+      * `10^25`, `10**25`
+      * `10(^25)`
+    Existing `<sup>` markup is left untouched (the patterns only match
+    digit-bounded forms, never literal `<sup>`)."""
+    text = _RE_UNI_SUP.sub(
+        lambda m: f'<sup>{m.group(1).translate(_INV_SUP)}</sup>',
+        text,
+    )
+    text = _RE_PAREN_CARET.sub(
+        lambda m: f'{m.group(1)}<sup>{m.group(2)}</sup>',
+        text,
+    )
+    text = _RE_PLAIN_EXP.sub(
+        lambda m: f'{m.group(1)}<sup>{m.group(2)}</sup>',
+        text,
+    )
+    return text
+
+
+def _ascii_exp_to_unicode(text: str) -> str:
+    """Convert ASCII exponent forms to Unicode-superscript characters.
+
+    Used inside `<script>` blocks: the law-blob verbatim drawer renders
+    via `textContent` (see `drawer-verbatim` assignment), so embedded
+    `<sup>` markup would show literally. Unicode superscripts render
+    correctly in both `innerHTML` and `textContent` paths."""
+    text = _RE_PAREN_CARET.sub(
+        lambda m: m.group(1) + m.group(2).translate(_SUP_DIGITS),
+        text,
+    )
+    text = _RE_PLAIN_EXP.sub(
+        lambda m: m.group(1) + m.group(2).translate(_SUP_DIGITS),
+        text,
+    )
+    return text
+
+
+def apply_superscripts(html: str) -> tuple[str, dict]:
+    """Two-pass exponent rendering pipeline.
+
+    Outside `<script>` blocks: convert ASCII (`10^25`, `10**25`,
+    `10(^25)`) and Unicode (`10²⁵`) forms to `<sup>` markup.
+
+    Inside `<script>` blocks (CONCEPTS literal + law-blob JSON):
+    convert ASCII forms to Unicode superscripts. Unicode renders as
+    proper superscript characters via both innerHTML and textContent.
+    Existing Unicode forms are left untouched.
+
+    Returns (html, stats) so the build log can report what changed.
+    """
+    stats = {
+        "static_unicode_to_sup":  0,
+        "static_ascii_to_sup":    0,
+        "script_ascii_to_unicode": 0,
+    }
+
+    parts: list[str] = []
+    pos = 0
+    for m in _RE_SCRIPT_BLOCK.finditer(html):
+        # ---- Outside-script segment ------------------------------------ #
+        outside = html[pos:m.start()]
+        stats["static_unicode_to_sup"] += len(_RE_UNI_SUP.findall(outside))
+        stats["static_ascii_to_sup"]   += (
+            len(_RE_PAREN_CARET.findall(outside))
+            + len(_RE_PLAIN_EXP.findall(outside))
+        )
+        parts.append(_exponents_to_sup_html(outside))
+
+        # ---- Script segment -------------------------------------------- #
+        open_tag, body, close_tag = m.groups()
+        stats["script_ascii_to_unicode"] += (
+            len(_RE_PAREN_CARET.findall(body))
+            + len(_RE_PLAIN_EXP.findall(body))
+        )
+        parts.append(open_tag)
+        parts.append(_ascii_exp_to_unicode(body))
+        parts.append(close_tag)
+        pos = m.end()
+
+    # Tail (after the last script block, or full text if no scripts).
+    tail = html[pos:]
+    stats["static_unicode_to_sup"] += len(_RE_UNI_SUP.findall(tail))
+    stats["static_ascii_to_sup"]   += (
+        len(_RE_PAREN_CARET.findall(tail))
+        + len(_RE_PLAIN_EXP.findall(tail))
+    )
+    parts.append(_exponents_to_sup_html(tail))
+
+    return ''.join(parts), stats
 
 
 def load_xlsx_data():
@@ -460,6 +578,15 @@ def main() -> None:
         extra = GL_LI_HTML if n == 3 else None
         html = _replace_step_body(html, n, data["steps"][n], extra_li=extra)
     print("  methodology:               swapped steps 1-6")
+
+    # ---- SUPERSCRIPT RENDERING ------------------------------------------- #
+    html, sup_stats = apply_superscripts(html)
+    print(
+        "  superscripts:              "
+        f"static unicode→<sup>: {sup_stats['static_unicode_to_sup']}, "
+        f"static ASCII→<sup>: {sup_stats['static_ascii_to_sup']}, "
+        f"script ASCII→unicode: {sup_stats['script_ascii_to_unicode']}"
+    )
 
     HTML_V28.write_text(html, encoding="utf-8")
     shutil.copy2(HTML_V28, FINAL_TOOL)
