@@ -868,6 +868,131 @@ def apply_limited_risk_provider_fixes(html: str) -> tuple[str, dict]:
 
 
 # --------------------------------------------------------------------------- #
+# EU article-link audit fixes (US-006)                                         #
+# --------------------------------------------------------------------------- #
+#
+# Audited every EU cell in the v28 CONCEPTS literal against the Excel
+# inventory (`v28_excel_inventory.md` §4–§6); see `outputs/us006_eu_audit.md`
+# for the per-cell findings. Two real mismatches surfaced:
+#
+#   1. provider-of-high-risk-ai-systems / scope-1-0 — Excel says
+#      "Article 3, Article 6, Annex III" but the v26 reference reads
+#      "AI Act, Article 6; AI Act, Annex III; EU AI Act, Article 25 (1)".
+#      Article 3 (3) (the definition of "provider") is missing, leaving an
+#      asymmetry with the deployer analog (which already includes Art 3 (4)).
+#      Fix: prepend Article 3 (3) verbatim text + reference label.
+#
+#   2. provider-of-general-purpose-ai-models / scope-system-1-2 (3rd scope
+#      sub-row) — analysis cites "(GL (59))" and "(GL (60))" (the modification
+#      criteria for GPAI providers per Excel §4.3) but the reference field
+#      reads only "(GL, (17))" — the same string used by the unrelated
+#      compute-threshold cell. Fix: replace the reference with
+#      "(GL, (59)); (GL, (60))" so the popup label points at the right GL
+#      paragraphs. Verbatim stays empty (the GL law-blob has no embedded
+#      sections; popup falls back to the analysis text).
+#
+# Both fixes are scoped via long, unique `analysis` text anchors so the
+# replacement is naturally restricted to the intended cell.
+
+# Article 3 (3) — definition of "provider" (used in fix #1 only).
+_AIA_ART_3_3_PROVIDER = (
+    '(3) "provider" means a natural or legal person, public authority, '
+    'agency or other body that develops an AI system or a general-purpose '
+    'AI model or that has an AI system or a general-purpose AI model '
+    'developed and places it on the market or puts the AI system into '
+    'service under its own name or trademark, whether for payment or '
+    'free of charge.'
+)
+
+
+def _build_eu_article_link_fixes() -> list[tuple[str, str, str]]:
+    """Build the (description, old, new) tuples for the two EU article-link
+    audit mismatches identified in US-006."""
+    fixes: list[tuple[str, str, str]] = []
+
+    # Fix #1: provider-of-high-risk-ai-systems / scope.
+    # Anchor on the existing reference string, which appears exactly once
+    # in the whole HTML (verified: `grep -o … | wc -l` == 1).
+    old_ref_1 = (
+        '"reference":"AI Act, Article 6; AI Act, Annex III; '
+        'EU AI Act, Article 25 (1)"'
+    )
+    new_ref_1 = (
+        '"reference":"EU AI Act, Article 3 (3); AI Act, Article 6; '
+        'AI Act, Annex III; EU AI Act, Article 25 (1)"'
+    )
+    fixes.append((
+        "Provider HR / Scope: add Article 3 (3) to reference",
+        old_ref_1,
+        new_ref_1,
+    ))
+
+    # Fix #2: provider-of-general-purpose-ai-models / scope-system-1-2.
+    # The analysis text for this cell is unique and ends with "...the
+    # original model (GL (60))". We anchor on the full cell triple
+    # (analysis + empty verbatim + reference) so the swap can't collide
+    # with the model-system / compute-threshold cell, which uses the same
+    # `"reference":"(GL, (17))"` string with a different analysis.
+    scope_sys_analysis = (
+        'Person that develops a GPAI model that displays significant '
+        'generality and is capable of competently performing a wide range '
+        'of distinct tasks (Article 3)\n'
+        'Indicative criterion: > 1023 FLOPs in compute (GL, (17))\n'
+        'Or person that modifies an existent GPAI model and that '
+        'modification results in significant change in the model’s '
+        'generality, capabilities, or systemic risk (GL (59))\n'
+        'Indicative criterion: training compute used for the modification '
+        'is greater than 1/3 of the training compute of the original model '
+        '(GL (60))'
+    )
+    old_cell_2 = (
+        f'{{"analysis":"{_json_str(scope_sys_analysis)}",'
+        f'"verbatim":"","reference":"(GL, (17))"}}'
+    )
+    new_cell_2 = (
+        f'{{"analysis":"{_json_str(scope_sys_analysis)}",'
+        f'"verbatim":"","reference":"(GL, (59)); (GL, (60))"}}'
+    )
+    fixes.append((
+        "Provider GPAI / Scope (modification sub-row): "
+        "GL (17) -> GL (59), (60) reference",
+        old_cell_2,
+        new_cell_2,
+    ))
+
+    return fixes
+
+
+def apply_eu_article_link_fixes(html: str) -> tuple[str, dict]:
+    """Apply the two cell-level reference fixes flagged by the US-006
+    EU-article-link audit. Idempotent: each fix detects an already-applied
+    state via the new-substring check and silently skips."""
+    fixes = _build_eu_article_link_fixes()
+    stats: dict[str, int] = {}
+    for desc, old, new in fixes:
+        key = desc.split(":")[0].strip().lower().replace(" ", "_").replace("/", "_")
+        # Drop double underscores from `__`-runs caused by " / " in desc.
+        while "__" in key:
+            key = key.replace("__", "_")
+        if old in html:
+            count = html.count(old)
+            if count != 1:
+                raise RuntimeError(
+                    f"build_v28: EU-link fix '{desc}' anchor matched "
+                    f"{count} times (expected exactly 1)"
+                )
+            html = html.replace(old, new, 1)
+            stats[key] = 1
+        elif new in html:
+            stats[key] = 0  # already applied (idempotent)
+        else:
+            raise RuntimeError(
+                f"build_v28: EU-link fix '{desc}' anchor not found"
+            )
+    return html, stats
+
+
+# --------------------------------------------------------------------------- #
 # Main build                                                                  #
 # --------------------------------------------------------------------------- #
 
@@ -940,6 +1065,15 @@ def main() -> None:
         "  limited-risk provider:     "
         f"applied {applied} cell fix(es) "
         f"({len(lr_stats)} target cells)"
+    )
+
+    # ---- EU ARTICLE-LINK AUDIT FIXES (US-006) ---------------------------- #
+    html, eu_stats = apply_eu_article_link_fixes(html)
+    eu_applied = sum(eu_stats.values())
+    print(
+        "  EU article-link audit:     "
+        f"applied {eu_applied} reference fix(es) "
+        f"({len(eu_stats)} target cells)"
     )
 
     # ---- SUPERSCRIPT RENDERING ------------------------------------------- #
