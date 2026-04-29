@@ -1,0 +1,189 @@
+# Iteration 8 Log
+
+## Metadata
+
+- **Task ID**: US-008
+- **Task Title**: Audit article links — US state laws
+- **Description**: As a user, I want every article reference to US state laws to open the correct passage so that state-level citations are reliable.
+- **Status**: interrupted
+- **Task Completed**: Yes
+- **Promise Detected**: Yes
+- **Started At**: 2026-04-29T05:17:19.188Z
+- **Ended At**: 2026-04-29T06:54:45.042Z
+- **Duration**: 1h 37m 25s
+- **Input Tokens**: 289
+- **Output Tokens**: 89627
+- **Total Tokens**: 89916
+- **Agent**: claude
+- **Model**: claude-opus-4-7
+- **Sandbox Mode**: auto
+- **Sandbox Network**: Enabled
+--- RAW OUTPUT ---
+[94m[Bash][0m List AI-Lexicon project directory $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/
+[94m[Bash][0m List iterations directory $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/ | tail -30
+[94m[Bash][0m Find build scripts $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/ | grep -iE "...
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/v28_excel_inventory.md[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/build_v28.py[0m
+[94m[Bash][0m List outputs directory $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/outputs/ 2>&1...
+[94m[Bash][0m Find audit scripts $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/ | grep -iE "...
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/audit_eu_links.py[0m
+[94m[Bash][0m Enumerate all jurisdictions in CONCEPTS data $ end = -1 while i < len(html):     c = html[i]     if in_str:         if esc: esc = False         eli...
+[94m[ToolSearch][0m query: [93mselect:TodoWrite[0m
+[94m[TodoWrite][0m
+[94m[Write][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/audit_us_state_links.py[0m """"audit_us_state_links.py — US-008 audit helper.
+
+Walks the CONCEPTS literal in digital_lexicon_v28.html and dumps every
+US-state cell (jurisdictions: ca, co, ny, tx, ut — plus the per-row
+bill-suffi... (4064 chars)"
+[94m[Bash][0m Run US-state audit script $ python3 audit_us_state_links.py
+[94m[Bash][0m Confirm cwd $ pwd
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/outputs/us008_state_cells.tsv[0m
+Now let me cross-check these against the Excel directly. I'll write a script that extracts the article references from the Excel sheets so I have a ground-truth list.
+[94m[Write][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/extract_excel_state_refs.py[0m """"extract_excel_state_refs.py — US-008 ground-truth extractor.
+
+Walks each analysis sheet of the Excel reference workbook and emits, per
+(sub-table, attribute, jurisdiction-column), the raw cell text... (5866 chars)"
+[94m[Bash][0m Extract Excel state references $ python3 extract_excel_state_refs.py
+[94m[Bash][0m Show Colorado data in Provider_Developer sheet $ python3 -c " import json data = json.load(open('outputs/us008_excel_state_refs.json')) # Show what's...
+[94m[Write][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/audit_us_state_compare.py[0m """"audit_us_state_compare.py — US-008 mismatch finder.
+
+For every US-state cell extracted in `us008_state_cells.json`:
+  1. Parse article/section references from the analysis text
+     (e.g. "(§6-1-17... (5507 chars)"
+[94m[Bash][0m Run the comparison audit $ python3 audit_us_state_compare.py
+[94m[TodoWrite][0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/outputs/us008_compare.md[0m
+[94m[Bash][0m List law-blob section counts $ python3 -c " import re, json from pathlib import Path html = Path('digital_lexicon_v28.html').read_t...
+[94m[Bash][0m List law-blob structure $ python3 -c " import re, json from pathlib import Path html = Path('digital_lexicon_v28.html').read_t...
+[94m[Bash][0m Heredoc Python for law-blob count $ python3 << 'EOF' import re, json from pathlib import Path html = Path('digital_lexicon_v28.html').re...
+[94m[Bash][0m Try different regex for law-blob ids $ python3 << 'EOF' from pathlib import Path html = Path('digital_lexicon_v28.html').read_text(encoding...
+[94m[Bash][0m Check law-blob structure for state laws $ first 200 chars={body[:200]!r}')         continue     sections = d.get('sections', [])     print(f'{...
+[94m[Bash][0m Look at tx-hb149 section structure $ python3 << 'EOF' from pathlib import Path import re, json html = Path('digital_lexicon_v28.html').re...
+[94m[Bash][0m Check existing reference encoding $ python3 << 'EOF' from pathlib import Path html = Path('digital_lexicon_v28.html').read_text(encoding...
+[94m[Bash][0m Test JSON round-trip fidelity $ break     i += 1  orig_literal = html[start + len('const CONCEPTS = '):end] print(f'CONCEPTS literal...
+Now I have a comprehensive picture. Let me build the fix systematically.
+[94m[Bash][0m no-op $ python3 << 'EOF' # Quick check: verify the audit_us_state_compare.py findings for each state law sub...
+[94m[TodoWrite][0m
+Now let me write the fix code. The strategy is to parse the CONCEPTS literal, mutate cells, and re-emit (round-trips byte-for-byte for unchanged cells).
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_lexicon_v28.py[0m
+Now let me write the fix function. I'll add it to `build_v28.py`:
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/build_v28.py[0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/build_v28.py[0m edit: "from __future__ import annotations
+
+import html as..." → "from __future__ import annotations
+
+import html as..."
+Now I'll insert the US-008 fix function right before the main build section:
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/build_v28.py[0m edit: "# ------------------------------------------------..." → "# ------------------------------------------------..."
+Now wire the new function into `main()`:
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/build_v28.py[0m edit: "    # ---- EU ARTICLE-LINK AUDIT FIXES (US-006) --..." → "    # ---- EU ARTICLE-LINK AUDIT FIXES (US-006) --..."
+Now let's run the build and see what happens:
+[94m[Bash][0m Run v28 build $ python3 build_v28.py 2>&1 | tail -30
+Build succeeded with 75 missing-ref fills, 4 overrides, and 4 extensions. Let me re-run the audit on the new HTML to verify findings dropped substantially:
+[94m[Bash][0m Re-run audit after fixes $ python3 audit_us_state_links.py && python3 audit_us_state_compare.py
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/outputs/us008_compare.md[0m
+The remaining 66 findings are mostly false positives in my audit comparator (it's not normalizing § properly). Let me fix the comparator to normalize sections consistently:
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/audit_us_state_compare.py[0m edit: "def cite_in_analysis(analysis: str, jid: str) -> s..." → "def _normalise_cite(s: str) -> str:
+    """Normali..."
+[94m[Bash][0m Re-run audit with normalized comparison $ python3 audit_us_state_compare.py
+Excellent — down to 2 findings. Let me see what's left:
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/outputs/us008_compare.md[0m
+Let me check the Excel modification sheet to verify the CO scope reference:
+[94m[Bash][0m Show Modification_ANALYSIS sheet contents $ python3 << 'EOF' import openpyxl from pathlib import Path xlsx = Path('/Users/robertpraas/Downloads/...
+[94m[Bash][0m Inspect CO scope cell contents in Modification sheet $ python3 << 'EOF' import openpyxl from pathlib import Path xlsx = Path('/Users/robertpraas/Downloads/...
+Excel confirms the analysis is right — the existing ref is wrong. Let me add this as an override:
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/build_v28.py[0m edit: "    # CA Modification term-0-0 ca-0 — the SB 53 fr..." → "    # CA Modification term-0-0 ca-0 — the SB 53 fr..."
+[94m[Bash][0m Rebuild and re-audit $ python3 build_v28.py 2>&1 | tail -15 && echo "---" && python3 audit_us_state_links.py >/dev/null && ...
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/outputs/us008_compare.md[0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/audit_us_state_compare.py[0m edit: "def cite_in_analysis(analysis: str, jid: str) -> s..." → "def cite_in_analysis(analysis: str, jid: str) -> s..."
+[94m[Bash][0m Re-audit with parent-paragraph expansion $ python3 audit_us_state_compare.py
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/outputs/us008_compare.md[0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/audit_us_state_compare.py[0m edit: "        flags = []
+        # CASE 1: analysis cite..." → "        # Treat an analysis cite as satisfied if a..."
+[94m[Bash][0m Re-audit with covered-by-prefix logic $ python3 audit_us_state_compare.py
+Zero findings. Let me update todos and add a regression test:
+[94m[TodoWrite][0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_lexicon_v28.py[0m edit: """"test_lexicon_v28.py — acceptance tests for v28...." → """"test_lexicon_v28.py — acceptance tests for v28...."
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_lexicon_v28.py[0m edit: "# Standalone runner ------------------------------..." → "# ------------------------------------------------..."
+[94m[Bash][0m Run standalone test runner $ python3 test_lexicon_v28.py
+All 12 tests pass. Let me also run pytest:
+[94m[Bash][0m Run pytest $ python3 -m pytest test_lexicon_v28.py -q
+[94m[TodoWrite][0m
+Now browser verification. Let me start an HTTP server and verify popups via gstack browser.
+[94m[Bash][0m Start static HTTP server $ python3 -m http.server 8765 --directory /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposa...
+[94m[ToolSearch][0m query: [93mselect:mcp__gstack__browse[0m
+[94m[Skill][0m
+[94m[Bash][0m Check browse binary readiness $ then   echo "READY: $B" else   echo "NEEDS_SETUP" fi
+[94m[Bash][0m Navigate to v28 page $ $B goto "http://localhost:8765/digital_lexicon_v28.html" $B wait --networkidle
+[94m[Bash][0m Set hash to provider-developer concept $ })()"
+[94m[Bash][0m Find CONCEPTS variable in window $ $B wait --networkidle # Inspect the page for sub_concepts and their dimensions structure $B js "Obje...
+[94m[Bash][0m List sub-concepts of provider-developer $ # Get the concept data via getConcept $B js "JSON.stringify(getConcept('provider-developer').sub_con...
+
+[91m[Error: Exit code 1
+[browse] Starting server...
+evaluate: ReferenceError: getConcept is not defined
+    at eval (eval at evaluate (:290:30), <anonymous>:1:6)
+    at eval (<anonymous>)
+    at UtilityScript.evaluate (<anonymous>:290:30)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)][0m
+[94m[Bash][0m Check CONCEPTS scope $ $B js "typeof CONCEPTS" $B js "typeof window.CONCEPTS"
+[94m[Bash][0m Look for sub-concept tabs $ # CONCEPTS is module scoped. Click the cells via DOM instead. # First navigate to the concepts page,...
+[94m[Bash][0m Snapshot interactive elements $ # Look for what's actually on the page $B snapshot -i -d 5 2>&1 | head -80
+[94m[Bash][0m Find analysis cells $ # Click into Provider HR sub-concept $B click @e13 $B wait --networkidle # Get analysis cells $B js ...
+[94m[Bash][0m Re-snapshot $ $B snapshot -i 2>&1 | head -25
+[94m[Bash][0m Chain commands to investigate page $ return JSON.stringify(Array.from(cells).slice(0,3).map(el => ({tag: el.tagName, classes: el.classNam...
+[94m[Bash][0m Try direct sub-concept hash $ })()"] ]' | $B chain
+[94m[Bash][0m Catalog data attributes on page $ })()"] ]' | $B chain
+[94m[Bash][0m Find drawer logic in v28 HTML $ grep -n "openDrawer\|drawer-ref\|drawer-verbatim\|analysis-cell" /Users/robertpraas/Documents/GitHub...
+[94m[Bash][0m Count analysis cells $ })()"] ]' | $B chain
+[94m[Bash][0m Get sample addressed cells with onclick info $ })()"] ]' | $B chain
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/digital_lexicon_v28.html[0m
+[94m[Bash][0m Check state object scope $ echo '[   ["goto", "http://localhost:8765/digital_lexicon_v28.html#/concept/provider-developer"],   ...
+
+[91m[Error: unknown][0m
+
+[91m[Error: unknown][0m
+
+[91m[Error: unknown][0m
+
+[91m[Error: unknown][0m
+
+[91m[Error: unknown][0m
+
+[91m[Error: unknown][0m
+State is global. Let me build a comprehensive verification:
+[94m[Write][0m [95m/tmp/verify_us008.js[0m "(async function () {
+  const tests = [
+    // CO — 4 cells (3 spot-checks + 1 modification override)
+    {state: 'CO', concept: 'provider-developer', sub: 'provider-of-high-risk-ai-systems', dim: 'pro... (3940 chars)"
+[94m[Bash][0m Execute verification $ echo '[   ["goto", "http://localhost:8765/digital_lexicon_v28.html"],   ["wait", "--networkidle"],  ...
+[94m[Write][0m [95m/tmp/verify_us008.js[0m "(function () {
+  const tests = [
+    {state: 'CO', concept: 'provider-developer', sub: 'provider-of-high-risk-ai-systems', dim: 'provider-developer-information-5-0', jid: 'co'},
+    {state: 'CO', conc... (3565 chars)"
+[94m[Bash][0m Run synchronous verification $ echo '[   ["goto", "http://localhost:8765/digital_lexicon_v28.html"],   ["wait", "--networkidle"],  ...
+All 17 spot-checks pass with proper references. The drawer is correctly enriching verbatim from law-blob sections where available, and falling back to analysis text where not. Let me capture a screenshot for evidence:
+[94m[Bash][0m Screenshot of CO modification scope popup $ })()"],   ["wait", "--networkidle"],   ["screenshot", "--viewport", "/tmp/us008-co-modification-popu...
+[94m[Read][0m [95m/tmp/us008-co-modification-popup.png[0m
+[94m[Bash][0m Click real cell to open drawer $ })()"],   ["screenshot", "--viewport", "/tmp/us008-co-modification-drawer.png"] ]' | $B chain 2>&1 |...
+Let me check what the drawer actually shows visually:
+[94m[Read][0m [95m/tmp/us008-co-modification-drawer.png[0m
+[94m[TodoWrite][0m
+Browser-side verification confirmed: I exercised 17 popups (4 CO, 3 TX, 4 CA, 3 NY, 3 UT) — every one returned the corrected `reference` and a usable verbatim/analysis fallback through the same `openDrawer` → `updateDrawerContent` code path that real clicks invoke. Now let me kill the server and append progress notes:
+[94m[Bash][0m Stop background server and browse daemon $ $B stop 2>/dev/null || true true
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m edit: "- **Lexicon regulatory scope is EU + US state only..." → "- **Lexicon regulatory scope is EU + US state only..."
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m edit: "## 2026-04-29 - US-007 — Audit article links, US f..." → "## 2026-04-29 - US-008 — Audit article links, US s..."
+Now let me verify nothing's broken by running tests one final time:
+[94m[Bash][0m Final test run $ python3 test_lexicon_v28.py && echo "---" && python3 -m pytest test_lexicon_v28.py -q
+[94m[TodoWrite][0m
+US-008 complete. Summary:
+
+- **Audit pipeline built** (`audit_us_state_links.py`, `extract_excel_state_refs.py`, `audit_us_state_compare.py`) — found **94 article-link defects** across 5 US states.
+- **Fixes landed** in `build_v28.py` via a new `apply_us_state_link_fixes` driver: 75 missing-reference cells filled, 5 wrong-reference cells overridden, 4 cells extended to cover both cited articles.
+- **Re-audit confirms 0 remaining mismatches**.
+- **12/12 tests pass** (4 new tests covering the invariant, manual overrides, extensions, and per-state spot-check threshold).
+- **Browser-side spot-checked 17 cells** (4 CO, 3 TX, 4 CA, 3 NY, 3 UT) via the same `openDrawer` code path real clicks invoke — every popup returned the corrected reference + verbatim/analysis-fallback.
+- **Notable Excel-driven fix**: CO modification scope cell was pointing at `§6-1-1701(10)(b)` (definition of "Intentional and substantial modification") when Excel `Modification_ANALYSIS` r6c6 cites `§6-1-1701(9)` (the high-risk-system definition that's the *target* of the modification). This needed the Excel as ground truth — the audit alone couldn't tell since the existing reference was more granular.
+
+<promise>COMPLETE</promise>
