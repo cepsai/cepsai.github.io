@@ -1,0 +1,61 @@
+# Iteration 7 Log
+
+## Metadata
+
+- **Task ID**: US-007
+- **Task Title**: Audit article links — US federal regulatory texts
+- **Description**: As a user, I want every article reference to US federal regulatory texts to open the correct passage so that US-context citations are reliable.
+- **Status**: completed
+- **Task Completed**: Yes
+- **Promise Detected**: Yes
+- **Started At**: 2026-04-29T05:14:42.838Z
+- **Ended At**: 2026-04-29T05:17:17.995Z
+- **Duration**: 2m 35s
+- **Input Tokens**: 65
+- **Output Tokens**: 10830
+- **Total Tokens**: 10895
+- **Agent**: claude
+- **Model**: claude-opus-4-7
+- **Sandbox Mode**: auto
+- **Sandbox Network**: Enabled
+--- RAW OUTPUT ---
+[94m[Bash][0m Read progress.md $ cat /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md
+[94m[Bash][0m Check US-006 log if exists $ cat /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/iterations/f...
+[94m[Bash][0m List iterations folder $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/ | head -50
+[94m[Bash][0m List outputs folder $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/outputs/
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/audit_eu_links.py[0m
+[94m[Bash][0m List laws and outputs $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/outputs/
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/v28_excel_inventory.md[0m
+Now I understand the task. Let me verify my hypothesis: the Excel inventory shows the 12 regulatory texts are EU + US **state** (CA, CO, NY, TX, UT) — there are no US **federal** texts in scope. Let me confirm this.
+[94m[Grep][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/digital_lexicon_v28.html[0m pattern: [96mlaw-blob-[0m
+
+[91m[Error: <tool_use_error>InputValidationError: Grep failed due to the following issue:
+An unexpected parameter `-o` was provided</tool_use_error>][0m
+[94m[Grep][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/digital_lexicon_v28.html[0m pattern: [96mid=&quot;law-blob-[^&]+&quot;|id=\"law-blob-[^\"]+\"[0m
+[94m[Bash][0m List all law-blob IDs in v28 $ grep -oE 'id="law-blob-[^"]+"' /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexi...
+[94m[Grep][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/v28_excel_inventory.md[0m pattern: [96m[Ff]ederal[0m
+[94m[Bash][0m Search Excel for any federal mentions $ cd /Users/robertpraas/Downloads && python3 -c " import openpyxl wb = openpyxl.load_workbook('Cross-c...
+Confirmed: there are no US federal regulatory texts in the v27/v28 scope. Both mentions of "federal" in the Excel are incidental — one is generic prose ("U.S."), the other is content *within* California SB 53 (a state law's exemption for "federal government" activity). The Methodology table's 12-text scope is entirely EU + US **state** (CA, CO, NY, TX, UT).
+
+Let me write a brief audit document to record this finding, and update progress.md.
+[94m[Write][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/outputs/us007_us_federal_audit.md[0m "# US-007 — US federal regulatory text audit
+
+**Date**: 2026-04-29
+**Story**: As a user, I want every article reference to US federal regulatory texts to open the correct passage so that US-context cit... (4410 chars)"
+Now let me run the test suite to make sure nothing regressed (since we made no code changes, this should pass cleanly), then update progress.md.
+[94m[Bash][0m Run v28 test suite $ cd /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations && python3 te...
+Tests still pass (no code changes were needed). Now let me update progress.md.
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m
+[94m[Bash][0m Check progress.md line count $ wc -l /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.m...
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m edit: "  - Gotchas: (a) `grep -c` on the minified HTML re..." → "  - Gotchas: (a) `grep -c` on the minified HTML re..."
+Now I'll add the new pattern to the Codebase Patterns section at the top.
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m edit: "- **CO law-blob has no embedded sections (US-005)*..." → "- **CO law-blob has no embedded sections (US-005)*..."
+All work for US-007 is complete:
+
+- **Enumeration**: every US federal text covered by v27 → set is **empty**. The Excel inventory's 12 regulatory texts are EU + US **state** only. The 16 `law-blob-*` IDs in v28 confirm: no federal blob exists.
+- **Verification, fixes, spot-checks**: all vacuously satisfied (no texts → nothing to verify or fix).
+- **Files changed**: new audit doc `iterations/outputs/us007_us_federal_audit.md`; progress.md updated with US-007 entry + new "regulatory scope is EU + US state only" pattern. **No build_v28.py changes were required.**
+- **Tests**: 8/8 still pass (unchanged from US-005, since no code changed).
+
+<promise>COMPLETE</promise>

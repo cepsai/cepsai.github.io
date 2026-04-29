@@ -33,6 +33,7 @@ Run:
 from __future__ import annotations
 
 import html as _html
+import json
 import re
 import shutil
 import sys
@@ -993,6 +994,339 @@ def apply_eu_article_link_fixes(html: str) -> tuple[str, dict]:
 
 
 # --------------------------------------------------------------------------- #
+# US-state article-link audit fixes (US-008)                                   #
+# --------------------------------------------------------------------------- #
+#
+# Audited every US-state cell in the v28 CONCEPTS literal against the Excel
+# inventory (`v28_excel_inventory.md` §4–§6); see
+# `outputs/us008_compare.md` for the per-cell findings. Three categories of
+# defect surfaced:
+#
+#   1. **MISSING_REF** (most common): the cell's analysis text cites an
+#      article/section (e.g. "(§6-1-1702)", "(22757.13.)", "(§ 1422)") but
+#      the `reference` field is empty, so the popup has no link label.
+#      Default rule: parse the citation(s) from the analysis and synthesise
+#      a canonical reference label (`<state> <bill> §<section>`).
+#
+#   2. **REF_MISMATCH** (CA modification cells only): the existing
+#      `reference` cites a section unrelated to the analysis (e.g. analysis
+#      cites SB 53 §22757.12 but reference points at AB 2013 §3110(d)).
+#      Override list applies the corrected reference.
+#
+#   3. **EXTRA_IN_ANALYSIS** (TX rebuttal, CA penalties): analysis cites
+#      multiple articles but reference only names one. Extension list
+#      appends the missing citation.
+#
+# Verbatim is intentionally **not** populated by this pass: state-law
+# verbatim drawer fallback (analysis-text + "[no verbatim extracted]") is
+# acceptable per the US-005 CO pattern. A follow-up could pull verbatim
+# from the state law-blob `sections[].text` arrays where they exist
+# (CA SB 53/942/AB 2013, NY S8828/A6453, TX HB 149, UT SB 226 — but NOT
+# CO SB 24-205, which has `sections=[]`).
+#
+# Granularity-only REF_MISMATCH cases — where the existing reference is
+# more specific than the analysis citation (e.g. analysis cites "§1420",
+# reference says "§1420(4)") — are intentionally **left alone**: the
+# existing reference is *more* informative, not less.
+
+US_PREFIXES = ("ca", "co", "ny", "tx", "ut")
+
+
+def _is_us_jid(jid: str) -> bool:
+    if jid in US_PREFIXES:
+        return True
+    return any(jid.startswith(p + "-") for p in US_PREFIXES)
+
+
+# Citation-parsing patterns per state. These match the citation forms as
+# they appear inline in the v28 analysis text.
+_RE_CO_CITE = re.compile(r"§\s*(6-1-170[1-7])(?:\s*\((\d+)\)(?:\(([a-z])\))?)?")
+_RE_TX_CITE = re.compile(r"(?<![\w.])(552\.\d{3})(?:\.\s*\(([a-z])\))?")
+_RE_CA_2275_CITE = re.compile(r"(?<![\w.])(?:§\s*)?(22757\.\d+)")
+_RE_CA_3110_CITE = re.compile(r"(?<![\w.])(?:§\s*)?(311[01])\b")
+_RE_CA_1107_CITE = re.compile(r"(?<![\w.])(?:§\s*)?(1107\.1)\b")
+_RE_NY_CITE      = re.compile(r"§\s*(14[2-3]\d)(?:\s*\((\d+)\)(?:\(([a-z])\))?)?")
+_RE_UT_CITE      = re.compile(r"§\s*(13-75-10[1-6])(?:\s*\((\d+(?:,\s*\d+)?)\))?")
+
+
+def _parse_state_citations(analysis: str, jid: str) -> list[str]:
+    """Return the distinct article/section IDs cited in the analysis text,
+    in canonical short form (no state prefix)."""
+    p = jid.split("-")[0]
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def _add(s: str) -> None:
+        if s not in seen:
+            out.append(s)
+            seen.add(s)
+
+    if p == "co":
+        for m in _RE_CO_CITE.finditer(analysis):
+            _add(f"§{m.group(1)}")
+    elif p == "tx":
+        for m in _RE_TX_CITE.finditer(analysis):
+            _add(f"§{m.group(1)}")
+    elif p == "ca":
+        for m in _RE_CA_2275_CITE.finditer(analysis):
+            _add(f"§{m.group(1)}")
+        for m in _RE_CA_3110_CITE.finditer(analysis):
+            _add(f"§{m.group(1)}")
+        for m in _RE_CA_1107_CITE.finditer(analysis):
+            _add(f"§{m.group(1)}")
+    elif p == "ny":
+        for m in _RE_NY_CITE.finditer(analysis):
+            _add(f"§{m.group(1)}")
+    elif p == "ut":
+        for m in _RE_UT_CITE.finditer(analysis):
+            _add(f"§{m.group(1)}")
+    return out
+
+
+# Each CA section number routes to a different bill: SB 942 (22757.X with
+# decimal < 10), SB 53 (22757.10–22757.16, plus 1107.1), AB 2013 (3110/3111).
+def _ca_bill_for_section(section: str) -> str:
+    s = section.lstrip("§").strip()
+    if s in ("3110", "3111"):
+        return "AB 2013"
+    if s == "1107.1":
+        return "SB 53"
+    if s.startswith("22757."):
+        try:
+            n = float(s.split(".", 1)[1])
+        except ValueError:
+            return "SB 53"
+        return "SB 53" if n >= 10 else "SB 942"
+    return "SB 53"
+
+
+# NY: §1428 only exists in S8828; §1420–§1426 in both. ny-2-large-developer
+# carries A6453 content; ny-0/ny-1 carry S8828 content.
+def _ny_bill_for_jid(jid: str, section: str) -> str:
+    s = section.lstrip("§").strip()
+    if s in ("1427", "1428"):
+        return "S8828"
+    if jid.startswith("ny-2"):
+        return "A6453"
+    return "S8828"
+
+
+def _format_state_reference(citations: list[str], jid: str) -> str:
+    """Build a `; `-joined canonical reference label from a list of
+    short-form citations (e.g. ["§552.103"]) for the given jid."""
+    if not citations:
+        return ""
+    p = jid.split("-")[0]
+    parts: list[str] = []
+    for cite in citations:
+        if p == "co":
+            parts.append(f"CO SB 24-205 {cite}")
+        elif p == "tx":
+            parts.append(f"TX HB 149 {cite}")
+        elif p == "ca":
+            parts.append(f"CA {_ca_bill_for_section(cite)} {cite}")
+        elif p == "ny":
+            parts.append(f"NY {_ny_bill_for_jid(jid, cite)} {cite}")
+        elif p == "ut":
+            parts.append(f"UT SB 226 {cite}")
+        else:
+            parts.append(cite)
+    # De-duplicate while preserving order.
+    seen: set[str] = set()
+    deduped = []
+    for x in parts:
+        if x not in seen:
+            deduped.append(x)
+            seen.add(x)
+    return "; ".join(deduped)
+
+
+# --- Manual overrides (REF_MISMATCH cases) -------------------------------- #
+# Key: (concept_id, sub_concept_id, dim_id, jid). Value: the corrected
+# reference string. These cells already have a *non-empty* `reference`
+# whose text points at the wrong section.
+_US008_OVERRIDES: dict[tuple[str, str, str, str], str] = {
+    # CA Modification — three cells whose existing ref points at AB 2013
+    # §3110(d) but whose analysis cites a different statute.
+    (
+        "modification", "substantial-modification", "definition-1-0",
+        "ca-0-substantially-modified-version-of-a-frontier-model-no-standalone-defined-term",
+    ): "CA SB 53 §22757.12",
+    (
+        "modification", "substantial-modification", "scope-2-0",
+        "ca-0-substantially-modified-version-of-a-frontier-model-no-standalone-defined-term",
+    ): "CA SB 53 §22757.11",
+    (
+        "modification", "substantial-modification", "scope-2-0",
+        "ca-1-substantial-modification",
+    ): "CA AB 2013 §3111",
+    # CA Modification term-0-0 ca-0 — the SB 53 frontier "no standalone
+    # defined term" cell incorrectly carries an AB 2013 reference. Per
+    # Excel §6.5, this row is developer-defined under SB 53 §22757.12.
+    (
+        "modification", "substantial-modification", "term-0-0",
+        "ca-0-substantially-modified-version-of-a-frontier-model-no-standalone-defined-term",
+    ): "CA SB 53 §22757.12",
+    # CO Modification scope-2-0 — Excel `Modification_ANALYSIS` r6c6 says
+    # "High-risk AI systems … (§6-1-1701(9))" but the v26 reference reads
+    # §6-1-1701(10)(b). (10) is the definition of "Intentional and
+    # substantial modification"; (9) is the definition of "high-risk
+    # artificial intelligence system" — the scope target.
+    (
+        "modification", "substantial-modification", "scope-2-0", "co",
+    ): "CO SB 24-205 §6-1-1701(9)",
+}
+
+
+# --- Manual extensions (EXTRA_IN_ANALYSIS cases) -------------------------- #
+# For cells whose analysis text cites N>1 articles but whose reference only
+# names a strict subset. Value is the *full replacement* reference string.
+_US008_EXTENSIONS: dict[tuple[str, str, str, str], str] = {
+    # TX rebuttal — analysis cites both 552.104 (cure) and 552.105 (NIST
+    # safe harbor); existing ref names only 552.104.
+    (
+        "provider-developer", "provider", "rebuttal-9-0", "tx",
+    ): "TX HB 149 §552.104; TX HB 149 §552.105",
+    (
+        "deployer-supplier", "deployer", "rebuttal-7-0", "tx",
+    ): "TX HB 149 §552.104; TX HB 149 §552.105",
+    # CA GPAI penalties — analysis cites both 22757.4 (SB 942) and 22757.15
+    # (SB 53/AB 2013); existing ref names only 22757.4.
+    (
+        "provider-developer", "provider-of-general-purpose-ai-models",
+        "penalties-10-0", "ca-0-covered-provider",
+    ): "CA SB 942 §22757.4; CA SB 53 §22757.15",
+    (
+        "provider-developer", "provider-of-general-purpose-ai-models",
+        "penalties-10-0", "ca-1-developer",
+    ): "CA SB 942 §22757.4; CA SB 53 §22757.15",
+}
+
+
+def _slice_concepts_literal(html: str) -> tuple[int, int, str]:
+    """Return (start_after_eq, end_after_close_bracket, original_literal).
+
+    `start_after_eq` points at the opening `[`; `end_after_close_bracket`
+    is one past the matching `]`. `original_literal` is the substring
+    between them inclusive of brackets.
+    """
+    needle = "const CONCEPTS = "
+    head = html.find(needle)
+    if head == -1:
+        raise RuntimeError("build_v28: const CONCEPTS = … literal not found")
+    start = head + len(needle)
+    if html[start] != "[":
+        raise RuntimeError("build_v28: CONCEPTS literal does not start with '['")
+    i = start
+    depth = 0
+    in_str = False
+    esc = False
+    while i < len(html):
+        c = html[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+        else:
+            if c == '"':
+                in_str = True
+            elif c == "[":
+                depth += 1
+            elif c == "]":
+                depth -= 1
+                if depth == 0:
+                    return start, i + 1, html[start:i + 1]
+        i += 1
+    raise RuntimeError("build_v28: CONCEPTS literal closing ']' not found")
+
+
+def apply_us_state_link_fixes(html: str) -> tuple[str, dict]:
+    """Walk every US-state cell in CONCEPTS and apply article-link fixes.
+
+    Three rules apply, in priority order:
+      1. **Override**: if (concept, sub, dim, jid) is in `_US008_OVERRIDES`,
+         the reference field is set to the override value.
+      2. **Extension**: if (concept, sub, dim, jid) is in
+         `_US008_EXTENSIONS`, the reference is set to the extension value
+         (replacing whatever was there).
+      3. **Default fill**: if the cell has no reference but the analysis
+         cites article(s), the reference is synthesised via
+         `_format_state_reference` from the parsed citations.
+
+    The mutated CONCEPTS literal is re-emitted with the same JSON encoding
+    used at v26 build time (`ensure_ascii=False, separators=(',', ':')`),
+    which round-trips byte-for-byte for unmodified cells (verified
+    manually).
+
+    Returns (new_html, stats).
+    """
+    start, end, orig_literal = _slice_concepts_literal(html)
+    concepts = json.loads(orig_literal)
+
+    stats: dict[str, int] = {
+        "missing_ref_filled": 0,
+        "override_applied":   0,
+        "extension_applied":  0,
+        "skipped_already_ok": 0,
+    }
+
+    for c in concepts:
+        cid = c.get("id", "")
+        for sub in c.get("sub_concepts", []):
+            sid = sub.get("id", "")
+            for dim in sub.get("dimensions", []):
+                did = dim.get("id", "")
+                cells = dim.get("cells", {})
+                for jid, cell in cells.items():
+                    if not _is_us_jid(jid):
+                        continue
+                    key = (cid, sid, did, jid)
+                    analysis = (cell.get("analysis") or "").strip()
+                    reference = cell.get("reference") or ""
+
+                    # Rule 1 — manual override.
+                    if key in _US008_OVERRIDES:
+                        new_ref = _US008_OVERRIDES[key]
+                        if reference != new_ref:
+                            cell["reference"] = new_ref
+                            stats["override_applied"] += 1
+                        else:
+                            stats["skipped_already_ok"] += 1
+                        continue
+
+                    # Rule 2 — manual extension.
+                    if key in _US008_EXTENSIONS:
+                        new_ref = _US008_EXTENSIONS[key]
+                        if reference != new_ref:
+                            cell["reference"] = new_ref
+                            stats["extension_applied"] += 1
+                        else:
+                            stats["skipped_already_ok"] += 1
+                        continue
+
+                    # Rule 3 — default fill on missing reference.
+                    if reference:
+                        continue
+                    if not analysis or analysis == "-":
+                        continue
+                    cites = _parse_state_citations(analysis, jid)
+                    if not cites:
+                        continue
+                    cell["reference"] = _format_state_reference(cites, jid)
+                    stats["missing_ref_filled"] += 1
+
+    # Re-emit the literal with the same encoding the v26 build used.
+    new_literal = json.dumps(
+        concepts, ensure_ascii=False, separators=(",", ":"),
+    )
+    new_html = html[:start] + new_literal + html[end:]
+    return new_html, stats
+
+
+# --------------------------------------------------------------------------- #
 # Main build                                                                  #
 # --------------------------------------------------------------------------- #
 
@@ -1074,6 +1408,16 @@ def main() -> None:
         "  EU article-link audit:     "
         f"applied {eu_applied} reference fix(es) "
         f"({len(eu_stats)} target cells)"
+    )
+
+    # ---- US-STATE ARTICLE-LINK AUDIT FIXES (US-008) ---------------------- #
+    html, us_stats = apply_us_state_link_fixes(html)
+    print(
+        "  US-state article-link:     "
+        f"missing_ref_filled={us_stats['missing_ref_filled']}, "
+        f"override_applied={us_stats['override_applied']}, "
+        f"extension_applied={us_stats['extension_applied']}, "
+        f"skipped_already_ok={us_stats['skipped_already_ok']}"
     )
 
     # ---- SUPERSCRIPT RENDERING ------------------------------------------- #

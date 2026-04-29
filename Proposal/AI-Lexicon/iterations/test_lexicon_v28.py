@@ -27,6 +27,11 @@ Tests:
       info / Risk management TX → 552.103; Transparency CO → §6-1-1704)
       and the misplaced Article 3 (3) verbatim no longer appears under
       Scope EU.
+  T9. US-008 — every US-state cell whose analysis text cites an article
+      / section has a non-empty `reference` field, and a handful of
+      manually-corrected cells (CA modification REF_MISMATCH, CO
+      modification scope, TX rebuttal extension, CA penalties
+      extension) carry the corrected references.
 
 Run:
     python3 -m pytest test_lexicon_v28.py -q
@@ -400,6 +405,225 @@ def test_limited_risk_provider_popups_link_to_correct_articles():
         "Cells with article references in analysis but empty reference "
         f"field still present: {offenders}"
     )
+
+
+# --------------------------------------------------------------------------- #
+# T9.  US-008 — US-state article-link audit.                                   #
+# --------------------------------------------------------------------------- #
+
+
+def _us_state_jids() -> tuple[str, ...]:
+    return ("ca", "co", "ny", "tx", "ut")
+
+
+def _is_us_jid(jid: str) -> bool:
+    if jid in _us_state_jids():
+        return True
+    return any(jid.startswith(p + "-") for p in _us_state_jids())
+
+
+def _extract_concepts(html: str):
+    import json
+    needle = "const CONCEPTS = "
+    head = html.find(needle)
+    assert head != -1, "CONCEPTS literal not found"
+    start = head + len(needle)
+    assert html[start] == "[", "CONCEPTS does not start with '['"
+    i = start
+    depth = 0
+    in_str = False
+    esc = False
+    while i < len(html):
+        c = html[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+        else:
+            if c == '"':
+                in_str = True
+            elif c == "[":
+                depth += 1
+            elif c == "]":
+                depth -= 1
+                if depth == 0:
+                    return json.loads(html[start:i + 1])
+        i += 1
+    raise AssertionError("CONCEPTS closing bracket not found")
+
+
+# Citation patterns lifted from build_v28's audit logic.
+_CITE_RE = {
+    "co": re.compile(r"§\s*(6-1-170[1-7])"),
+    "tx": re.compile(r"(?<![\w.])(552\.\d{3})"),
+    "ca": re.compile(
+        r"(?<![\w.])(?:§\s*)?(22757\.\d+|3110|3111|1107\.1)"
+    ),
+    "ny": re.compile(r"§\s*(14[2-3]\d)"),
+    "ut": re.compile(r"§\s*(13-75-10[1-6])"),
+}
+
+
+def test_us_state_cells_have_reference_when_analysis_cites():
+    """For every US-state cell whose analysis text cites an article or
+    section, the `reference` field must be non-empty. (We don't require
+    the reference to *match* the cite verbatim, since canonical reference
+    formats vary across the corpus.)"""
+    html = _html()
+    concepts = _extract_concepts(html)
+
+    offenders = []
+    for c in concepts:
+        cid = c.get("id", "")
+        for sub in c.get("sub_concepts", []):
+            sid = sub.get("id", "")
+            for dim in sub.get("dimensions", []):
+                did = dim.get("id", "")
+                cells = dim.get("cells", {})
+                for jid, cell in cells.items():
+                    if not _is_us_jid(jid):
+                        continue
+                    analysis = (cell.get("analysis") or "").strip()
+                    reference = (cell.get("reference") or "").strip()
+                    if not analysis or analysis == "-":
+                        continue
+                    p = jid.split("-")[0]
+                    pat = _CITE_RE.get(p)
+                    if not pat:
+                        continue
+                    if not pat.search(analysis):
+                        continue
+                    if not reference:
+                        offenders.append(
+                            f"{cid}/{sid}/{did} ({jid}): analysis cites "
+                            f"section but reference is empty"
+                        )
+    assert not offenders, (
+        "US-state cells with article/section in analysis but empty "
+        f"reference: {offenders[:8]}"
+        + (f" (and {len(offenders) - 8} more)" if len(offenders) > 8 else "")
+    )
+
+
+def test_us008_overrides_applied():
+    """Spot-check that the US-008 manual overrides landed (these were the
+    REF_MISMATCH cases where the v26 baseline pointed at the wrong section)."""
+    html = _html()
+    concepts = _extract_concepts(html)
+
+    # Locate cells by (concept, sub_concept, dim_id, jid)
+    def _cell(cid, sid, did, jid):
+        for c in concepts:
+            if c.get("id") != cid:
+                continue
+            for sub in c.get("sub_concepts", []):
+                if sub.get("id") != sid:
+                    continue
+                for dim in sub.get("dimensions", []):
+                    if dim.get("id") != did:
+                        continue
+                    return dim.get("cells", {}).get(jid)
+        return None
+
+    # CA modification REF_MISMATCH overrides.
+    ca0_def = _cell(
+        "modification", "substantial-modification", "definition-1-0",
+        "ca-0-substantially-modified-version-of-a-frontier-model-no-standalone-defined-term",
+    )
+    assert ca0_def is not None, "CA SB 53 modification definition cell missing"
+    assert ca0_def["reference"] == "CA SB 53 §22757.12", (
+        f"CA SB 53 modification/definition reference not corrected: "
+        f"{ca0_def['reference']!r}"
+    )
+
+    ca1_scope = _cell(
+        "modification", "substantial-modification", "scope-2-0",
+        "ca-1-substantial-modification",
+    )
+    assert ca1_scope is not None
+    assert ca1_scope["reference"] == "CA AB 2013 §3111", (
+        f"CA AB 2013 modification/scope reference not corrected: "
+        f"{ca1_scope['reference']!r}"
+    )
+
+    # CO modification scope-2-0 — Excel says §6-1-1701(9) (high-risk).
+    co_scope = _cell(
+        "modification", "substantial-modification", "scope-2-0", "co",
+    )
+    assert co_scope is not None
+    assert co_scope["reference"] == "CO SB 24-205 §6-1-1701(9)", (
+        f"CO modification/scope reference not corrected: "
+        f"{co_scope['reference']!r}"
+    )
+
+
+def test_us008_extensions_applied():
+    """Spot-check the EXTRA_IN_ANALYSIS extensions: TX rebuttal cells
+    (552.104 + 552.105) and CA GPAI penalties (22757.4 + 22757.15)."""
+    html = _html()
+    concepts = _extract_concepts(html)
+
+    def _cell(cid, sid, did, jid):
+        for c in concepts:
+            if c.get("id") != cid:
+                continue
+            for sub in c.get("sub_concepts", []):
+                if sub.get("id") != sid:
+                    continue
+                for dim in sub.get("dimensions", []):
+                    if dim.get("id") != did:
+                        continue
+                    return dim.get("cells", {}).get(jid)
+        return None
+
+    tx_reb_p = _cell(
+        "provider-developer", "provider", "rebuttal-9-0", "tx",
+    )
+    assert tx_reb_p is not None
+    assert "552.104" in tx_reb_p["reference"]
+    assert "552.105" in tx_reb_p["reference"], (
+        f"TX provider rebuttal reference missing 552.105: "
+        f"{tx_reb_p['reference']!r}"
+    )
+
+    ca_pen = _cell(
+        "provider-developer", "provider-of-general-purpose-ai-models",
+        "penalties-10-0", "ca-0-covered-provider",
+    )
+    assert ca_pen is not None
+    assert "22757.4" in ca_pen["reference"]
+    assert "22757.15" in ca_pen["reference"], (
+        f"CA GPAI penalties reference missing 22757.15: "
+        f"{ca_pen['reference']!r}"
+    )
+
+
+def test_us008_spot_check_three_links_per_state():
+    """Spot-check at least 3 article-link cells per state law have a
+    non-empty reference. This is the structural guarantee for the
+    audit — the popups will display a label rather than appearing
+    blank."""
+    html = _html()
+    concepts = _extract_concepts(html)
+
+    counts = {p: 0 for p in _us_state_jids()}
+    for c in concepts:
+        for sub in c.get("sub_concepts", []):
+            for dim in sub.get("dimensions", []):
+                for jid, cell in dim.get("cells", {}).items():
+                    if not _is_us_jid(jid):
+                        continue
+                    if (cell.get("reference") or "").strip():
+                        counts[jid.split("-")[0]] += 1
+
+    for state, n in counts.items():
+        assert n >= 3, (
+            f"State {state.upper()} has only {n} cells with non-empty "
+            "reference (need at least 3 for spot-check coverage)"
+        )
 
 
 # Standalone runner --------------------------------------------------------- #
