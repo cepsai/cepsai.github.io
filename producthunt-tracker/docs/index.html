@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Product Hunt — morning digest</title>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --panel: #ffffff;
+    --border: #e6e3da;
+    --ink: #1a1a1a;
+    --muted: #6b6b66;
+    --accent: #da552f;
+    --accent-soft: #fff1e8;
+    --tried: #2a8a3e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15151a;
+      --panel: #1d1d22;
+      --border: #2c2c34;
+      --ink: #f0efea;
+      --muted: #9a9a93;
+      --accent: #ff7a4d;
+      --accent-soft: #2a1c14;
+      --tried: #6cd07f;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  h1 .accent { color: var(--accent); }
+  .meta { color: var(--muted); font-size: 13px; }
+  .controls { margin: 16px 0 24px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .controls input[type=search] {
+    flex: 1; min-width: 160px;
+    padding: 8px 12px;
+    background: var(--panel); color: var(--ink);
+    border: 1px solid var(--border); border-radius: 8px;
+    font: inherit;
+  }
+  .controls label { color: var(--muted); font-size: 13px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .day { margin-bottom: 32px; }
+  .day-head { display: flex; align-items: baseline; gap: 10px; margin: 0 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .day-title { font-size: 15px; font-weight: 600; margin: 0; }
+  .day-relative { color: var(--muted); font-size: 13px; }
+  .day-count { margin-left: auto; color: var(--muted); font-size: 13px; }
+  .empty { color: var(--muted); font-size: 14px; padding: 8px 0; }
+  ul.products { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  li.product {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px 12px;
+    align-items: start;
+  }
+  li.product.tried { opacity: 0.55; }
+  .name { font-weight: 600; }
+  .name a { color: var(--ink); text-decoration: none; }
+  .name a:hover { color: var(--accent); }
+  .tagline { color: var(--ink); margin-top: 2px; }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 4px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .sub a { color: var(--muted); text-decoration: underline; text-decoration-color: var(--border); text-underline-offset: 2px; }
+  .sub a:hover { color: var(--accent); }
+  .topic { background: var(--accent-soft); color: var(--accent); padding: 1px 7px; border-radius: 999px; font-size: 12px; }
+  .votes { font-variant-numeric: tabular-nums; }
+  button.tried-btn {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font: inherit; font-size: 13px;
+    cursor: pointer;
+    align-self: start;
+  }
+  button.tried-btn:hover { border-color: var(--tried); color: var(--tried); }
+  li.product.tried button.tried-btn { color: var(--tried); border-color: var(--tried); }
+  footer { margin-top: 40px; color: var(--muted); font-size: 12px; text-align: center; }
+  footer a { color: var(--muted); }
+  .err { color: var(--accent); padding: 16px; border: 1px solid var(--accent); border-radius: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="accent">▲</span> Product Hunt — morning digest</h1>
+    <div class="meta" id="meta">loading…</div>
+  </header>
+
+  <div class="controls">
+    <input type="search" id="search" placeholder="filter by name, tagline, topic…" autocomplete="off">
+    <label><input type="checkbox" id="hide-tried"> hide tried</label>
+  </div>
+
+  <main id="content"></main>
+
+  <footer>
+    <p>Data from <a href="https://www.producthunt.com/feed">producthunt.com/feed</a> ·
+       refreshed daily by <a href="https://github.com/rpraas/cepsai.github.io/actions">GitHub Actions</a> ·
+       <a id="raw" href="data.json">raw json</a></p>
+  </footer>
+</div>
+
+<script>
+(async function () {
+  const content = document.getElementById('content');
+  const meta = document.getElementById('meta');
+  const search = document.getElementById('search');
+  const hideTried = document.getElementById('hide-tried');
+
+  const TRIED_KEY = 'ph-tried-v1';
+  const HIDE_TRIED_KEY = 'ph-hide-tried-v1';
+  const tried = new Set(JSON.parse(localStorage.getItem(TRIED_KEY) || '[]'));
+  hideTried.checked = localStorage.getItem(HIDE_TRIED_KEY) === '1';
+
+  let data;
+  try {
+    const resp = await fetch('data.json', { cache: 'no-cache' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    data = await resp.json();
+  } catch (e) {
+    content.innerHTML = `<div class="err">Couldn't load data.json — ${e.message}. The daily fetch may not have run yet.</div>`;
+    meta.textContent = '';
+    return;
+  }
+
+  const fetched = data.generated_at ? new Date(data.generated_at) : null;
+  meta.textContent = fetched
+    ? `updated ${fmtRelative(fetched)} · ${data.total_tracked} products tracked`
+    : `${data.total_tracked} products tracked`;
+
+  function fmtRelative(d) {
+    const diffMs = Date.now() - d.getTime();
+    const mins = Math.round(diffMs / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    const hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + 'h ago';
+    return Math.round(hrs / 24) + 'd ago';
+  }
+
+  function relLabel(idx, dateStr) {
+    if (idx === 0) return 'today';
+    if (idx === 1) return 'yesterday';
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString(undefined, { weekday: 'long' });
+  }
+
+  function fmtDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }
+
+  function render() {
+    const q = search.value.trim().toLowerCase();
+    const hide = hideTried.checked;
+    content.innerHTML = '';
+
+    let visibleAny = false;
+    data.days.forEach((day, idx) => {
+      let products = day.products;
+      if (q) {
+        products = products.filter(p =>
+          (p.title || '').toLowerCase().includes(q) ||
+          (p.tagline || '').toLowerCase().includes(q) ||
+          (p.maker || '').toLowerCase().includes(q) ||
+          (p.topics || []).some(t => t.toLowerCase().includes(q))
+        );
+      }
+      if (hide) products = products.filter(p => !tried.has(p.id));
+
+      const section = document.createElement('section');
+      section.className = 'day';
+
+      const head = document.createElement('div');
+      head.className = 'day-head';
+      head.innerHTML = `
+        <span class="day-title">${fmtDate(day.date)}</span>
+        <span class="day-relative">${relLabel(idx, day.date)}</span>
+        <span class="day-count">${products.length} launch${products.length === 1 ? '' : 'es'}</span>
+      `;
+      section.appendChild(head);
+
+      if (products.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = q || hide
+          ? 'no matches'
+          : (idx === 0 ? 'nothing yet — Product Hunt resets at 00:01 PT' : 'no launches captured');
+        section.appendChild(empty);
+      } else {
+        visibleAny = true;
+        const ul = document.createElement('ul');
+        ul.className = 'products';
+        products.forEach(p => ul.appendChild(renderProduct(p)));
+        section.appendChild(ul);
+      }
+      content.appendChild(section);
+    });
+
+    if (!visibleAny && q) {
+      const note = document.createElement('div');
+      note.className = 'empty';
+      note.textContent = `no products match "${q}" in the last 7 days`;
+      content.appendChild(note);
+    }
+  }
+
+  function renderProduct(p) {
+    const li = document.createElement('li');
+    li.className = 'product' + (tried.has(p.id) ? ' tried' : '');
+    li.dataset.id = p.id;
+
+    const main = document.createElement('div');
+    const linkUrl = p.external_url || p.url;
+    const sub = [];
+    if (p.maker) sub.push(`<span>by ${escapeHtml(p.maker)}</span>`);
+    if (typeof p.votes === 'number') sub.push(`<span class="votes">▲ ${p.votes}</span>`);
+    if (Array.isArray(p.topics)) p.topics.slice(0, 3).forEach(t => sub.push(`<span class="topic">${escapeHtml(t)}</span>`));
+    sub.push(`<a href="${escapeHtml(p.url)}" target="_blank" rel="noopener">discussion</a>`);
+
+    main.innerHTML = `
+      <div class="name"><a href="${escapeHtml(linkUrl)}" target="_blank" rel="noopener">${escapeHtml(p.title)}</a></div>
+      <div class="tagline">${escapeHtml(p.tagline || '')}</div>
+      <div class="sub">${sub.join('')}</div>
+    `;
+    li.appendChild(main);
+
+    const btn = document.createElement('button');
+    btn.className = 'tried-btn';
+    btn.type = 'button';
+    btn.textContent = tried.has(p.id) ? '✓ tried' : 'mark tried';
+    btn.addEventListener('click', () => {
+      if (tried.has(p.id)) tried.delete(p.id);
+      else tried.add(p.id);
+      localStorage.setItem(TRIED_KEY, JSON.stringify([...tried]));
+      render();
+    });
+    li.appendChild(btn);
+    return li;
+  }
+
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  search.addEventListener('input', render);
+  hideTried.addEventListener('change', () => {
+    localStorage.setItem(HIDE_TRIED_KEY, hideTried.checked ? '1' : '0');
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
