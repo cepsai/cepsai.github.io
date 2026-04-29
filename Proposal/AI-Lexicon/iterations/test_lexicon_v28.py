@@ -626,6 +626,240 @@ def test_us008_spot_check_three_links_per_state():
         )
 
 
+# --------------------------------------------------------------------------- #
+# T10. US-010 — every known exponent value renders as <sup> markup            #
+#      (static HTML cards) and/or Unicode superscripts (script blobs).        #
+# --------------------------------------------------------------------------- #
+
+# v28 ships two distinct exponent values, both linked to FLOPs thresholds:
+#   * 10^25  — AIA (Article 51) systemic-risk presumption.
+#   * 10^26  — SB 53 / RAISE Act frontier-model trigger.
+# Both must be discoverable in their rendered <sup> form. The 10^26 value
+# also appears across the CONCEPTS data (analysis/verbatim cells) where
+# textContent rendering requires the Unicode-superscript form (10²⁶).
+_KNOWN_EXPONENT_VALUES = (25, 26)
+_UNICODE_SUP = str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹")
+
+
+def test_known_exponents_render_as_superscript():
+    html = _html()
+    for n in _KNOWN_EXPONENT_VALUES:
+        sup_form = f"10<sup>{n}</sup>"
+        uni_form = "10" + str(n).translate(_UNICODE_SUP)
+        assert sup_form in html or uni_form in html, (
+            f"Known exponent value 10^{n} renders neither as "
+            f"{sup_form!r} (static HTML) nor as {uni_form!r} "
+            "(Unicode superscript). US-003 missed this value."
+        )
+
+    # Stronger check: the 10^25 value (AIA, sole occurrence) must use
+    # the static <sup> form because that card ships as static HTML.
+    aia = _card_html(html, "Artificial Intelligence Act (2024)")
+    assert "10<sup>25</sup>" in aia, (
+        "AIA card must carry 10<sup>25</sup>; static-HTML exponents "
+        "should never fall back to Unicode in card descriptions."
+    )
+
+    # The 10^26 value must appear in BOTH forms in v28: static <sup>
+    # in card descriptions, and Unicode in CONCEPTS analysis/verbatim
+    # text (rendered via textContent).
+    assert "10<sup>26</sup>" in html, (
+        "10^26 missing static <sup> form (used by SB 53 / RAISE cards)."
+    )
+    assert "10²⁶" in html, (
+        "10^26 missing Unicode-superscript form (used in CONCEPTS "
+        "analysis/verbatim text rendered via textContent)."
+    )
+
+
+# --------------------------------------------------------------------------- #
+# T11. US-010 — opening category-table EU labels are the agreed Excel-       #
+#      canonical strings for every sub-concept anchor.                        #
+# --------------------------------------------------------------------------- #
+
+# (sub_id, EU-cell display name) pairs. These are the Excel-canonical
+# strings rendered as the EU column of the opening category table —
+# the limited-risk pair carries the post-US-004 corrected labels;
+# the rest are the v26 baseline names. Together they pin down the
+# 13 anchor rows across the 6 concepts.
+_OPENING_TABLE_EU_LABELS = (
+    # provider-developer
+    ("provider", "Provider of limited-risk AI systems"),
+    ("provider-of-high-risk-ai-systems", "Provider of high-risk AI systems"),
+    ("provider-of-general-purpose-ai-models", "Provider of GPAI models"),
+    (
+        "provider-of-general-purpose-ai-models-with-systemic-risk",
+        "Provider of GPAI models with systemic risk",
+    ),
+    # deployer-supplier
+    ("deployer", "Deployer of limited-risk AI systems"),
+    ("deployer-of-high-risk-ai-systems", "Deployer of high-risk AI systems"),
+    ("deployer-of-general-purpose-ai-systems", "Deployer of GPAI systems"),
+    # model-system
+    ("high-risk-ai-system", "High-risk AI system"),
+    ("general-purpose-ai-model", "GPAI model"),
+    ("general-purpose-ai-system", "GPAI system"),
+    # risk
+    ("systemic-risk", "Systemic risk"),
+    # modification
+    ("substantial-modification", "Substantial modification"),
+    # incident
+    ("serious-incident", "Serious incident"),
+)
+
+
+def test_opening_table_labels_match_agreed_strings():
+    html = _html()
+    missing = []
+    for sub_id, name in _OPENING_TABLE_EU_LABELS:
+        anchor = f'"name":"{name}","bill":"","sub_id":"{sub_id}","jid":"eu"'
+        if anchor not in html:
+            missing.append(f"{sub_id} → {name!r}")
+    assert not missing, (
+        "Opening category table is missing the agreed EU labels for: "
+        f"{missing}"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# T12. US-010 — smoke test: every CONCEPTS cell with a non-empty reference   #
+#      resolves to a non-empty pop-up content block.                          #
+# --------------------------------------------------------------------------- #
+
+# The drawer popup body is rendered by `updateDrawerContent` (line ~1948
+# in v28). It writes:
+#   * `cell.reference` → `#drawer-ref` (label, may be blank).
+#   * `cell.verbatim` → `#drawer-verbatim`. Falls back to
+#     "[Analysis text — no verbatim extracted]\n\n" + `cell.analysis`
+#     when verbatim is empty. Falls back to "No text available." when
+#     both are empty.
+#
+# A "broken pop-up" in v28 means the drawer body is "No text available."
+# despite a reference being set. This smoke test asserts that every
+# article-link cell — i.e. every cell with a non-empty `reference` —
+# has either non-empty `verbatim` or non-empty `analysis`.
+
+def test_every_reference_resolves_to_non_empty_popup_content():
+    html = _html()
+    concepts = _extract_concepts(html)
+
+    offenders = []
+    total_refs = 0
+    for c in concepts:
+        cid = c.get("id", "")
+        for sub in c.get("sub_concepts", []):
+            sid = sub.get("id", "")
+            for dim in sub.get("dimensions", []):
+                did = dim.get("id", "")
+                for jid, cell in dim.get("cells", {}).items():
+                    ref = (cell.get("reference") or "").strip()
+                    if not ref:
+                        continue
+                    total_refs += 1
+                    ana = (cell.get("analysis") or "").strip()
+                    vb = (cell.get("verbatim") or "").strip()
+                    if not ana and not vb:
+                        offenders.append(
+                            f"{cid}/{sid}/{did}/{jid}: reference={ref!r} "
+                            "but both analysis and verbatim are empty"
+                        )
+    assert total_refs > 0, (
+        "Sanity check: no cells have a non-empty reference at all."
+    )
+    assert not offenders, (
+        f"{len(offenders)} cell(s) carry a reference but render an empty "
+        f"popup body (drawer would show 'No text available.'): "
+        f"{offenders[:5]}"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# T13. US-010 — every regulatory-text law-blob in v28 is structurally well-  #
+#      formed (parses as JSON, has id+title, has sections or raw_text).       #
+# --------------------------------------------------------------------------- #
+
+# When a user opens a regulatory table from the Regulations page, the
+# law-blob JSON is read by `getLawBlob` and rendered. A malformed blob
+# (invalid JSON, missing id/title, no sections AND no raw_text) would
+# produce a broken table view. Walks every embedded blob to confirm.
+
+def _iter_law_blobs(html: str):
+    import json as _json
+    needle = '<script type="application/json" id="law-blob-'
+    i = 0
+    while True:
+        start = html.find(needle, i)
+        if start < 0:
+            return
+        id_open = start + len(needle)
+        id_close = html.find('"', id_open)
+        blob_id = html[id_open:id_close]
+        body_open = html.find(">", id_close) + 1
+        body_close = html.find("</script>", body_open)
+        body = html[body_open:body_close].strip()
+        # Skip the placeholder template comment block left by build_v28.
+        try:
+            blob = _json.loads(body)
+        except _json.JSONDecodeError:
+            yield blob_id, None
+        else:
+            yield blob_id, blob
+        i = body_close
+
+
+def test_all_law_blobs_well_formed():
+    html = _html()
+    failures = []
+    seen_ids = []
+    for blob_id, blob in _iter_law_blobs(html):
+        if blob_id == "X":
+            continue  # template placeholder, ignored by `getLawBlob`.
+        seen_ids.append(blob_id)
+        if blob is None:
+            failures.append(f"{blob_id}: invalid JSON")
+            continue
+        if not blob.get("id"):
+            failures.append(f"{blob_id}: missing id")
+        if not blob.get("title"):
+            failures.append(f"{blob_id}: missing title")
+        # Different blobs use different content keys:
+        #   * State + CoP + Guidelines blobs:  sections / raw_text
+        #   * EU AI Act:                       articles / recitals / annexes
+        # Accept any of these as evidence of non-empty rendered content.
+        sections = blob.get("sections") or []
+        raw      = (blob.get("raw_text") or "").strip()
+        articles = blob.get("articles") or []
+        recitals = blob.get("recitals") or {}
+        annexes  = blob.get("annexes")  or {}
+        if not (sections or raw or articles or recitals or annexes):
+            failures.append(
+                f"{blob_id}: no sections / raw_text / articles / "
+                "recitals / annexes — regulatory table would render empty"
+            )
+    # The 13 in-scope law-blobs (per progress.md) plus the 2 extra
+    # Commission Guidelines blobs must all be present.
+    expected = {
+        "eu-ai-act",
+        "eu-gpai-cop-copyright",
+        "eu-gpai-cop-transparency",
+        "eu-gpai-cop-safety",
+        "eu-guidelines-gpai-scope",
+        "eu-guidelines-ai-definition",
+        "eu-guidelines-prohibited",
+        "ca-sb53",
+        "ca-sb942",
+        "ca-ab2013",
+        "co-sb24205",
+        "ny-a6453",
+        "ny-s8828",
+        "tx-hb149",
+        "ut-sb226",
+    }
+    missing = expected.difference(seen_ids)
+    assert not missing, f"Expected law-blobs missing from HTML: {missing}"
+    assert not failures, "Malformed law-blobs: " + "; ".join(failures)
+
+
 # Standalone runner --------------------------------------------------------- #
 
 if __name__ == "__main__":
