@@ -567,6 +567,13 @@
         const SELECTED_YEAR = YEAR_PARAM && /^\d{4}$/.test(YEAR_PARAM) ? +YEAR_PARAM : null;
         const VIEW_MODE = SELECTED_YEAR ? "month" : "quarter";
 
+        const FILTER_PARAM = (QUERY.get("filter") || "none").toLowerCase();
+        const COUNT_COLUMN = (
+            FILTER_PARAM === "likes" ? "count_filter_likes" :
+                FILTER_PARAM === "downloads" ? "count_filter_downloads" :
+                    "count"
+        );
+
         const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         const SHOW_PERIOD_LABELS = 0;
         const STAGGER_LABELS = 0;
@@ -674,7 +681,7 @@
             task: row.task ?? row.tag,
             year: +row.year,
             month: row.month != null && row.month !== "" ? +row.month : null,
-            count: parseNum(row.count)
+            count: parseNum(row[COUNT_COLUMN])
         })).then(rows => {
             let working = SELECTED_YEAR != null ? rows.filter(r => r.year === SELECTED_YEAR) : rows;
 
