@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>Hugging Face Model Types Over Time</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 16fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        #container1 .chart-wrapper {
+            flex: 1 1 auto;
+            display: flex;
+            min-width: 0;
+            height: 100%;
+            margin-left: 0;
+        }
+
+        #container1 .chart-wrapper-inner {
+            flex: 1 1 auto;
+            display: flex;
+            min-width: 0;
+            height: 100%;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #container3 {
+            grid-row: 3;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #viz {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            padding: clamp(8px, 1vw, 12px) clamp(12px, 2vw, 24px) 0 clamp(12px, 2vw, 24px);
+            box-sizing: border-box;
+        }
+
+        .chart-body {
+            position: relative;
+            flex: 1;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        #chart {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        .selector-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(2px, 0.5vw, 6px);
+            padding: clamp(2px, 0.4vw, 4px);
+            border-radius: 6px;
+            border: 1px solid rgba(17, 24, 39, 0.15);
+            background: #f8fafc;
+            max-width: 100%;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        .selector-button {
+            border: none;
+            background: transparent;
+            padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+            border-radius: 6px;
+            font-size: clamp(9px, 1.4vw, 13px);
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+            white-space: nowrap;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        .selector-button.active {
+            background: #2756d3;
+            color: #fff;
+        }
+
+        .selector-dropdown {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .selector-dropdown-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: clamp(6px, 1vw, 10px);
+            padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+            border: 1px solid rgba(17, 24, 39, 0.15);
+            border-radius: 6px;
+            background: #f8fafc;
+            font-size: clamp(9px, 1.4vw, 13px);
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+
+        .selector-dropdown-toggle:hover {
+            border-color: rgba(17, 24, 39, 0.3);
+        }
+
+        .selector-dropdown-toggle:focus-visible {
+            outline: 2px solid #2756d3;
+            outline-offset: 1px;
+        }
+
+        .selector-dropdown-toggle::after {
+            content: '';
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-right: 2px solid #475569;
+            border-bottom: 2px solid #475569;
+            transform: rotate(45deg);
+            flex-shrink: 0;
+            margin-top: -2px;
+            transition: transform 0.2s ease;
+        }
+
+        .selector-dropdown-toggle[aria-expanded="true"]::after {
+            transform: rotate(-135deg);
+            margin-top: 2px;
+        }
+
+        .selector-dropdown-menu {
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 0;
+            min-width: 100%;
+            width: max-content;
+            max-height: clamp(180px, 30vh, 320px);
+            overflow-y: auto;
+            background: #f8fafc;
+            border: 1px solid rgba(17, 24, 39, 0.15);
+            border-radius: 6px;
+            padding: clamp(2px, 0.4vw, 4px);
+            display: none;
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .selector-dropdown-menu.open {
+            display: block;
+        }
+
+        .selector-dropdown-option {
+            width: 100%;
+            border: none;
+            background: transparent;
+            text-align: left;
+            padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+            border-radius: 6px;
+            font-size: clamp(9px, 1.4vw, 13px);
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .selector-dropdown-option:hover,
+        .selector-dropdown-option:focus {
+            background: rgba(39, 86, 211, 0.08);
+            outline: none;
+        }
+
+        .selector-dropdown-option.active {
+            background: #2756d3;
+            color: #fff;
+        }
+
+        #slider-container {
+            grid-row: 4;
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-self: center;
+            gap: clamp(8px, 1vw, 16px);
+            padding: clamp(4px, 1vh, 8px) clamp(8px, 2vw, 24px);
+            overflow: visible;
+            min-height: 0;
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .slider-wrapper {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            height: 40px;
+        }
+
+        .slider-track-bg {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .slider-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #cbd5e1;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .slider-tooltip {
+            position: absolute;
+            bottom: -18px;
+            transform: translateX(-50%);
+            font-size: clamp(11px, 1.2vw, 13px);
+            font-weight: 600;
+            color: #fff;
+            background: #1e293b;
+            padding: 3px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        .slider-tooltip::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-bottom: 5px solid #1e293b;
+        }
+
+        .year-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            background: transparent;
+            border-radius: 3px;
+            outline: none;
+            cursor: pointer;
+            position: relative;
+            z-index: 2;
+        }
+
+        .year-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #3b82f6;
+            border: 3px solid #fff;
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+        }
+
+        .year-slider::-webkit-slider-thumb:hover {
+            box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.15);
+        }
+
+        .year-slider::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #3b82f6;
+            border: 3px solid #fff;
+            box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
+            cursor: pointer;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1vw, 14px);
+            background: rgba(255, 255, 255, 1);
+            padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+            border-radius: clamp(6px, 1vw, 12px);
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(0.625rem, 1.4vw, 1rem);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 8px);
+            font-weight: 600;
+            color: #333;
+            font-size: inherit;
+            padding: 2px 6px;
+            cursor: default;
+        }
+
+        .legend-item.interactive {
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+        }
+
+        .legend-item.dim {
+            opacity: 0.35;
+        }
+
+        .legend-item:focus-visible {
+            outline: 2px solid rgba(0, 0, 0, 0.5);
+            outline-offset: 2px;
+        }
+
+        .legend-square {
+            width: clamp(8px, 0.9vw, 12px);
+            height: clamp(8px, 0.9vw, 12px);
+            border-radius: 0;
+            flex-shrink: 0;
+        }
+
+        .footnote-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-style: italic;
+            color: #333;
+            text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .source-text a:visited {
+            color: #2756d3;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: 100%;
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .axis path,
+        .axis line {
+            stroke: #cfd2d7;
+        }
+
+        .tick text {
+            font-weight: 600;
+            fill: #4b5563;
+        }
+
+        .grid-lines line {
+            stroke: #DBDBDB;
+            stroke-dasharray: 2, 3;
+        }
+
+        .grid-lines path {
+            stroke: none;
+        }
+
+        .bar-label {
+            fill: #555;
+            font-weight: 500;
+        }
+
+        #tooltip {
+            position: fixed;
+            pointer-events: none;
+            background: #ffffff;
+            color: #111827;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(17, 24, 39, 0.12);
+            font-size: 12px;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            line-height: 1.45;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            z-index: 1000;
+            white-space: nowrap;
+        }
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr !important;
+                grid-template-columns: 1fr !important;
+                padding-bottom: 0;
+            }
+
+            #container1 {
+                grid-row: 1 !important;
+                grid-column: 1 !important;
+            }
+
+            #container2,
+            #container3,
+            #container4,
+            #container5 {
+                display: none !important;
+            }
+
+            .legend,
+            .source-text,
+            .logo,
+            .footnote-text {
+                display: none !important;
+            }
+
+            .axis--y,
+            .axis--x {
+                display: none;
+            }
+
+            .grid-lines {
+                display: none;
+            }
+
+            #viz {
+                padding-top: 0 !important;
+                padding-bottom: 0 !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1" class="container viz-container">
+            <div id="viz">
+                <div id="chart"></div>
+            </div>
+        </div>
+        <div id="container2" class="container legend-container">
+            <div class="legend" id="legend"></div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-text" id="source-text">Source: <a href="https://huggingface.co/" target="_blank"
+                    rel="noopener">Hugging Face</a></div>
+        </div>
+        <div id="container4" class="container logo-container">
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+            </a>
+        </div>
+    </div>
+
+    <div id="tooltip"></div>
+
+    <script>
+        const QUERY = new URLSearchParams(window.location.search);
+
+        const MODE_PARAM = (QUERY.get("mode") || "absolute").toLowerCase();
+        const STACKED_TYPE = MODE_PARAM === "percentage" ? "area-pct" : "area";
+
+        const CURVE_PARAM = (QUERY.get("curve") || "hard").toLowerCase();
+        const CURVE_TYPE = CURVE_PARAM === "smooth" ? "monotoneX" : "linear";
+
+        const YEAR_PARAM = QUERY.get("year");
+        const SELECTED_YEAR = YEAR_PARAM && /^\d{4}$/.test(YEAR_PARAM) ? +YEAR_PARAM : null;
+        const VIEW_MODE = SELECTED_YEAR ? "month" : "quarter";
+
+        const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const SHOW_PERIOD_LABELS = 0;
+        const STAGGER_LABELS = 0;
+        const SHOW_TOOLTIP = 1;
+
+        const SHOW_CONTAINER_2 = 1;
+        const SHOW_CONTAINER_3 = 1;
+        const SHOW_CONTAINER_4 = 1;
+        const SHOW_CONTAINER_5 = 0;
+
+        const SOURCE_NAME = "Hugging Face";
+        const SOURCE_HREF = "https://huggingface.co/";
+        const FOOTNOTE_TEXT = "";
+
+        const colors = {
+            "Natural Language Processing": "#2756d3",
+            "Computer Vision": "#E53229",
+            "Multimodal": "#8b5cf6",
+            "Audio": "#06b6d4",
+            "Reinforcement Learning": "#f59e0b",
+            "Tabular": "#10b981",
+            "Other": "#94a3b8"
+        };
+
+        const SERIES_ORDER = [
+            "Natural Language Processing",
+            "Computer Vision",
+            "Reinforcement Learning",
+            "Multimodal",
+            "Audio",
+            "Tabular",
+            "Other"
+        ];
+
+        (function applyContainerVisibility() {
+            const vizGrid = document.querySelector('.viz-grid');
+            const c2 = document.getElementById('container2');
+            const c3 = document.getElementById('container3');
+            const c4 = document.getElementById('container4');
+            const c5 = document.getElementById('container5');
+
+            if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+            if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+            if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+            if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+            const row2Visible = SHOW_CONTAINER_5;
+            const row3Visible = SHOW_CONTAINER_2;
+            const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+            let gridRows = [];
+            let currentRow = 1;
+            const chartHeight = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+            gridRows.push(`${chartHeight}fr`);
+
+            if (row2Visible) { gridRows.push('1fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+            if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+            if (row4Visible) {
+                gridRows.push('1fr'); currentRow++;
+                if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+                if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+                if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+                if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+            }
+
+            vizGrid.style.gridTemplateRows = gridRows.join(' ');
+            document.getElementById('container1').style.gridRow = '1';
+        })();
+        function parseNum(value) {
+            if (value == null || value === "") return 0;
+            const n = Number(String(value).replace(/,/g, ""));
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function smartFormat(v) {
+            if (!isFinite(v)) return "N/A";
+            if (Math.abs(v) >= 1e9) return d3.format(".1f")(v / 1e9) + "B";
+            if (Math.abs(v) >= 1e6) return d3.format(".1f")(v / 1e6) + "M";
+            if (Math.abs(v) >= 1e3 && Math.floor(v) === v) return d3.format(",")(v);
+            if (Math.floor(v) === v) return d3.format(",")(v);
+            return d3.format(",.1f")(v);
+        }
+
+        function kFormat(v) {
+            if (!isFinite(v)) return "";
+            if (v === 0) return "0";
+            const abs = Math.abs(v);
+            const trim = s => s.replace(/\.0$/, "");
+            if (abs >= 1e9) return trim(d3.format(".1f")(v / 1e9)) + "B";
+            if (abs >= 1e6) return trim(d3.format(".1f")(v / 1e6)) + "M";
+            if (abs >= 1e3) return trim(d3.format(".1f")(v / 1e3)) + "k";
+            return d3.format(",")(v);
+        }
+
+        function curveFn() {
+            if (CURVE_TYPE === "linear") return d3.curveLinear;
+            if (CURVE_TYPE === "step") return d3.curveStep;
+            return d3.curveMonotoneX;
+        }
+
+        let dataProcessed = [];
+        let keyOrder = [];
+
+        d3.csv("data.csv", row => ({
+            task: row.task ?? row.tag,
+            year: +row.year,
+            month: row.month != null && row.month !== "" ? +row.month : null,
+            count: parseNum(row.count)
+        })).then(rows => {
+            let working = SELECTED_YEAR != null ? rows.filter(r => r.year === SELECTED_YEAR) : rows;
+
+            const periodKey = r => {
+                if (VIEW_MODE === "month") return r.year + (r.month - 1) / 12;
+                const q = Math.ceil(r.month / 3);
+                return r.year + (q - 1) / 4;
+            };
+
+            const agg = d3.rollup(
+                working,
+                v => d3.sum(v, d => d.count),
+                r => periodKey(r),
+                r => r.task
+            );
+
+            const periods = Array.from(agg.keys()).sort((a, b) => a - b);
+            const tasksInData = new Set(working.map(r => r.task));
+
+            keyOrder = [
+                ...SERIES_ORDER.filter(t => tasksInData.has(t)),
+                ...Array.from(tasksInData).filter(t => !SERIES_ORDER.includes(t))
+            ];
+
+            dataProcessed = periods.map(t => {
+                const year = Math.floor(t);
+                let periodIdx, periodLabel;
+                if (VIEW_MODE === "month") {
+                    periodIdx = Math.round((t - year) * 12) + 1;
+                    periodLabel = MONTH_ABBR[periodIdx - 1];
+                } else {
+                    periodIdx = Math.round((t - year) * 4) + 1;
+                    periodLabel = `Q${periodIdx}`;
+                }
+
+                const taskMap = agg.get(t);
+                const obj = { t, year, periodIdx, periodLabel };
+                let total = 0;
+                keyOrder.forEach(k => {
+                    const v = (taskMap && taskMap.get(k)) || 0;
+                    obj[k] = v;
+                    total += v;
+                });
+                obj.Total = total;
+                return obj;
+            });
+
+            buildLegend();
+            drawChart();
+        });
+
+        function buildLegend() {
+            const legend = document.getElementById("legend");
+            legend.innerHTML = "";
+
+            const totals = new Map(keyOrder.map(k => [k, d3.sum(dataProcessed, d => d[k] || 0)]));
+            const legendOrder = keyOrder.slice().sort((a, b) => totals.get(b) - totals.get(a));
+
+            legendOrder.forEach(key => {
+                const item = document.createElement("div");
+                item.className = "legend-item";
+                item.dataset.series = key;
+
+                const square = document.createElement("div");
+                square.className = "legend-square";
+                square.style.backgroundColor = colors[key];
+                square.style.borderRadius = "4px";
+
+                const label = document.createElement("span");
+                label.textContent = key;
+
+                item.append(square, label);
+                legend.appendChild(item);
+            });
+        }
+
+        const tooltip = document.getElementById("tooltip");
+        function showTip(html, evt) {
+            if (!SHOW_TOOLTIP) return;
+            tooltip.innerHTML = html;
+            tooltip.style.left = (evt.clientX + 14) + "px";
+            tooltip.style.top = (evt.clientY - 24) + "px";
+            tooltip.style.opacity = "1";
+        }
+        function hideTip() { tooltip.style.opacity = "0"; }
+
+        function drawChart() {
+            if (!dataProcessed.length) return;
+
+            document.getElementById("chart").innerHTML = "";
+            const chartEl = document.getElementById("chart");
+            const rect = chartEl.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+            if (width < 10 || height < 10) return;
+
+            const hasTwoRow = dataProcessed.some(d => d.periodLabel != null);
+            const showPeriodRow = window.innerWidth >= 400;
+            const bottomForTwoRow = showPeriodRow ? 56 : 36;
+            const margin = { top: 20, right: 30, bottom: hasTwoRow ? bottomForTwoRow : 40, left: 80 };
+            const innerWidth = width - margin.left - margin.right;
+            const innerHeight = height - margin.top - margin.bottom;
+
+            const svg = d3.select("#chart").append("svg")
+                .attr("width", width).attr("height", height)
+                .attr("viewBox", [0, 0, width, height])
+                .attr("preserveAspectRatio", "none");
+
+            const g = svg.append("g")
+                .attr("transform", `translate(${margin.left},${margin.top})`);
+
+            const minT = d3.min(dataProcessed, d => d.t);
+            const maxT = d3.max(dataProcessed, d => d.t);
+
+            const x = d3.scaleLinear().domain([minT, maxT]).range([0, innerWidth]);
+
+            const stack = d3.stack().keys(keyOrder);
+            if (STACKED_TYPE === "area-pct") stack.offset(d3.stackOffsetExpand);
+
+            const series = stack(dataProcessed);
+
+            let y;
+            if (STACKED_TYPE === "area-pct") {
+                y = d3.scaleLinear().domain([0, 1]).range([innerHeight, 0]);
+            } else {
+                const maxY = d3.max(dataProcessed, d => d.Total);
+                y = d3.scaleLinear().domain([0, maxY * 1.05]).nice().range([innerHeight, 0]);
+            }
+
+            const xLabels = dataProcessed.map(d => d.periodLabel);
+            const axisFont = Math.max(9, Math.min(13, innerWidth / Math.max(5, xLabels.length) * 0.5));
+
+            const vw = window.innerWidth;
+            const periodFontScale = Math.max(0.5, Math.min(1, 0.5 + (vw - 480) / (768 - 480) * 0.5));
+
+            g.append("g")
+                .attr("class", "grid-lines")
+                .call(d3.axisLeft(y).ticks(5).tickSize(-innerWidth).tickFormat(""))
+                .select(".domain").remove();
+
+            const area = d3.area()
+                .x(d => x(d.data.t))
+                .y0(d => y(d[0]))
+                .y1(d => y(d[1]))
+                .curve(curveFn());
+
+            const paths = g.selectAll("path.stacked-area")
+                .data(series)
+                .join("path")
+                .attr("class", "stacked-area")
+                .attr("fill", d => colors[d.key] || "#999")
+                .attr("opacity", 0.9)
+                .attr("d", area);
+
+            paths.attr("opacity", 0)
+                .transition().duration(700).ease(d3.easeCubicOut)
+                .attr("opacity", 0.9);
+
+            const dimLeft = g.append("rect").attr("class", "dim-overlay")
+                .attr("x", 0).attr("y", 0)
+                .attr("width", 0).attr("height", innerHeight)
+                .attr("fill", "#ffffff").attr("opacity", 0)
+                .style("pointer-events", "none");
+            const dimRight = g.append("rect").attr("class", "dim-overlay")
+                .attr("x", innerWidth).attr("y", 0)
+                .attr("width", 0).attr("height", innerHeight)
+                .attr("fill", "#ffffff").attr("opacity", 0)
+                .style("pointer-events", "none");
+
+            const DIM_DUR = 220;
+            const DIM_EASE = d3.easeCubicOut;
+            const DIM_OPAC = 0.65;
+            const halfStep = VIEW_MODE === "month" ? 1 / 24 : 1 / 8;
+
+            function highlightRange(t0, t1) {
+                const xL = Math.max(0, Math.min(innerWidth, x(t0 - halfStep)));
+                const xR = Math.max(0, Math.min(innerWidth, x(t1 + halfStep)));
+                dimLeft.interrupt()
+                    .transition().duration(DIM_DUR).ease(DIM_EASE)
+                    .attr("x", 0).attr("width", xL).attr("opacity", DIM_OPAC);
+                dimRight.interrupt()
+                    .transition().duration(DIM_DUR).ease(DIM_EASE)
+                    .attr("x", xR).attr("width", Math.max(0, innerWidth - xR)).attr("opacity", DIM_OPAC);
+            }
+            function clearRangeHighlight() {
+                dimLeft.interrupt()
+                    .transition().duration(DIM_DUR).ease(DIM_EASE)
+                    .attr("opacity", 0);
+                dimRight.interrupt()
+                    .transition().duration(DIM_DUR).ease(DIM_EASE)
+                    .attr("opacity", 0);
+            }
+
+            function highlightSeries(key) {
+                paths.interrupt()
+                    .transition().duration(DIM_DUR).ease(DIM_EASE)
+                    .attr("opacity", d => d.key === key ? 0.95 : 0.12);
+            }
+            function clearSeriesHighlight() {
+                paths.interrupt()
+                    .transition().duration(DIM_DUR).ease(DIM_EASE)
+                    .attr("opacity", 0.9);
+            }
+
+            document.querySelectorAll("#legend .legend-item").forEach(item => {
+                const fresh = item.cloneNode(true);
+                item.parentNode.replaceChild(fresh, item);
+                const key = fresh.dataset.series;
+                if (!key) return;
+                fresh.addEventListener("mouseenter", () => highlightSeries(key));
+                fresh.addEventListener("mouseleave", clearSeriesHighlight);
+            });
+
+            const periodTicks = dataProcessed.map(d => d.t);
+
+            const xAxis = d3.axisBottom(x).tickValues(periodTicks).tickFormat("");
+
+            const xAxisG = g.append("g")
+                .attr("class", "axis axis--x")
+                .attr("transform", `translate(0,${innerHeight})`)
+                .call(xAxis);
+
+            const periodFont = axisFont * periodFontScale;
+            const yearFont = Math.max(11, axisFont + 1);
+
+            if (hasTwoRow) {
+                const yearY = showPeriodRow ? 36 : 16;
+
+                if (showPeriodRow) {
+                    xAxisG.append("g")
+                        .attr("class", "x-period-labels")
+                        .selectAll("text")
+                        .data(dataProcessed)
+                        .join("text")
+                        .attr("x", d => x(d.t))
+                        .attr("y", 16)
+                        .attr("text-anchor", "middle")
+                        .style("font-size", `${periodFont}px`)
+                        .style("font-weight", 600)
+                        .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif")
+                        .style("fill", "#4b5563")
+                        .text(d => d.periodLabel)
+                        .on("mouseenter", (_, d) => highlightRange(d.t, d.t))
+                        .on("mouseleave", clearRangeHighlight);
+                }
+
+                const byYear = d3.group(dataProcessed, d => d.year);
+                const yearEntries = Array.from(byYear, ([yr, items]) => {
+                    const xs = items.map(d => x(d.t));
+                    return {
+                        year: yr,
+                        cx: (Math.min(...xs) + Math.max(...xs)) / 2,
+                        tStart: d3.min(items, d => d.t),
+                        tEnd: d3.max(items, d => d.t)
+                    };
+                });
+
+                xAxisG.append("g")
+                    .attr("class", "x-year-labels")
+                    .selectAll("text")
+                    .data(yearEntries)
+                    .join("text")
+                    .attr("x", d => d.cx)
+                    .attr("y", yearY)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", `${yearFont}px`)
+                    .style("font-weight", 700)
+                    .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif")
+                    .style("fill", "#111827")
+                    .text(d => d.year)
+                    .on("mouseenter", (_, d) => highlightRange(d.tStart, d.tEnd))
+                    .on("mouseleave", clearRangeHighlight);
+
+                const yearKeys = Array.from(byYear.keys()).sort((a, b) => a - b);
+                const boundaries = [];
+                for (let i = 0; i < yearKeys.length - 1; i++) {
+                    const a = byYear.get(yearKeys[i]);
+                    const b = byYear.get(yearKeys[i + 1]);
+                    boundaries.push((d3.max(a, d => d.t) + d3.min(b, d => d.t)) / 2);
+                }
+
+                if (boundaries.length) {
+                    const dividerY2 = showPeriodRow ? 28 : 12;
+                    const dividerG = xAxisG.append("g").attr("class", "year-dividers");
+                    boundaries.forEach(tb => {
+                        const xb = x(tb);
+                        dividerG.append("line")
+                            .attr("x1", xb).attr("x2", xb)
+                            .attr("y1", 4).attr("y2", dividerY2)
+                            .attr("stroke", "#cbd5e1")
+                            .attr("stroke-width", 1)
+                            .attr("shape-rendering", "crispEdges");
+                    });
+                }
+
+                xAxisG.selectAll(".tick text").remove();
+            } else {
+                xAxisG.selectAll(".tick").append("text")
+                    .attr("y", 16)
+                    .attr("text-anchor", "middle")
+                    .style("font-size", `${yearFont}px`)
+                    .style("font-weight", 700)
+                    .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif")
+                    .style("fill", "#111827")
+                    .text(d => d);
+            }
+
+            const yAxis = d3.axisLeft(y).ticks(5);
+            if (STACKED_TYPE === "area-pct") yAxis.tickFormat(d3.format(".0%"));
+            else yAxis.tickFormat(d => kFormat(d));
+
+            const yAxisG = g.append("g")
+                .attr("class", "axis axis--y")
+                .call(yAxis);
+
+            yAxisG.selectAll("text")
+                .style("font-size", `${axisFont}px`)
+                .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+
+            yAxisG.append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", -margin.left + 18)
+                .attr("x", -(innerHeight / 2))
+                .attr("dy", "0.71em")
+                .attr("text-anchor", "middle")
+                .style("fill", "#000")
+                .style("font-weight", "700")
+                .style("font-size", "clamp(12px, 1.5vw, 18px)")
+                .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif")
+                .text(STACKED_TYPE === "area-pct" ? "Share of models" : "Number of models");
+
+            if (SHOW_TOOLTIP) {
+                const focusLine = g.append("line")
+                    .attr("class", "focus-line")
+                    .attr("y1", 0).attr("y2", innerHeight)
+                    .attr("stroke", "#1e293b")
+                    .attr("stroke-width", 1)
+                    .attr("stroke-dasharray", "3,3")
+                    .style("opacity", 0)
+                    .style("pointer-events", "none");
+
+                g.append("rect")
+                    .attr("width", innerWidth)
+                    .attr("height", innerHeight)
+                    .attr("fill", "transparent")
+                    .on("mousemove", function (evt) {
+                        const [mx] = d3.pointer(evt, this);
+                        const tAt = x.invert(mx);
+                        const nearest = dataProcessed.reduce((a, b) =>
+                            Math.abs(b.t - tAt) < Math.abs(a.t - tAt) ? b : a
+                        );
+                        focusLine.attr("x1", x(nearest.t)).attr("x2", x(nearest.t)).style("opacity", 1);
+
+                        const rows = keyOrder.slice().reverse().map(k => {
+                            const v = nearest[k] || 0;
+                            return `<div style="display:flex;align-items:center;gap:6px;">
+                <span style="display:inline-block;width:9px;height:9px;background:${colors[k]};border-radius:2px;"></span>
+                <span>${k}: <strong>${smartFormat(v)}</strong></span>
+              </div>`;
+                        }).join("");
+
+                        const heading = nearest.periodLabel
+                            ? `${nearest.periodLabel} ${nearest.year}`
+                            : String(nearest.year);
+
+                        const html = `<div style="font-weight:700;margin-bottom:4px;">${heading}</div>${rows}
+              <div style="margin-top:4px;border-top:1px solid rgba(17,24,39,0.12);padding-top:4px;">
+                Total: <strong>${smartFormat(nearest.Total)}</strong>
+              </div>`;
+                        showTip(html, evt);
+                    })
+                    .on("mouseleave", () => {
+                        focusLine.style("opacity", 0);
+                        hideTip();
+                    });
+            }
+        }
+
+        let resizeTimer;
+        window.addEventListener("resize", () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(drawChart, 220);
+        });
+
+        if (typeof ResizeObserver !== "undefined") {
+            new ResizeObserver(() => drawChart()).observe(document.getElementById("chart"));
+        }
+    </script>
+</body>
+
+</html>
