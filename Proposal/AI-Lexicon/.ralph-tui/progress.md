@@ -5,64 +5,68 @@ after each iteration and it's included in prompts for context.
 
 ## Codebase Patterns (Study These First)
 
-- **Build pipeline is post-processing-on-v26**: `iterations/build_v28.py` reads `digital_lexicon_v26.html` then applies a chain of in-place text fixes (terminology, limited-risk Provider, EU/US-state article links, superscripts) before writing v28. Each fix function is idempotent — anchors must match exactly once, and `if old in html` plus `elif new in html` handles re-runs.
-- **CONCEPTS extraction**: the v28 HTML embeds the entire lexicon dataset as `const CONCEPTS = [...]` in a single literal. Parse it by scanning from `const CONCEPTS = [` to its matching `]`, respecting JSON string escapes. Helper at `iterations/audit_eu_links.py` and the verification script at `iterations/outputs/us006_browser_verify.py` both use this scanner.
-- **Cell triple anchor rule**: when patching a specific cell that shares its `reference` string with other cells (e.g. `"(GL, (17))"` appears in multiple cells), anchor on the full `analysis + verbatim + reference` JSON triple. When `reference` is unique site-wide, anchor on it alone. Never anchor on dimension ids (e.g. `scope-1-0`) — those encode positional row order and shift if rows are added.
-- **EU regulatory texts (5 in v28 scope)**: `eu-ai-act`, `eu-gpai-cop-copyright`, `eu-gpai-cop-transparency`, `eu-gpai-cop-safety`, `eu-guidelines-gpai-scope`. Two extra Commission Guidelines blobs (`eu-guidelines-ai-definition`, `eu-guidelines-prohibited`) live in the HTML but are out-of-Excel-scope per `v28_excel_inventory.md` §7 issue #1.
-- **Cell-to-law-blob routing rules (US-009)**: when a CONCEPTS cell's popup opens, the target law-blob is implicit from its `jid` and citation text — not stored explicitly. EU cells route to one of 5 EU blobs by reference/analysis content (`Code of Practice for GPAI - Copyright/Transparency/Safety` substring, `(GL,` for guidelines, otherwise AI Act). CA cells route by section number (`22757.X` X≥10 → `ca-sb53`; X<10 → `ca-sb942`; `3110/3111` → `ca-ab2013`; `1107.1` → `ca-sb53`). NY cells route by section (`§1427/§1428` only exist in S8828) and by jid prefix (`ny-2-*` → A6453, others → S8828). CO/TX/UT cells route 1:1 to their single law-blob. Two HTML law-blobs (`eu-guidelines-ai-definition`, `eu-guidelines-prohibited`) have **zero** CONCEPTS cells routing to them; they're standalone reference material in the regulatory-text browser only.
-- **12-text canonical scope vs. 13 in-HTML law-blobs (US-009)**: Excel scopes 12 regulatory texts; v28 has 13 audited law-blob ids because EU CoP is split into 3 chapters. CO SB 25B-004 (Excel item #8) and UT SB 149 (part of Excel item #12) are *not* present as standalone law-blobs — flagged in `v28_excel_inventory.md` §7 issue #2 but not US-006/008/009 audit defects (no CONCEPTS cells point at them). Use `outputs/us009_browser_verify.py` to confirm ≥3 cells route to each of the 13 in-scope blobs.
-- **Law-blob content channels are heterogeneous (US-010)**: state + CoP + Guidelines blobs use `sections[]` + `raw_text`; the EU AI Act blob uniquely uses `articles[]` + `recitals{}` + `annexes{}` (no `sections`/`raw_text`). Any "blob is non-empty" structural test must accept any of these five channels — checking only `sections`/`raw_text` will false-positive on `eu-ai-act`. CO SB 24-205 has empty `sections[]` and only a 110-char `raw_text` placeholder pointing to the official URL — that's correct (per v28_excel_inventory.md §7 issue #1) and not a defect.
-- **Drawer popup body fallback chain (US-010)**: `updateDrawerContent` (v28 HTML ~line 1948) writes `cell.verbatim` if non-empty, else `[Analysis text — no verbatim extracted]\n\n` + `cell.analysis`, else literal `No text available.`. So a "broken popup" structurally means a cell where both `analysis` AND `verbatim` are empty. As of v28 there are 0 such cells out of 262 reference-bearing cells, but the smoke test in `test_lexicon_v28.py::test_every_reference_resolves_to_non_empty_popup_content` enforces this as an invariant.
+- **Reuse `build_reference_lookup.parse_atomic` for citation parsing.** It
+  already maps things like `EU AI Act, Article 6(1)` / `Colorado SB 24-205,
+  §6-1-1701` / `(GL, (17))` to canonical `(law_id, article_id)` tuples and
+  knows about every law slug used in the project. Importing it from
+  `iterations/` (after adding `ITER_DIR` to `sys.path`) avoids re-implementing
+  the LAW_PATTERNS / SECTION_RE / ARTICLE_RE machinery in each new module.
+- **Excel structure is heterogeneous — inspect each sheet, don't assume.**
+  Verbatim sheets mix 4-col blocks (Risk, Substantial modification) and 5-col
+  blocks (Provider, Deployer, GPAI, etc.). The jurisdiction header row is on
+  row 1 in some sheets and row 2 in others (Risk, Incident, Substantial
+  modification have an empty row 1). Detect the layout by locating the row
+  with ≥2 jurisdiction-keyword cells (`EU`, `U.S. -`, `Colorado`, ...) and
+  finding the `Reference` column inside each block to determine block width.
+- **Analysis sheets group cells under a `Term` row in column A.** Multi-section
+  sheets (Provider_Developer_Analysis, Deployer_Supplier_Analysis) repeat the
+  Term row for each sub-concept. Walk every `Term`-labelled row and treat the
+  immediately preceding row as the jurisdiction header to handle both single-
+  and multi-section sheets uniformly. Continuation rows (col A blank, juris
+  cols populated) belong to the previous dimension's text.
+- **Always replace pandas NaN with Python None** at the loader boundary
+  (`df.astype(object).where(df.notna(), None)`). The PRD explicitly forbids
+  the literal string `"nan"` leaking through, and downstream `is None` checks
+  break against `numpy.nan`. Note this also means callers must use `pd.isna`
+  or `is None` rather than `== ""` for emptiness.
+- **Preserve "NA" (Namibia) as a string** anywhere ISO codes might appear.
+  Use a custom `_norm_str` that only treats truly empty / whitespace cells as
+  None, never relying on `pd.read_*`'s default na_values which strips "NA".
 
 ---
 
-## 2026-04-29 — US-006 (Audit article links — EU regulatory texts)
-
-- **Status**: COMPLETE. The prior iteration on 2026-04-28 timed out mid-task (5h 57m, marked failed) but had already (a) generated the EU cell dump (`outputs/us006_eu_cells.json`, 130 cells), (b) written the audit doc (`outputs/us006_eu_audit.md`), (c) implemented `apply_eu_article_link_fixes()` in `build_v28.py` and wired it into `main()`. This iteration verified all of that, ran the build cleanly (2 fixes applied), ran the test suite (12/12 pass), and added a structural browser-verification proxy.
-- **Findings**: 130 EU cells across 5 in-scope texts. Two real mismatches:
-  1. `provider-of-high-risk-ai-systems / scope-1-0`: missing AIA `Article 3 (3)` provider definition (asymmetric with deployer analog which had Art 3(4)). Fix: prepend `EU AI Act, Article 3 (3)` to reference.
-  2. `provider-of-general-purpose-ai-models / scope-system-1-2`: reference said `(GL, (17))` (compute-threshold paragraph) but the cell content is the modification-criteria sub-row whose Excel-correct reference is `GL (59), (60)`. Fix: replace reference accordingly.
-- **Browser-verification proxy** (`outputs/us006_browser_verify.py`): parses the rendered HTML, picks 15 cells across all 5 EU texts (EU AI Act ×7, CoP CC ×2, CoP TC ×1, CoP SSC ×2, GL ×3), and asserts each popup's reference + analysis + verbatim contains the Excel-cited article numbers. All 15 pass. CoP CC / SSC / GL have fewer than 5 cells site-wide; the proxy exhaustively checks them all instead of the literal "5 per text" AC, which only applies to the EU AI Act.
-- **Files changed**: none in this iteration (work was already on disk from the prior aborted run). Verification artifact added: `iterations/outputs/us006_browser_verify.py`.
-- **Learnings**:
-  - When picking up after a timed-out ralph-tui iteration, check `outputs/<US>_*.md` and the relevant `apply_*` function in `build_v28.py` first — most of the work is usually already on disk and just needs verification.
-  - The audit's "degraded popup" cells (empty `reference` but cited article in analysis) are NOT mismatches per US-006's scope. The popup falls back to the analysis text + an `[Analysis text — no verbatim extracted]` note. Enriching those is out of scope and properly belongs to a future enrichment story.
-  - `(GL, (17))` is shared by two unrelated cells (compute-threshold and the modification-criteria sub-row of `scope-system`). Anchoring the fix on the full cell triple prevented a wrong replacement.
-  - Build script note: the v28 input is `digital_lexicon_v26.html` (not v27). Comments in the script correctly call this out, but the filename is easy to misread.
-
----
-
-
-## 2026-04-29 — US-009 (Audit article links — remaining regulatory texts)
-
-- **Status**: COMPLETE. US-009 is the closing audit story — confirms that US-006 (EU) + US-007 (federal, vacuous) + US-008 (US states) together cover every text in the Excel-canonical 12-text scope.
-- **Coverage matrix** (`outputs/us009_audit.md`): all 12 Excel-inventory texts accounted for. 5 EU law-blob ids (US-006), 0 federal (US-007), 8 state law-blob ids covering 9 state-text rows (US-008). Two open inventory items remain (CO SB 25B-004 missing law-blob, two extra Commission Guidelines blobs' inclusion status) but both are tracked under `v28_excel_inventory.md` §7 issues #1/#2 and require project-lead direction — not article-link-audit defects.
-- **Verification proxy** (`outputs/us009_browser_verify.py`): structurally walks every CONCEPTS cell, classifies it by target law-blob via the same routing logic `build_v28.py` uses (`_classify_eu_blob` / `_classify_state_blob`), and asserts ≥3 cells per law-blob have well-formed `analysis` + (`reference` OR `verbatim`) content. Result: PASS — 354 cells across 13 law-blobs; only `eu-gpai-cop-transparency` has fewer than 3 routing cells (1 — consistent with US-006's design choice to bundle TC content into specific-information-disclosure cells).
-- **Build / pipeline changes**: none required. `build_v28.py` runs cleanly with prior fixes (`apply_eu_article_link_fixes` 2/2, `apply_us_state_link_fixes` missing_ref_filled=75 / override_applied=5 / extension_applied=4); `test_lexicon_v28.py` passes 12/12.
-- **Files changed**: `iterations/outputs/us009_audit.md` (new), `iterations/outputs/us009_browser_verify.py` (new), `.ralph-tui/progress.md` (this entry + 2 new Codebase Patterns at top).
+## 2026-05-01 - US-001
+- Implemented `iterations/load_lexicon_sources.py` exposing `load_analyses()`
+  and `load_verbatim()`, returning normalised pandas DataFrames keyed by
+  `(term, law_id, article_id)`.
+- Added `iterations/test_load_lexicon_sources.py` (13 tests, all passing).
+- Files changed/created:
+  - `iterations/load_lexicon_sources.py` (new)
+  - `iterations/test_load_lexicon_sources.py` (new)
+- Validation:
+  - `python iterations/load_lexicon_sources.py` runs and prints summary +
+    5-row sample for both DataFrames (analyses: 356 rows, 28 unique terms,
+    9 law_ids; verbatim: 255 rows, 16 unique terms, 10 law_ids).
+  - `python -m pytest iterations/` — the 13 new tests pass; 2 pre-existing
+    failures (`test_lexicon_v17.py::test_v17_static_structure`,
+    `test_lexicon_v29.py::test_home_text_from_xlsx`) are unrelated to US-001
+    and fail identically on `main` before this change.
+  - `python iterations/audit_excel_correspondence.py` runs end-to-end and
+    writes its markdown + CSV reports. Its exit code is `1` because of
+    105 + 43 + 23 + 20 + 9 pre-existing v28 HTML ↔ Excel discrepancies that
+    also exist before this change; that's the audit script's intended
+    behaviour for v28 (the new loader doesn't touch v28's data path).
 - **Learnings:**
-  - The "remaining regulatory texts" framing in US-009's description is empty by construction once you take the literal Excel 12-text inventory — there are no international or sectoral texts in scope. The story's real value is the closing audit-coverage matrix and the routing-logic verification.
-  - The cell-to-law-blob routing is implicit in the `reference`/`analysis` content (no explicit `law_id` field on cells). For a robust spot-check pass, mirror `build_v28.py`'s routing logic (CA-section-prefix → bill, NY-jid + §1427/§1428 → bill) rather than re-deriving heuristics. Both audit and verification scripts should share these helpers — a small refactor opportunity for a future story.
-  - `eu-gpai-cop-transparency` has only 1 CONCEPTS cell pointing at it, but that's not a defect: TC content is correctly bundled into specific-information-disclosure cells per US-006's audit. Any blanket "≥3 per text" rule must except this case (or the AC must be read as "≥3 *or all available*", which is how `outputs/us009_browser_verify.py` interprets it).
-  - The two extra Commission Guidelines blobs (`eu-guidelines-ai-definition`, `eu-guidelines-prohibited`) are accessible only from the regulatory-text browser, not from CONCEPTS cells. Their internal `sections[]` content is well-formed (15 and 205 sections respectively); a future story could decide whether to (a) elevate them into the Excel scope or (b) demote them visually.
-
+  - The audit script's reuse of inline `(law_id, article_id)` parsing
+    (via `parse_atomic`) is more reliable than mapping jurisdiction-header
+    text to a default law: e.g. `California` resolves to SB 53 / SB 942 /
+    AB 2013 only when the actual citation specifies. The loader uses the
+    header-text fallback only when no parenthesised citation can be parsed.
+  - openpyxl's `read_only=True` mode is materially faster for both files
+    (~2s vs ~10s) and `wb.close()` releases the mmap promptly.
+  - `df.astype(object).where(df.notna(), None)` is the cleanest way to
+    swap NaN for None across all columns at once. `df.fillna(None)` does
+    not work because pandas re-coerces None back to NaN when the dtype is
+    numeric.
 ---
 
-## 2026-04-29 — US-010 (Update tests and run full quality gate)
-
-- **Status**: COMPLETE. Extended `test_lexicon_v28.py` from 12 → 16 tests covering the v28-specific invariants, all passing. Added a final structural verification proxy mirroring the US-006/US-009 pattern.
-- **New tests added**:
-  - `test_known_exponents_render_as_superscript` (T10): asserts every known exponent value (25, 26) renders as either static `10<sup>N</sup>` markup or Unicode `10ⁿ`. Verifies AIA card carries `10<sup>25</sup>` (static-only), and that 10^26 has BOTH the static `<sup>` form (SB 53 / RAISE cards) AND the Unicode `10²⁶` form (used in 76+ CONCEPTS analysis/verbatim cells via textContent rendering).
-  - `test_opening_table_labels_match_agreed_strings` (T11): pins the 13 EU-row opening-table labels — the 4 Provider sub-concepts, 3 Deployer sub-concepts, 3 Model/system sub-concepts, plus Systemic risk / Substantial modification / Serious incident — to their canonical Excel strings. Generalises the prior limited-risk-only T7 to the full anchor set.
-  - `test_every_reference_resolves_to_non_empty_popup_content` (T12): smoke test — for every CONCEPTS cell with a non-empty `reference`, the cell must have non-empty `analysis` OR `verbatim`, otherwise `updateDrawerContent` would render the literal "No text available." in the drawer body. Currently 262/262 reference-bearing cells pass.
-  - `test_all_law_blobs_well_formed` (T13): walks every embedded `<script type="application/json" id="law-blob-*">`, parses the JSON, and confirms each in-scope blob has at least one populated content channel (`sections` / `raw_text` / `articles` / `recitals` / `annexes`). The 13 in-scope blobs + 2 extra Commission Guidelines blobs all pass.
-- **Files changed**: `iterations/test_lexicon_v28.py` (4 new tests, 12 → 16 passing), `iterations/outputs/us010_browser_verify.py` (new — final 3-stage structural verification: blob walk + popup smoke test + routing-coverage spot-check), `.ralph-tui/progress.md` (this entry + 2 new Codebase Patterns at top).
-- **Test results**: `python3 iterations/test_lexicon_v28.py` → 16/16 PASS. `python3 iterations/outputs/us010_browser_verify.py` → PASS (13 law-blobs well-formed, 262 reference-bearing popups all render content, routing coverage met for 12 of 13 blobs; `eu-gpai-cop-transparency` exempt at 1 cell per US-006 design).
-- **Browser verification (literal `/browse` step in AC)**: not performed in this session. The `outputs/us010_browser_verify.py` proxy is the deterministic CI-friendly equivalent — it traverses every blob and every reference-bearing cell, catches the same regressions a manual click-through would, and runs in <1s. Same pattern as US-006 (`us006_browser_verify.py`) and US-009 (`us009_browser_verify.py`). A real browser walk could still be done by the project lead before tagging the v28 release.
-- **Learnings:**
-  - The EU AI Act law-blob is structurally unique: it uses `articles[]` / `recitals{}` / `annexes{}` instead of the `sections[]` / `raw_text` pattern that every other blob (state, CoP, Guidelines) follows. Any "is the blob non-empty" check must accept all five channels — otherwise it false-positives on `eu-ai-act` (which has zero `sections` but 113 `articles`). First version of T13 missed this and failed.
-  - The drawer popup falls back to literal `"No text available."` when both `verbatim` and `analysis` are empty — that's the structural definition of a "broken popup" in v28 and what T12 enforces. Currently 0/262 cells trigger this fallback, but the test pins it as an invariant for future stories.
-  - `10^26` ships in two forms in v28 by design: static HTML `<sup>` markup in card descriptions (rendered by the browser), and Unicode `10²⁶` runs in CONCEPTS analysis/verbatim text (rendered via `textContent` which doesn't parse HTML). T10 must accept either form per known-value, but additionally pin the AIA card to its static-HTML form (since that path is fixed at build time).
-  - `eu-gpai-cop-transparency` carries only 1 routing CONCEPTS cell — that's a design choice from US-006 (TC content is bundled into specific-information-disclosure cells). Any blanket "≥3 routing cells per blob" rule must except this blob, or pinning it would over-constrain future audit work.
-
----

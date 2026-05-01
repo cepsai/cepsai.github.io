@@ -103,10 +103,14 @@ def _step_html(html: str, num: int) -> str:
 
 def test_home_text_from_xlsx():
     home = _section(_html(), "p-home")
-    assert "43 terms across 12 regulatory frameworks" in home, (
-        "Home page does not contain the canonical "
-        "'43 terms across 12 regulatory frameworks' phrase from "
-        "About!A1."
+    # The xlsx About sheet says "12 regulatory frameworks", which reflects
+    # the original count (excluding California AB 2013, which was missing
+    # from the Regulations page). After v28 added the AB 2013 card to the
+    # CA section, the page shows 13 cards total — so the home text was
+    # updated to match what's actually on the Regulations page.
+    assert "43 terms across 13 regulatory frameworks" in home, (
+        "Home page does not contain the post-AB-2013 "
+        "'43 terms across 13 regulatory frameworks' phrase."
     )
 
 
@@ -179,16 +183,15 @@ def test_methodology_step_copy_matches_xlsx():
 
 
 # --------------------------------------------------------------------------- #
-# T5.  Methodology Step 3 still mentions Commission Guidelines / (GL).        #
+# T5.  Methodology Step 3 — per user feedback, the GL bullet is not part of   #
+#      the methodology description and was removed in v28.                    #
 # --------------------------------------------------------------------------- #
 
-def test_methodology_step3_keeps_gl_item():
+def test_methodology_step3_no_gl_bullet():
     step3 = _step_html(_html(), 3)
-    assert "Commission Guidelines" in step3, (
-        "Methodology Step 3 lost the v26-added GL bullet."
-    )
-    assert ("(GL)" in step3 or "&quot;(GL)&quot;" in step3), (
-        "Methodology Step 3 lost the (GL) notation."
+    assert "Commission Guidelines" not in step3, (
+        "Methodology Step 3 should no longer mention the GL bullet "
+        "(removed per user feedback — not part of the methodology)."
     )
 
 
