@@ -4015,5 +4015,287 @@ table.v21-one-row tbody tr { display: table-row !important; }
 })();
 </script>
 
+<style>
+/* US-008 — verbatim highlight inside the rendered law article. */
+mark.v30-verbatim-mark{
+  background:#fff59d;
+  color:inherit;
+  padding:1px 2px;
+  border-radius:2px;
+  box-shadow:inset 0 -1px 0 rgba(0,0,0,.04);
+}
+mark.v30-verbatim-mark:focus{outline:2px solid var(--accent);outline-offset:1px}
+</style>
+<script>
+/* US-008 — when an analysis cell is clicked, find the matching verbatim
+   text inside the rendered law article (.v29-art-body) and wrap each
+   contiguous span in <mark class="v30-verbatim-mark">. The first mark
+   is scrolled into view. Lenient against smart quotes, NBSP / soft
+   hyphens / en-dash / em-dash, whitespace collapse, and case. Existing
+   marks from a prior click are stripped before applying new ones.
+   Hooked via wrapping window.updateDrawerContent — no inline onclick
+   handlers are added. */
+(function(){
+  var MARK_CLASS = 'v30-verbatim-mark';
+
+  function _normalizeChar(c){
+    if (c === '‘' || c === '’' || c === '‚' || c === '‛' || c === '′') return "'";
+    if (c === '“' || c === '”' || c === '„' || c === '‟' || c === '″') return '"';
+    if (c === ' ' || c === ' ' || c === ' ' || c === ' ' || c === '​') return ' ';
+    if (c === '­' || c === '﻿') return null; // soft hyphen / BOM — drop
+    if (c === '–' || c === '—' || c === '−') return '-';
+    if (/\s/.test(c)) return ' ';
+    return c;
+  }
+
+  function _normalize(s){
+    if (s == null) return '';
+    var src = String(s);
+    var out = '';
+    var lastSpace = false;
+    for (var i = 0; i < src.length; i++){
+      var c = _normalizeChar(src.charAt(i));
+      if (c === null) continue;
+      if (c === ' '){
+        if (lastSpace) continue;
+        out += ' ';
+        lastSpace = true;
+      } else {
+        out += c.toLowerCase();
+        lastSpace = false;
+      }
+    }
+    return out.replace(/^ /, '').replace(/ $/, '');
+  }
+
+  function _splitSpans(s){
+    if (!s) return [];
+    var paras = String(s).split(/\n{2,}/);
+    var out = [];
+    paras.forEach(function(p){
+      var line = p.replace(/\s+/g, ' ').trim();
+      if (!line) return;
+      // Split on:
+      //  * `. ` / `! ` / `? ` followed by capital / digit / quote / paren
+      //    (sentence boundary).
+      //  * `; ` / `: ` followed by an enumerated marker `(I)` / `(a)` /
+      //    `(1)` / capital (clause boundary inside long legal sentences).
+      var parts;
+      try {
+        parts = line.split(/(?<=[.!?])\s+(?=["'(\[]?[A-Z0-9])|(?<=[;:])\s+(?=\(|[A-Z])/);
+      } catch (e) {
+        // Fallback if lookbehind unsupported — split on sentence boundary
+        // only, with a capturing group to preserve punctuation.
+        parts = line.split(/([.!?;:])\s+(?=["'(\[]?[A-Z0-9]|\()/);
+        var rebuilt = [];
+        for (var i = 0; i < parts.length; i += 2){
+          var seg = parts[i] + (parts[i + 1] || '');
+          if (seg.trim()) rebuilt.push(seg.trim());
+        }
+        parts = rebuilt;
+      }
+      parts.forEach(function(seg){
+        var t = seg.trim();
+        if (t.length >= 12) out.push(t);
+      });
+    });
+    return out;
+  }
+
+  function _buildFlatText(root){
+    var nodes = [];
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var n;
+    while ((n = w.nextNode())){
+      if (n.nodeValue && n.nodeValue.length) nodes.push(n);
+    }
+    var flat = '';
+    var map = [];
+    var lastSpace = false;
+    nodes.forEach(function(node){
+      var s = node.nodeValue;
+      for (var i = 0; i < s.length; i++){
+        var c = _normalizeChar(s.charAt(i));
+        if (c === null) continue;
+        if (c === ' '){
+          if (lastSpace) continue;
+          flat += ' ';
+          map.push({ node: node, off: i });
+          lastSpace = true;
+        } else {
+          flat += c.toLowerCase();
+          map.push({ node: node, off: i });
+          lastSpace = false;
+        }
+      }
+    });
+    return { flat: flat, map: map };
+  }
+
+  function _wrapRange(map, flatStart, flatEnd){
+    if (flatEnd <= flatStart) return null;
+    var startEntry = map[flatStart];
+    var lastEntry = map[flatEnd - 1];
+    if (!startEntry || !lastEntry) return null;
+    var startNode = startEntry.node;
+    var startOff = startEntry.off;
+    var endNode = lastEntry.node;
+    var endOffExcl = lastEntry.off + 1;
+
+    var slices = [];
+    if (startNode === endNode){
+      slices.push({ node: startNode, from: startOff, to: endOffExcl });
+    } else {
+      var ancestor = startNode.parentNode;
+      while (ancestor && !ancestor.contains(endNode)) ancestor = ancestor.parentNode;
+      if (!ancestor) return null;
+      var w = document.createTreeWalker(ancestor, NodeFilter.SHOW_TEXT, null);
+      var nd, inRange = false;
+      while ((nd = w.nextNode())){
+        if (nd === startNode) inRange = true;
+        if (inRange){
+          var from = (nd === startNode) ? startOff : 0;
+          var to = (nd === endNode) ? endOffExcl : nd.nodeValue.length;
+          if (to > from) slices.push({ node: nd, from: from, to: to });
+        }
+        if (nd === endNode) break;
+      }
+    }
+
+    var marks = [];
+    for (var i = slices.length - 1; i >= 0; i--){
+      var sl = slices[i];
+      var text = sl.node.nodeValue;
+      var before = text.slice(0, sl.from);
+      var hit = text.slice(sl.from, sl.to);
+      var after = text.slice(sl.to);
+      if (!hit) continue;
+      var frag = document.createDocumentFragment();
+      if (before) frag.appendChild(document.createTextNode(before));
+      var mk = document.createElement('mark');
+      mk.className = MARK_CLASS;
+      mk.textContent = hit;
+      frag.appendChild(mk);
+      if (after) frag.appendChild(document.createTextNode(after));
+      sl.node.parentNode.replaceChild(frag, sl.node);
+      marks.unshift(mk);
+    }
+    return marks.length ? marks : null;
+  }
+
+  function _clearMarks(container){
+    if (!container) return;
+    var existing = container.querySelectorAll('mark.' + MARK_CLASS);
+    Array.prototype.forEach.call(existing, function(mk){
+      var parent = mk.parentNode;
+      if (!parent) return;
+      while (mk.firstChild) parent.insertBefore(mk.firstChild, mk);
+      parent.removeChild(mk);
+      if (parent.normalize) parent.normalize();
+    });
+  }
+
+  function _highlightVerbatim(container, verbatim){
+    if (!container) return [];
+    _clearMarks(container);
+    if (!verbatim) return [];
+    var fullNorm = _normalize(verbatim);
+    if (!fullNorm) return [];
+    var bodies = container.querySelectorAll('.v29-art-body');
+    if (!bodies.length) return [];
+
+    // 1. Try the full verbatim across each article body — wrap as one mark
+    //    if found.
+    for (var b = 0; b < bodies.length; b++){
+      var built = _buildFlatText(bodies[b]);
+      if (!built.flat) continue;
+      var idx = built.flat.indexOf(fullNorm);
+      if (idx !== -1){
+        var marks = _wrapRange(built.map, idx, idx + fullNorm.length);
+        if (marks && marks.length) return marks;
+      }
+    }
+
+    // 2. Otherwise split into sentences and wrap each that resolves.
+    var sentences = _splitSpans(verbatim);
+    if (!sentences.length) return [];
+    var allMarks = [];
+    sentences.forEach(function(sent){
+      var sNorm = _normalize(sent);
+      if (!sNorm) return;
+      // Rebuild flat text per sentence — DOM may have changed after the
+      // previous sentence was wrapped.
+      for (var b = 0; b < bodies.length; b++){
+        var built = _buildFlatText(bodies[b]);
+        if (!built.flat) continue;
+        var idx = built.flat.indexOf(sNorm);
+        if (idx !== -1){
+          var marks = _wrapRange(built.map, idx, idx + sNorm.length);
+          if (marks && marks.length){
+            allMarks = allMarks.concat(marks);
+            return; // sentence found in this body — move to next sentence
+          }
+        }
+      }
+    });
+    return allMarks;
+  }
+
+  function _scrollMarkIntoView(mark){
+    if (!mark) return;
+    try {
+      mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (e) {
+      try { mark.scrollIntoView(); } catch (e2) { /* swallow */ }
+    }
+  }
+
+  function _afterDrawerRender(dim, juris){
+    var container = document.getElementById('drawer-verbatim');
+    if (!container) return;
+    if (!dim || !juris) return;
+    var cell = dim && dim.cells && dim.cells[juris];
+    if (!cell || !cell.verbatim) {
+      _clearMarks(container);
+      return;
+    }
+    var marks = _highlightVerbatim(container, cell.verbatim);
+    if (marks && marks.length) _scrollMarkIntoView(marks[0]);
+  }
+
+  function _install(){
+    if (typeof window.updateDrawerContent !== 'function' || window.__v30_highlight_patched) return;
+    window.__v30_highlight_patched = true;
+    var orig = window.updateDrawerContent;
+    window.updateDrawerContent = function(dim, juris, sc, c){
+      orig.apply(this, arguments);
+      try {
+        var run = function(){ _afterDrawerRender(dim, juris); };
+        if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(run);
+        else setTimeout(run, 0);
+      } catch (e) { console.error('v30 verbatim highlight:', e); }
+    };
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _install);
+  } else {
+    _install();
+  }
+  // Defensive re-tries in case ordering races put v30 ahead of v29.
+  setTimeout(_install, 0);
+  setTimeout(_install, 100);
+
+  // Expose helpers for tests / debugging.
+  window.__v30_highlight = {
+    normalize: _normalize,
+    splitSpans: _splitSpans,
+    highlightVerbatim: _highlightVerbatim,
+    clearMarks: _clearMarks,
+    MARK_CLASS: MARK_CLASS
+  };
+})();
+</script>
+
 </body>
 </html>

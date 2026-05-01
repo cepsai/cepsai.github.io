@@ -135,6 +135,51 @@ after each iteration and it's included in prompts for context.
   with 17 ambiguous (most live under Provider/Deployer where the verbatim
   collapses several articles under one term block).
 
+- **`const`/`let` declarations at script top level are NOT on `window`.**
+  The shell uses `let drawerCurrentDimId = null` etc. for drawer state and
+  `const CONCEPTS = [...]` for the data — none reachable via
+  `window.drawerCurrentDimId` / `window.CONCEPTS`. Wrappers that need that
+  state must take it from the wrapped function's *parameters*
+  (e.g. `updateDrawerContent(dim, juris, sc, c)`), not by re-reading
+  module-scoped variables off `window`. Discovered when the v30 highlight
+  patch silently no-op'd because `window.drawerCurrentDimId` was always
+  `undefined`. `function` declarations at script top level still attach
+  to `window` — that's why the v29 `_installWrapper` can read
+  `window.updateDrawerContent`.
+- **Browse-tool `js` runs in an isolated world.** Bare identifiers like
+  `getConcept`, `state`, `CONCEPTS` are not visible — only `document`,
+  `window`, and standard globals. Always go through `window.xxx` for
+  page-defined `function` declarations, and accept that `const`/`let`
+  page state is unreachable from `$B js` entirely. (You can still call
+  page functions through the inline event handlers — they ARE looked up
+  from window.)
+- **Per-text-node TreeWalker is not enough for cross-paragraph matches.**
+  The v29 article body uses `<p>` siblings inside `.v29-art-body`, with
+  marker spans (`<span class="v29-marker">(c)</span>`) breaking each `<p>`
+  into multiple text nodes. Highlight matches that start in one text
+  node and end in another need a *flat-text-with-back-pointer* approach:
+  walk every text node into one normalised string, keep an index map
+  back to `(textNode, offsetInNode)`, find the substring, then
+  reconstruct the slice list and wrap each portion in its own
+  `<mark>`. See `_buildFlatText` / `_wrapRange` in the v30 highlight
+  block for the working pattern.
+- **Splitting verbatim into "sentences" must include enumerated-clause
+  boundaries.** Legal text frequently has long sentences with a trailing
+  enumerated list — `…doing any of the following: (I) … ; (II) … ; or
+  (III) …` — that the law article splits across paragraphs. A regex that
+  only splits on `[.!?]\s+(?=[A-Z])` collapses the whole thing into one
+  span and misses partial matches. Add a second alternation
+  `(?<=[;:])\s+(?=\(|[A-Z])` so each `(I)` / `(a)` / `(1)` clause is
+  considered separately. Bumped NY S8828 §1420(3)(a) from 0 marks to 1
+  in the v30 verbatim highlight verification.
+- **Match-quality is bounded by source-text quality.** The TX HB 149 raw
+  blob has spacing defects from PDF extraction (`theattorney general`
+  instead of `the attorney general`) that no whitespace-collapsing
+  normalisation can fix — those cells gracefully render zero marks
+  rather than mismatching. The acceptance criterion is "lenient against
+  whitespace/quote variants", not "fuzzy match". Document the gap rather
+  than reaching for fuzzy similarity.
+
 ---
 
 ## 2026-05-01 - US-001
@@ -551,5 +596,128 @@ after each iteration and it's included in prompts for context.
     mid-flow. Prefer one chain per verification flow when verifying a
     static SPA — same advice as US-005's progress note.
 ---
+
+## 2026-05-01 - US-008
+- Added an append-only US-008 block to
+  `iterations/digital_lexicon_v30.html` (~245 lines: a `<style>` rule for
+  `mark.v30-verbatim-mark` plus a self-contained IIFE that wraps
+  `window.updateDrawerContent` to highlight verbatim spans in the law
+  article).
+- The script chains *after* the v29 article-render wrapper. When the
+  drawer renders, it walks every text node inside each `.v29-art-body`,
+  builds a normalised flat string + `(textNode, offset)` index map,
+  finds the cell's `verbatim` string in that flat text (full first,
+  then per-sentence), and wraps every contiguous match in
+  `<mark class="v30-verbatim-mark">` with a yellow background. The
+  first mark is `scrollIntoView({block:'center'})`-ed so the reader's
+  eye lands on it. Existing marks from a prior click are stripped via
+  `_clearMarks` before applying new ones.
+- Lenient matching: smart single/double quotes (`U+2018-201F`, `U+2032`,
+  `U+2033`), NBSP and friends (`U+00A0`, `U+202F`, `U+2009`, `U+200A`,
+  `U+200B`), soft hyphen (`U+00AD`), BOM (`U+FEFF`), en-dash / em-dash
+  (`U+2013`/`U+2014`/`U+2212`) all normalise to ASCII before matching;
+  whitespace runs collapse to a single space; case is folded.
+- Sentence splitter (`_splitSpans`) breaks on both `.!?` *and*
+  `;:` followed by `(I)` / `(a)` / `(1)` / capital-letter — needed for
+  long legal sentences with embedded enumerated lists (the "(I) …
+  (II) … (III) …" pattern in NY S8828 §1420(3)(a) etc.).
+- Hooked via wrapping the v29-patched `window.updateDrawerContent` —
+  the wrapper takes `dim` / `juris` from its own *arguments* rather
+  than reading the page's `let drawerCurrentDimId` / `let
+  drawerCurrentJuris` (those aren't on `window`). No new inline
+  `onclick=` handlers; `__v30_highlight_patched` flag prevents
+  double-installation; `setTimeout(_install, 0)` and `setTimeout(_install,
+  100)` cover ordering races.
+- Files changed/created:
+  - `iterations/digital_lexicon_v30.html` (append-only US-008 block,
+    +245 lines)
+  - `iterations/test_lexicon_v30.py` (new — 13 structural tests)
+- Validation:
+  - `python3 -m pytest iterations/test_lexicon_v30.py` — 13 passed.
+  - `python3 -m pytest iterations/` — 215 passed, 2 failed
+    (`test_lexicon_v18.py::test_v18_dom_features` and
+    `test_lexicon_v29.py::test_home_text_from_xlsx`) are the same
+    pre-existing browser-flake / count-drift failures noted in
+    every prior story; both reproduce on `main` without these changes.
+  - `python3 iterations/audit_excel_correspondence.py` runs end-to-end
+    and writes the markdown + CSV reports under `outputs/`. Exit code
+    1 from the same pre-existing v28 ↔ Excel discrepancies
+    (105 / 43 / 23 / 20 / 9) — the script targets v28, so v30
+    doesn't affect it.
+  - Browser verification via `/browse` skill against
+    `http://127.0.0.1:8769/digital_lexicon_v30.html`:
+    - Page loads with no console errors. After every drawer click the
+      console remains clean (`$B console --errors` returns "no console
+      errors").
+    - 7 cells clicked across 5 distinct laws — each renders the law
+      article in the drawer with one or more
+      `<mark class="v30-verbatim-mark">` spans:
+      • risk / definition-1-0 / eu — `AIA Article 3(2); AIA Article 3(65)` → 2 marks
+      • risk / term-0-0 / ca — `CA SB 53 §22757.11(c)(1)` → 1 mark
+      • risk / term-0-0 / ny — `NY S8828 §1420(3)(a)` → 1 mark
+      • provider-developer / scope-1-0 / co — `Colorado SB24-205, 6-1-1701` → 1 mark
+      • provider-developer / transparency-4-0 / eu — `EU AI Act, Article 50 (1, 2)` → 4 marks (paragraphs 1 and 2 each split into multiple sentence spans)
+      • provider-developer / scope-1-0 / eu — `EU AI Act, Article 50 (1)` → 1 mark
+      • modification / term-0-0 / ca-1-substantial-modification — `CA AB 2013 §3110(d)` → 1 mark
+    - Marks-clearing confirmed: switching jurisdictions in the drawer
+      (eu → ca → ny on risk/definition-1-0) shows the mark count
+      changing per click (2 → 3 → 1) with no leftover marks from the
+      previous render.
+    - Screenshot `/tmp/v30_drawer_zoom.png` captures the
+      `EU AI Act, Article 50 (1, 2)` drawer with both paragraphs
+      highlighted in yellow across multiple contiguous spans.
+    - One real-data gotcha discovered: the TX HB 149 blob has spacing
+      defects from PDF extraction (`theattorney general` instead of
+      `the attorney general`), which no whitespace-collapsing
+      normaliser can match. Those cells render the article body
+      cleanly but with zero marks — graceful degradation rather than
+      a wrong highlight. Same behaviour for verbatim that says
+      "more than 50 people" against article text "more than fifty
+      people" (number vs word). These are source-text issues, not
+      verifier bugs; the acceptance criterion is "lenient" (whitespace
+      / quote variants), not "fuzzy".
+- **Learnings:**
+  - **`const`/`let` at script top level are NOT on `window`.** The
+    shell's drawer state (`let drawerCurrentDimId`,
+    `let drawerCurrentJuris`) and the `const CONCEPTS = [...]` data
+    blob are unreachable via `window.xxx`. Wrappers that need that
+    state must take it from the *parameters* of the function they wrap
+    — `window.updateDrawerContent(dim, juris, sc, c)` is the right
+    contract. The v30 highlight patch silently no-op'd until I switched
+    from `window.drawerCurrentDimId` to using the wrapper's `dim`/`juris`
+    arguments directly.
+  - **Browse-tool `js` runs in an isolated world.** Bare identifiers
+    like `getConcept`, `state`, `CONCEPTS` are not visible — only
+    `document`, `window`, and standard globals. Page-defined `function`
+    declarations attach to `window` and ARE reachable; `const`/`let`
+    declarations are not. Always reach for `window.xxx` from `$B js`,
+    and accept that page-private state is fundamentally unreachable
+    until you wire it through `window` or function args.
+  - **Cross-text-node ranges need a flat-text-with-index-map.** The
+    article body has multiple text nodes per paragraph (one for the
+    `<span class="v29-marker">(c)</span>` and one for the trailing
+    text). Verbatim that spans them needs a single normalised string
+    over the whole `.v29-art-body`, with `(node, offset)` pointers
+    back to the original DOM. Then `indexOf` finds the match and
+    `_wrapRange` walks the slice list, wrapping each portion in its
+    own `<mark>` (processed in reverse order so earlier slice
+    references stay valid as later siblings are replaced). See
+    `_buildFlatText` / `_wrapRange` in the v30 block for the working
+    pattern.
+  - **Sentence splitting must understand enumerated-clause boundaries.**
+    Adding `(?<=[;:])\s+(?=\(|[A-Z])` to the splitter regex (alongside
+    the standard `(?<=[.!?])\s+(?=…[A-Z])`) bumped the NY S8828
+    "Catastrophic risk" cell from 0 marks to 1 — the verbatim is one
+    long sentence with `:(I) … ;(II) … ;(III) …` clauses, each of
+    which is a separate paragraph in the article body.
+  - **Don't fight the source data.** Some matching gaps are bugs in the
+    upstream PDF/Word ingestion pipeline (TX HB 149 missing spaces,
+    NY S8828 spelling out "fifty" while the verbatim uses "50"). The
+    right call is graceful degradation — render the article without
+    marks rather than reaching for fuzzy similarity that would
+    introduce false positives. Document the gap; let it surface in
+    QA where someone can fix the source.
+---
+
 
 
