@@ -111,7 +111,7 @@
         </div>
         <a id="hf-button" class="hf-btn" target="_blank">🤗</a>
     </div>
-    <div id="data-source-info" style="font-size:11px; color:#888; padding:4px 12px;">Loading…</div>
+    <div id="data-source-info" style="font-size:11px; color:#888; padding:4px 12px; text-align:center;">Loading…</div>
 
     <div class="diagram" id="diagram">
         <p class="empty">Select a model</p>
@@ -842,11 +842,13 @@
         const DATA_SOURCES = (() => {
             const params = new URLSearchParams(window.location.search);
             const explicit = params.get('src');
+            const fileParam = params.get('file');
+            const fileName = fileParam === '1' ? 'results_top10k.json' : 'results_top50.json';
             const candidates = [];
             if (explicit) candidates.push(explicit);
             //candidates.push('../database/results.json');
             //candidates.push('database/results.json');
-            candidates.push('https://huggingface.co/datasets/Franri/model-chips-data/resolve/main/results_top50.json');
+            candidates.push('https://huggingface.co/datasets/Franri/model-chips-data/resolve/main/' + fileName);
             return candidates;
         })();
 
@@ -931,7 +933,6 @@
             }
             h += '</div>';
 
-            // ── Connector: Model Card → GitHub Resolution ──
             const numGhCandidates = (gr.candidate_links || []).length;
             if (numGhCandidates > 0) {
                 h += connector([{ text: `${numGhCandidates} GitHub link${numGhCandidates > 1 ? 's' : ''} found in model card`, cls: '' }]);
@@ -972,7 +973,6 @@
             }
             h += '</div>';
 
-            // ── Connector: GitHub Resolution → GitHub Code Analysis ──
             if (hasGithub) {
                 const connLabels = [];
                 if (gr.source === 'llm') {
@@ -1010,7 +1010,6 @@
             }
             h += '</div>';
 
-            // ── Connector: GitHub Code → ArXiv Paper ──
             const numAxCandidates = (ar.candidate_links || []).length;
             if (numAxCandidates > 0) {
                 h += connector([{ text: `${numAxCandidates} arXiv paper${numAxCandidates > 1 ? 's' : ''} found in model card`, cls: '' }]);
@@ -1025,7 +1024,6 @@
             if (numAxCandidates === 0) {
                 h += '<div style="color:#aaa;font-style:italic">Skipped — no arXiv papers found</div>';
             } else {
-                // Show selected paper
                 if (hasArxiv) {
                     const paperLink = ar.selected_link;
                     const paperId = paperLink.replace('https://arxiv.org/abs/', '');
