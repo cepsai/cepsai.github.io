@@ -5,6 +5,19 @@ after each iteration and it's included in prompts for context.
 
 ## Codebase Patterns (Study These First)
 
+- **The v29 (and v28) HTML embeds all data as a `const CONCEPTS = [...]`
+  JSON literal inside a `<script>` tag.** Use BeautifulSoup to find the
+  right `<script>` element (iterate `soup.find_all("script")` and pick the
+  one whose body contains `"const CONCEPTS = "`), then a small depth-tracking
+  scanner over the script body to balance `[`/`]` (skipping `[`/`]` that
+  appear inside `"..."` JSON strings, and respecting `\\` escapes). The
+  enclosed span parses cleanly with `json.loads` — the build script emits
+  `json.dumps` output, so no JS-to-JSON translation is needed.
+- **Concept JSON shape:** `concept.sub_concepts[].dimensions[].cells[jid]`
+  with `cell.analysis`, `cell.verbatim`, `cell.reference`. Per-jurisdiction
+  display terms live in `sub_concept.jurisdictions[jid].term`; fall back to
+  `sub_concept.title` when missing. The same dim-label can appear twice
+  (e.g. duplicated "Term" rows), so prefer `dim.id` for cell lookup.
 - **Reuse `build_reference_lookup.parse_atomic` for citation parsing.** It
   already maps things like `EU AI Act, Article 6(1)` / `Colorado SB 24-205,
   §6-1-1701` / `(GL, (17))` to canonical `(law_id, article_id)` tuples and
@@ -68,5 +81,55 @@ after each iteration and it's included in prompts for context.
     swap NaN for None across all columns at once. `df.fillna(None)` does
     not work because pandas re-coerces None back to NaN when the dtype is
     numeric.
+---
+
+## 2026-05-01 - US-002
+- Implemented `iterations/parse_v29.py` exposing `parse_v29()` which returns a
+  pandas DataFrame keyed by `(term, analysis_text, law_id, article_id)` (plus
+  `concept_id`, `sub_concept_id`, `jurisdiction`, `dim_id`, `dim_label`,
+  `reference` for downstream verification).
+- The parser uses BeautifulSoup (`html.parser`) to locate the `<script>`
+  element that defines `const CONCEPTS = ...`, then a depth-tracking scanner
+  to extract the JSON-literal span and `json.loads` it directly. Cells whose
+  `reference` field has multiple semicolon-joined atomic citations are
+  exploded into one row per `(law_id, article_id)`. Cells with an analysis
+  but no parseable reference still emit a single None-law row.
+- Added `iterations/test_parse_v29.py` (15 tests, all passing). Tests cover:
+  pure helpers, BeautifulSoup-based extraction (including `[` inside JSON
+  strings), schema, no `"nan"` strings leaking, exact analysis-text
+  round-trip, multi-article fan-out, and known v29 spot checks.
+- Files changed/created:
+  - `iterations/parse_v29.py` (new)
+  - `iterations/test_parse_v29.py` (new)
+- Validation:
+  - `python3 iterations/parse_v29.py` runs end-to-end and reports
+    563 rows, 406 unique analyses, 13 unique laws referenced, 29 unique
+    terms, 415 rows with article_id.
+  - `python3 -m pytest iterations/` — 121 passed, 2 failures
+    (`test_lexicon_v17.py::test_v17_static_structure`,
+    `test_lexicon_v29.py::test_home_text_from_xlsx`) are the same pre-
+    existing failures noted in US-001 and unrelated to US-002.
+  - `python3 iterations/audit_excel_correspondence.py` runs end-to-end and
+    writes its markdown + CSV reports. Exit code is 1 because of the same
+    pre-existing v28 HTML ↔ Excel discrepancies that existed before
+    (same as US-001's run — verified by stashing this branch's changes and
+    re-running).
+- **Learnings:**
+  - The legacy audit script's manual JSON extractor (depth-tracking over the
+    raw HTML text) is correct, but BeautifulSoup is a stronger contract for
+    new code — it survives reorderings of `<script>` tags and ignores
+    HTML-level attributes that a raw `text.find` would be sensitive to. The
+    depth scanner still needs to live on top of bs4's script-body string,
+    because the JSON literal is embedded in a wider JS file (other top-level
+    statements follow the `]`).
+  - Inside `_explode_reference`, dedupe `(law, anchor)` per cell — otherwise
+    references like `"AIA Article 6(1), (2)"` (article 6, paragraphs 1 and 2)
+    that are both written as one `Article 6` atomic citation by `parse_atomic`
+    plus an article 6 paragraph variant don't generate phantom duplicate
+    rows. parse_atomic's article match collapses paragraph tails into a
+    single article anchor anyway, so the dedupe is mostly belt-and-braces.
+  - `BeautifulSoup` `script.string` returns `None` when the script element
+    has multiple text-node children (rare but possible if there's a comment
+    inside). Falling back to `script.get_text()` covers that case.
 ---
 
