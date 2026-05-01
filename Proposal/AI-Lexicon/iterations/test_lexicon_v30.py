@@ -318,16 +318,17 @@ def test_normalize_covers_required_lenient_cases():
 # --------------------------------------------------------------------------- #
 
 def test_us008_block_size_reasonable():
-    """Sanity check on size — keeps the inlined feature under 8 KB so
-    we don't bloat the artefact unnecessarily."""
+    """Sanity check on the cumulative inline blocks added on top of the
+    v29-corrected baseline. US-008 (verbatim highlight) + US-009 (auto-
+    correct + JSON island) together stay under 64 KB."""
     v30 = HTML.read_bytes()
     base = V29_CORRECTED.read_bytes()
     delta = len(v30) - len(base)
     assert delta > 0
-    # Allow up to 12 KB so we have headroom for future small tweaks
+    # Allow up to 64 KB so US-008 and US-009 + future small tweaks fit
     # without tripping this guard.
-    assert delta < 12 * 1024, (
-        f"US-008 added {delta} bytes — keep the inline block under 12 KB."
+    assert delta < 64 * 1024, (
+        f"v30 inline blocks added {delta} bytes — keep cumulative under 64 KB."
     )
 
 

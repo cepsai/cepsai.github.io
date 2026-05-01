@@ -4297,5 +4297,319 @@ mark.v30-verbatim-mark:focus{outline:2px solid var(--accent);outline-offset:1px}
 })();
 </script>
 
+
+<script type="application/json" id="v30-autocorrect-data">{"threshold":65.0,"lookup":{"provider-developer|provider-of-general-purpose-ai-models-with-systemic-risk|risk-management-7-0|ny-1-large-frontier-developer":{"from_anchor":"1422","from_label":"NY S8828 §1422","to_anchor":"1421","to_label":"NY S8828 §1421","law":"ny-s8828","kind":"section","score":68.9},"provider-developer|provider-of-general-purpose-ai-models-with-systemic-risk|risk-management-7-0|ny-2-large-developer":{"from_anchor":"1422","from_label":"NY A6453 §1422","to_anchor":"1421","to_label":"NY A6453 §1421","law":"ny-a6453","kind":"section","score":89.4},"provider-developer|provider-of-general-purpose-ai-models-with-systemic-risk|risk-management-reporting-9-0|ny-2-large-developer":{"from_anchor":"1422","from_label":"NY A6453 §1422","to_anchor":"1425","to_label":"NY A6453 §1425","law":"ny-a6453","kind":"section","score":100.0},"deployer-supplier|deployer-of-general-purpose-ai-systems|scope-1-0|ut":{"from_anchor":"13-75-101","from_label":"Utah Code; Utah SB226, 13-75-101. (4)","to_anchor":"13-75-103","to_label":"UT SB 226 §13-75-103","law":"ut-sb226","kind":"section","score":71.2},"incident|serious-incident|term-0-0|ca":{"from_anchor":"22757.11","from_label":"CA SB 53 §22757.11(d)","to_anchor":"22757.13","to_label":"CA SB 53 §22757.13","law":"ca-sb53","kind":"section","score":100.0}}}</script>
+<style data-block="us-009">
+/* US-009 — auto-correct note shown when the analysis cell had no
+   verbatim row and a similarity search picked a better article. */
+.v30-autocorrect-note{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  margin:0 0 14px;
+  padding:10px 14px;
+  background:#FFF8E1;
+  border:1px solid #E6C36A;
+  border-left:4px solid #B8943E;
+  border-radius:6px;
+  font-family:var(--sans);
+  font-size:13px;
+  color:#4F3D14;
+  line-height:1.55;
+  position:relative;
+  cursor:help;
+}
+.v30-autocorrect-note .v30-ac-icon{
+  flex:0 0 auto;
+  width:18px;
+  height:18px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  background:#B8943E;
+  color:#fff;
+  font-weight:700;
+  font-size:11px;
+  margin-top:1px;
+}
+.v30-autocorrect-note .v30-ac-text{flex:1 1 auto}
+.v30-autocorrect-note strong{font-weight:600;color:#4F3D14}
+.v30-autocorrect-note code{
+  font-family:var(--mono);
+  background:rgba(184,148,62,.18);
+  padding:1px 5px;
+  border-radius:3px;
+  font-size:12px;
+}
+.v30-autocorrect-popup{
+  position:absolute;
+  top:calc(100% + 6px);
+  left:0;
+  background:var(--ink);
+  color:#fff;
+  font-family:var(--sans);
+  font-size:12px;
+  line-height:1.55;
+  padding:10px 14px;
+  border-radius:6px;
+  max-width:360px;
+  z-index:600;
+  box-shadow:0 4px 16px rgba(0,0,0,.18);
+  display:none;
+  pointer-events:none;
+}
+.v30-autocorrect-popup::before{
+  content:"";
+  position:absolute;
+  top:-6px;
+  left:18px;
+  border:6px solid transparent;
+  border-top:0;
+  border-bottom-color:var(--ink);
+}
+.v30-autocorrect-note:hover .v30-autocorrect-popup,
+.v30-autocorrect-note:focus-within .v30-autocorrect-popup,
+.v30-autocorrect-note.v30-ac-open .v30-autocorrect-popup{display:block}
+</style>
+<script data-block="us-009">
+/* US-009 — when the clicked analysis cell has no verbatim row, override
+   the rendered law article with the best similarity match (pre-computed
+   at build time and inlined as JSON). Show a styled custom popup note
+   reading 'Article auto-corrected from X to Y'.
+
+   The hook wraps window.updateDrawerContent (after the v29 + v30 (US-008)
+   chains have already wrapped it). It mutates dim.cells[juris].reference
+   *before* delegating, so the v29 article-render pipeline naturally
+   resolves the corrected anchor. The original reference is restored
+   afterwards so the override is per-click rather than persistent.
+*/
+(function(){
+  var DATA_ID = "v30-autocorrect-data";
+  var NOTE_CLASS = "v30-autocorrect-note";
+  var POPUP_CLASS = "v30-autocorrect-popup";
+  var FLAG = "__v30_autocorrect_patched";
+  var data = null;
+
+  function _loadData(){
+    if (data !== null) return data;
+    var el = document.getElementById(DATA_ID);
+    if (!el){ data = {threshold: 70, lookup: {}}; return data; }
+    try {
+      data = JSON.parse(el.textContent || "{}");
+    } catch (e){
+      console.warn("v30 autocorrect: malformed JSON island", e);
+      data = {threshold: 70, lookup: {}};
+    }
+    if (!data.lookup) data.lookup = {};
+    return data;
+  }
+
+  function _key(cid, sid, dimId, jid){
+    return cid + "|" + sid + "|" + dimId + "|" + jid;
+  }
+
+  function _lookup(cid, sid, dimId, jid){
+    var lk = _loadData().lookup;
+    return lk[_key(cid, sid, dimId, jid)] || null;
+  }
+
+  function _renderNote(correction){
+    // Build the note element — uses styled popup, NOT title attribute.
+    var note = document.createElement("div");
+    note.className = NOTE_CLASS;
+    note.setAttribute("role", "note");
+    note.setAttribute("tabindex", "0");
+    note.setAttribute(
+      "aria-label",
+      "Article auto-corrected from " + correction.from_label +
+      " to " + correction.to_label
+    );
+
+    var icon = document.createElement("span");
+    icon.className = "v30-ac-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "i";
+    note.appendChild(icon);
+
+    var msg = document.createElement("span");
+    msg.className = "v30-ac-text";
+    msg.appendChild(document.createTextNode("Article auto-corrected from "));
+    var fromCode = document.createElement("code");
+    fromCode.textContent = correction.from_label;
+    msg.appendChild(fromCode);
+    msg.appendChild(document.createTextNode(" to "));
+    var toCode = document.createElement("code");
+    toCode.textContent = correction.to_label;
+    msg.appendChild(toCode);
+    msg.appendChild(document.createTextNode("."));
+    note.appendChild(msg);
+
+    var popup = document.createElement("div");
+    popup.className = POPUP_CLASS;
+    popup.setAttribute("role", "tooltip");
+    var pct = (correction.score != null)
+      ? (Math.round(correction.score * 10) / 10).toFixed(1) + "%"
+      : "n/a";
+    popup.textContent =
+      "No verbatim entry exists for this term in the linked law. " +
+      "A similarity search picked the best-matching article in the " +
+      "same law (token-overlap score " + pct + "). The originally " +
+      "linked article was \"" + correction.from_label + "\".";
+    note.appendChild(popup);
+
+    // Toggle on focus (keyboard) so screen-reader users can dismiss.
+    note.addEventListener("click", function(){
+      note.classList.toggle("v30-ac-open");
+    });
+    note.addEventListener("blur", function(){
+      note.classList.remove("v30-ac-open");
+    });
+
+    return note;
+  }
+
+  function _stripExistingNote(container){
+    if (!container) return;
+    var prev = container.querySelectorAll("." + NOTE_CLASS);
+    Array.prototype.forEach.call(prev, function(n){
+      if (n.parentNode) n.parentNode.removeChild(n);
+    });
+  }
+
+  function _registerSyntheticRefs(lookup){
+    // The v29 article-render pipeline resolves cell.reference via
+    // window.REF_MAP. To swap in our corrected article we register a
+    // synthetic REF_MAP entry keyed on the corrected to_label, pointing
+    // at the law / anchor we want rendered. Pre-existing keys are
+    // never overwritten — if the to_label already resolves to the same
+    // (law, anchor), keep the original; if it points elsewhere we
+    // generate a uniquified key so we don't break any other cell.
+    if (!window.REF_MAP) window.REF_MAP = {};
+    Object.keys(lookup).forEach(function(k){
+      var c = lookup[k];
+      var entry = {
+        law: c.law,
+        kind: c.kind,
+        anchor: c.to_anchor,
+        paragraphs: [],
+        subparagraphs: []
+      };
+      var existing = window.REF_MAP[c.to_label];
+      if (!existing){
+        window.REF_MAP[c.to_label] = entry;
+        c.__refkey = c.to_label;
+        return;
+      }
+      if (existing.law === c.law && String(existing.anchor) === String(c.to_anchor)){
+        c.__refkey = c.to_label;
+        return;
+      }
+      // Collision — use a uniquified synthetic key. The user-visible
+      // citation header will fall back to the synthetic key in that
+      // edge case, but the underlying article still renders correctly.
+      var syn = c.to_label + " (auto-corrected)";
+      window.REF_MAP[syn] = entry;
+      c.__refkey = syn;
+    });
+  }
+
+  function _install(){
+    if (typeof window.updateDrawerContent !== "function") return;
+    if (window[FLAG]) return;
+    // Wait for the v29 article-render and US-008 highlight wrappers to
+    // install first — we need to be the OUTERMOST wrapper so that
+    // ``cell.reference`` mutations propagate down through both before
+    // v29 reads them in ``_renderDrawerArticles``. If either flag is
+    // missing we'll get retried via the setTimeout cascade below.
+    if (!window.__v29_udc_patched || !window.__v30_highlight_patched){
+      return;
+    }
+    window[FLAG] = true;
+    _registerSyntheticRefs(_loadData().lookup || {});
+    var orig = window.updateDrawerContent;
+    window.updateDrawerContent = function(dim, juris, sc, c){
+      var correction = null;
+      var savedRef = null;
+      var didOverride = false;
+      try {
+        if (dim && sc && c && juris && dim.cells && dim.cells[juris]){
+          var cell = dim.cells[juris];
+          // The lookup is the source of truth: it was pre-computed at
+          // build time from the verbatim Excel ground truth, so any
+          // entry here means "this cell has no verbatim row in the
+          // cross-checked data and a higher-similarity article exists
+          // in the same law." We override regardless of whether
+          // ``cell.verbatim`` happens to carry leftover text from the
+          // HTML JSON — the build step already encoded that decision.
+          correction = _lookup(c.id, sc.id, dim.id, juris);
+          if (correction){
+            savedRef = cell.reference;
+            cell.reference = correction.__refkey || correction.to_label;
+            didOverride = true;
+          }
+        }
+      } catch(e){
+        console.warn("v30 autocorrect (pre-render):", e);
+      }
+      try {
+        orig.apply(this, arguments);
+      } finally {
+        if (didOverride){
+          // Restore the original reference so the in-memory CONCEPTS
+          // stay clean for downstream features that read raw
+          // cell.reference (e.g. citation copy).
+          try {
+            if (dim && dim.cells && dim.cells[juris]){
+              dim.cells[juris].reference = savedRef;
+            }
+          } catch(e){
+            console.warn("v30 autocorrect (restore):", e);
+          }
+        }
+      }
+      try {
+        var container = document.getElementById("drawer-verbatim");
+        if (container){
+          // Always strip any leftover note from a prior click so we
+          // never leave a stale "auto-corrected" message behind on
+          // cells that don't have a correction.
+          _stripExistingNote(container);
+          if (correction){
+            var note = _renderNote(correction);
+            // Insert the note ABOVE the article body so it's the
+            // first thing the reader sees. Synchronous insertion is
+            // important so QA assertions immediately after the click
+            // see the note in the DOM.
+            container.insertBefore(note, container.firstChild);
+          }
+        }
+      } catch (e){
+        console.error("v30 autocorrect (post-render):", e);
+      }
+    };
+  }
+
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", _install);
+  } else {
+    _install();
+  }
+  // Defensive re-tries to cover ordering races with v29 / US-008 wrappers.
+  setTimeout(_install, 0);
+  setTimeout(_install, 100);
+  setTimeout(_install, 250);
+
+  // Expose for tests / debugging.
+  window.__v30_autocorrect = {
+    DATA_ID: DATA_ID,
+    NOTE_CLASS: NOTE_CLASS,
+    POPUP_CLASS: POPUP_CLASS,
+    loadData: _loadData,
+    lookup: _lookup,
+    renderNote: _renderNote
+  };
+})();
+</script>
 </body>
 </html>
