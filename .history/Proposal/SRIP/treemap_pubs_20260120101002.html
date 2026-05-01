@@ -1,0 +1,179 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style type="text/css">
+    /* --- STYLES PRESERVED FROM ORIGINAL --- */
+    body { margin: 0; overflow: hidden; height: 100vh; font-family: Arial, sans-serif; background: #ffffff; }
+    .viz-grid { display: grid; grid-template-rows: 16fr 2fr 2fr 1fr; grid-template-columns: 1fr 1fr; height: 100vh; width: 100vw; box-sizing: border-box; }
+    #container1 { grid-row: 1; grid-column: 1 / span 2; overflow: hidden; }
+    #container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; }
+    #container2-5 { grid-row: 3; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px; }
+    #container3 { grid-row: 4; grid-column: 1; display: flex; align-items: center; padding: 0 20px; font-size: 14px; font-weight: 600; }
+    #container4 { grid-row: 4; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; padding: 0 20px; }
+    #treemap { width: 100%; height: 100%; }
+    .logo { height: 24px; }
+    .custom-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 14px; font-weight: 600; }
+    .legend-item { display: flex; align-items: center; gap: 6px; cursor: pointer; transition: opacity 0.2s; }
+    .legend-square { width: 12px; height: 12px; border: 1px solid rgba(0,0,0,0.1); }
+    .button-group { display: flex; border: 1px solid #e0e0e0; border-radius: 2px; overflow: hidden; }
+    .control-btn { padding: 6px 12px; font-size: 9px; font-weight: 600; border: none; background: #fff; cursor: pointer; border-right: 1px solid #e0e0e0; }
+    .control-btn.active { background: #4169E1; color: #fff; }
+    .slider-container { display: flex; align-items: center; gap: 10px; border: 1px solid #e0e0e0; padding: 4px 12px; border-radius: 4px; }
+    .range-wrapper { position: relative; width: 150px; height: 20px; }
+    .year-slider { -webkit-appearance: none; position: absolute; width: 100%; background: transparent; pointer-events: none; margin: 0; top: 50%; transform: translateY(-50%); }
+    .year-slider::-webkit-slider-thumb { -webkit-appearance: none; height: 14px; width: 14px; border-radius: 50%; background: #4169E1; pointer-events: auto; cursor: pointer; }
+    .range-fill { position: absolute; height: 4px; background: #4169E1; top: 50%; transform: translateY(-50%); border-radius: 2px; }
+    .year-value { font-size: 12px; font-weight: 700; color: #4169E1; width: 35px; }
+  </style>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+
+<body>
+  <div class="viz-grid">
+    <div id="container1"><div id="treemap"></div></div>
+    <div id="container2"><div class="custom-legend" id="legend"></div></div>
+    <div id="container2-5">
+      <div class="slider-container">
+        <span class="year-value" id="year-start-val">2000</span>
+        <div class="range-wrapper">
+          <div class="range-fill" id="range-fill"></div>
+          <input type="range" id="slider-start" class="year-slider" min="2000" max="2025" value="2000">
+          <input type="range" id="slider-end" class="year-slider" min="2000" max="2025" value="2025">
+        </div>
+        <span class="year-value" id="year-end-val">2025</span>
+      </div>
+      <div class="button-group" id="limit-group">
+        <button class="control-btn active" data-limit="50">50</button>
+        <button class="control-btn" data-limit="100">100</button>
+        <button class="control-btn" data-limit="all">ALL</button>
+      </div>
+      <div class="button-group" id="category-group">
+        <button class="control-btn" data-cat="countries">COUNTRIES</button>
+        <button class="control-btn active" data-cat="cities">CITIES</button>
+      </div>
+    </div>
+    <div id="container3">Source: <a href="https://openalex.org/" target="_blank" style="color:#2756d3; margin-left:5px;">OpenAlex</a></div>
+    <div id="container4"><img src="https://aiworld.eu/logo-transparent.svg" class="logo"></div>
+  </div>
+
+  <script>
+    /* --- OPTIMIZED DATA STORE --- */
+    // Instead of fetching multiple times, we store data in a flat, searchable format.
+    // In a real scenario, you'd paste your full OpenAlex JSON array here.
+    const rawData = [
+      { city: "Beijing", country: "China", region: "China", year: 2024, count: 45000 },
+      { city: "Boston", country: "US", region: "US", year: 2024, count: 28000 },
+      { city: "London", country: "United Kingdom", region: "United Kingdom", year: 2024, count: 25000 },
+      { city: "Paris", country: "France", region: "EU", year: 2024, count: 19000 },
+      { city: "Shanghai", country: "China", region: "China", year: 2023, count: 31000 },
+      { city: "Berlin", country: "Germany", region: "EU", year: 2023, count: 14000 },
+      // ... (Rest of your OpenAlex data)
+    ];
+
+    let currentLimit = 50;
+    let currentCategory = 'cities'; // 'cities' or 'countries'
+    let startYear = 2000;
+    let endYear = 2025;
+    let activeRegions = new Set(["US", "China", "EU", "United Kingdom", "Rest of the world"]);
+
+    const regionColors = {
+      "US": "#ec787a", "China": "#fadb56", "EU": "#f5ae6c",
+      "United Kingdom": "#887aa5", "Rest of the world": "#81b29a"
+    };
+
+    /* --- CORE LOGIC --- */
+    const treemap = new d3plus.Treemap()
+      .select("#treemap")
+      .groupBy(["parent", "name"])
+      .sum("value")
+      .legend(false)
+      .layoutPadding(2)
+      .color(d => regionColors[d.parent] || "#7a98ad")
+      .label(d => `${d.name}\n${d3.format(".2s")(d.value)}`);
+
+    function update() {
+      // 1. Filter by Year Range and Region
+      let filtered = rawData.filter(d => 
+        d.year >= startYear && 
+        d.year <= endYear && 
+        activeRegions.has(d.region)
+      );
+
+      // 2. Aggregate by Category (City or Country)
+      let aggregated = {};
+      filtered.forEach(d => {
+        let key = currentCategory === 'cities' ? d.city : d.country;
+        if (!aggregated[key]) {
+          aggregated[key] = { name: key, parent: d.region, value: 0 };
+        }
+        aggregated[key].value += d.count;
+      });
+
+      let plotData = Object.values(aggregated)
+        .sort((a, b) => b.value - a.value);
+
+      // 3. Apply Limit
+      if (currentLimit !== 'all') {
+        plotData = plotData.slice(0, parseInt(currentLimit));
+      }
+
+      treemap.data(plotData).render();
+    }
+
+    /* --- UI CONTROLS --- */
+    function initUI() {
+      // Legend
+      const legendDiv = document.getElementById('legend');
+      Object.keys(regionColors).forEach(reg => {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = `<div class="legend-square" style="background:${regionColors[reg]}"></div>${reg}`;
+        item.onclick = () => {
+          if (activeRegions.has(reg)) { activeRegions.delete(reg); item.style.opacity = 0.3; }
+          else { activeRegions.add(reg); item.style.opacity = 1; }
+          update();
+        };
+        legendDiv.appendChild(item);
+      });
+
+      // Buttons
+      document.querySelectorAll('.control-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          const parent = e.target.parentElement;
+          parent.querySelectorAll('.control-btn').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          
+          if (e.target.dataset.limit) currentLimit = e.target.dataset.limit;
+          if (e.target.dataset.cat) currentCategory = e.target.dataset.cat;
+          update();
+        };
+      });
+
+      // Sliders
+      const s1 = document.getElementById('slider-start');
+      const s2 = document.getElementById('slider-end');
+      const fill = document.getElementById('range-fill');
+      
+      const updateSliders = () => {
+        let v1 = parseInt(s1.value);
+        let v2 = parseInt(s2.value);
+        if (v1 > v2) [v1, v2] = [v2, v1];
+        startYear = v1; endYear = v2;
+        document.getElementById('year-start-val').innerText = v1;
+        document.getElementById('year-end-val').innerText = v2;
+        fill.style.left = ((v1 - 2000) / 25 * 100) + "%";
+        fill.style.width = ((v2 - v1) / 25 * 100) + "%";
+        update();
+      };
+
+      s1.oninput = updateSliders;
+      s2.oninput = updateSliders;
+      updateSliders();
+    }
+
+    initUI();
+  </script>
+</body>
+</html>

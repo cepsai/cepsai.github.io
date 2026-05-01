@@ -10,10 +10,13 @@ import pandas as pd
 import pytest
 
 from load_lexicon_sources import DEFAULT_ANALYSIS, DEFAULT_VERBATIM
-from parse_v29 import DEFAULT_HTML
+from parse_v29 import DEFAULT_HTML, _extract_concepts_json
 from verify_lexicon import (
     ALL_LINK_STATUSES,
     ALL_STATUSES,
+    CORRECTION_KIND_ANALYSIS,
+    CORRECTION_KIND_LINK,
+    CORRECTION_KIND_SKIPPED,
     FILTER_BUTTONS,
     STATUS_MATCH,
     STATUS_MISMATCH,
@@ -26,15 +29,26 @@ from verify_lexicon import (
     VERBATIM_CELLS,
     VERIFY_COLUMNS,
     _aggregate_link_status,
+    _apply_correction,
+    _build_verbatim_indices,
     _classify,
     _classify_link,
+    _compute_corrections,
+    _extract_concepts_span,
+    _find_cell,
     _format_links,
     _format_statuses,
+    _inject_summary_block,
     _link_summary_counts,
+    _render_summary_block,
+    _replace_id_in_atom,
     _resolve_excel_cell,
     _row_filter_tags,
     _row_payload,
+    _serialize_concepts,
+    _substitute_article_in_reference,
     _summary_counts,
+    build_corrected_html,
     normalize_whitespace,
     render_html_report,
     render_markdown_report,
@@ -710,3 +724,430 @@ def test_writes_md_and_html_with_real_data(vdf, tmp_path: Path):
     )
     payload = json.loads(m.group(1).replace("<\\/", "</"))
     assert len(payload) == len(vdf)
+
+
+# --------------------------------------------------------------------------- #
+# US-006 — v29-corrected.html builder                                         #
+# --------------------------------------------------------------------------- #
+
+# Pure helpers — no I/O ----------------------------------------------------- #
+
+def test_extract_concepts_span_returns_indices_that_round_trip():
+    """The (start, end) span must point at a JSON literal that re-parses to
+    the same data."""
+    sample = '<html><body><script>const CONCEPTS = [{"a":1},{"b":2}];\nconst X = 0;</script></body></html>'
+    concepts, start, end = _extract_concepts_span(sample)
+    assert concepts == [{"a": 1}, {"b": 2}]
+    assert sample[start:end] == '[{"a":1},{"b":2}]'
+
+
+def test_extract_concepts_span_handles_brackets_in_strings():
+    """Brackets that appear inside JSON strings must not break depth counting."""
+    sample = 'x const CONCEPTS = [{"s":"]"}]; trailing'
+    concepts, start, end = _extract_concepts_span(sample)
+    assert concepts == [{"s": "]"}]
+    assert sample[start:end] == '[{"s":"]"}]'
+
+
+def test_extract_concepts_span_raises_when_not_present():
+    with pytest.raises(ValueError, match="not found"):
+        _extract_concepts_span("<html><body>no script here</body></html>")
+
+
+def test_serialize_concepts_uses_compact_separators():
+    out = _serialize_concepts([{"a": 1, "b": [2, 3]}])
+    assert out == '[{"a":1,"b":[2,3]}]'
+
+
+def test_replace_id_in_atom_article():
+    out = _replace_id_in_atom("AIA Article 6(1)", "article", "6", "9")
+    assert out == "AIA Article 9(1)"
+
+
+def test_replace_id_in_atom_section_does_not_partial_match():
+    """Section ids are distinctive — substituting '6-1-1701' must not also
+    swallow the head of a longer id like '6-1-1701.5'."""
+    out = _replace_id_in_atom(
+        "Colorado SB 24-205, §6-1-1701", "section", "6-1-1701", "6-1-1702",
+    )
+    assert out == "Colorado SB 24-205, §6-1-1702"
+
+
+def test_replace_id_in_atom_unknown_kind_returns_original():
+    assert _replace_id_in_atom("foo", "mystery", "6", "9") == "foo"
+
+
+def test_substitute_article_in_reference_swaps_matching_atom_only():
+    ref = "AIA Article 6(1); AIA Article 50"
+    out = _substitute_article_in_reference(ref, "eu-ai-act", "6", "9")
+    assert out == "AIA Article 9(1); AIA Article 50"
+
+
+def test_substitute_article_in_reference_preserves_separators():
+    """Whitespace around `;` must round-trip exactly."""
+    ref = "AIA Article 6(1); AIA Article 16"
+    out = _substitute_article_in_reference(ref, "eu-ai-act", "16", "17")
+    assert out == "AIA Article 6(1); AIA Article 17"
+    ref2 = "AIA Article 6 ;AIA Article 16"
+    out2 = _substitute_article_in_reference(ref2, "eu-ai-act", "16", "17")
+    assert out2 == "AIA Article 6 ;AIA Article 17"
+
+
+def test_substitute_article_in_reference_no_match_returns_unchanged():
+    ref = "Texas HB 149, §552.001"
+    out = _substitute_article_in_reference(ref, "eu-ai-act", "6", "9")
+    assert out == ref
+
+
+# Correction computation ---------------------------------------------------- #
+
+def _toy_correction_inputs():
+    by_block = {("Provider_Developer", "EU"): "Provider"}
+    by_term = {
+        "Provider": {("eu-ai-act", "6"), ("eu-ai-act", "16")},
+    }
+    return by_block, by_term
+
+
+def test_compute_corrections_emits_analysis_for_each_mismatch():
+    df = pd.DataFrame([{
+        "status": STATUS_MISMATCH,
+        "concept_id": "c", "sub_concept_id": "s", "jid": "eu",
+        "dim_label": "Definition",
+        "term_html": "X", "term_excel": "X",
+        "html_analysis": "old", "excel_analysis": "new",
+        "sheet": None, "addr": None,
+        "linked_articles": None, "link_statuses": None,
+        "link_status": None,
+    }], columns=VERIFY_COLUMNS)
+    by_block, by_term = _toy_correction_inputs()
+    out = _compute_corrections(df, by_block, by_term)
+    assert len(out) == 1
+    c = out[0]
+    assert c["kind"] == CORRECTION_KIND_ANALYSIS
+    assert c["new_text"] == "new"
+    assert c["old_text"] == "old"
+
+
+def test_compute_corrections_skips_mismatch_with_blank_excel_text():
+    """A mismatch row whose excel_analysis is blank can't produce a fix."""
+    df = pd.DataFrame([{
+        "status": STATUS_MISMATCH,
+        "concept_id": "c", "sub_concept_id": "s", "jid": "eu",
+        "dim_label": "Definition",
+        "term_html": "X", "term_excel": "X",
+        "html_analysis": "old", "excel_analysis": "   ",
+        "sheet": None, "addr": None,
+        "linked_articles": None, "link_statuses": None,
+        "link_status": None,
+    }], columns=VERIFY_COLUMNS)
+    by_block, by_term = _toy_correction_inputs()
+    assert _compute_corrections(df, by_block, by_term) == []
+
+
+def test_compute_corrections_emits_link_when_unique_candidate():
+    df = pd.DataFrame([{
+        "status": STATUS_MATCH,
+        "concept_id": "provider-developer",
+        "sub_concept_id": "provider", "jid": "eu",
+        "dim_label": "Transparency",
+        "term_html": "Provider", "term_excel": "Provider",
+        "html_analysis": "ok", "excel_analysis": "ok",
+        "sheet": None, "addr": None,
+        "linked_articles": "eu-ai-act:9",
+        "link_statuses": STATUS_WRONG_ARTICLE,
+        "link_status": STATUS_WRONG_ARTICLE,
+    }], columns=VERIFY_COLUMNS)
+    # Only one candidate other than 9: but our toy has both 6 and 16 — that's
+    # ambiguous. Narrow to one.
+    by_block = {("Provider_Developer", "EU"): "Provider"}
+    by_term = {"Provider": {("eu-ai-act", "6")}}
+    out = _compute_corrections(df, by_block, by_term)
+    assert len(out) == 1
+    assert out[0]["kind"] == CORRECTION_KIND_LINK
+    assert out[0]["new_article"] == "6"
+    assert out[0]["law"] == "eu-ai-act"
+    assert out[0]["old_article"] == "9"
+
+
+def test_compute_corrections_emits_skipped_when_ambiguous_candidates():
+    df = pd.DataFrame([{
+        "status": STATUS_MATCH,
+        "concept_id": "provider-developer",
+        "sub_concept_id": "provider", "jid": "eu",
+        "dim_label": "Transparency",
+        "term_html": "Provider", "term_excel": "Provider",
+        "html_analysis": "ok", "excel_analysis": "ok",
+        "sheet": None, "addr": None,
+        "linked_articles": "eu-ai-act:9",
+        "link_statuses": STATUS_WRONG_ARTICLE,
+        "link_status": STATUS_WRONG_ARTICLE,
+    }], columns=VERIFY_COLUMNS)
+    by_block, by_term = _toy_correction_inputs()  # has both 6 and 16
+    out = _compute_corrections(df, by_block, by_term)
+    assert len(out) == 1
+    assert out[0]["kind"] == CORRECTION_KIND_SKIPPED
+    assert out[0]["reason"] == "ambiguous"
+    assert sorted(out[0]["candidates"]) == ["16", "6"]
+
+
+def test_compute_corrections_ignores_verbatim_found_links():
+    """Only wrong_article should generate a correction; verbatim_found is
+    already correct."""
+    df = pd.DataFrame([{
+        "status": STATUS_MATCH,
+        "concept_id": "provider-developer",
+        "sub_concept_id": "provider", "jid": "eu",
+        "dim_label": "Transparency",
+        "term_html": "Provider", "term_excel": "Provider",
+        "html_analysis": "ok", "excel_analysis": "ok",
+        "sheet": None, "addr": None,
+        "linked_articles": "eu-ai-act:6",
+        "link_statuses": STATUS_VERBATIM_FOUND,
+        "link_status": STATUS_VERBATIM_FOUND,
+    }], columns=VERIFY_COLUMNS)
+    by_block, by_term = _toy_correction_inputs()
+    assert _compute_corrections(df, by_block, by_term) == []
+
+
+# Apply ---------------------------------------------------------------------- #
+
+def _toy_concepts():
+    return [{
+        "id": "c1",
+        "sub_concepts": [{
+            "id": "s1",
+            "dimensions": [
+                {
+                    "id": "d1", "label": "Definition",
+                    "cells": {
+                        "eu": {
+                            "analysis": "old analysis",
+                            "verbatim": "x",
+                            "reference": "AIA Article 6(1)",
+                        },
+                    },
+                },
+            ],
+        }],
+    }]
+
+
+def test_find_cell_returns_dict_when_present():
+    cell = _find_cell(_toy_concepts(), "c1", "s1", "eu", "Definition")
+    assert cell and cell["analysis"] == "old analysis"
+
+
+def test_find_cell_returns_none_when_missing():
+    assert _find_cell(_toy_concepts(), "c1", "s1", "us", "Definition") is None
+    assert _find_cell(_toy_concepts(), "c1", "s2", "eu", "Definition") is None
+    assert _find_cell(_toy_concepts(), None, "s1", "eu", "Definition") is None
+
+
+def test_apply_correction_replaces_analysis_text():
+    concepts = _toy_concepts()
+    ok = _apply_correction(concepts, {
+        "kind": CORRECTION_KIND_ANALYSIS,
+        "cid": "c1", "sid": "s1", "jid": "eu", "dim_label": "Definition",
+        "old_text": "old analysis", "new_text": "fresh from Excel",
+    })
+    assert ok
+    cell = _find_cell(concepts, "c1", "s1", "eu", "Definition")
+    assert cell["analysis"] == "fresh from Excel"
+
+
+def test_apply_correction_swaps_article_in_reference():
+    concepts = _toy_concepts()
+    ok = _apply_correction(concepts, {
+        "kind": CORRECTION_KIND_LINK,
+        "cid": "c1", "sid": "s1", "jid": "eu", "dim_label": "Definition",
+        "law": "eu-ai-act", "old_article": "6", "new_article": "9",
+    })
+    assert ok
+    cell = _find_cell(concepts, "c1", "s1", "eu", "Definition")
+    assert cell["reference"] == "AIA Article 9(1)"
+
+
+def test_apply_correction_returns_false_when_cell_missing():
+    concepts = _toy_concepts()
+    ok = _apply_correction(concepts, {
+        "kind": CORRECTION_KIND_ANALYSIS,
+        "cid": "nope", "sid": "s1", "jid": "eu", "dim_label": "Definition",
+        "old_text": "x", "new_text": "y",
+    })
+    assert not ok
+
+
+# Summary block ------------------------------------------------------------- #
+
+def test_render_summary_block_lists_every_change():
+    """AC: summary block lists every change applied."""
+    applied = [
+        {
+            "kind": CORRECTION_KIND_ANALYSIS,
+            "cid": "c1", "sid": "s1", "jid": "eu", "dim_label": "Definition",
+            "old_text": "old", "new_text": "new",
+        },
+        {
+            "kind": CORRECTION_KIND_LINK,
+            "cid": "c1", "sid": "s1", "jid": "eu", "dim_label": "Penalty",
+            "law": "eu-ai-act", "old_article": "6", "new_article": "9",
+        },
+    ]
+    skipped = [{
+        "kind": CORRECTION_KIND_SKIPPED,
+        "cid": "c2", "sid": "s2", "jid": "ca", "dim_label": "Term",
+        "law": "ca-sb53", "old_article": "x", "candidates": ["a", "b"],
+        "reason": "ambiguous",
+    }]
+    block = _render_summary_block(
+        applied, skipped, generated_at=datetime(2026, 5, 1, 12, 0, 0),
+    )
+    # Headline counts.
+    assert "2 corrections applied" in block
+    assert "1 not auto-correctable" in block
+    # Both applied entries surface their cell IDs and changes.
+    assert "Definition" in block and "Penalty" in block
+    assert "eu-ai-act:6" in block and "eu-ai-act:9" in block
+    # Skipped entry surfaces with reason and candidates.
+    assert "ambiguous" in block
+    assert "a, b" in block
+    # The block is HTML and self-styled.
+    assert 'id="v29-corrections-summary"' in block
+    assert "<style>" in block
+
+
+def test_render_summary_block_handles_no_corrections():
+    block = _render_summary_block([], [])
+    assert "0 corrections applied" in block
+    assert "0 not auto-correctable" in block
+    assert "No corrections were applied." in block
+
+
+def test_inject_summary_block_after_body_tag():
+    html = "<!doctype html><html><body><h1>Hi</h1></body></html>"
+    out = _inject_summary_block(html, "<p>summary</p>")
+    assert "<body><p>summary</p>" in out.replace("\n", "")
+    assert "<h1>Hi</h1>" in out
+
+
+def test_inject_summary_block_falls_back_when_no_body():
+    out = _inject_summary_block("<html>no body</html>", "<p>summary</p>")
+    assert out.startswith("<p>summary</p>")
+
+
+# End-to-end against real fixtures ------------------------------------------ #
+
+@pytestmark_e2e
+def test_build_corrected_html_writes_file_to_default_location(tmp_path: Path):
+    """AC: iterations/digital_lexicon_v29-corrected.html generated in --fix mode."""
+    out_path = tmp_path / "digital_lexicon_v29-corrected.html"
+    result = build_corrected_html(out_path=out_path)
+    assert result["out_path"] == out_path
+    assert out_path.exists()
+    text = out_path.read_text(encoding="utf-8")
+    assert text.startswith("<!DOCTYPE html>")
+    assert text.rstrip().endswith("</html>")
+
+
+@pytestmark_e2e
+def test_build_corrected_html_does_not_modify_original(tmp_path: Path):
+    """AC: original v29 file is not modified."""
+    import hashlib
+    before = hashlib.sha256(DEFAULT_HTML.read_bytes()).hexdigest()
+    build_corrected_html(out_path=tmp_path / "out.html")
+    after = hashlib.sha256(DEFAULT_HTML.read_bytes()).hexdigest()
+    assert before == after
+
+
+@pytestmark_e2e
+def test_build_corrected_html_resolves_all_mismatches(vdf, tmp_path: Path):
+    """AC: mismatched analysis text is replaced with the cross-checked Excel text.
+
+    Verified by re-running the verifier against the corrected file and
+    confirming there are no mismatches left (only missing rows can survive,
+    since those have no Excel→HTML or HTML→Excel content to replace with).
+    """
+    out_path = tmp_path / "v29-corrected.html"
+    result = build_corrected_html(out_path=out_path)
+    n_analysis_applied = sum(
+        1 for c in result["applied"] if c["kind"] == CORRECTION_KIND_ANALYSIS
+    )
+    expected = int((vdf["status"] == STATUS_MISMATCH).sum())
+    # Every mismatch with non-blank Excel text yields an analysis fix.
+    assert n_analysis_applied == expected
+    # Re-verify against the corrected file: zero mismatches remain.
+    df2 = verify_lexicon(html_path=out_path)
+    assert int((df2["status"] == STATUS_MISMATCH).sum()) == 0
+
+
+@pytestmark_e2e
+def test_build_corrected_html_fixes_some_wrong_article_links(tmp_path: Path):
+    """AC: wrong article links are updated to the article confirmed by verbatim.
+
+    The verifier reports both unambiguous and ambiguous wrong_article links;
+    the corrector only fixes the unambiguous ones (US-009 will tackle the
+    rest with similarity matching).
+    """
+    out_path = tmp_path / "v29-corrected.html"
+    result = build_corrected_html(out_path=out_path)
+    n_link_applied = sum(
+        1 for c in result["applied"] if c["kind"] == CORRECTION_KIND_LINK
+    )
+    # At least one wrong_article link in the fixtures should be uniquely
+    # resolvable from the verbatim Excel.
+    assert n_link_applied >= 1
+    # Cross-check via re-verification: total wrong_article links must
+    # decrease by exactly the number of link fixes applied.
+    df2 = verify_lexicon(html_path=out_path)
+    new_link_counts = _link_summary_counts(df2)
+    orig_link_counts = _link_summary_counts(verify_lexicon())
+    delta = orig_link_counts[STATUS_WRONG_ARTICLE] - new_link_counts[STATUS_WRONG_ARTICLE]
+    assert delta == n_link_applied
+
+
+@pytestmark_e2e
+def test_build_corrected_html_summary_block_lists_every_change(tmp_path: Path):
+    """AC: summary block at top of the corrected file lists every change."""
+    out_path = tmp_path / "v29-corrected.html"
+    result = build_corrected_html(out_path=out_path)
+    text = out_path.read_text(encoding="utf-8")
+    assert 'id="v29-corrections-summary"' in text
+    # Summary block lives between <body> and the first existing element.
+    body_idx = text.find("<body")
+    body_end = text.find(">", body_idx)
+    summary_idx = text.find('id="v29-corrections-summary"')
+    assert body_end < summary_idx, "summary block should appear after <body>"
+    # Every applied correction's cell key surfaces in the summary table — look
+    # for at least 5 expected dim_labels from the first 5 entries.
+    sample = result["applied"][:5]
+    for c in sample:
+        if c.get("dim_label"):
+            # dim_label appears in the cell column of the summary table
+            assert c["dim_label"] in text
+
+
+@pytestmark_e2e
+def test_build_corrected_html_concepts_still_parseable(tmp_path: Path):
+    """The corrected file's CONCEPTS literal must remain valid JSON so the
+    page still renders without console errors."""
+    out_path = tmp_path / "v29-corrected.html"
+    build_corrected_html(out_path=out_path)
+    text = out_path.read_text(encoding="utf-8")
+    concepts = _extract_concepts_json(text)
+    assert isinstance(concepts, list) and concepts
+
+
+@pytestmark_e2e
+def test_build_corrected_html_via_cli_fix_flag(tmp_path: Path):
+    """The --fix CLI flag must write the corrected file alongside the reports."""
+    from verify_lexicon import main
+    csv_out = tmp_path / "verify.csv"
+    fix_out = tmp_path / "v29-corrected.html"
+    rc = main([
+        "--out", str(csv_out),
+        "--fix", "--fix-out", str(fix_out),
+    ])
+    assert rc == 0
+    assert fix_out.exists()
+    assert csv_out.exists()

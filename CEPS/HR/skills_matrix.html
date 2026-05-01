@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CEPS Research Skills Matrix</title>
+  <title>CEPS HR Performance Tool</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -462,6 +462,398 @@
       vertical-align: middle;
     }
     .assess-table tbody tr:hover td { filter: brightness(0.96); }
+
+    /* ── ROLE SWITCHER ─────────────────────────────────────── */
+    .role-switcher {
+      display: flex; align-items: center; gap: 10px;
+      margin-left: auto; padding: 8px 0;
+    }
+    .role-switcher label { font-size: 11px; color: rgba(255,255,255,0.65); white-space: nowrap; }
+    .role-switcher select {
+      padding: 6px 10px; border-radius: var(--radius-sm);
+      border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.12); color: #fff;
+      font-size: 12px; font-family: inherit; cursor: pointer;
+      max-width: 200px;
+    }
+    .role-switcher select option { color: #1A202C; background: #fff; }
+    .view-toggle {
+      display: flex; gap: 2px; margin-left: 8px;
+    }
+    .view-toggle-btn {
+      padding: 5px 12px; border: 1px solid rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.65);
+      font-size: 11px; cursor: pointer; border-radius: 4px;
+      font-family: inherit; transition: all 0.15s;
+    }
+    .view-toggle-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+    .view-toggle-btn.active {
+      background: rgba(255,255,255,0.25); color: #fff; font-weight: 600;
+    }
+
+    /* ── CAREER PATH ───────────────────────────────────────── */
+    .career-path {
+      display: flex; align-items: center; gap: 0;
+      padding: 24px 0; overflow-x: auto; justify-content: center;
+    }
+    .career-node {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 12px 20px; border-radius: var(--radius);
+      border: 2px solid var(--border); background: var(--surface);
+      cursor: pointer; transition: all 0.2s; min-width: 130px;
+      position: relative;
+    }
+    .career-node:hover { border-color: #2D6A9F; box-shadow: var(--shadow-sm); }
+    .career-node.current { border-color: #1976D2; background: var(--l1-bg); }
+    .career-node.target { border-color: #F9A825; background: var(--gap-bg); }
+    .career-node.validated .career-validated { display: block; }
+    .career-node-name { font-size: 13px; font-weight: 600; text-align: center; }
+    .career-node-sub { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+    .career-validated {
+      display: none; position: absolute; top: -6px; right: -6px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #48BB78; color: #fff; font-size: 10px;
+      line-height: 18px; text-align: center;
+    }
+    .career-arrow {
+      font-size: 20px; color: var(--text-muted); padding: 0 6px; flex-shrink: 0;
+    }
+
+    /* ── GAP ANALYSIS ──────────────────────────────────────── */
+    .gap-section { margin-top: 24px; }
+    .gap-summary {
+      display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px;
+    }
+    .gap-stat {
+      padding: 12px 20px; border-radius: var(--radius);
+      background: var(--surface); border: 1px solid var(--border);
+      box-shadow: var(--shadow-sm); text-align: center; min-width: 120px;
+    }
+    .gap-stat-num { font-size: 28px; font-weight: 800; color: #1A365D; }
+    .gap-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .gap-stat.warn .gap-stat-num { color: #E65100; }
+    .gap-stat.good .gap-stat-num { color: #276749; }
+
+    .radar-container {
+      display: flex; justify-content: center; margin: 20px 0;
+      background: var(--surface); border-radius: var(--radius);
+      padding: 20px; box-shadow: var(--shadow-sm);
+    }
+
+    /* ── IDP CARDS ─────────────────────────────────────────── */
+    .idp-section { margin-top: 24px; }
+    .idp-card {
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); margin-bottom: 14px;
+      box-shadow: var(--shadow-sm); overflow: hidden;
+    }
+    .idp-card-header {
+      padding: 12px 16px; background: #F7FAFC;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .idp-card-body { padding: 14px 16px; }
+    .idp-action {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid #F0F4F8;
+    }
+    .idp-action:last-child { border-bottom: none; }
+    .idp-action-info { flex: 1; }
+    .idp-action-title { font-size: 13px; font-weight: 600; }
+    .idp-action-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .idp-action-desc { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+    .status-pill {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+    }
+    .status-pill.not_started { background: #EDF2F7; color: var(--text-muted); }
+    .status-pill.in_progress { background: #BEE3F8; color: #1A365D; }
+    .status-pill.completed { background: #C6F6D5; color: #276749; }
+    .status-pill.dropped { background: #FED7D7; color: #9B2C2C; }
+    .type-tag {
+      display: inline-block; font-size: 10px; padding: 2px 8px;
+      border-radius: 3px; background: #EDF2F7; color: var(--text-muted);
+      font-weight: 500;
+    }
+    .source-tag {
+      display: inline-block; font-size: 9px; padding: 1px 6px;
+      border-radius: 3px; font-weight: 600;
+    }
+    .source-tag.library { background: #E8F5E9; color: #1B5E20; }
+    .source-tag.ai { background: #E3F2FD; color: #0D47A1; }
+    .source-tag.manual { background: #FFF3E0; color: #E65100; }
+
+    /* ── BUTTONS ────────────────────────────────────────────── */
+    .btn {
+      padding: 7px 16px; border-radius: var(--radius-sm);
+      font-size: 12px; font-weight: 600; cursor: pointer;
+      border: 1px solid; font-family: inherit; transition: all 0.15s;
+    }
+    .btn-primary {
+      background: #1A365D; color: #fff; border-color: #1A365D;
+    }
+    .btn-primary:hover { background: #2D6A9F; border-color: #2D6A9F; }
+    .btn-secondary {
+      background: var(--surface); color: var(--text-secondary); border-color: var(--border);
+    }
+    .btn-secondary:hover { background: #F7FAFC; }
+    .btn-success {
+      background: #48BB78; color: #fff; border-color: #48BB78;
+    }
+    .btn-success:hover { background: #38A169; }
+    .btn-danger {
+      background: #FC8181; color: #fff; border-color: #FC8181;
+    }
+    .btn-danger:hover { background: #F56565; }
+    .btn-sm { padding: 4px 10px; font-size: 11px; }
+    .btn-ai {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff; border-color: transparent;
+    }
+    .btn-ai:hover { opacity: 0.9; }
+
+    /* ── MODAL ──────────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      z-index: 400; display: none; align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-lg); max-width: 700px; width: 95%;
+      max-height: 85vh; display: flex; flex-direction: column;
+    }
+    .modal-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-header h3 { font-size: 16px; font-weight: 700; }
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+    .modal-footer {
+      padding: 12px 20px; border-top: 1px solid var(--border);
+      display: flex; justify-content: flex-end; gap: 8px;
+    }
+
+    /* ── FORM ELEMENTS ─────────────────────────────────────── */
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block; font-size: 12px; font-weight: 600;
+      color: var(--text-secondary); margin-bottom: 4px;
+    }
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); font-size: 13px; font-family: inherit;
+    }
+    .form-group textarea { resize: vertical; min-height: 60px; }
+    .form-row { display: flex; gap: 12px; }
+    .form-row .form-group { flex: 1; }
+
+    /* ── FEEDBACK ───────────────────────────────────────────── */
+    .feedback-item {
+      padding: 14px; border-radius: var(--radius);
+      border: 1px solid var(--border); margin-bottom: 10px;
+      background: var(--surface);
+    }
+    .feedback-item.positive { border-left: 3px solid #48BB78; }
+    .feedback-item.developmental { border-left: 3px solid #F6AD55; }
+    .feedback-item.observation { border-left: 3px solid #63B3ED; }
+    .feedback-header {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 11px; color: var(--text-muted); margin-bottom: 6px;
+    }
+    .feedback-content { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+    /* ── MANAGER VIEW ──────────────────────────────────────── */
+    .mgr-layout { display: flex; gap: 20px; min-height: 500px; }
+    .mgr-roster {
+      width: 300px; flex-shrink: 0; background: var(--surface);
+      border-radius: var(--radius); box-shadow: var(--shadow-sm);
+      overflow-y: auto; max-height: 80vh;
+    }
+    .mgr-roster-header {
+      padding: 14px 16px; background: #1A365D; color: #fff;
+      font-size: 14px; font-weight: 700; border-radius: var(--radius) var(--radius) 0 0;
+      position: sticky; top: 0;
+    }
+    .mgr-roster-item {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background 0.15s;
+    }
+    .mgr-roster-item:hover { background: #F7FAFC; }
+    .mgr-roster-item.active { background: #EBF8FF; border-left: 3px solid #2D6A9F; }
+    .mgr-roster-name { font-size: 13px; font-weight: 600; }
+    .mgr-roster-role { font-size: 11px; color: var(--text-muted); }
+    .mgr-roster-stats { display: flex; gap: 8px; margin-top: 4px; }
+    .mgr-detail {
+      flex: 1; background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-sm); overflow-y: auto; max-height: 80vh;
+    }
+    .mgr-detail-header {
+      padding: 16px 20px; background: linear-gradient(135deg, #1A365D 0%, #2D6A9F 100%);
+      color: #fff; border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .mgr-detail-body { padding: 20px; }
+    .mgr-detail-placeholder {
+      display: flex; align-items: center; justify-content: center;
+      height: 300px; color: var(--text-muted); font-style: italic;
+    }
+
+    .heatmap-container { overflow-x: auto; margin-top: 20px; }
+    .heatmap-table { border-collapse: collapse; width: 100%; }
+    .heatmap-table th, .heatmap-table td {
+      border: 1px solid var(--border); padding: 8px 10px;
+      font-size: 12px; text-align: center;
+    }
+    .heatmap-table th { background: #F7FAFC; font-weight: 600; }
+    .heatmap-table th:first-child { text-align: left; min-width: 140px; }
+    .heatmap-cell.at-target { background: #C6F6D5; }
+    .heatmap-cell.gap-1 { background: #FEFCBF; }
+    .heatmap-cell.gap-2 { background: #FED7AA; }
+    .heatmap-cell.gap-3 { background: #FEB2B2; }
+    .heatmap-cell.na { background: #F7FAFC; color: var(--text-muted); }
+
+    /* ── HR DASHBOARD ──────────────────────────────────────── */
+    .dashboard-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 20px;
+    }
+    .dash-widget {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-sm); overflow: hidden;
+    }
+    .dash-widget-header {
+      padding: 12px 16px; background: #F7FAFC;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px; font-weight: 700; color: var(--text-primary);
+    }
+    .dash-widget-body { padding: 16px; }
+    .dash-bar-row {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 8px; font-size: 12px;
+    }
+    .dash-bar-label { width: 130px; text-align: right; color: var(--text-secondary); }
+    .dash-bar-track {
+      flex: 1; height: 22px; background: #EDF2F7;
+      border-radius: 4px; overflow: hidden; position: relative;
+    }
+    .dash-bar-fill {
+      height: 100%; border-radius: 4px; transition: width 0.3s;
+      display: flex; align-items: center; padding-left: 8px;
+      font-size: 11px; font-weight: 700; color: #fff;
+    }
+    .dash-bar-fill.blue { background: #2D6A9F; }
+    .dash-bar-fill.green { background: #48BB78; }
+    .dash-bar-fill.amber { background: #F6AD55; }
+    .dash-bar-fill.red { background: #FC8181; }
+
+    .pipeline-table { width: 100%; border-collapse: collapse; }
+    .pipeline-table th, .pipeline-table td {
+      padding: 8px 10px; border-bottom: 1px solid var(--border);
+      font-size: 12px; text-align: left;
+    }
+    .pipeline-table th { font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase; }
+
+    .progress-bar {
+      width: 80px; height: 6px; background: #EDF2F7;
+      border-radius: 3px; display: inline-block; vertical-align: middle;
+    }
+    .progress-bar-fill {
+      height: 100%; border-radius: 3px; background: #48BB78;
+    }
+
+    /* ── DATA MANAGEMENT ───────────────────────────────────── */
+    .data-mgmt { margin-top: 24px; }
+    .data-mgmt-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 12px;
+    }
+    .data-mgmt-card {
+      padding: 16px; border: 1px solid var(--border); border-radius: var(--radius);
+      background: var(--surface);
+    }
+    .data-mgmt-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+    .data-mgmt-card p { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+
+    /* ── SETTINGS ───────────────────────────────────────────── */
+    .settings-section {
+      background: var(--surface); border-radius: var(--radius);
+      box-shadow: var(--shadow-sm); padding: 20px; margin-top: 20px;
+    }
+    .settings-section h3 {
+      font-size: 15px; font-weight: 700; margin-bottom: 14px;
+      padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+
+    /* ── AUDIT LOG ─────────────────────────────────────────── */
+    .audit-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .audit-table th, .audit-table td {
+      padding: 6px 10px; border-bottom: 1px solid var(--border); text-align: left;
+    }
+    .audit-table th { font-weight: 600; color: var(--text-muted); font-size: 11px; }
+
+    /* ── SECTION TITLES ────────────────────────────────────── */
+    .section-title {
+      font-size: 16px; font-weight: 700; color: var(--text-primary);
+      margin-bottom: 14px; padding-bottom: 8px;
+      border-bottom: 2px solid #1A365D;
+    }
+    .section-subtitle {
+      font-size: 13px; color: var(--text-muted); margin-bottom: 16px;
+    }
+
+    /* ── STACKED BAR ───────────────────────────────────────── */
+    .stacked-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .stacked-label { width: 130px; text-align: right; font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stacked-track { flex: 1; height: 18px; display: flex; border-radius: 3px; overflow: hidden; }
+    .stacked-seg { height: 100%; transition: width 0.3s; }
+    .stacked-seg.green { background: #48BB78; }
+    .stacked-seg.amber { background: #F6AD55; }
+    .stacked-seg.red { background: #FC8181; }
+    .stacked-seg.gray { background: #CBD5E0; }
+
+    /* ── QUICK ASSESS ──────────────────────────────────────── */
+    .quick-assess-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .qa-skill-row {
+      display: flex; align-items: center; gap: 8px; padding: 6px 0;
+      border-bottom: 1px solid #F0F4F8;
+    }
+    .qa-skill-name { flex: 1; font-size: 12px; font-weight: 500; }
+    .qa-level-select {
+      padding: 4px 8px; border: 1px solid var(--border);
+      border-radius: 4px; font-size: 12px; cursor: pointer;
+    }
+
+    /* ── AI LOADING ────────────────────────────────────────── */
+    .ai-loading {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px; color: var(--text-muted); font-size: 13px;
+    }
+    .ai-spinner {
+      width: 16px; height: 16px; border: 2px solid #E2E8F0;
+      border-top-color: #667eea; border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .ai-suggestion {
+      padding: 12px; border: 1px solid #E2E8F0; border-radius: var(--radius);
+      margin-bottom: 8px; background: linear-gradient(135deg, #f7f8ff 0%, #faf7ff 100%);
+    }
+    .ai-suggestion-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .ai-suggestion-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+    .ai-suggestion-meta { font-size: 11px; color: var(--text-muted); }
+
+    @media (max-width: 900px) {
+      header { flex-wrap: wrap; padding: 0 16px; }
+      .role-switcher { margin-left: 0; width: 100%; padding-bottom: 8px; }
+      .tab-nav { width: 100%; overflow-x: auto; padding-bottom: 0; }
+      .main, .manager-main { padding: 16px; }
+      .mgr-layout { flex-direction: column; }
+      .mgr-roster { width: 100%; max-height: 250px; }
+      .career-path { justify-content: flex-start; }
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .levels-grid { grid-template-columns: 1fr; }
+      .cell-dual { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
@@ -470,12 +862,24 @@
   <div class="header-left">
     <div class="header-logo">CEPS</div>
     <div class="header-title">
-      <h1>Research Skills Matrix</h1>
-      <p>Competency framework &amp; career progression tool</p>
+      <h1>HR Performance Tool</h1>
+      <p>Career development, skills &amp; talent management</p>
+    </div>
+  </div>
+  <div class="role-switcher">
+    <label>View as:</label>
+    <select id="person-select" onchange="onPersonChange(this.value)"></select>
+    <div class="view-toggle">
+      <button class="view-toggle-btn active" onclick="setViewRole('employee')" id="vr-employee">Employee</button>
+      <button class="view-toggle-btn" onclick="setViewRole('manager')" id="vr-manager">Manager</button>
+      <button class="view-toggle-btn" onclick="setViewRole('hr')" id="vr-hr">HR</button>
     </div>
   </div>
   <div class="tab-nav">
     <button class="tab-btn active" onclick="switchTab('matrix')" id="tab-matrix">Skills Matrix</button>
+    <button class="tab-btn" onclick="switchTab('career')" id="tab-career">My Career</button>
+    <button class="tab-btn" onclick="switchTab('manager')" id="tab-manager" style="display:none">Team</button>
+    <button class="tab-btn" onclick="switchTab('hr')" id="tab-hr" style="display:none">HR Dashboard</button>
   </div>
 </header>
 
@@ -495,6 +899,45 @@
     <div class="matrix-container">
       <table id="matrix-table"></table>
     </div>
+  </div>
+</div>
+
+<!-- ── MY CAREER VIEW ─── -->
+<div class="view" id="view-career">
+  <div class="main" id="career-content"></div>
+</div>
+
+<!-- ── MANAGER VIEW ─── -->
+<div class="view" id="view-manager">
+  <div class="main" id="manager-content"></div>
+</div>
+
+<!-- ── HR DASHBOARD VIEW ─── -->
+<div class="view" id="view-hr">
+  <div class="main" id="hr-content"></div>
+</div>
+
+<!-- ── ACTION MODAL ─── -->
+<div class="modal-overlay" id="action-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="action-modal-title">Add Development Action</h3>
+      <button class="panel-close" onclick="closeActionModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="action-modal-body"></div>
+    <div class="modal-footer" id="action-modal-footer"></div>
+  </div>
+</div>
+
+<!-- ── FEEDBACK MODAL ─── -->
+<div class="modal-overlay" id="feedback-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Give Feedback</h3>
+      <button class="panel-close" onclick="closeFeedbackModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="feedback-modal-body"></div>
+    <div class="modal-footer" id="feedback-modal-footer"></div>
   </div>
 </div>
 
@@ -1002,8 +1445,10 @@ function fmtDesc(text) {
 function switchTab(tab) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('view-' + tab).classList.add('active');
-  document.getElementById('tab-' + tab).classList.add('active');
+  const view = document.getElementById('view-' + tab);
+  const tabBtn = document.getElementById('tab-' + tab);
+  if (view) view.classList.add('active');
+  if (tabBtn) tabBtn.classList.add('active');
   document.getElementById('legend-matrix').style.display = tab === 'matrix' ? '' : 'none';
 }
 
@@ -1285,6 +1730,1127 @@ function openCellPanel(roleId, skillId) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 buildMatrix();
+</script>
+
+<!-- External modules -->
+<script src="hr_data.js"></script>
+<script src="hr_storage.js"></script>
+<script src="hr_ai.js"></script>
+<script src="hr_export.js"></script>
+
+<script>
+// ── APP STATE ─────────────────────────────────────────────────────────────────
+let currentUser = null;
+let selectedManagerTeamMember = null;
+
+// ── INITIALIZE ────────────────────────────────────────────────────────────────
+function initApp() {
+  HRStore.init();
+  currentUser = HRStore.getCurrentUser();
+  buildPersonSelect();
+  updateViewForRole();
+  switchTab('matrix');
+}
+
+// ── PERSON SELECT ─────────────────────────────────────────────────────────────
+function buildPersonSelect() {
+  const sel = document.getElementById('person-select');
+  const emps = HRStore.getEmployees();
+  sel.innerHTML = emps.map(e => {
+    const role = getRole(e.currentRoleId);
+    return `<option value="${e.id}" ${e.id === currentUser.id ? 'selected' : ''}>${esc(e.name)} (${role ? esc(role.name) : ''})</option>`;
+  }).join('');
+}
+
+function onPersonChange(empId) {
+  const emp = HRStore.getEmployee(empId);
+  if (!emp) return;
+  currentUser = { id: emp.id, name: emp.name, viewRole: currentUser.viewRole };
+  HRStore.setCurrentUser(currentUser);
+  refreshCurrentView();
+}
+
+function setViewRole(role) {
+  document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('vr-' + role).classList.add('active');
+  currentUser.viewRole = role;
+  HRStore.setCurrentUser(currentUser);
+  updateViewForRole();
+}
+
+function updateViewForRole() {
+  const r = currentUser.viewRole;
+  document.getElementById('tab-career').style.display = (r === 'employee' || r === 'manager') ? '' : 'none';
+  document.getElementById('tab-manager').style.display = (r === 'manager') ? '' : 'none';
+  document.getElementById('tab-hr').style.display = (r === 'hr') ? '' : 'none';
+
+  if (r === 'manager') {
+    buildManagerView();
+    switchTab('manager');
+  } else if (r === 'hr') {
+    buildHRDashboard();
+    switchTab('hr');
+  } else {
+    buildCareerView();
+    switchTab('career');
+  }
+}
+
+function refreshCurrentView() {
+  const active = document.querySelector('.view.active');
+  if (!active) return;
+  const id = active.id.replace('view-', '');
+  if (id === 'career') buildCareerView();
+  else if (id === 'manager') buildManagerView();
+  else if (id === 'hr') buildHRDashboard();
+}
+
+// Override switchTab to also rebuild views
+const _origSwitchTab = switchTab;
+switchTab = function(tab) {
+  _origSwitchTab(tab);
+  if (tab === 'career') buildCareerView();
+  else if (tab === 'manager') buildManagerView();
+  else if (tab === 'hr') buildHRDashboard();
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── EMPLOYEE: MY CAREER VIEW ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildCareerView() {
+  const emp = HRStore.getEmployee(currentUser.id);
+  if (!emp) { document.getElementById('career-content').innerHTML = '<p style="color:var(--text-muted);padding:20px">Select an employee to view career path.</p>'; return; }
+
+  const targetRole = emp.targetRoleId ? getRole(emp.targetRoleId) : null;
+  const currentRole = getRole(emp.currentRoleId);
+
+  let h = '';
+
+  // Career path
+  h += '<div class="section-title">Career Path</div>';
+  h += '<div class="section-subtitle">Click a role to set it as your career target</div>';
+  h += buildCareerPath(emp);
+
+  // Gap analysis
+  if (targetRole) {
+    h += buildGapAnalysis(emp, targetRole);
+  } else {
+    h += '<div style="padding:20px;text-align:center;color:var(--text-muted)">Select a target role above to see your gap analysis.</div>';
+  }
+
+  // IDP
+  h += buildIDPSection(emp);
+
+  // Feedback
+  h += buildFeedbackSection(emp);
+
+  document.getElementById('career-content').innerHTML = h;
+}
+
+function buildCareerPath(emp) {
+  let h = '<div class="career-path">';
+  for (let i = 0; i < ROLES.length; i++) {
+    const r = ROLES[i];
+    const isCurrent = r.id === emp.currentRoleId;
+    const isTarget = r.id === emp.targetRoleId;
+    const isValidated = isTarget && emp.targetRoleValidated;
+    let cls = 'career-node';
+    if (isCurrent) cls += ' current';
+    if (isTarget) cls += ' target';
+    if (isValidated) cls += ' validated';
+
+    if (i > 0) h += '<span class="career-arrow">&#8594;</span>';
+    h += `<div class="${cls}" onclick="setCareerTarget('${r.id}')">`;
+    h += `<span class="career-validated">&#10004;</span>`;
+    h += `<span class="career-node-name">${esc(r.name)}</span>`;
+    if (isCurrent) h += '<span class="career-node-sub">Current</span>';
+    if (isTarget) h += '<span class="career-node-sub">Target</span>';
+    h += '</div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function setCareerTarget(roleId) {
+  HRStore.setTargetRole(currentUser.id, roleId);
+  buildCareerView();
+}
+
+function buildGapAnalysis(emp, targetRole) {
+  let h = '<div class="gap-section">';
+  h += '<div class="section-title">Skill Gap Analysis</div>';
+
+  // Calculate gaps
+  let atTarget = 0, gap1 = 0, gap2plus = 0, unassessed = 0;
+  const gaps = [];
+
+  for (const skill of SKILLS) {
+    const required = targetRole.requirements[skill.id];
+    if (!required) continue;
+    const current = emp.skills?.[skill.id]?.level || null;
+    const diff = lvNum(required) - lvNum(current);
+    if (!current) { unassessed++; gaps.push({ skill, current, required, diff: lvNum(required) }); }
+    else if (diff <= 0) { atTarget++; }
+    else if (diff === 1) { gap1++; gaps.push({ skill, current, required, diff }); }
+    else { gap2plus++; gaps.push({ skill, current, required, diff }); }
+  }
+
+  const totalReq = atTarget + gap1 + gap2plus + unassessed;
+
+  // Summary stats
+  h += '<div class="gap-summary">';
+  h += `<div class="gap-stat good"><div class="gap-stat-num">${atTarget}</div><div class="gap-stat-label">At Target</div></div>`;
+  h += `<div class="gap-stat${gap1 > 0 ? ' warn' : ''}"><div class="gap-stat-num">${gap1}</div><div class="gap-stat-label">1-Level Gap</div></div>`;
+  h += `<div class="gap-stat${gap2plus > 0 ? ' warn' : ''}"><div class="gap-stat-num">${gap2plus}</div><div class="gap-stat-label">2+ Level Gap</div></div>`;
+  h += `<div class="gap-stat"><div class="gap-stat-num">${unassessed}</div><div class="gap-stat-label">Not Assessed</div></div>`;
+  h += '</div>';
+
+  // Radar chart
+  h += '<div class="radar-container">';
+  h += buildRadarChart(emp, targetRole);
+  h += '</div>';
+
+  // Skill blocks for gaps
+  if (gaps.length > 0) {
+    h += '<div style="margin-top:16px">';
+    gaps.sort((a, b) => b.diff - a.diff);
+    for (const g of gaps) {
+      h += '<div class="skill-block"><div class="skill-block-header">';
+      h += `<span class="skill-block-name">${esc(g.skill.name)}</span>`;
+      h += `<span class="skill-family-tag">${esc(g.skill.category)}</span>`;
+      if (g.current) h += badge(g.current);
+      h += `<span class="gap-indicator">&#8593; ${g.required} needed</span>`;
+      h += '</div>';
+      h += `<div class="skill-block-body">`;
+      h += '<div class="level-pane">';
+      h += `<div class="level-pane-heading">${badge(g.current)}<span class="level-pane-label">Current${g.current ? ' (' + esc(LEVEL_LABELS[g.current]||'') + ')' : ' (Not assessed)'}</span></div>`;
+      h += `<div class="level-pane-text">${g.current ? fmtDesc(g.skill.levels[g.current]) : '<em style="opacity:0.45">Not yet assessed</em>'}</div>`;
+      h += '</div>';
+      h += '<div class="level-pane gap-pane">';
+      h += `<div class="level-pane-heading"><span class="level-badge" style="background:var(--gap-bg);border-color:var(--gap-border);color:var(--gap-text)">${g.required}</span><span class="level-pane-label gap">Required (${esc(LEVEL_LABELS[g.required]||'')})</span></div>`;
+      h += `<div class="level-pane-text">${fmtDesc(g.skill.levels[g.required] || '')}</div>`;
+      h += '</div></div></div>';
+    }
+    h += '</div>';
+  }
+
+  h += '</div>';
+  return h;
+}
+
+function buildRadarChart(emp, targetRole) {
+  const skills = SKILLS.filter(s => targetRole.requirements[s.id]);
+  if (skills.length < 3) return '';
+
+  const size = 300, cx = size/2, cy = size/2, r = 110;
+  const n = skills.length;
+
+  let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`;
+
+  // Grid
+  for (let ring = 1; ring <= 4; ring++) {
+    const rr = r * ring / 4;
+    let pts = [];
+    for (let i = 0; i < n; i++) {
+      const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+      pts.push(`${cx + rr * Math.cos(angle)},${cy + rr * Math.sin(angle)}`);
+    }
+    svg += `<polygon points="${pts.join(' ')}" fill="none" stroke="#E2E8F0" stroke-width="1"/>`;
+  }
+
+  // Axes
+  for (let i = 0; i < n; i++) {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    const x = cx + r * Math.cos(angle);
+    const y = cy + r * Math.sin(angle);
+    svg += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#E2E8F0" stroke-width="1"/>`;
+    // Labels
+    const lx = cx + (r + 20) * Math.cos(angle);
+    const ly = cy + (r + 20) * Math.sin(angle);
+    const anchor = Math.abs(Math.cos(angle)) < 0.1 ? 'middle' : Math.cos(angle) > 0 ? 'start' : 'end';
+    const name = skills[i].name.length > 14 ? skills[i].name.substring(0, 13) + '..' : skills[i].name;
+    svg += `<text x="${lx}" y="${ly}" text-anchor="${anchor}" dominant-baseline="middle" font-size="9" fill="#718096">${esc(name)}</text>`;
+  }
+
+  // Required polygon
+  let reqPts = [];
+  for (let i = 0; i < n; i++) {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    const lv = lvNum(targetRole.requirements[skills[i].id]);
+    const rr = r * lv / 4;
+    reqPts.push(`${cx + rr * Math.cos(angle)},${cy + rr * Math.sin(angle)}`);
+  }
+  svg += `<polygon points="${reqPts.join(' ')}" fill="rgba(249,168,37,0.15)" stroke="#F9A825" stroke-width="2" stroke-dasharray="4,3"/>`;
+
+  // Current polygon
+  let curPts = [];
+  for (let i = 0; i < n; i++) {
+    const angle = (Math.PI * 2 * i / n) - Math.PI / 2;
+    const lv = lvNum(emp.skills?.[skills[i].id]?.level);
+    const rr = r * lv / 4;
+    curPts.push(`${cx + rr * Math.cos(angle)},${cy + rr * Math.sin(angle)}`);
+  }
+  svg += `<polygon points="${curPts.join(' ')}" fill="rgba(25,118,210,0.15)" stroke="#1976D2" stroke-width="2"/>`;
+
+  // Legend
+  svg += `<rect x="10" y="${size-30}" width="12" height="12" fill="rgba(25,118,210,0.3)" stroke="#1976D2" stroke-width="1.5"/>`;
+  svg += `<text x="26" y="${size-20}" font-size="10" fill="#4A5568">Current</text>`;
+  svg += `<rect x="80" y="${size-30}" width="12" height="12" fill="rgba(249,168,37,0.3)" stroke="#F9A825" stroke-width="1.5" stroke-dasharray="3,2"/>`;
+  svg += `<text x="96" y="${size-20}" font-size="10" fill="#4A5568">Required</text>`;
+
+  svg += '</svg>';
+  return svg;
+}
+
+// ── IDP SECTION ───────────────────────────────────────────────────────────────
+function buildIDPSection(emp) {
+  const idp = HRStore.getIDP(emp.id);
+  const targetRole = emp.targetRoleId ? getRole(emp.targetRoleId) : null;
+
+  let h = '<div class="idp-section">';
+  h += '<div class="section-title">Individual Development Plan</div>';
+
+  if (!targetRole) {
+    h += '<div style="padding:16px;color:var(--text-muted)">Set a target role to create a development plan.</div>';
+    h += '</div>';
+    return h;
+  }
+
+  if (!idp) {
+    h += `<div style="padding:16px;text-align:center">`;
+    h += `<p style="color:var(--text-muted);margin-bottom:12px">No active development plan. Create one to track your growth towards ${esc(targetRole.name)}.</p>`;
+    h += `<button class="btn btn-primary" onclick="createNewIDP('${emp.id}','${targetRole.id}')">Create Development Plan</button>`;
+    h += '</div></div>';
+    return h;
+  }
+
+  // IDP header info
+  h += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">`;
+  h += `<span style="font-size:12px;color:var(--text-muted)">Target: <strong>${esc(targetRole.name)}</strong> | Created: ${idp.createdDate}</span>`;
+  h += `<button class="btn btn-primary btn-sm" onclick="openAddActionModal('${emp.id}')">+ Add Action</button>`;
+  h += '</div>';
+
+  if (idp.managerNotes) {
+    h += `<div style="background:#F7FAFC;border-left:3px solid #2D6A9F;padding:10px 14px;border-radius:0 6px 6px 0;margin-bottom:14px;font-size:12px;color:var(--text-secondary)"><strong>Manager notes:</strong> ${esc(idp.managerNotes)}</div>`;
+  }
+
+  // Group actions by skill
+  const actionsBySkill = {};
+  for (const action of idp.actions) {
+    if (!actionsBySkill[action.skillId]) actionsBySkill[action.skillId] = [];
+    actionsBySkill[action.skillId].push(action);
+  }
+
+  if (idp.actions.length === 0) {
+    h += '<div style="padding:16px;text-align:center;color:var(--text-muted)">No development actions yet. Click "Add Action" to get started.</div>';
+  }
+
+  for (const [skillId, actions] of Object.entries(actionsBySkill)) {
+    const skill = getSkill(skillId);
+    h += '<div class="idp-card">';
+    h += '<div class="idp-card-header">';
+    h += `<span style="font-weight:600;font-size:13px">${skill ? esc(skill.name) : skillId}</span>`;
+    if (actions[0]) {
+      h += badge(actions[0].fromLevel);
+      h += '<span style="color:var(--text-muted);font-size:12px">&#8594;</span>';
+      h += badge(actions[0].toLevel);
+    }
+    h += '</div>';
+    h += '<div class="idp-card-body">';
+    for (const action of actions) {
+      h += '<div class="idp-action">';
+      h += '<div class="idp-action-info">';
+      h += `<div class="idp-action-title">${esc(action.title)}</div>`;
+      h += `<div class="idp-action-meta">`;
+      h += `<span class="type-tag">${esc(action.type)}</span> `;
+      h += `<span class="source-tag ${action.source || 'manual'}">${action.source || 'manual'}</span> `;
+      if (action.deadline) h += `Due: ${action.deadline} `;
+      if (action.managerApproved) h += '<span style="color:#48BB78;font-size:10px">&#10004; Manager approved</span>';
+      h += '</div>';
+      h += `<div class="idp-action-desc">${esc(action.description)}</div>`;
+      if (action.notes) h += `<div style="font-size:11px;color:var(--text-muted);margin-top:3px">Note: ${esc(action.notes)}</div>`;
+      h += '</div>';
+      h += '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">';
+      h += `<select class="qa-level-select" onchange="changeActionStatus('${emp.id}','${action.id}',this.value)" style="font-size:10px;padding:3px 6px">`;
+      for (const st of ['not_started','in_progress','completed','dropped']) {
+        h += `<option value="${st}" ${action.status===st?'selected':''}>${st.replace(/_/g,' ')}</option>`;
+      }
+      h += '</select>';
+      h += `<button class="btn btn-danger btn-sm" onclick="removeAction('${emp.id}','${action.id}')" style="font-size:10px;padding:2px 6px">Remove</button>`;
+      h += '</div></div>';
+    }
+    h += '</div></div>';
+  }
+
+  h += '</div>';
+  return h;
+}
+
+function createNewIDP(empId, targetRoleId) {
+  HRStore.createIDP(empId, targetRoleId);
+  buildCareerView();
+}
+
+function changeActionStatus(empId, actionId, newStatus) {
+  HRStore.updateIDPActionStatus(empId, actionId, newStatus);
+}
+
+function removeAction(empId, actionId) {
+  HRStore.removeIDPAction(empId, actionId);
+  buildCareerView();
+}
+
+// ── ADD ACTION MODAL ──────────────────────────────────────────────────────────
+function openAddActionModal(empId) {
+  const emp = HRStore.getEmployee(empId);
+  const targetRole = emp?.targetRoleId ? getRole(emp.targetRoleId) : null;
+  if (!emp || !targetRole) return;
+
+  const modal = document.getElementById('action-modal');
+  modal.classList.add('active');
+
+  // Find gap skills
+  const gapSkills = [];
+  for (const skill of SKILLS) {
+    const req = targetRole.requirements[skill.id];
+    if (!req) continue;
+    const cur = emp.skills?.[skill.id]?.level || null;
+    if (lvNum(req) > lvNum(cur)) {
+      gapSkills.push({ skill, current: cur, required: req });
+    }
+  }
+
+  let h = '';
+
+  // Tabs within modal: Library | AI Suggestions | Manual
+  h += '<div style="display:flex;gap:4px;margin-bottom:16px">';
+  h += '<button class="btn btn-secondary btn-sm" onclick="showActionTab(\'library\')" id="atab-library" style="font-weight:700">From Library</button>';
+  h += '<button class="btn btn-ai btn-sm" onclick="showActionTab(\'ai\')" id="atab-ai">AI Suggestions</button>';
+  h += '<button class="btn btn-secondary btn-sm" onclick="showActionTab(\'manual\')" id="atab-manual">Manual Entry</button>';
+  h += '</div>';
+
+  // Library tab
+  h += '<div id="action-tab-library">';
+  if (gapSkills.length === 0) {
+    h += '<p style="color:var(--text-muted)">No skill gaps found.</p>';
+  } else {
+    h += '<div class="form-group"><label>Select gap skill:</label>';
+    h += `<select id="lib-skill-select" onchange="filterLibraryActions()">`;
+    for (const g of gapSkills) {
+      h += `<option value="${g.skill.id}" data-from="${g.current||'L0'}" data-to="${g.required}">${esc(g.skill.name)} (${g.current||'?'} &#8594; ${g.required})</option>`;
+    }
+    h += '</select></div>';
+    h += '<div id="lib-actions-list"></div>';
+  }
+  h += '</div>';
+
+  // AI tab
+  h += '<div id="action-tab-ai" style="display:none">';
+  if (gapSkills.length === 0) {
+    h += '<p style="color:var(--text-muted)">No skill gaps found.</p>';
+  } else {
+    h += '<div class="form-group"><label>Select gap skill for AI suggestions:</label>';
+    h += `<select id="ai-skill-select">`;
+    for (const g of gapSkills) {
+      h += `<option value="${g.skill.id}" data-from="${g.current||'L0'}" data-to="${g.required}">${esc(g.skill.name)} (${g.current||'?'} &#8594; ${g.required})</option>`;
+    }
+    h += '</select></div>';
+    h += `<button class="btn btn-ai" onclick="requestAISuggestions('${empId}')">Generate AI Suggestions</button>`;
+    h += '<div id="ai-suggestions-list" style="margin-top:14px"></div>';
+  }
+  h += '</div>';
+
+  // Manual tab
+  h += '<div id="action-tab-manual" style="display:none">';
+  h += '<div class="form-group"><label>Skill:</label>';
+  h += '<select id="manual-skill-select">';
+  for (const g of gapSkills) {
+    h += `<option value="${g.skill.id}" data-from="${g.current||'L0'}" data-to="${g.required}">${esc(g.skill.name)}</option>`;
+  }
+  h += '</select></div>';
+  h += '<div class="form-row"><div class="form-group"><label>Title:</label><input id="manual-title" placeholder="Action title"></div>';
+  h += '<div class="form-group"><label>Type:</label><select id="manual-type"><option>training</option><option>mentoring</option><option>stretch</option><option>project</option><option>self-study</option></select></div></div>';
+  h += '<div class="form-group"><label>Description:</label><textarea id="manual-desc" placeholder="Describe the development action..."></textarea></div>';
+  h += '<div class="form-row"><div class="form-group"><label>Deadline:</label><input id="manual-deadline" type="date"></div>';
+  h += '<div class="form-group"><label>Notes:</label><input id="manual-notes" placeholder="Optional notes"></div></div>';
+  h += `<button class="btn btn-primary" onclick="addManualAction('${empId}')">Add Action</button>`;
+  h += '</div>';
+
+  document.getElementById('action-modal-body').innerHTML = h;
+  document.getElementById('action-modal-footer').innerHTML = `<button class="btn btn-secondary" onclick="closeActionModal()">Close</button>`;
+
+  // Load initial library
+  setTimeout(filterLibraryActions, 50);
+}
+
+function showActionTab(tab) {
+  ['library','ai','manual'].forEach(t => {
+    document.getElementById('action-tab-' + t).style.display = t === tab ? '' : 'none';
+    document.getElementById('atab-' + t).style.fontWeight = t === tab ? '700' : '400';
+  });
+}
+
+function filterLibraryActions() {
+  const sel = document.getElementById('lib-skill-select');
+  if (!sel) return;
+  const opt = sel.options[sel.selectedIndex];
+  const skillId = sel.value;
+  const from = opt.dataset.from;
+  const to = opt.dataset.to;
+
+  const lib = HRStore.getActionLibrary();
+  const matching = lib.filter(a => a.skillId === skillId && lvNum(a.fromLevel) >= lvNum(from) && lvNum(a.toLevel) <= lvNum(to));
+
+  let h = '';
+  if (matching.length === 0) {
+    h = '<p style="color:var(--text-muted);font-size:12px;padding:8px 0">No library actions found for this transition.</p>';
+  } else {
+    for (const a of matching) {
+      h += '<div class="ai-suggestion">';
+      h += `<div class="ai-suggestion-title">${esc(a.title)}</div>`;
+      h += `<div class="ai-suggestion-desc">${esc(a.description)}</div>`;
+      h += `<div class="ai-suggestion-meta"><span class="type-tag">${esc(a.type)}</span> ${esc(a.duration)} | ${esc(a.provider)}</div>`;
+      h += `<button class="btn btn-success btn-sm" style="margin-top:6px" onclick="addLibraryAction('${currentUser.id}','${a.id}')">Add to IDP</button>`;
+      h += '</div>';
+    }
+  }
+  document.getElementById('lib-actions-list').innerHTML = h;
+}
+
+function addLibraryAction(empId, libActionId) {
+  const lib = HRStore.getActionLibrary();
+  const a = lib.find(l => l.id === libActionId);
+  if (!a) return;
+
+  const idp = HRStore.getIDP(empId);
+  if (!idp) { HRStore.createIDP(empId, HRStore.getEmployee(empId).targetRoleId); }
+
+  HRStore.addIDPAction(empId, {
+    skillId: a.skillId, fromLevel: a.fromLevel, toLevel: a.toLevel,
+    type: a.type, title: a.title, description: a.description,
+    source: 'library', deadline: '', notes: ''
+  });
+
+  closeActionModal();
+  buildCareerView();
+}
+
+async function requestAISuggestions(empId) {
+  const sel = document.getElementById('ai-skill-select');
+  if (!sel) return;
+  const opt = sel.options[sel.selectedIndex];
+  const skillId = sel.value;
+  const from = opt.dataset.from === 'L0' ? null : opt.dataset.from;
+  const to = opt.dataset.to;
+  const fromL = from || 'L1';
+  const container = document.getElementById('ai-suggestions-list');
+
+  container.innerHTML = '<div class="ai-loading"><div class="ai-spinner"></div>Generating suggestions with AI...</div>';
+
+  try {
+    const suggestions = await AIAdvisor.getSuggestions(skillId, fromL, to);
+    let h = '';
+    for (const s of suggestions) {
+      h += '<div class="ai-suggestion">';
+      h += `<div class="ai-suggestion-title">${esc(s.title)}</div>`;
+      h += `<div class="ai-suggestion-desc">${esc(s.description)}</div>`;
+      h += `<div class="ai-suggestion-meta"><span class="type-tag">${esc(s.type)}</span> ${esc(s.duration)}${s.outcome ? ' | Expected: ' + esc(s.outcome) : ''}</div>`;
+      h += `<button class="btn btn-success btn-sm" style="margin-top:6px" onclick="addAISuggestion('${empId}','${skillId}','${fromL}','${to}',${suggestions.indexOf(s)})">Add to IDP</button>`;
+      h += '</div>';
+    }
+    container.innerHTML = h;
+    // Store temp for adding
+    window._aiSuggestions = suggestions;
+  } catch (err) {
+    container.innerHTML = `<div style="color:#E53E3E;font-size:12px;padding:8px">${esc(err.message)}<br><br>Make sure Ollama is running with glm-4.7-flash model. You can configure the AI endpoint in the HR Dashboard settings.</div>`;
+  }
+}
+
+function addAISuggestion(empId, skillId, fromLevel, toLevel, idx) {
+  if (!window._aiSuggestions || !window._aiSuggestions[idx]) return;
+  const s = window._aiSuggestions[idx];
+
+  const idp = HRStore.getIDP(empId);
+  if (!idp) { HRStore.createIDP(empId, HRStore.getEmployee(empId).targetRoleId); }
+
+  HRStore.addIDPAction(empId, {
+    skillId, fromLevel, toLevel,
+    type: s.type, title: s.title, description: s.description,
+    source: 'ai', deadline: '', notes: s.outcome || ''
+  });
+
+  closeActionModal();
+  buildCareerView();
+}
+
+function addManualAction(empId) {
+  const sel = document.getElementById('manual-skill-select');
+  const opt = sel.options[sel.selectedIndex];
+
+  const title = document.getElementById('manual-title').value.trim();
+  if (!title) { alert('Please enter a title'); return; }
+
+  const idp = HRStore.getIDP(empId);
+  if (!idp) { HRStore.createIDP(empId, HRStore.getEmployee(empId).targetRoleId); }
+
+  HRStore.addIDPAction(empId, {
+    skillId: sel.value,
+    fromLevel: opt.dataset.from === 'L0' ? null : opt.dataset.from,
+    toLevel: opt.dataset.to,
+    type: document.getElementById('manual-type').value,
+    title: title,
+    description: document.getElementById('manual-desc').value.trim(),
+    source: 'manual',
+    deadline: document.getElementById('manual-deadline').value,
+    notes: document.getElementById('manual-notes').value.trim()
+  });
+
+  closeActionModal();
+  buildCareerView();
+}
+
+function closeActionModal() {
+  document.getElementById('action-modal').classList.remove('active');
+}
+
+// ── FEEDBACK SECTION ──────────────────────────────────────────────────────────
+function buildFeedbackSection(emp) {
+  const feedback = HRStore.getEmployeeFeedback(emp.id);
+  const emps = HRStore.getEmployees();
+
+  let h = '<div style="margin-top:24px">';
+  h += '<div class="section-title">Feedback</div>';
+  h += `<button class="btn btn-secondary btn-sm" onclick="openFeedbackModal('${emp.id}')" style="margin-bottom:14px">+ Add Feedback</button>`;
+
+  if (feedback.length === 0) {
+    h += '<div style="color:var(--text-muted);font-size:12px;padding:8px">No feedback yet.</div>';
+  } else {
+    const sorted = [...feedback].sort((a, b) => b.date.localeCompare(a.date));
+    for (const fb of sorted) {
+      const author = emps.find(e => e.id === fb.authorId);
+      const skill = fb.skillId ? getSkill(fb.skillId) : null;
+      h += `<div class="feedback-item ${fb.type}">`;
+      h += '<div class="feedback-header">';
+      h += `<strong>${author ? esc(author.name) : 'Unknown'}</strong>`;
+      h += `<span>${esc(fb.authorRole)}</span>`;
+      h += `<span>${fb.date}</span>`;
+      if (skill) h += `<span class="type-tag">${esc(skill.name)}</span>`;
+      h += `<span class="status-pill ${fb.type === 'positive' ? 'completed' : fb.type === 'developmental' ? 'in_progress' : 'not_started'}">${esc(fb.type)}</span>`;
+      h += '</div>';
+      h += `<div class="feedback-content">${esc(fb.content)}</div>`;
+      h += '</div>';
+    }
+  }
+  h += '</div>';
+  return h;
+}
+
+function openFeedbackModal(targetEmpId) {
+  const modal = document.getElementById('feedback-modal');
+  modal.classList.add('active');
+
+  let h = '';
+  h += '<div class="form-group"><label>Feedback Type:</label>';
+  h += '<select id="fb-type"><option value="positive">Positive</option><option value="developmental">Developmental</option><option value="observation">Observation</option></select></div>';
+  h += '<div class="form-group"><label>Related Skill (optional):</label>';
+  h += '<select id="fb-skill"><option value="">General</option>';
+  for (const s of SKILLS) h += `<option value="${s.id}">${esc(s.name)}</option>`;
+  h += '</select></div>';
+  h += '<div class="form-group"><label>Content:</label>';
+  h += '<textarea id="fb-content" placeholder="Write your feedback..."></textarea></div>';
+
+  document.getElementById('feedback-modal-body').innerHTML = h;
+  document.getElementById('feedback-modal-footer').innerHTML =
+    `<button class="btn btn-secondary" onclick="closeFeedbackModal()">Cancel</button>` +
+    `<button class="btn btn-primary" onclick="submitFeedback('${targetEmpId}')">Submit</button>`;
+}
+
+function submitFeedback(targetEmpId) {
+  const content = document.getElementById('fb-content').value.trim();
+  if (!content) { alert('Please enter feedback content'); return; }
+
+  HRStore.addFeedback({
+    employeeId: targetEmpId,
+    authorId: currentUser.id,
+    authorRole: currentUser.viewRole === 'manager' ? 'manager' : (currentUser.id === targetEmpId ? 'self' : 'peer'),
+    skillId: document.getElementById('fb-skill').value || null,
+    type: document.getElementById('fb-type').value,
+    content: content,
+    visibility: 'employee_manager'
+  });
+
+  closeFeedbackModal();
+  refreshCurrentView();
+}
+
+function closeFeedbackModal() {
+  document.getElementById('feedback-modal').classList.remove('active');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── MANAGER VIEW ─────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildManagerView() {
+  const mgr = HRStore.getEmployee(currentUser.id);
+  const allEmps = HRStore.getEmployees();
+  const team = allEmps.filter(e => e.managerId === currentUser.id);
+
+  let h = '';
+
+  if (team.length === 0) {
+    h = '<div style="padding:40px;text-align:center;color:var(--text-muted)"><p style="font-size:16px;margin-bottom:8px">No direct reports found.</p><p>Switch to a manager role (e.g. Josey Dorsey or Sophie Laurent) to see team members.</p></div>';
+    document.getElementById('manager-content').innerHTML = h;
+    return;
+  }
+
+  h += '<div class="mgr-layout">';
+
+  // Roster
+  h += '<div class="mgr-roster">';
+  h += '<div class="mgr-roster-header">My Team (' + team.length + ')</div>';
+  for (const emp of team) {
+    const role = getRole(emp.currentRoleId);
+    const targetRole = emp.targetRoleId ? getRole(emp.targetRoleId) : null;
+    const gaps = countGaps(emp);
+    const isActive = selectedManagerTeamMember === emp.id;
+
+    h += `<div class="mgr-roster-item${isActive ? ' active' : ''}" onclick="selectTeamMember('${emp.id}')">`;
+    h += `<div class="mgr-roster-name">${esc(emp.name)}</div>`;
+    h += `<div class="mgr-roster-role">${role ? esc(role.name) : ''} ${targetRole ? '&#8594; ' + esc(targetRole.name) : ''}</div>`;
+    h += '<div class="mgr-roster-stats">';
+    h += `<span style="font-size:10px;color:${gaps.total > 0 ? '#E65100' : '#276749'}">${gaps.total} gap${gaps.total !== 1 ? 's' : ''}</span>`;
+    const idp = HRStore.getIDP(emp.id);
+    if (idp) {
+      const done = idp.actions.filter(a => a.status === 'completed').length;
+      const total = idp.actions.length;
+      h += `<span class="progress-bar"><span class="progress-bar-fill" style="width:${total ? (done/total*100) : 0}%"></span></span>`;
+      h += `<span style="font-size:10px;color:var(--text-muted)">${done}/${total}</span>`;
+    }
+    h += '</div></div>';
+  }
+  h += '</div>';
+
+  // Detail
+  h += '<div class="mgr-detail">';
+  if (selectedManagerTeamMember) {
+    h += buildManagerDetail(selectedManagerTeamMember);
+  } else {
+    h += '<div class="mgr-detail-placeholder">Select a team member to view their profile</div>';
+  }
+  h += '</div>';
+
+  h += '</div>';
+
+  // Team heatmap
+  h += buildTeamHeatmap(team);
+
+  document.getElementById('manager-content').innerHTML = h;
+}
+
+function selectTeamMember(empId) {
+  selectedManagerTeamMember = empId;
+  buildManagerView();
+}
+
+function countGaps(emp) {
+  if (!emp.targetRoleId) return { total: 0, skills: [] };
+  const targetRole = getRole(emp.targetRoleId);
+  if (!targetRole) return { total: 0, skills: [] };
+
+  let total = 0;
+  const skills = [];
+  for (const skill of SKILLS) {
+    const req = targetRole.requirements[skill.id];
+    if (!req) continue;
+    const cur = emp.skills?.[skill.id]?.level || null;
+    if (lvNum(req) > lvNum(cur)) {
+      total++;
+      skills.push({ skillId: skill.id, current: cur, required: req });
+    }
+  }
+  return { total, skills };
+}
+
+function buildManagerDetail(empId) {
+  const emp = HRStore.getEmployee(empId);
+  if (!emp) return '';
+  const role = getRole(emp.currentRoleId);
+  const targetRole = emp.targetRoleId ? getRole(emp.targetRoleId) : null;
+
+  let h = '';
+  h += '<div class="mgr-detail-header">';
+  h += `<div style="font-size:18px;font-weight:700">${esc(emp.name)}</div>`;
+  h += `<div style="font-size:12px;opacity:0.75">${role ? esc(role.name) : ''} | ${esc(emp.unit)} | Since ${emp.startDate}</div>`;
+  h += '</div>';
+  h += '<div class="mgr-detail-body">';
+
+  // Target role + validation
+  h += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap">';
+  h += `<span style="font-size:13px"><strong>Target:</strong> ${targetRole ? esc(targetRole.name) : 'Not set'}</span>`;
+  if (targetRole && !emp.targetRoleValidated) {
+    h += `<button class="btn btn-success btn-sm" onclick="validateTarget('${emp.id}')">Validate Target</button>`;
+  } else if (emp.targetRoleValidated) {
+    h += '<span style="color:#48BB78;font-size:12px;font-weight:600">&#10004; Validated</span>';
+  }
+  h += `<button class="btn btn-secondary btn-sm" onclick="openFeedbackModal('${emp.id}')">Give Feedback</button>`;
+  h += '</div>';
+
+  // Quick assess
+  h += '<div style="margin-bottom:20px">';
+  h += '<h4 style="font-size:13px;font-weight:700;margin-bottom:10px">Skill Assessment</h4>';
+  for (const skill of SKILLS) {
+    const cur = emp.skills?.[skill.id]?.level || null;
+    const req = targetRole ? targetRole.requirements[skill.id] : null;
+    const gap = req && lvNum(req) > lvNum(cur);
+
+    h += '<div class="qa-skill-row">';
+    h += `<span class="qa-skill-name">${esc(skill.name)}`;
+    if (gap) h += ` <span class="gap-indicator" style="font-size:9px;padding:1px 5px">gap</span>`;
+    h += '</span>';
+    h += badge(cur);
+    h += `<select class="qa-level-select" onchange="managerAssess('${emp.id}','${skill.id}',this.value)">`;
+    h += '<option value="">--</option>';
+    for (const lv of ['L1','L2','L3','L4']) {
+      h += `<option value="${lv}" ${cur === lv ? 'selected' : ''}>${lv}</option>`;
+    }
+    h += '</select>';
+    h += '</div>';
+  }
+  h += '</div>';
+
+  // IDP overview
+  const idp = HRStore.getIDP(emp.id);
+  if (idp && idp.actions.length > 0) {
+    h += '<h4 style="font-size:13px;font-weight:700;margin-bottom:10px">Development Actions</h4>';
+    for (const action of idp.actions) {
+      const skill = getSkill(action.skillId);
+      h += '<div class="idp-action">';
+      h += '<div class="idp-action-info">';
+      h += `<div class="idp-action-title">${esc(action.title)}</div>`;
+      h += `<div class="idp-action-meta"><span class="type-tag">${esc(action.type)}</span> ${skill ? esc(skill.name) : ''} | <span class="status-pill ${action.status}">${action.status.replace(/_/g,' ')}</span></div>`;
+      h += '</div>';
+      if (!action.managerApproved) {
+        h += `<button class="btn btn-success btn-sm" onclick="approveAction('${emp.id}','${action.id}')">Approve</button>`;
+      } else {
+        h += '<span style="color:#48BB78;font-size:10px">&#10004;</span>';
+      }
+      h += '</div>';
+    }
+  }
+
+  h += '</div>';
+  return h;
+}
+
+function validateTarget(empId) {
+  HRStore.validateTargetRole(empId, currentUser.id);
+  buildManagerView();
+}
+
+function managerAssess(empId, skillId, level) {
+  if (!level) return;
+  HRStore.updateEmployeeSkill(empId, skillId, level, currentUser.id);
+  buildManagerView();
+}
+
+function approveAction(empId, actionId) {
+  HRStore.approveIDPAction(empId, actionId, currentUser.id);
+  buildManagerView();
+}
+
+function buildTeamHeatmap(team) {
+  if (team.length === 0) return '';
+
+  let h = '<div style="margin-top:24px">';
+  h += '<div class="section-title">Team Skills Heatmap</div>';
+  h += '<div class="section-subtitle">Color shows gap relative to target role</div>';
+  h += '<div class="heatmap-container"><table class="heatmap-table">';
+  h += '<thead><tr><th>Employee</th>';
+  for (const s of SKILLS) {
+    const short = s.name.length > 12 ? s.name.substring(0, 11) + '..' : s.name;
+    h += `<th title="${esc(s.name)}">${esc(short)}</th>`;
+  }
+  h += '</tr></thead><tbody>';
+
+  for (const emp of team) {
+    const targetRole = emp.targetRoleId ? getRole(emp.targetRoleId) : null;
+    h += '<tr>';
+    h += `<td style="text-align:left;font-weight:500">${esc(emp.name)}</td>`;
+    for (const s of SKILLS) {
+      const req = targetRole ? targetRole.requirements[s.id] : null;
+      const cur = emp.skills?.[s.id]?.level || null;
+      if (!req) {
+        h += '<td class="heatmap-cell na">-</td>';
+      } else {
+        const gap = lvNum(req) - lvNum(cur);
+        let cls = 'at-target';
+        if (gap >= 3) cls = 'gap-3';
+        else if (gap === 2) cls = 'gap-2';
+        else if (gap === 1) cls = 'gap-1';
+        h += `<td class="heatmap-cell ${cls}" title="${cur || '?'} / ${req}">${cur || '?'}</td>`;
+      }
+    }
+    h += '</tr>';
+  }
+
+  h += '</tbody></table></div></div>';
+  return h;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── HR DASHBOARD ─────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+function buildHRDashboard() {
+  const emps = HRStore.getEmployees();
+  const idps = HRStore.getIDPs();
+  const feedback = HRStore.getFeedback();
+
+  let h = '';
+  h += '<div class="section-title">HR Dashboard</div>';
+  h += '<div class="dashboard-grid">';
+
+  // Widget 1: Headcount by Role
+  h += '<div class="dash-widget">';
+  h += '<div class="dash-widget-header">Headcount by Role</div>';
+  h += '<div class="dash-widget-body">';
+  const roleCounts = {};
+  for (const r of ROLES) roleCounts[r.id] = 0;
+  for (const emp of emps) { if (roleCounts[emp.currentRoleId] !== undefined) roleCounts[emp.currentRoleId]++; }
+  const maxCount = Math.max(...Object.values(roleCounts), 1);
+  for (const r of ROLES) {
+    const count = roleCounts[r.id];
+    const pct = (count / maxCount * 100);
+    h += '<div class="dash-bar-row">';
+    h += `<span class="dash-bar-label">${esc(r.name)}</span>`;
+    h += `<div class="dash-bar-track"><div class="dash-bar-fill blue" style="width:${pct}%">${count}</div></div>`;
+    h += '</div>';
+  }
+  h += '</div></div>';
+
+  // Widget 2: Gap Distribution
+  h += '<div class="dash-widget">';
+  h += '<div class="dash-widget-header">Gap Distribution by Skill</div>';
+  h += '<div class="dash-widget-body">';
+  for (const skill of SKILLS) {
+    let atTarget = 0, gap1 = 0, gap2 = 0, na = 0;
+    for (const emp of emps) {
+      if (!emp.targetRoleId) { na++; continue; }
+      const targetRole = getRole(emp.targetRoleId);
+      if (!targetRole) { na++; continue; }
+      const req = targetRole.requirements[skill.id];
+      if (!req) { na++; continue; }
+      const cur = emp.skills?.[skill.id]?.level || null;
+      const gap = lvNum(req) - lvNum(cur);
+      if (gap <= 0) atTarget++;
+      else if (gap === 1) gap1++;
+      else gap2++;
+    }
+    const total = atTarget + gap1 + gap2 + na;
+    if (total === 0) continue;
+    const name = skill.name.length > 16 ? skill.name.substring(0, 15) + '..' : skill.name;
+    h += '<div class="stacked-row">';
+    h += `<span class="stacked-label" title="${esc(skill.name)}">${esc(name)}</span>`;
+    h += '<div class="stacked-track">';
+    if (atTarget) h += `<div class="stacked-seg green" style="width:${atTarget/total*100}%" title="${atTarget} at target"></div>`;
+    if (gap1) h += `<div class="stacked-seg amber" style="width:${gap1/total*100}%" title="${gap1} with 1-level gap"></div>`;
+    if (gap2) h += `<div class="stacked-seg red" style="width:${gap2/total*100}%" title="${gap2} with 2+ level gap"></div>`;
+    if (na) h += `<div class="stacked-seg gray" style="width:${na/total*100}%" title="${na} N/A"></div>`;
+    h += '</div></div>';
+  }
+  h += '<div style="display:flex;gap:12px;margin-top:8px;font-size:10px">';
+  h += '<span><span style="display:inline-block;width:10px;height:10px;background:#48BB78;border-radius:2px;vertical-align:middle"></span> At target</span>';
+  h += '<span><span style="display:inline-block;width:10px;height:10px;background:#F6AD55;border-radius:2px;vertical-align:middle"></span> 1-level gap</span>';
+  h += '<span><span style="display:inline-block;width:10px;height:10px;background:#FC8181;border-radius:2px;vertical-align:middle"></span> 2+ gap</span>';
+  h += '<span><span style="display:inline-block;width:10px;height:10px;background:#CBD5E0;border-radius:2px;vertical-align:middle"></span> N/A</span>';
+  h += '</div></div></div>';
+
+  // Widget 3: Development Activity
+  h += '<div class="dash-widget">';
+  h += '<div class="dash-widget-header">Development Activity</div>';
+  h += '<div class="dash-widget-body">';
+  let actCounts = { not_started: 0, in_progress: 0, completed: 0, dropped: 0 };
+  for (const idp of idps) {
+    for (const a of idp.actions) {
+      actCounts[a.status] = (actCounts[a.status] || 0) + 1;
+    }
+  }
+  const totalAct = Object.values(actCounts).reduce((s, v) => s + v, 0) || 1;
+  const actColors = { not_started: 'gray', in_progress: 'blue', completed: 'green', dropped: 'red' };
+  for (const [status, count] of Object.entries(actCounts)) {
+    h += '<div class="dash-bar-row">';
+    h += `<span class="dash-bar-label">${status.replace(/_/g, ' ')}</span>`;
+    h += `<div class="dash-bar-track"><div class="dash-bar-fill ${actColors[status] || 'blue'}" style="width:${count/totalAct*100}%">${count}</div></div>`;
+    h += '</div>';
+  }
+  h += `<div style="font-size:11px;color:var(--text-muted);margin-top:6px">${idps.length} active plans | ${feedback.length} feedback entries</div>`;
+  h += '</div></div>';
+
+  // Widget 4: Progression Pipeline
+  h += '<div class="dash-widget">';
+  h += '<div class="dash-widget-header">Progression Pipeline</div>';
+  h += '<div class="dash-widget-body">';
+  h += '<table class="pipeline-table"><thead><tr><th>Employee</th><th>Current</th><th>Target</th><th>Gaps</th><th>IDP Progress</th></tr></thead><tbody>';
+
+  const ranked = emps
+    .filter(e => e.targetRoleId)
+    .map(e => {
+      const gaps = countGaps(e);
+      const idp = HRStore.getIDP(e.id);
+      const done = idp ? idp.actions.filter(a => a.status === 'completed').length : 0;
+      const total = idp ? idp.actions.length : 0;
+      return { emp: e, gaps: gaps.total, done, total };
+    })
+    .sort((a, b) => a.gaps - b.gaps);
+
+  for (const r of ranked) {
+    const role = getRole(r.emp.currentRoleId);
+    const target = getRole(r.emp.targetRoleId);
+    const pct = r.total > 0 ? Math.round(r.done / r.total * 100) : 0;
+    h += '<tr>';
+    h += `<td style="font-weight:500">${esc(r.emp.name)}</td>`;
+    h += `<td>${role ? esc(role.name) : ''}</td>`;
+    h += `<td>${target ? esc(target.name) : ''}</td>`;
+    h += `<td><span style="color:${r.gaps === 0 ? '#48BB78' : '#E65100'};font-weight:700">${r.gaps}</span></td>`;
+    h += `<td><span class="progress-bar"><span class="progress-bar-fill" style="width:${pct}%"></span></span> ${pct}%</td>`;
+    h += '</tr>';
+  }
+  h += '</tbody></table></div></div>';
+
+  h += '</div>';  // close dashboard-grid
+
+  // Data Management
+  h += '<div class="data-mgmt">';
+  h += '<div class="section-title">Data Management</div>';
+  h += '<div class="data-mgmt-grid">';
+
+  // Export
+  h += '<div class="data-mgmt-card">';
+  h += '<h4>Export Data</h4>';
+  h += '<p>Download data as JSON or CSV files</p>';
+  h += '<div style="display:flex;flex-wrap:wrap;gap:6px">';
+  h += '<button class="btn btn-secondary btn-sm" onclick="HRExport.exportAllJSON()">Full Backup (JSON)</button>';
+  h += '<button class="btn btn-secondary btn-sm" onclick="HRExport.exportEmployeesCSV()">Employees (CSV)</button>';
+  h += '<button class="btn btn-secondary btn-sm" onclick="HRExport.exportGapAnalysisCSV()">Gap Analysis (CSV)</button>';
+  h += '<button class="btn btn-secondary btn-sm" onclick="HRExport.exportIDPsCSV()">Dev Plans (CSV)</button>';
+  h += '<button class="btn btn-secondary btn-sm" onclick="HRExport.exportFeedbackCSV()">Feedback (CSV)</button>';
+  h += '<button class="btn btn-secondary btn-sm" onclick="HRExport.exportAuditLogCSV()">Audit Log (CSV)</button>';
+  h += '</div></div>';
+
+  // Import
+  h += '<div class="data-mgmt-card">';
+  h += '<h4>Import Data</h4>';
+  h += '<p>Restore from a JSON backup file</p>';
+  h += '<input type="file" accept=".json" onchange="importData(this)" style="font-size:12px">';
+  h += '</div>';
+
+  // GDPR
+  h += '<div class="data-mgmt-card">';
+  h += '<h4>GDPR Tools</h4>';
+  h += '<p>Export or delete individual employee data</p>';
+  h += '<div class="form-group"><select id="gdpr-emp-select" style="padding:6px 8px">';
+  for (const emp of emps) h += `<option value="${emp.id}">${esc(emp.name)}</option>`;
+  h += '</select></div>';
+  h += '<div style="display:flex;gap:6px">';
+  h += '<button class="btn btn-secondary btn-sm" onclick="gdprExport()">Export Employee Data</button>';
+  h += '<button class="btn btn-danger btn-sm" onclick="gdprDelete()">Delete Employee</button>';
+  h += '</div></div>';
+
+  // Reset
+  h += '<div class="data-mgmt-card">';
+  h += '<h4>System</h4>';
+  h += '<p>Reset to demo data (destroys all changes)</p>';
+  h += '<button class="btn btn-danger btn-sm" onclick="resetSystem()">Reset to Seed Data</button>';
+  h += '</div>';
+
+  h += '</div></div>';
+
+  // AI Settings
+  h += '<div class="settings-section">';
+  h += '<h3>AI Settings (Ollama / glm-4.7-flash)</h3>';
+  const settings = HRStore.getSettings();
+  h += '<div class="form-row">';
+  h += '<div class="form-group"><label>API Endpoint:</label>';
+  h += `<input id="ai-endpoint" value="${esc(settings.aiEndpoint || '')}" placeholder="http://localhost:11434/api/generate"></div>`;
+  h += '<div class="form-group"><label>Model:</label>';
+  h += `<input id="ai-model" value="${esc(settings.aiModel || '')}" placeholder="glm-4.7-flash"></div>`;
+  h += '</div>';
+  h += '<div class="form-group"><label>API Key (for OpenAI-compatible endpoints, leave empty for Ollama):</label>';
+  h += `<input id="ai-key" type="password" value="${esc(settings.aiApiKey || '')}" placeholder="Optional"></div>`;
+  h += '<button class="btn btn-primary btn-sm" onclick="saveAISettings()">Save AI Settings</button>';
+  h += '</div>';
+
+  // Audit Log
+  h += '<div style="margin-top:20px">';
+  h += '<div class="section-title">Audit Log (Last 50)</div>';
+  const log = HRStore.getAuditLog().slice(-50).reverse();
+  h += '<table class="audit-table"><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Target</th><th>Details</th></tr></thead><tbody>';
+  for (const entry of log) {
+    const user = emps.find(e => e.id === entry.userId);
+    const target = emps.find(e => e.id === entry.targetEmployeeId);
+    h += '<tr>';
+    h += `<td>${entry.timestamp ? new Date(entry.timestamp).toLocaleString() : ''}</td>`;
+    h += `<td>${user ? esc(user.name) : esc(entry.userId)}</td>`;
+    h += `<td>${esc(entry.action)}</td>`;
+    h += `<td>${target ? esc(target.name) : esc(entry.targetEmployeeId || '')}</td>`;
+    h += `<td style="font-size:10px;max-width:200px;overflow:hidden;text-overflow:ellipsis">${esc(JSON.stringify(entry.details || {}))}</td>`;
+    h += '</tr>';
+  }
+  h += '</tbody></table></div>';
+
+  document.getElementById('hr-content').innerHTML = h;
+}
+
+// ── HR Dashboard actions ──────────────────────────────────────────────────────
+async function importData(input) {
+  if (!input.files[0]) return;
+  try {
+    await HRExport.importJSON(input.files[0]);
+    alert('Data imported successfully!');
+    buildPersonSelect();
+    buildHRDashboard();
+  } catch (e) {
+    alert('Import failed: ' + e.message);
+  }
+}
+
+function gdprExport() {
+  const empId = document.getElementById('gdpr-emp-select').value;
+  HRExport.exportEmployeeJSON(empId);
+}
+
+function gdprDelete() {
+  const empId = document.getElementById('gdpr-emp-select').value;
+  const emp = HRStore.getEmployee(empId);
+  if (!emp) return;
+  if (!confirm(`Are you sure you want to permanently delete all data for ${emp.name}? This cannot be undone.`)) return;
+  HRStore.deleteEmployee(empId);
+  buildPersonSelect();
+  buildHRDashboard();
+}
+
+function resetSystem() {
+  if (!confirm('This will reset ALL data to the demo seed data. All changes will be lost. Continue?')) return;
+  HRStore.reset();
+  buildPersonSelect();
+  currentUser = HRStore.getCurrentUser();
+  updateViewForRole();
+}
+
+function saveAISettings() {
+  const settings = {
+    aiEndpoint: document.getElementById('ai-endpoint').value.trim(),
+    aiModel: document.getElementById('ai-model').value.trim(),
+    aiApiKey: document.getElementById('ai-key').value.trim()
+  };
+  HRStore.saveSettings(settings);
+  alert('AI settings saved!');
+}
+
+// ── Start the app ─────────────────────────────────────────────────────────────
+initApp();
 </script>
 </body>
 </html>

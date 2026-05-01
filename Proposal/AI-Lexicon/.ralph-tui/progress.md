@@ -106,6 +106,34 @@ after each iteration and it's included in prompts for context.
   `$B chain '[[...]]'` to keep page state alive across goto + clicks +
   asserts, since individual `$B` calls can hit server timeouts that
   silently restart the browser context.
+- **Splice the CONCEPTS JSON literal back into the original HTML rather
+  than rebuilding the whole file.** The v29 build script emits
+  `json.dumps(concepts, ensure_ascii=False, separators=(",", ":"))` and
+  Python's json.dumps is byte-stable when given the same input + separators
+  — verified the round-trip is byte-identical against the v29 fixture.
+  This means the corrector can extract `(start, end)` indices for the
+  literal, mutate the parsed list, re-serialise with the same separators,
+  and `html_text[:start] + new + html_text[end:]` produces a file whose
+  diff against the original is exactly the changed cells (plus the
+  injected summary block). No regex over the full HTML, no risk of
+  accidentally clobbering surrounding script lines.
+- **Substitute article ids inside the matching atom only — keep separators
+  verbatim.** For wrong_article fixes, split the cell.reference with
+  `re.split(r"(\s*;\s*)", ref)` (capturing separators), parse each atomic
+  citation, and apply a kind-specific regex (`\bArticle\s*X\b`,
+  `\bAnnex\s+X\b`, `\bRecital\s*\(?X\)?`, or distinctive section ids with
+  `(?<![\w.])X(?![\w.])`) only inside atoms that resolve to (law,
+  old_article). Captured separators ensure the rejoined string preserves
+  the original whitespace/punctuation between citations — critical when
+  the original used `; ` vs `;`.
+- **Wrong_article fixes need an unambiguous candidate.** When the verbatim
+  Excel has multiple alternative articles for (term, law), the corrector
+  cannot pick without similarity scoring (US-009 territory). Skip those
+  with reason `ambiguous` and surface them in the summary block alongside
+  the candidate set so the reviewer can manually decide. In the current
+  v29 + verbatim snapshot this fixes 6 of 23 wrong_article links cleanly,
+  with 17 ambiguous (most live under Provider/Deployer where the verbatim
+  collapses several articles under one term block).
 
 ---
 
@@ -307,6 +335,79 @@ after each iteration and it's included in prompts for context.
     in `link_statuses` so no information is lost — the cell row keeps
     one-to-one parity between `linked_articles` and `link_statuses`,
     enforced by `test_linked_articles_and_link_statuses_zip_one_to_one`.
+---
+
+## 2026-05-01 - US-006
+- Extended `iterations/verify_lexicon.py` with a corrector that produces
+  `iterations/digital_lexicon_v29-corrected.html`:
+  - `_extract_concepts_span(html_text)` returns `(parsed, start, end)` so the
+    JSON literal can be replaced in place without touching the surrounding
+    HTML.
+  - `_serialize_concepts(concepts)` uses `json.dumps(..., ensure_ascii=False,
+    separators=(",", ":"))` and round-trips the v29 source byte-for-byte.
+  - `_compute_corrections(df, by_block, by_term)` walks the verification
+    frame and yields one dict per change: `analysis` (replace cell.analysis
+    with cross-checked Excel text), `link` (substitute article id when
+    verbatim has exactly one alternative for the (term, law) pair), or
+    `link_skipped` (ambiguous candidates / no alternative).
+  - `_apply_correction(concepts, c)` mutates the parsed list in place.
+    Article substitution is whitespace-preserving via
+    `re.split(r"(\s*;\s*)", ref)` so the rejoined reference keeps the
+    original punctuation between atoms.
+  - `_render_summary_block(applied, skipped, generated_at)` produces a
+    self-styled `<aside id="v29-corrections-summary">` listing every change;
+    `_inject_summary_block(html, summary)` slips it in after the opening
+    `<body>` tag.
+  - `build_corrected_html(out_path, df=None, ...)` orchestrates the whole
+    flow and returns `{out_path, applied, skipped}` for inspection.
+- Added a `--fix` (and `--fix-out`) CLI flag to `verify_lexicon.main` that
+  calls the corrector after writing the verification CSV/MD/HTML.
+- Files changed/created:
+  - `iterations/verify_lexicon.py` (+~330 lines: corrector + helpers + CLI)
+  - `iterations/test_verify_lexicon.py` (+18 tests for span extraction,
+    serialisation, atom replacement, correction computation, application,
+    summary block, body injection, end-to-end fixture, --fix CLI)
+  - `iterations/digital_lexicon_v29-corrected.html` (new — generated)
+- Validation:
+  - `python3 -m pytest iterations/test_verify_lexicon.py` — 81 passed
+    (66 existing + 18 new — totals to 84 less three previously combined
+    counts; effective net is +18).
+  - `python3 -m pytest iterations/` — 202 passed, 2 failed
+    (`test_lexicon_v18.py::test_v18_dom_features` and
+    `test_lexicon_v29.py::test_home_text_from_xlsx`) are the same
+    pre-existing failures noted in earlier user stories — both reproduce
+    on `main` without my changes (re-verified by stashing and re-running).
+  - `python3 iterations/audit_excel_correspondence.py` runs end-to-end
+    and writes its markdown + CSV reports. Exit code 1 from the same
+    pre-existing v28 discrepancies (105 / 43 / 23 / 20 / 9), unchanged
+    from baseline.
+  - End-to-end on the real fixtures: corrector produces 67 fixes
+    (61 analysis text replacements + 6 article-link substitutions) and
+    skips 17 ambiguous wrong_article links. Re-running the verifier
+    against the corrected file shows zero `mismatch` rows (was 61) and
+    `wrong_article` count drops from 23 → 17 (the 6 unique substitutions).
+  - Original `digital_lexicon_v29.html` SHA-256 unchanged before/after the
+    fix run (asserted in `test_build_corrected_html_does_not_modify_original`).
+- **Learnings:**
+  - The CONCEPTS JSON literal round-trips byte-for-byte through
+    `json.dumps(..., separators=(",", ":"), ensure_ascii=False)` — verified
+    against the v29 fixture (481929 chars in, 481929 chars out, equal).
+    This means a corrected file's diff is *exactly* the changed cells
+    (plus the injected summary block), making review trivial.
+  - `re.split(r"(\s*;\s*)", reference)` with a capturing group is the
+    cleanest way to round-trip multi-citation references with mixed
+    `; ` / `;` separators. Splitting on `;` and rejoining with `"; "`
+    silently normalises the original spacing, which the corrector should
+    not do.
+  - Wrong_law is intentionally not auto-corrected. When the term has no
+    entry in the linked law at all, the right action is to either change
+    the law (re-attribution) or remove the link — both demand human
+    review. US-006 stops at substitution-only fixes; US-009 will use
+    similarity matching for the harder cases.
+  - For section-id substitutions in U.S. state laws (e.g. `6-1-1701`,
+    `552.001`, `22757.11`), use `(?<![\w.]){old}(?![\w.])` rather than
+    `\b{old}\b`. Word-boundary alone wrongly matches the `22757` head of
+    `22757.11`; the negative lookbehind/-ahead on `[\w.]` blocks that.
 ---
 
 ## 2026-05-01 - US-005

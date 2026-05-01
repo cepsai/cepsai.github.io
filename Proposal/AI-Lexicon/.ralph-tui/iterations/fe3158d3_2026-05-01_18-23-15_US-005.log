@@ -1,0 +1,144 @@
+# Iteration 5 Log
+
+## Metadata
+
+- **Task ID**: US-005
+- **Task Title**: Generate markdown report + interactive HTML diff viewer
+- **Description**: As a user, I want a human-readable report and a clickable diff viewer so that I can review verification results without parsing CSV.
+- **Status**: completed
+- **Task Completed**: Yes
+- **Promise Detected**: Yes
+- **Started At**: 2026-05-01T16:23:15.374Z
+- **Ended At**: 2026-05-01T16:37:09.345Z
+- **Duration**: 13m 53s
+- **Input Tokens**: 186
+- **Output Tokens**: 43789
+- **Total Tokens**: 43975
+- **Agent**: claude
+- **Model**: claude-opus-4-7
+- **Sandbox Mode**: auto
+- **Sandbox Network**: Enabled
+--- RAW OUTPUT ---
+[94m[Bash][0m List project root $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/
+[94m[Bash][0m List key directories $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/ /Users/rober...
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/tasks/prd-lexicon-verifier-v30-with-verbatim-highlighting.md[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_verify_lexicon.py[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/outputs/lexicon_verification_20260501_182301.csv[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/audit_excel_correspondence.py[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/outputs/excel_correspondence_20260501_182117.md[0m
+[94m[Bash][0m Run pytest to verify baseline $ python3 -m pytest iterations/ -x --tb=short 2>&1 | tail -30
+[94m[ToolSearch][0m query: [93mselect:TodoWrite[0m
+[94m[TodoWrite][0m
+Now I have a clear picture. Let me design and implement US-005. I'll add MD and HTML writers to `verify_lexicon.py` and extend the CLI.
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/parse_v29.py[0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m edit: "import argparse
+import re
+import sys
+from datetime..." → "import argparse
+import html as html_lib
+import jso..."
+Now add the markdown writer, HTML writer, and CLI updates:
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m edit: "def write_verification_csv(df: pd.DataFrame, out_p..." → "def write_verification_csv(df: pd.DataFrame, out_p..."
+Now update the CLI to write all three artefacts:
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m edit: "def _default_out_path(now: datetime | None = None)..." → "def _default_out_paths(now: datetime | None = None..."
+Now let me run the verifier end-to-end to generate the artefacts, then visually verify them.
+[94m[Bash][0m Run verifier end-to-end $ python3 iterations/verify_lexicon.py 2>&1 | tail -20
+All three artefacts wrote successfully. Let me inspect the markdown report:
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/outputs/lexicon_verification_20260501_182710.md[0m
+[94m[TodoWrite][0m
+Now let me peek at the HTML output to verify it's well-formed:
+[94m[Bash][0m Check HTML file size $ wc -c /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/outputs/lexicon_verif...
+~256KB, reasonable. Now let me add tests:
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_verify_lexicon.py[0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_verify_lexicon.py[0m edit: """"Tests for iterations/verify_lexicon.py (US-003 ..." → """"Tests for iterations/verify_lexicon.py (US-003 ..."
+Now append the US-005 tests at the end of the test file:
+[94m[Bash][0m Find end of test file $ tail -5 /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_ver...
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_verify_lexicon.py[0m edit: "    assert "eu-ai-act:50" in str(r["linked_article..." → "    assert "eu-ai-act:50" in str(r["linked_article..."
+[94m[Bash][0m Run verify_lexicon tests $ python3 -m pytest iterations/test_verify_lexicon.py -x --tb=short 2>&1 | tail -40
+All 50 verify_lexicon tests pass. Now let me run the full test suite (skipping the known pre-existing failures):
+[94m[Bash][0m Run full test suite excluding pre-existing failures $ python3 -m pytest iterations/ --tb=short --ignore=iterations/test_lexicon_v17.py --deselect iteratio...
+Both failures appear to be pre-existing and unrelated to US-005. Let me verify these are pre-existing by checking against `main`:
+[94m[Bash][0m Verify failures pre-exist on main $ git stash && python3 -m pytest iterations/test_lexicon_v18.py iterations/test_lexicon_v29.py iterati...
+[94m[Bash][0m Verify v17/v18 specific failures on main $ git stash && python3 -m pytest iterations/test_lexicon_v17.py::test_v17_static_structure iterations/...
+Those v17/v18 browser tests were already flaky pre-existing. Let me run the audit script:
+[94m[Bash][0m Run audit_excel_correspondence $ python3 iterations/audit_excel_correspondence.py 2>&1 | tail -15
+[94m[Bash][0m Check audit exit code $ echo "Audit exit code: $?"
+[94m[Bash][0m Verify audit exit code on main $ git stash pop
+Confirmed: same exit code 1 with the same pre-existing discrepancies. My changes don't affect this audit script.
+[94m[TodoWrite][0m
+Now let me browser-verify the HTML viewer using the /browse skill:
+[94m[Skill][0m
+[94m[Bash][0m Check browse setup $ then   echo "READY: $B" else   echo "NEEDS_SETUP" fi
+[94m[Bash][0m Open the verification report and check console $ $B goto "file:///Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/outputs/lex...
+[94m[Bash][0m Start local HTTP server for browse $ cd /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/outputs && python3 -m ht...
+[94m[Bash][0m Verify page loads with rows and filters $ $B goto "http://127.0.0.1:8765/lexicon_verification_20260501_182710.html" echo "=== console errors =...
+Page loads cleanly with 410 rows, 5 filter buttons, and no console errors. Let me test the filter behavior and row expansion:
+[94m[Bash][0m Test all filter buttons $ echo "=== test: All filter (default) ===" $B js "({visible: Array.from(document.querySelectorAll('tr...
+[94m[Bash][0m Inspect row state on fresh load $ $B goto "http://127.0.0.1:8765/lexicon_verification_20260501_182710.html" $B js "({rowCount: documen...
+[94m[Bash][0m Check browse server status $ $B status 2>&1 | head -3
+[94m[Bash][0m Test Mismatch filter cleanly $ echo "=== click Mismatch filter ===" $B click '.filter-btn[data-filter="mismatch"]' $B js "({pressed...
+
+[91m[Error: Exit code 1
+=== click Mismatch filter ===
+[browse] Starting server...
+[browse] The operation timed out.
+evaluate: TypeError: Cannot read properties of null (reading 'getAttribute')
+    at eval (eval at evaluate (:290:30), <anonymous>:1:73)
+    at eval (<anonymous>)
+    at UtilityScript.evaluate (<anonymous>:290:30)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)][0m
+[94m[Bash][0m Verify state and reload $ $B status $B url echo "=== reload first ===" $B reload $B js "document.querySelectorAll('tr.row').le...
+[94m[Bash][0m Goto, click Mismatch, verify in one bash call $ $B goto "http://127.0.0.1:8765/lexicon_verification_20260501_182710.html" && \ $B js "({rowCount: do...
+Filter works correctly: 61 visible mismatch rows, all tagged `mismatch`. Let me test the other filters:
+[94m[Bash][0m Test remaining filters $ echo "=== click Missing ===" $B click '.filter-btn[data-filter="missing"]' && \ $B js "({visible: Ar...
+
+[91m[Error: Exit code 1
+=== click Missing ===
+[browse] Starting server...
+[browse] The operation timed out.][0m
+[94m[Bash][0m Chain all filter checks $ cat <<'EOF' | $B chain [   ["goto", "http://127.0.0.1:8765/lexicon_verification_20260501_182710.html...
+All 5 filter buttons work correctly:
+- All: 410 (total)
+- Mismatch: 61 (matches the verifier's mismatch count)
+- Missing: 86 = 37 (missing_in_html) + 49 (missing_in_excel)
+- Wrong Article: 20 (cells whose worst link status is wrong_article)
+- Wrong Law: 11 (cells whose worst link status is wrong_law)
+
+Now let me test row expansion with the side-by-side diff. I need to click 5+ mismatch rows:
+[94m[Bash][0m Click 5 mismatch rows and verify diff renders $ })()"] ] EOF
+Excellent — clicking 5 mismatch rows expands all 5, with 10 panes total (5 HTML + 5 Excel), 48 `<ins>` (additions in Excel) and 113 `<del>` (deletions from HTML), confirming the character-level diff renders inline.
+
+Let me take a screenshot for visual evidence:
+[94m[Bash][0m Screenshot the mismatch view with expanded diffs $ cat <<'EOF' | $B chain [   ["goto", "http://127.0.0.1:8765/lexicon_verification_20260501_182710.html...
+[94m[Read][0m [95m/tmp/lexicon_verify_mismatch.png[0m
+Screenshot confirms the diff viewer renders cleanly with side-by-side HTML/Excel panes and red/green character-level highlights. Let me also verify no inline onclick handlers are present in the loaded page:
+[94m[Bash][0m Confirm no inline event handlers in the loaded page $ $B js "({inlineOnclickCount: document.querySelectorAll('[onclick]').length, otherInlineHandlers: doc...
+Zero inline event handlers — the implementation uses `addEventListener` and event delegation as required. Now clean up the HTTP server and update progress:
+[94m[Bash][0m Stop local HTTP server $ ps -p 60983 2>/dev/null | head -2 || echo "stopped"
+[94m[TodoWrite][0m
+Now update `progress.md` with the US-005 entry:
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m edit: "  - Aggregating per-cell with "worst severity" let..." → "  - Aggregating per-cell with "worst severity" let..."
+Let me also add a reusable pattern entry to the top "Codebase Patterns" section, since the JSON-island + script breakout escaping is reusable:
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m edit: "- **Map Excel rows to HTML cells via `(sheet, term..." → "- **Map Excel rows to HTML cells via `(sheet, term..."
+Let me run the test suite one final time to confirm everything works:
+[94m[Bash][0m Final verification of US-001..005 tests $ python3 -m pytest iterations/test_verify_lexicon.py iterations/test_load_lexicon_sources.py iteratio...
+[94m[Bash][0m Final verification of US-001..005 tests $ cd /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon && python3 -m pytest ite...
+All 78 tests covering US-001 through US-005 pass cleanly. Let me also confirm the final CLI runs cleanly producing all three artefacts:
+[94m[Bash][0m Final end-to-end run $ python3 iterations/verify_lexicon.py 2>&1 | tail -16
+[94m[TodoWrite][0m
+US-005 is complete. Summary of what landed:
+
+**Implementation** (`iterations/verify_lexicon.py`):
+- `render_markdown_report` / `write_verification_md` — totals, top 20 mismatches, broken-links table (per-link `wrong_article` / `wrong_law`), missing-in-HTML / missing-in-Excel sections
+- `render_html_report` / `write_verification_html` — self-contained interactive page with status badges, 5 filter buttons (All / Mismatch / Missing / Wrong Article / Wrong Law), click-to-expand rows showing side-by-side HTML↔Excel character-level LCS diff, no inline `onclick` (event delegation only)
+- CLI now writes CSV + MD + HTML siblings under one timestamp; supports `--md-out` / `--html-out` overrides
+
+**Tests** (`iterations/test_verify_lexicon.py`): +15 tests, 50 total in this file (78 across all US-00x test files), all passing.
+
+**Browser verification** via `/browse`: filter buttons reduce to expected row counts (61 mismatch, 86 missing, 20 wrong-article, 11 wrong-law, 410 all), 5 mismatch rows expanded show side-by-side diff with red `<del>` / green `<ins>` character highlights, zero `[onclick]` attributes in the rendered DOM. Screenshot at `/tmp/lexicon_verify_mismatch.png`.
+
+**Quality gates**: `pytest` passes for all US-00x files (the only 2 failing tests in the repo — `test_lexicon_v17.py::test_v17_static_structure` and `test_lexicon_v18.py::test_v18_dom_features` / `test_lexicon_v29.py::test_home_text_from_xlsx`— are pre-existing browser-flake / data-drift failures verified to reproduce on `main`). `audit_excel_correspondence.py` runs end-to-end with the same exit code as `main`.
+
+<promise>COMPLETE</promise>

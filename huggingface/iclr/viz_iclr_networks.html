@@ -1,0 +1,990 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>ICLR 2026 — Co-authorship Networks</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #fff;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 1fr auto auto;
+      grid-template-columns: 1fr;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    /* --- Main canvas area --- */
+    #network-container {
+      position: relative;
+      overflow: hidden;
+      background: #fafafa;
+    }
+    #network-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* --- Controls bar --- */
+    #network-controls {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 16px;
+      border-top: 1px solid #e0e0e0;
+      background: #fff;
+      flex-wrap: wrap;
+    }
+    #network-controls label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+    }
+    #network-controls select,
+    #network-controls input[type="text"] {
+      font-size: 13px;
+      padding: 4px 8px;
+      border: 1.5px solid #2756d3;
+      border-radius: 18px;
+      outline: none;
+      color: #2756d3;
+      background: #fff;
+    }
+    #network-controls select:focus,
+    #network-controls input[type="text"]:focus {
+      box-shadow: 0 0 0 2px rgba(39, 86, 211, 0.15);
+    }
+
+    /* Segmented buttons */
+    .seg-group {
+      display: inline-flex;
+      border: 1.5px solid #2756d3;
+      border-radius: 18px;
+      overflow: hidden;
+    }
+    .seg-btn {
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      background: #fff;
+      color: #2756d3;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .seg-btn + .seg-btn { border-left: 1.5px solid #2756d3; }
+    .seg-btn.active {
+      background: #2756d3;
+      color: #fff;
+    }
+
+    /* Slider */
+    #nodeSlider {
+      width: 100px;
+      accent-color: #2756d3;
+    }
+    #sliderLabel {
+      font-size: 12px;
+      color: #555;
+      min-width: 32px;
+    }
+
+    /* --- Footer --- */
+    #network-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 16px;
+      font-size: 12px;
+      background: #fff;
+      border-top: 1px solid #e0e0e0;
+      color: #555;
+    }
+    #network-footer a {
+      color: #2756d3;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    #network-footer a:hover { text-decoration: underline; }
+
+    /* --- Tooltip --- */
+    #tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(0,0,0,0.82);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.5;
+      max-width: 320px;
+      z-index: 50;
+      display: none;
+    }
+    #tooltip strong { font-weight: 700; }
+
+    /* --- Detail panel (slide-in) --- */
+    #detail-panel {
+      position: absolute;
+      top: 0; right: 0;
+      width: 360px;
+      height: 100%;
+      background: #fff;
+      box-shadow: -4px 0 16px rgba(0,0,0,0.12);
+      z-index: 40;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #detail-header {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+      gap: 8px;
+    }
+    #detail-header h3 {
+      flex: 1;
+      margin: 0;
+      font-size: 15px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #detail-close {
+      border: none;
+      background: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #888;
+      padding: 2px 6px;
+    }
+    #detail-meta {
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #666;
+      border-bottom: 1px solid #eee;
+    }
+    .detail-tabs {
+      display: flex;
+      border-bottom: 1px solid #eee;
+    }
+    .detail-tab {
+      flex: 1;
+      padding: 8px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: #fff;
+      color: #888;
+    }
+    .detail-tab.active {
+      color: #2756d3;
+      border-bottom: 2px solid #2756d3;
+    }
+    #detail-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 16px;
+      font-size: 12px;
+    }
+    #detail-content table { width: 100%; border-collapse: collapse; }
+    #detail-content th {
+      text-align: left;
+      padding: 4px 0;
+      border-bottom: 1px solid #eee;
+      color: #888;
+      font-weight: 600;
+    }
+    #detail-content td {
+      padding: 4px 0;
+      border-bottom: 1px solid #f5f5f5;
+    }
+    #detail-content td:last-child { text-align: right; color: #2756d3; font-weight: 600; }
+
+    /* --- Legend (inline in controls) --- */
+    .legend-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    .legend-label {
+      font-size: 11px;
+      color: #555;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+
+    /* --- Search autocomplete --- */
+    #search-wrapper {
+      position: relative;
+    }
+    #searchInput {
+      width: 180px;
+    }
+    #search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 60;
+      display: none;
+    }
+    .search-item {
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .search-item:hover { background: #f0f4ff; }
+    .search-item .inst { color: #888; font-size: 11px; }
+
+    /* Status / loading */
+    #status-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 14px;
+      color: #888;
+    }
+
+    /* Responsive */
+    @media (max-width: 800px) {
+      #network-controls { gap: 8px; padding: 6px 10px; }
+      #detail-panel { width: 100%; }
+      #searchInput { width: 120px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="viz-grid">
+  <!-- Main network canvas -->
+  <div id="network-container">
+    <canvas id="networkCanvas"></canvas>
+    <div id="tooltip"></div>
+    <div id="detail-panel">
+      <div id="detail-header">
+        <h3 id="detail-name"></h3>
+        <button id="detail-close">&times;</button>
+      </div>
+      <div id="detail-meta"></div>
+      <div class="detail-tabs">
+        <button class="detail-tab active" data-tab="coauthors">Co-authors</button>
+        <button class="detail-tab" data-tab="papers">Papers</button>
+      </div>
+      <div id="detail-content"></div>
+    </div>
+    <div id="status-text">Loading data...</div>
+  </div>
+
+  <!-- Controls -->
+  <div id="network-controls">
+    <label>Topic</label>
+    <select id="topicSelect"></select>
+
+    <div id="search-wrapper">
+      <input type="text" id="searchInput" placeholder="Search author...">
+      <div id="search-results"></div>
+    </div>
+
+    <label>Nodes</label>
+    <input type="range" id="nodeSlider" min="50" max="1000" value="500" step="50">
+    <span id="sliderLabel">500</span>
+
+    <div class="seg-group" id="colorToggle">
+      <button class="seg-btn active" data-mode="region">Region</button>
+      <button class="seg-btn" data-mode="institution">Institution</button>
+    </div>
+
+    <span style="margin-left: auto;">
+      <span class="legend-dot" style="background:#e05c3a;"></span><span class="legend-label">China</span>
+      <span class="legend-dot" style="background:#2756d3;"></span><span class="legend-label">US</span>
+      <span class="legend-dot" style="background:#2e9e4f;"></span><span class="legend-label">Europe</span>
+      <span class="legend-dot" style="background:#9b59b6;"></span><span class="legend-label">Rest of World</span>
+    </span>
+  </div>
+
+  <!-- Footer -->
+  <div id="network-footer">
+    <span>Source: <a href="https://openreview.net/group?id=ICLR.cc/2026" target="_blank" rel="noopener">ICLR 2026</a></span>
+    <span><a href="viz_iclr.html">&larr; Institution Treemap</a></span>
+  </div>
+</div>
+
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ── Region config (matches treemap) ──
+  var EUROPE_CODES = new Set([
+    "AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU",
+    "IE","IT","LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES",
+    "SE","GB","CH","NO","IS","LI","RS","UA","AM","GE","AL","BA","ME",
+    "MK","MD","BY","AZ","TR"
+  ]);
+  var REGION_COLORS = {
+    "China": "#e05c3a",
+    "US": "#2756d3",
+    "Europe": "#2e9e4f",
+    "Rest of World": "#9b59b6"
+  };
+  function getRegion(cc) {
+    if (!cc) return "Rest of World";
+    if (cc === "CN" || cc === "HK" || cc === "MO") return "China";
+    if (cc === "US") return "US";
+    if (EUROPE_CODES.has(cc)) return "Europe";
+    return "Rest of World";
+  }
+
+  // ── Accepted venues ──
+  var ACCEPTED = new Set([
+    "ICLR 2026 Oral", "ICLR 2026 Poster",
+    "ICLR 2026 ConditionalOral", "ICLR 2026 ConditionalPoster"
+  ]);
+
+  // ── DOM refs ──
+  var canvas = document.getElementById("networkCanvas");
+  var ctx = canvas.getContext("2d");
+  var container = document.getElementById("network-container");
+  var tooltip = document.getElementById("tooltip");
+  var statusText = document.getElementById("status-text");
+  var topicSelect = document.getElementById("topicSelect");
+  var searchInput = document.getElementById("searchInput");
+  var searchResults = document.getElementById("search-results");
+  var nodeSlider = document.getElementById("nodeSlider");
+  var sliderLabel = document.getElementById("sliderLabel");
+  var detailPanel = document.getElementById("detail-panel");
+  var detailName = document.getElementById("detail-name");
+  var detailMeta = document.getElementById("detail-meta");
+  var detailContent = document.getElementById("detail-content");
+
+  // ── State ──
+  var allPapers = [];
+  var instCountryMap = {};
+  var topicList = [];
+  var currentTopic = "";
+  var currentNetwork = null;   // { nodes, edges, nodeMap, adjList }
+  var filteredNetwork = null;  // after top-N filter
+  var simulation = null;
+  var transform = d3.zoomIdentity;
+  var hoveredNode = null;
+  var selectedNode = null;
+  var colorMode = "region";    // "region" or "institution"
+  var dpr = window.devicePixelRatio || 1;
+  var quadtree = null;
+
+  // ── Data loading ──
+  function loadData() {
+    Promise.all([
+      d3.csv("iclr_2026_papers_with_institutions_v4.csv", function (row) {
+        var venue = (row.venue || "").trim();
+        if (!ACCEPTED.has(venue)) return null;
+        return {
+          paperId: (row.id || row.forum || "").trim(),
+          title: (row.title || "").trim(),
+          venue: venue,
+          authors: (row.authors || "").trim(),
+          authorids: (row.authorids || "").trim(),
+          institutions: (row.institutions || "").trim(),
+          primary_area: (row.primary_area || "").trim()
+        };
+      }),
+      d3.json("institution_venues_iclr_2026_v14.json")
+    ]).then(function (results) {
+      allPapers = results[0].filter(Boolean);
+      buildInstCountryMap(results[1]);
+      buildTopicList();
+      statusText.style.display = "none";
+      setTopic(topicList[0].topic);
+    }).catch(function (err) {
+      statusText.textContent = "Error loading data: " + err.message;
+      console.error(err);
+    });
+  }
+
+  function buildInstCountryMap(institutions) {
+    institutions.forEach(function (inst) {
+      var name = inst.canonical || inst.name || "";
+      var name2 = inst.name2 || inst.name || "";
+      var cc = inst.country || "";
+      if (name) instCountryMap[name.toLowerCase()] = cc;
+      if (name2) instCountryMap[name2.toLowerCase()] = cc;
+      if (inst.name) instCountryMap[inst.name.toLowerCase()] = cc;
+    });
+  }
+
+  function getCountryForInst(instName) {
+    if (!instName) return "";
+    return instCountryMap[instName.toLowerCase()] || "";
+  }
+
+  // ── Topic list ──
+  function buildTopicList() {
+    var counts = {};
+    allPapers.forEach(function (p) {
+      var t = p.primary_area;
+      if (!t) return;
+      if (!counts[t]) counts[t] = { papers: 0, authorSet: new Set() };
+      counts[t].papers++;
+      p.authorids.split(";").forEach(function (a) {
+        var id = a.trim();
+        if (id) counts[t].authorSet.add(id);
+      });
+    });
+    topicList = Object.keys(counts).map(function (t) {
+      return { topic: t, papers: counts[t].papers, authors: counts[t].authorSet.size };
+    }).sort(function (a, b) { return b.papers - a.papers; });
+
+    topicSelect.innerHTML = "";
+    topicList.forEach(function (t) {
+      var opt = document.createElement("option");
+      opt.value = t.topic;
+      opt.textContent = t.topic + " (" + t.papers + " papers, " + t.authors + " authors)";
+      topicSelect.appendChild(opt);
+    });
+  }
+
+  // ── Network construction ──
+  function buildCoauthorshipNetwork(topic) {
+    var nodeMap = {};
+    var edgeMap = {};
+
+    allPapers.forEach(function (p) {
+      if (p.primary_area !== topic) return;
+      var ids = p.authorids.split(";").map(function (s) { return s.trim(); }).filter(Boolean);
+      var names = p.authors.split(";").map(function (s) { return s.trim(); });
+      var insts = p.institutions.split(";").map(function (s) { return s.trim(); });
+
+      ids.forEach(function (id, i) {
+        if (!nodeMap[id]) {
+          var inst = insts[i] || "";
+          var cc = getCountryForInst(inst);
+          nodeMap[id] = {
+            id: id,
+            name: names[i] || id,
+            institution: inst,
+            country: cc,
+            region: getRegion(cc),
+            papers: new Set(),
+            degree: 0
+          };
+        }
+        nodeMap[id].papers.add(p.paperId);
+      });
+
+      for (var i = 0; i < ids.length; i++) {
+        for (var j = i + 1; j < ids.length; j++) {
+          var a = ids[i], b = ids[j];
+          var key = a < b ? a + "|" + b : b + "|" + a;
+          if (!edgeMap[key]) {
+            edgeMap[key] = { source: a, target: b, weight: 0 };
+          }
+          edgeMap[key].weight++;
+        }
+      }
+    });
+
+    var edges = Object.values(edgeMap);
+    edges.forEach(function (e) {
+      if (nodeMap[e.source]) nodeMap[e.source].degree++;
+      if (nodeMap[e.target]) nodeMap[e.target].degree++;
+    });
+
+    var nodes = Object.values(nodeMap);
+    nodes.forEach(function (n) { n.paperCount = n.papers.size; });
+
+    // Build adjacency list
+    var adjList = {};
+    edges.forEach(function (e) {
+      if (!adjList[e.source]) adjList[e.source] = [];
+      if (!adjList[e.target]) adjList[e.target] = [];
+      adjList[e.source].push(e);
+      adjList[e.target].push(e);
+    });
+
+    return { nodes: nodes, edges: edges, nodeMap: nodeMap, adjList: adjList };
+  }
+
+  function filterNetworkByDegree(network, maxNodes) {
+    if (network.nodes.length <= maxNodes) return network;
+
+    var sorted = network.nodes.slice().sort(function (a, b) { return b.degree - a.degree; });
+    var kept = new Set(sorted.slice(0, maxNodes).map(function (n) { return n.id; }));
+    var nodes = sorted.slice(0, maxNodes);
+    var edges = network.edges.filter(function (e) {
+      return kept.has(e.source.id || e.source) && kept.has(e.target.id || e.target);
+    });
+    var adjList = {};
+    edges.forEach(function (e) {
+      var sid = e.source.id || e.source;
+      var tid = e.target.id || e.target;
+      if (!adjList[sid]) adjList[sid] = [];
+      if (!adjList[tid]) adjList[tid] = [];
+      adjList[sid].push(e);
+      adjList[tid].push(e);
+    });
+    return { nodes: nodes, edges: edges, nodeMap: network.nodeMap, adjList: adjList };
+  }
+
+  // ── Force simulation ──
+  function runSimulation(net) {
+    var w = canvas.width / dpr;
+    var h = canvas.height / dpr;
+
+    if (simulation) simulation.stop();
+
+    simulation = d3.forceSimulation(net.nodes)
+      .force("link", d3.forceLink(net.edges).id(function (d) { return d.id; }).distance(40).strength(0.3))
+      .force("charge", d3.forceManyBody().strength(-25).theta(1.2))
+      .force("center", d3.forceCenter(w / 2, h / 2))
+      .force("collide", d3.forceCollide().radius(function (d) { return nodeRadius(d) + 1; }))
+      .alphaDecay(0.03)
+      .on("tick", render);
+
+    // Cap ticks for large networks
+    if (net.nodes.length > 1500) {
+      simulation.alphaDecay(0.05);
+    }
+  }
+
+  // ── Node sizing ──
+  function nodeRadius(d) {
+    return Math.max(2, Math.sqrt(d.paperCount) * 2.5);
+  }
+
+  // ── Node coloring ──
+  function nodeColor(d) {
+    if (colorMode === "region") {
+      return REGION_COLORS[d.region] || "#9b59b6";
+    }
+    return stringColor(d.institution);
+  }
+
+  function stringColor(s) {
+    if (!s) return "#888";
+    var hash = 0;
+    for (var i = 0; i < s.length; i++) {
+      hash = s.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    var h = Math.abs(hash) % 360;
+    return "hsl(" + h + ", 55%, 50%)";
+  }
+
+  // ── Canvas rendering ──
+  function resizeCanvas() {
+    var rect = container.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    canvas.style.width = rect.width + "px";
+    canvas.style.height = rect.height + "px";
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function render() {
+    if (!filteredNetwork) return;
+    var nodes = filteredNetwork.nodes;
+    var edges = filteredNetwork.edges;
+
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.translate(transform.x, transform.y);
+    ctx.scale(transform.k, transform.k);
+
+    var activeNode = selectedNode || hoveredNode;
+
+    // Draw edges — only for active node's ego network
+    if (activeNode) {
+      var adj = filteredNetwork.adjList[activeNode.id] || [];
+      adj.forEach(function (e) {
+        var s = typeof e.source === "object" ? e.source : filteredNetwork.nodeMap[e.source];
+        var t = typeof e.target === "object" ? e.target : filteredNetwork.nodeMap[e.target];
+        if (!s || !t || s.x == null || t.x == null) return;
+        ctx.beginPath();
+        ctx.moveTo(s.x, s.y);
+        ctx.lineTo(t.x, t.y);
+        ctx.strokeStyle = "rgba(100,100,100," + Math.min(0.1 + e.weight * 0.15, 0.7) + ")";
+        ctx.lineWidth = Math.min(0.5 + e.weight * 0.5, 3) / transform.k;
+        ctx.stroke();
+      });
+    }
+
+    // Draw nodes
+    var dimmed = !!activeNode;
+    nodes.forEach(function (d) {
+      if (d.x == null) return;
+      var r = nodeRadius(d);
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, r, 0, 2 * Math.PI);
+      var isNeighbor = false;
+      if (activeNode) {
+        if (d === activeNode) {
+          isNeighbor = true;
+        } else {
+          var adj = filteredNetwork.adjList[activeNode.id] || [];
+          for (var i = 0; i < adj.length; i++) {
+            var e = adj[i];
+            var sid = typeof e.source === "object" ? e.source.id : e.source;
+            var tid = typeof e.target === "object" ? e.target.id : e.target;
+            if (sid === d.id || tid === d.id) { isNeighbor = true; break; }
+          }
+        }
+      }
+      if (dimmed && !isNeighbor) {
+        ctx.fillStyle = "rgba(200,200,200,0.3)";
+      } else {
+        ctx.fillStyle = nodeColor(d);
+      }
+      ctx.fill();
+
+      // Label for large/active nodes
+      if (d === activeNode || (r * transform.k > 6 && transform.k > 1.5)) {
+        ctx.fillStyle = "#333";
+        ctx.font = Math.max(8, 10 / transform.k) + "px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(d.name, d.x, d.y - r - 2);
+      }
+    });
+
+    // Highlight active node
+    if (activeNode && activeNode.x != null) {
+      var ar = nodeRadius(activeNode);
+      ctx.beginPath();
+      ctx.arc(activeNode.x, activeNode.y, ar + 2, 0, 2 * Math.PI);
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 2 / transform.k;
+      ctx.stroke();
+      ctx.fillStyle = "#111";
+      ctx.font = "bold " + Math.max(10, 12 / transform.k) + "px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(activeNode.name, activeNode.x, activeNode.y - ar - 4);
+    }
+
+    ctx.restore();
+
+    // Rebuild quadtree
+    quadtree = d3.quadtree()
+      .x(function (d) { return d.x; })
+      .y(function (d) { return d.y; })
+      .addAll(nodes.filter(function (d) { return d.x != null; }));
+  }
+
+  // ── Zoom ──
+  var zoomBehavior = d3.zoom()
+    .scaleExtent([0.1, 20])
+    .on("zoom", function () {
+      transform = d3.event.transform;
+      render();
+    });
+
+  // ── Hit detection ──
+  function nodeAtPoint(mx, my) {
+    if (!quadtree) return null;
+    var px = (mx - transform.x) / transform.k;
+    var py = (my - transform.y) / transform.k;
+    var best = null;
+    var bestDist = Infinity;
+    quadtree.visit(function (node, x0, y0, x1, y1) {
+      if (node.data) {
+        var d = node.data;
+        var r = nodeRadius(d) + 2;
+        var dx = px - d.x, dy = py - d.y;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < r && dist < bestDist) {
+          best = d;
+          bestDist = dist;
+        }
+      }
+      // Prune
+      var cr = 30 / transform.k;
+      return px < x0 - cr || px > x1 + cr || py < y0 - cr || py > y1 + cr;
+    });
+    return best;
+  }
+
+  // ── Mouse events ──
+  function onMouseMove(e) {
+    var rect = canvas.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+    var node = nodeAtPoint(mx, my);
+
+    if (node !== hoveredNode) {
+      hoveredNode = node;
+      canvas.style.cursor = node ? "pointer" : "default";
+      if (node && !selectedNode) {
+        showTooltip(e, node);
+      } else if (!node && !selectedNode) {
+        hideTooltip();
+      }
+      render();
+    } else if (node && !selectedNode) {
+      positionTooltip(e);
+    }
+  }
+
+  function onClick(e) {
+    var rect = canvas.getBoundingClientRect();
+    var mx = e.clientX - rect.left;
+    var my = e.clientY - rect.top;
+    var node = nodeAtPoint(mx, my);
+
+    if (node) {
+      selectedNode = node;
+      hideTooltip();
+      showDetailPanel(node);
+      render();
+    } else {
+      selectedNode = null;
+      hideDetailPanel();
+      render();
+    }
+  }
+
+  // ── Tooltip ──
+  function showTooltip(e, d) {
+    var coauthorCount = (filteredNetwork.adjList[d.id] || []).length;
+    tooltip.innerHTML =
+      "<strong>" + escHtml(d.name) + "</strong><br>" +
+      escHtml(d.institution) + "<br>" +
+      d.paperCount + " papers &middot; " + coauthorCount + " co-authors";
+    tooltip.style.display = "block";
+    positionTooltip(e);
+  }
+  function positionTooltip(e) {
+    var rect = container.getBoundingClientRect();
+    var x = e.clientX - rect.left + 12;
+    var y = e.clientY - rect.top - 10;
+    if (x + 250 > rect.width) x = e.clientX - rect.left - 260;
+    tooltip.style.left = x + "px";
+    tooltip.style.top = y + "px";
+  }
+  function hideTooltip() {
+    tooltip.style.display = "none";
+  }
+
+  // ── Detail panel ──
+  function showDetailPanel(node) {
+    detailPanel.style.display = "flex";
+    detailName.textContent = node.name;
+    detailMeta.innerHTML =
+      escHtml(node.institution) + "<br>" +
+      getRegion(node.country) + " &middot; " + node.paperCount + " papers &middot; degree " + node.degree;
+    showDetailTab("coauthors", node);
+  }
+
+  function hideDetailPanel() {
+    detailPanel.style.display = "none";
+  }
+
+  function showDetailTab(tab, node) {
+    document.querySelectorAll(".detail-tab").forEach(function (t) {
+      t.classList.toggle("active", t.dataset.tab === tab);
+    });
+    if (tab === "coauthors") {
+      var adj = filteredNetwork.adjList[node.id] || [];
+      var coauthors = adj.map(function (e) {
+        var sid = typeof e.source === "object" ? e.source.id : e.source;
+        var tid = typeof e.target === "object" ? e.target.id : e.target;
+        var otherId = sid === node.id ? tid : sid;
+        var other = filteredNetwork.nodeMap[otherId];
+        return { name: other ? other.name : otherId, weight: e.weight, institution: other ? other.institution : "" };
+      }).sort(function (a, b) { return b.weight - a.weight; });
+
+      detailContent.innerHTML =
+        "<table><tr><th>Co-author</th><th>Shared</th></tr>" +
+        coauthors.map(function (c) {
+          return "<tr><td>" + escHtml(c.name) + "<br><span style='color:#888;font-size:11px'>" + escHtml(c.institution) + "</span></td><td>" + c.weight + "</td></tr>";
+        }).join("") + "</table>";
+    } else {
+      // Papers
+      var paperIds = Array.from(node.papers);
+      var paperData = allPapers.filter(function (p) { return paperIds.indexOf(p.paperId) >= 0; });
+      detailContent.innerHTML =
+        "<table><tr><th>Paper</th><th>Venue</th></tr>" +
+        paperData.map(function (p) {
+          var v = p.venue.replace(/^ICLR\s*\d{4}\s*/i, "").trim();
+          return "<tr><td>" + escHtml(p.title) + "</td><td>" + escHtml(v) + "</td></tr>";
+        }).join("") + "</table>";
+    }
+  }
+
+  // ── Topic switching ──
+  function setTopic(topic) {
+    currentTopic = topic;
+    topicSelect.value = topic;
+    statusText.textContent = "Building network...";
+    statusText.style.display = "block";
+    selectedNode = null;
+    hoveredNode = null;
+    hideDetailPanel();
+    hideTooltip();
+
+    setTimeout(function () {
+      currentNetwork = buildCoauthorshipNetwork(topic);
+      var maxNodes = currentNetwork.nodes.length > 1500 ? parseInt(nodeSlider.value) : currentNetwork.nodes.length;
+      nodeSlider.disabled = currentNetwork.nodes.length <= 1500;
+      if (currentNetwork.nodes.length <= 1500) {
+        sliderLabel.textContent = "All";
+      } else {
+        sliderLabel.textContent = Math.min(maxNodes, currentNetwork.nodes.length);
+      }
+      filteredNetwork = filterNetworkByDegree(currentNetwork, maxNodes);
+      statusText.textContent = filteredNetwork.nodes.length + " nodes, " + filteredNetwork.edges.length + " edges";
+      setTimeout(function () { statusText.style.display = "none"; }, 1500);
+      transform = d3.zoomIdentity;
+      d3.select(canvas).call(zoomBehavior.transform, d3.zoomIdentity);
+      runSimulation(filteredNetwork);
+    }, 30);
+  }
+
+  // ── Search ──
+  function onSearchInput() {
+    var q = searchInput.value.toLowerCase().trim();
+    if (q.length < 2 || !filteredNetwork) {
+      searchResults.style.display = "none";
+      return;
+    }
+    var matches = filteredNetwork.nodes.filter(function (n) {
+      return n.name.toLowerCase().indexOf(q) >= 0;
+    }).slice(0, 10);
+
+    if (matches.length === 0) {
+      searchResults.style.display = "none";
+      return;
+    }
+    searchResults.innerHTML = matches.map(function (n) {
+      return '<div class="search-item" data-id="' + escAttr(n.id) + '">' +
+        escHtml(n.name) + ' <span class="inst">' + escHtml(n.institution) + '</span></div>';
+    }).join("");
+    searchResults.style.display = "block";
+  }
+
+  function onSearchSelect(e) {
+    var item = e.target.closest(".search-item");
+    if (!item) return;
+    var id = item.dataset.id;
+    var node = filteredNetwork.nodeMap[id];
+    if (!node || node.x == null) return;
+
+    searchResults.style.display = "none";
+    searchInput.value = node.name;
+
+    // Zoom to node
+    var w = canvas.width / dpr;
+    var h = canvas.height / dpr;
+    var scale = 3;
+    var newTransform = d3.zoomIdentity.translate(w / 2 - node.x * scale, h / 2 - node.y * scale).scale(scale);
+    d3.select(canvas).transition().duration(750).call(zoomBehavior.transform, newTransform);
+
+    selectedNode = node;
+    showDetailPanel(node);
+  }
+
+  // ── Event bindings ──
+  function init() {
+    resizeCanvas();
+    window.addEventListener("resize", function () {
+      resizeCanvas();
+      render();
+    });
+
+    d3.select(canvas).call(zoomBehavior);
+    canvas.addEventListener("mousemove", onMouseMove);
+    canvas.addEventListener("click", onClick);
+
+    topicSelect.addEventListener("change", function () {
+      setTopic(topicSelect.value);
+    });
+
+    nodeSlider.addEventListener("input", function () {
+      sliderLabel.textContent = nodeSlider.value;
+    });
+    nodeSlider.addEventListener("change", function () {
+      if (!currentNetwork) return;
+      var maxNodes = parseInt(nodeSlider.value);
+      filteredNetwork = filterNetworkByDegree(currentNetwork, maxNodes);
+      sliderLabel.textContent = Math.min(maxNodes, currentNetwork.nodes.length);
+      transform = d3.zoomIdentity;
+      d3.select(canvas).call(zoomBehavior.transform, d3.zoomIdentity);
+      selectedNode = null;
+      hoveredNode = null;
+      hideDetailPanel();
+      runSimulation(filteredNetwork);
+    });
+
+    document.querySelectorAll("#colorToggle .seg-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        document.querySelectorAll("#colorToggle .seg-btn").forEach(function (b) { b.classList.remove("active"); });
+        btn.classList.add("active");
+        colorMode = btn.dataset.mode;
+        render();
+      });
+    });
+
+    searchInput.addEventListener("input", onSearchInput);
+    searchResults.addEventListener("click", onSearchSelect);
+    searchInput.addEventListener("blur", function () {
+      setTimeout(function () { searchResults.style.display = "none"; }, 200);
+    });
+
+    document.getElementById("detail-close").addEventListener("click", function () {
+      selectedNode = null;
+      hideDetailPanel();
+      render();
+    });
+
+    document.querySelectorAll(".detail-tab").forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        if (selectedNode) showDetailTab(tab.dataset.tab, selectedNode);
+      });
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        selectedNode = null;
+        hideDetailPanel();
+        render();
+      }
+    });
+
+    loadData();
+  }
+
+  // ── Helpers ──
+  function escHtml(s) {
+    var d = document.createElement("div");
+    d.textContent = s || "";
+    return d.innerHTML;
+  }
+  function escAttr(s) {
+    return (s || "").replace(/"/g, "&quot;");
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

@@ -1,19 +1,20 @@
 #!/usr/bin/env python3
 import pathlib
 
-OLD_GEO = "Herat (NA) (NA)"
-NEW_GEO = "Herat (1)"
+REMOVE_GEO = "Herat (1)"
 
 
 def update_file(path: pathlib.Path) -> int:
     lines = path.read_text().splitlines(keepends=True)
     changed = 0
-    for i, line in enumerate(lines):
-        if line.startswith(OLD_GEO + ","):
-            lines[i] = line.replace(OLD_GEO, NEW_GEO, 1)
+    kept = []
+    for line in lines:
+        if line.startswith(REMOVE_GEO + ","):
             changed += 1
+            continue
+        kept.append(line)
     if changed:
-        path.write_text("".join(lines))
+        path.write_text("".join(kept))
     return changed
 
 

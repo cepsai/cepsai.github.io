@@ -63,11 +63,13 @@ ITER_DIR = Path(__file__).resolve().parent
 if str(ITER_DIR) not in sys.path:
     sys.path.insert(0, str(ITER_DIR))
 
+from build_reference_lookup import parse_atomic  # noqa: E402
 from load_lexicon_sources import load_analyses, load_verbatim  # noqa: E402
-from parse_v29 import parse_v29  # noqa: E402
+from parse_v29 import DEFAULT_HTML, parse_v29  # noqa: E402
 
 REPO = ITER_DIR.parent
 OUTPUTS = REPO / "outputs"
+DEFAULT_CORRECTED_HTML = ITER_DIR / "digital_lexicon_v29-corrected.html"
 
 VERIFY_COLUMNS = [
     "status",
@@ -1453,6 +1455,504 @@ def _link_summary_counts(df: pd.DataFrame) -> dict[str, int]:
 
 
 # --------------------------------------------------------------------------- #
+# v29-corrected.html builder (US-006)                                         #
+# --------------------------------------------------------------------------- #
+
+# Corrections come in two flavours:
+#  - "analysis": replace a cell's analysis text with the cross-checked Excel
+#    text (status == mismatch). Always deterministic.
+#  - "link": substitute the article number inside a cell.reference atom
+#    (per-link link_status == wrong_article). Only applied when the verbatim
+#    has exactly one alternative article for the (term, law) pair — when
+#    multiple candidates exist we cannot pick without similarity matching
+#    (US-009 territory) and the correction is recorded as skipped.
+#
+# Wrong_law is intentionally not auto-corrected: when the term has no entry
+# in the linked law at all, deciding which law to point at is not a
+# substitution, it is a re-attribution that needs human review.
+
+CORRECTION_KIND_ANALYSIS = "analysis"
+CORRECTION_KIND_LINK = "link"
+CORRECTION_KIND_SKIPPED = "link_skipped"
+
+
+def _extract_concepts_span(html_text: str) -> tuple[list, int, int]:
+    """Locate ``const CONCEPTS = [...]`` and return (parsed, start, end).
+
+    ``start`` and ``end`` are character offsets in ``html_text`` for the
+    opening ``[`` (inclusive) and the position immediately after the
+    matching ``]`` — so ``html_text[start:end]`` is the JSON literal that
+    parses to the returned list.
+    """
+    needle = "const CONCEPTS = "
+    idx = html_text.find(needle)
+    if idx < 0:
+        raise ValueError(
+            "CONCEPTS literal not found in HTML — the corrector needs the "
+            "v29 build's `const CONCEPTS = [...]` script body to splice into."
+        )
+    start = idx + len(needle)
+    if start >= len(html_text) or html_text[start] != "[":
+        raise ValueError(
+            f"Expected '[' at offset {start} after `const CONCEPTS = ` "
+            f"(got {html_text[start:start + 1]!r})"
+        )
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(html_text)):
+        c = html_text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+        else:
+            if c == '"':
+                in_str = True
+            elif c == "[":
+                depth += 1
+            elif c == "]":
+                depth -= 1
+                if depth == 0:
+                    end = i + 1
+                    return json.loads(html_text[start:end]), start, end
+    raise ValueError("Unbalanced CONCEPTS literal in HTML")
+
+
+def _serialize_concepts(concepts: list) -> str:
+    """Round-trip the CONCEPTS list with the build script's compact format.
+
+    Verified to be byte-identical to the original v29 literal — the build
+    script uses ``json.dumps(...)`` without indent, and json.dumps matches
+    that when given the same separators.
+    """
+    return json.dumps(concepts, ensure_ascii=False, separators=(",", ":"))
+
+
+_ATOM_REPLACERS: dict[str, str] = {
+    "article": r"\bArticle\s*{old}\b",
+    "annex": r"\bAnnex\s+{old}\b",
+    "recital": r"\bRecital\s*\(?{old}\)?",
+}
+
+_ATOM_REPLACEMENTS: dict[str, str] = {
+    "article": "Article {new}",
+    "annex": "Annex {new}",
+    "recital": "Recital {new}",
+}
+
+
+def _replace_id_in_atom(
+    atom: str, kind: str, old_id: str, new_id: str,
+) -> str:
+    """Substitute one article/section/annex id within a single atomic citation.
+
+    Returns ``atom`` unchanged when the kind is unknown or the regex doesn't
+    match (caller should treat that as "could not apply").
+    """
+    if not kind or not old_id:
+        return atom
+    if kind in _ATOM_REPLACERS:
+        pat = _ATOM_REPLACERS[kind].format(old=re.escape(old_id))
+        repl = _ATOM_REPLACEMENTS[kind].format(new=new_id)
+        return re.sub(pat, repl, atom, count=1, flags=re.I)
+    if kind == "section":
+        # Section ids are distinctive (e.g. ``6-1-1701``, ``552.001``,
+        # ``22757.1``). Use a word/dot-aware boundary so we don't gobble
+        # only the head of an id like ``22757`` when the full id is
+        # ``22757.11``.
+        pat = rf"(?<![\w.]){re.escape(old_id)}(?![\w.])"
+        return re.sub(pat, new_id, atom, count=1)
+    return atom
+
+
+def _substitute_article_in_reference(
+    reference: str, law: str, old_article: str, new_article: str,
+) -> str:
+    """Find the atom in ``reference`` that resolves to (law, old_article) and
+    swap its article id for ``new_article``. Preserves separators verbatim.
+
+    Returns the original reference unchanged when no atom matches — the
+    caller should compare and treat unchanged as "substitution failed".
+    """
+    if not reference:
+        return reference
+    # Split keeping the separators so we can rejoin without whitespace drift.
+    parts = re.split(r"(\s*;\s*)", reference)
+    out: list[str] = []
+    for i, p in enumerate(parts):
+        if i % 2 == 1:  # captured separator
+            out.append(p)
+            continue
+        parsed = parse_atomic(p)
+        if (
+            parsed.get("law") == law
+            and parsed.get("article_id") == old_article
+            and parsed.get("kind")
+        ):
+            new_p = _replace_id_in_atom(
+                p, parsed["kind"], old_article, new_article,
+            )
+            out.append(new_p)
+        else:
+            out.append(p)
+    return "".join(out)
+
+
+def _split_link(link: str) -> tuple[str, str]:
+    """Split a ``law:article`` link into (law, article). Article may be ``""``."""
+    if ":" in link:
+        law, article = link.split(":", 1)
+        return law, article
+    return link, ""
+
+
+def _compute_corrections(
+    df: pd.DataFrame,
+    by_block: dict[tuple[str, str], str],
+    by_term: dict[str, set[tuple[str, str | None]]],
+) -> list[dict]:
+    """Walk the verification frame and emit one correction dict per change.
+
+    Three correction kinds:
+      * ``analysis``     — replace cell.analysis with cross-checked Excel text.
+      * ``link``         — substitute article number in cell.reference.
+      * ``link_skipped`` — wrong_article that has no unique fix candidate.
+    """
+    out: list[dict] = []
+    for r in df.itertuples(index=False):
+        cid = getattr(r, "concept_id", None)
+        sid = getattr(r, "sub_concept_id", None)
+        jid = getattr(r, "jid", None)
+        dim_label = getattr(r, "dim_label", None)
+        status = getattr(r, "status", None)
+        excel_text = getattr(r, "excel_analysis", None)
+        html_text = getattr(r, "html_analysis", None)
+
+        if (
+            status == STATUS_MISMATCH
+            and excel_text
+            and normalize_whitespace(excel_text)
+        ):
+            out.append({
+                "kind": CORRECTION_KIND_ANALYSIS,
+                "cid": cid, "sid": sid, "jid": jid, "dim_label": dim_label,
+                "old_text": html_text,
+                "new_text": excel_text,
+            })
+
+        articles = getattr(r, "linked_articles", None) or ""
+        statuses = getattr(r, "link_statuses", None) or ""
+        if not articles or not statuses or "wrong_article" not in statuses:
+            continue
+        per_a = articles.split(";")
+        per_s = statuses.split(";")
+        if len(per_a) != len(per_s):
+            continue
+        verbatim_term = _resolve_verbatim_term(cid, sid, jid, by_block)
+        entries = by_term.get(verbatim_term, set()) if verbatim_term else set()
+        for art, st in zip(per_a, per_s):
+            if st != STATUS_WRONG_ARTICLE:
+                continue
+            law, old_article = _split_link(art)
+            candidates = sorted({
+                a for (l, a) in entries
+                if l == law and a and a != old_article
+            })
+            base = {
+                "cid": cid, "sid": sid, "jid": jid, "dim_label": dim_label,
+                "law": law, "old_article": old_article,
+                "candidates": candidates,
+            }
+            if len(candidates) == 1:
+                out.append({
+                    **base,
+                    "kind": CORRECTION_KIND_LINK,
+                    "new_article": candidates[0],
+                })
+            else:
+                out.append({
+                    **base,
+                    "kind": CORRECTION_KIND_SKIPPED,
+                    "reason": "ambiguous" if candidates else "no_alternative",
+                })
+    return out
+
+
+def _find_cell(
+    concepts: list, cid: str | None, sid: str | None,
+    jid: str | None, dim_label: str | None,
+) -> dict | None:
+    """Return the first cell dict matching the verifier's (cid,sid,jid,dim_label).
+
+    Mirrors the verifier's join key. When multiple dims share a label, picks
+    the first — the verifier does the same via ``drop_duplicates(keep='first')``.
+    """
+    if cid is None or sid is None or jid is None:
+        return None
+    for concept in concepts:
+        if concept.get("id") != cid:
+            continue
+        for sc in concept.get("sub_concepts") or []:
+            if sc.get("id") != sid:
+                continue
+            for dim in sc.get("dimensions") or []:
+                if dim.get("label") != dim_label:
+                    continue
+                cell = (dim.get("cells") or {}).get(jid)
+                if isinstance(cell, dict):
+                    return cell
+    return None
+
+
+def _apply_correction(concepts: list, c: dict) -> bool:
+    """Mutate ``concepts`` in place to apply ``c``. Returns True iff applied."""
+    cell = _find_cell(
+        concepts, c.get("cid"), c.get("sid"), c.get("jid"), c.get("dim_label"),
+    )
+    if cell is None:
+        return False
+    kind = c.get("kind")
+    if kind == CORRECTION_KIND_ANALYSIS:
+        cell["analysis"] = c["new_text"]
+        return True
+    if kind == CORRECTION_KIND_LINK:
+        old_ref = cell.get("reference") or ""
+        new_ref = _substitute_article_in_reference(
+            old_ref, c["law"], c["old_article"], c["new_article"],
+        )
+        if new_ref == old_ref:
+            return False
+        cell["reference"] = new_ref
+        c["old_reference"] = old_ref
+        c["new_reference"] = new_ref
+        return True
+    return False
+
+
+_CORRECTIONS_SUMMARY_CSS = """
+#v29-corrections-summary {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px; color: #1a1a1a; background: #fff7ed;
+  border: 1px solid #fdba74; border-bottom: 2px solid #fb923c;
+  padding: 0; margin: 0;
+}
+#v29-corrections-summary details { padding: 10px 16px; }
+#v29-corrections-summary summary {
+  cursor: pointer; font-weight: 600; color: #9a3412;
+  list-style: disclosure-closed;
+}
+#v29-corrections-summary details[open] summary {
+  list-style: disclosure-open; margin-bottom: 8px;
+}
+#v29-corrections-summary h4 {
+  margin: 14px 0 4px; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.05em; color: #7c2d12;
+}
+#v29-corrections-summary table {
+  width: 100%; border-collapse: collapse; font-size: 12px;
+  background: #ffffff; border: 1px solid #fed7aa;
+}
+#v29-corrections-summary th, #v29-corrections-summary td {
+  text-align: left; padding: 4px 8px; border-bottom: 1px solid #ffedd5;
+  vertical-align: top;
+}
+#v29-corrections-summary th {
+  background: #ffedd5; font-weight: 600; color: #7c2d12;
+}
+#v29-corrections-summary code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background: #fff; padding: 1px 4px; border-radius: 3px;
+  border: 1px solid #fed7aa; font-size: 11px;
+}
+#v29-corrections-summary .empty {
+  color: #9a3412; font-style: italic; padding: 6px 0;
+}
+"""
+
+
+def _truncate_for_summary(text: str | None, limit: int = 140) -> str:
+    if text is None:
+        return ""
+    s = " ".join(str(text).split())
+    if len(s) > limit:
+        s = s[: limit - 1] + "…"
+    return s
+
+
+def _render_summary_block(
+    applied: list[dict], skipped: list[dict],
+    generated_at: datetime | None = None,
+) -> str:
+    """Build the visible summary block injected at the top of <body>."""
+    generated_at = generated_at or datetime.now()
+    n_analysis = sum(
+        1 for c in applied if c["kind"] == CORRECTION_KIND_ANALYSIS
+    )
+    n_link = sum(1 for c in applied if c["kind"] == CORRECTION_KIND_LINK)
+    n_skipped = len(skipped)
+    headline = (
+        f"v29-corrected: {len(applied)} corrections applied "
+        f"({n_analysis} analysis text, {n_link} article links). "
+        f"{n_skipped} not auto-correctable."
+    )
+
+    def cell_id(c: dict) -> str:
+        return (
+            f"{c.get('cid') or ''} / {c.get('sid') or ''} / "
+            f"{c.get('jid') or ''} / {c.get('dim_label') or ''}"
+        )
+
+    def applied_row(c: dict) -> str:
+        kind = c["kind"]
+        if kind == CORRECTION_KIND_ANALYSIS:
+            change = (
+                f"<b>analysis</b>: <code>"
+                f"{html_lib.escape(_truncate_for_summary(c.get('old_text')))}"
+                f"</code> → <code>"
+                f"{html_lib.escape(_truncate_for_summary(c.get('new_text')))}"
+                f"</code>"
+            )
+        else:
+            change = (
+                f"<b>link</b>: <code>"
+                f"{html_lib.escape(c.get('law') or '')}:"
+                f"{html_lib.escape(c.get('old_article') or '')}</code> → "
+                f"<code>{html_lib.escape(c.get('law') or '')}:"
+                f"{html_lib.escape(c.get('new_article') or '')}</code>"
+            )
+        return (
+            f"<tr><td>{html_lib.escape(kind)}</td>"
+            f"<td>{html_lib.escape(cell_id(c))}</td>"
+            f"<td>{change}</td></tr>"
+        )
+
+    def skipped_row(c: dict) -> str:
+        cands = ", ".join(c.get("candidates") or []) or "(none)"
+        return (
+            f"<tr><td>{html_lib.escape(c.get('reason') or '')}</td>"
+            f"<td>{html_lib.escape(cell_id(c))}</td>"
+            f"<td><code>{html_lib.escape(c.get('law') or '')}:"
+            f"{html_lib.escape(c.get('old_article') or '')}</code></td>"
+            f"<td>{html_lib.escape(cands)}</td></tr>"
+        )
+
+    if applied:
+        applied_rows = "".join(applied_row(c) for c in applied)
+        applied_table = (
+            "<table><thead><tr><th>Type</th><th>Cell</th>"
+            "<th>Change</th></tr></thead>"
+            f"<tbody>{applied_rows}</tbody></table>"
+        )
+    else:
+        applied_table = '<p class="empty">No corrections were applied.</p>'
+
+    if skipped:
+        skipped_rows = "".join(skipped_row(c) for c in skipped)
+        skipped_table = (
+            "<table><thead><tr><th>Reason</th><th>Cell</th>"
+            "<th>Wrong link</th><th>Candidates</th></tr></thead>"
+            f"<tbody>{skipped_rows}</tbody></table>"
+        )
+    else:
+        skipped_table = '<p class="empty">Nothing skipped.</p>'
+
+    stamp = html_lib.escape(generated_at.strftime("%Y-%m-%dT%H:%M:%S"))
+    return (
+        f'<style>{_CORRECTIONS_SUMMARY_CSS}</style>'
+        f'<aside id="v29-corrections-summary" role="region" '
+        f'aria-label="v29 corrections summary">'
+        f'<details open><summary>{html_lib.escape(headline)}</summary>'
+        f'<p>Generated {stamp} from cross-checked analysis Excel + verbatim Excel. '
+        f'The original v29 file is left untouched.</p>'
+        f'<h4>Applied ({len(applied)})</h4>{applied_table}'
+        f'<h4>Skipped ({len(skipped)})</h4>{skipped_table}'
+        f'</details></aside>'
+    )
+
+
+_BODY_OPEN_RE = re.compile(r"(<body\b[^>]*>)", re.I)
+
+
+def _inject_summary_block(html_text: str, summary_html: str) -> str:
+    """Insert ``summary_html`` immediately after the opening ``<body>`` tag.
+
+    Falls back to prepending the summary to the document when no <body> is
+    found (so the output is never silently dropped).
+    """
+    new_text, n = _BODY_OPEN_RE.subn(
+        lambda m: m.group(1) + "\n" + summary_html, html_text, count=1,
+    )
+    if n == 0:
+        return summary_html + html_text
+    return new_text
+
+
+def build_corrected_html(
+    out_path: Path | str = DEFAULT_CORRECTED_HTML,
+    df: pd.DataFrame | None = None,
+    html_path: Path | str | None = None,
+    analysis_path: Path | str | None = None,
+    verbatim_path: Path | str | None = None,
+    generated_at: datetime | None = None,
+) -> dict:
+    """Generate ``digital_lexicon_v29-corrected.html`` with auto-applied fixes.
+
+    The original v29 HTML is read but never written. The corrected file is
+    a copy with (a) ``cell.analysis`` replaced with cross-checked Excel text
+    on every mismatch row, (b) ``cell.reference`` article numbers swapped on
+    every wrong_article link with a single verbatim candidate, and (c) a
+    summary block injected at the top of ``<body>`` listing every applied
+    and skipped correction.
+
+    Returns a dict with ``out_path``, ``applied``, ``skipped`` for the caller
+    to inspect or render in additional reports.
+    """
+    src_path = Path(html_path) if html_path else DEFAULT_HTML
+    html_text = src_path.read_text(encoding="utf-8")
+
+    concepts, start, end = _extract_concepts_span(html_text)
+
+    if df is None:
+        df = verify_lexicon(html_path, analysis_path, verbatim_path)
+    verbatim_df = load_verbatim(verbatim_path)
+    by_block, by_term = _build_verbatim_indices(verbatim_df)
+
+    corrections = _compute_corrections(df, by_block, by_term)
+    applied: list[dict] = []
+    skipped: list[dict] = []
+    for c in corrections:
+        if c["kind"] == CORRECTION_KIND_SKIPPED:
+            skipped.append(c)
+            continue
+        if _apply_correction(concepts, c):
+            applied.append(c)
+        else:
+            skipped.append({
+                **c,
+                "kind": CORRECTION_KIND_SKIPPED,
+                "reason": "cell_not_found_or_no_substitution",
+            })
+
+    new_concepts_text = _serialize_concepts(concepts)
+    spliced = html_text[:start] + new_concepts_text + html_text[end:]
+
+    summary_html = _render_summary_block(
+        applied, skipped, generated_at=generated_at,
+    )
+    final_html = _inject_summary_block(spliced, summary_html)
+
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(final_html, encoding="utf-8")
+
+    return {"out_path": out_path, "applied": applied, "skipped": skipped}
+
+
+# --------------------------------------------------------------------------- #
 # CLI                                                                         #
 # --------------------------------------------------------------------------- #
 
@@ -1493,6 +1993,16 @@ def main(argv: list[str] | None = None) -> int:
         "--html-out", default=None,
         help="explicit path for the interactive HTML report",
     )
+    p.add_argument(
+        "--fix", action="store_true",
+        help="also generate iterations/digital_lexicon_v29-corrected.html "
+             "with mismatch + wrong_article fixes auto-applied",
+    )
+    p.add_argument(
+        "--fix-out", default=None,
+        help="explicit path for the corrected v29 HTML "
+             "(default iterations/digital_lexicon_v29-corrected.html)",
+    )
     args = p.parse_args(argv)
 
     df = verify_lexicon(args.html, args.analysis, args.verbatim)
@@ -1529,6 +2039,21 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\nLink status counts ({total_links} linked articles):")
     for status in ALL_LINK_STATUSES:
         print(f"  {status:18s} {link_counts.get(status, 0):>5d}")
+
+    if args.fix:
+        fix_out = Path(args.fix_out) if args.fix_out else DEFAULT_CORRECTED_HTML
+        result = build_corrected_html(
+            out_path=fix_out, df=df,
+            html_path=args.html, analysis_path=args.analysis,
+            verbatim_path=args.verbatim, generated_at=now,
+        )
+        print(f"\nWrote corrected HTML: {result['out_path']}")
+        print(
+            f"  applied: {len(result['applied'])} "
+            f"(analysis: {sum(1 for c in result['applied'] if c['kind'] == CORRECTION_KIND_ANALYSIS)}, "
+            f"link: {sum(1 for c in result['applied'] if c['kind'] == CORRECTION_KIND_LINK)})"
+        )
+        print(f"  skipped: {len(result['skipped'])}")
     return 0
 
 
