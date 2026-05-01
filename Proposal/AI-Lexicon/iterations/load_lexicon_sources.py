@@ -359,7 +359,9 @@ def load_analyses(path: Path | str | None = None) -> pd.DataFrame:
     wb = load_workbook(src, data_only=True, read_only=True)
     rows: list[dict] = []
     for sn in wb.sheetnames:
-        if "analysis" not in sn.lower():
+        # Match "analysis" plus its ~31-char Excel-truncated forms
+        # ("…_Analys", "…_ANALY") so the GPAI sheets are not silently dropped.
+        if "_analy" not in sn.lower() and "analysis" not in sn.lower():
             continue
         ws = wb[sn]
         for cell_rec in _load_analysis_sheet(ws):

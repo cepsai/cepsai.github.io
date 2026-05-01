@@ -45,6 +45,21 @@ after each iteration and it's included in prompts for context.
 - **Preserve "NA" (Namibia) as a string** anywhere ISO codes might appear.
   Use a custom `_norm_str` that only treats truly empty / whitespace cells as
   None, never relying on `pd.read_*`'s default na_values which strips "NA".
+- **Excel sheet names are truncated to ~31 chars.** Two analysis sheets in
+  the cross-checked workbook (`GPAI_Frontier_Foundation_Analys`,
+  `GPAI system_Generative AI_ANALY`) lose the trailing "is" of "ANALYSIS",
+  so a substring filter for `"analysis"` silently drops them. Match against
+  `"_analy"` (with underscore to avoid catching `"Methodology"`) instead, or
+  list the analysis sheets explicitly.
+- **Map Excel rows to HTML cells via `(sheet, term, jurisdiction_header)`.**
+  The Excel `term` is jurisdiction-specific (per-column value of the section's
+  Term row), so the same `term` ("Developer") legitimately means different
+  HTML sub-concepts depending on which `(sheet, jurisdiction_header)` it
+  appears under. For multi-sub sheets (Provider/Deployer) the term is what
+  disambiguates sections; for single-sub sheets `(sheet, jurisdiction_header)`
+  alone is enough. See `verify_lexicon.SINGLE_SUB_SHEETS` and
+  `verify_lexicon.MULTI_SUB_CELLS` for the canonical lookup tables — they
+  isolate the cross-source identity in one place.
 
 ---
 
@@ -131,5 +146,60 @@ after each iteration and it's included in prompts for context.
   - `BeautifulSoup` `script.string` returns `None` when the script element
     has multiple text-node children (rare but possible if there's a comment
     inside). Falling back to `script.get_text()` covers that case.
+---
+
+## 2026-05-01 - US-003
+- Implemented `iterations/verify_lexicon.py` exposing `verify_lexicon()` which
+  outer-joins `parse_v29()` against `load_analyses()` and emits one row per
+  `(concept_id, sub_concept_id, dim_label, jid)` cell with a `status` of
+  `match`, `mismatch`, `missing_in_html`, or `missing_in_excel`. The CLI
+  writes `outputs/lexicon_verification_<timestamp>.csv` and prints status
+  counts.
+- Comparison is exact-text after whitespace normalisation
+  (`re.sub(r"\s+", " ", text).strip()`); mismatches keep both bodies for
+  side-by-side review.
+- Static lookup tables `SINGLE_SUB_SHEETS` and `MULTI_SUB_CELLS` map
+  `(sheet, term, jurisdiction_header)` → `(concept_id, sub_concept_id, jid)`
+  so the verifier joins Excel rows to HTML cells even when the displayed
+  term differs ("GPAI systems" vs "general-purpose AI systems").
+- Small fix to `iterations/load_lexicon_sources.py`: the sheet filter
+  `"analysis" not in sn.lower()` silently dropped the two GPAI analysis
+  sheets whose names Excel truncated at 31 chars
+  (`GPAI_Frontier_Foundation_Analys`, `GPAI system_Generative AI_ANALY`).
+  Replaced with an `"_analy"`-aware filter so all 8 analysis sheets are
+  loaded; analyses row count goes from 356 → 377.
+- Files changed/created:
+  - `iterations/verify_lexicon.py` (new)
+  - `iterations/test_verify_lexicon.py` (new, 18 tests)
+  - `iterations/load_lexicon_sources.py` (sheet-filter fix)
+- Validation:
+  - `python3 iterations/verify_lexicon.py` runs end-to-end. On the current
+    v29 + cross-checked Excel: 410 cells verified — 263 match, 61 mismatch,
+    37 missing_in_html, 49 missing_in_excel.
+  - `python3 -m pytest iterations/` — 137 passed, 2 failures
+    (`test_lexicon_v17.py::test_v17_static_structure`,
+    `test_lexicon_v29.py::test_home_text_from_xlsx`) are the same pre-
+    existing failures from US-001/US-002, unrelated to US-003.
+  - `python3 iterations/audit_excel_correspondence.py` runs end-to-end and
+    writes its markdown + CSV reports (same exit code 1 as before, driven
+    by pre-existing v28 discrepancies).
+- **Learnings:**
+  - The loader bug above (truncated sheet filter) was invisible until the
+    verifier joined Excel against HTML and reported every GPAI analysis as
+    "missing_in_excel". Cross-source verification is a good way to surface
+    silent loader gaps.
+  - Section-header rows leak into the previous section's `dim_label` via the
+    loader's `_walk_analysis_section` (the row immediately before a new
+    Term row in a multi-sub sheet contains the next section's header in
+    column A, and the previous section's `_walk_analysis_section` treats
+    it as a dim_label). These show up as `missing_in_html` rows in the
+    verifier with dim_labels like `"Deployer / supplier of high-risk AI
+    systems"` — they're loader artefacts, not real cells. Out of scope for
+    US-003 to fix; flagged here so US-004 can decide whether to filter them.
+  - Mismatches in the v29 vs cross-checked Excel comparison reveal real
+    drift: the EU `Transparency` analysis for `deployer-of-high-risk-ai-
+    systems` has the Excel side carrying additional sentences that the
+    HTML version dropped — exactly the kind of finding the verifier exists
+    to surface.
 ---
 
