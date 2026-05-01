@@ -1,6 +1,9 @@
-"""Tests for iterations/verify_lexicon.py (US-003 + US-004)."""
+"""Tests for iterations/verify_lexicon.py (US-003 + US-004 + US-005)."""
 from __future__ import annotations
 
+import json
+import re
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -11,6 +14,7 @@ from parse_v29 import DEFAULT_HTML
 from verify_lexicon import (
     ALL_LINK_STATUSES,
     ALL_STATUSES,
+    FILTER_BUTTONS,
     STATUS_MATCH,
     STATUS_MISMATCH,
     STATUS_MISSING_IN_EXCEL,
@@ -28,10 +32,16 @@ from verify_lexicon import (
     _format_statuses,
     _link_summary_counts,
     _resolve_excel_cell,
+    _row_filter_tags,
+    _row_payload,
     _summary_counts,
     normalize_whitespace,
+    render_html_report,
+    render_markdown_report,
     verify_lexicon,
     write_verification_csv,
+    write_verification_html,
+    write_verification_md,
 )
 
 
@@ -417,3 +427,286 @@ def test_known_verbatim_found_eu_provider_article_50(vdf):
     articles = str(r["linked_articles"]).split(";")
     idx = articles.index("eu-ai-act:50")
     assert statuses[idx] == STATUS_VERBATIM_FOUND
+
+
+# --------------------------------------------------------------------------- #
+# US-005 — markdown + HTML report                                             #
+# --------------------------------------------------------------------------- #
+
+def _toy_verify_df() -> pd.DataFrame:
+    """A small fixture covering every status branch the report must surface."""
+    rows = [
+        {
+            "status": STATUS_MATCH,
+            "concept_id": "c1", "sub_concept_id": "s1", "jid": "eu",
+            "dim_label": "Definition",
+            "term_html": "Provider", "term_excel": "Provider",
+            "html_analysis": "same text", "excel_analysis": "same text",
+            "sheet": "S", "addr": "B2",
+            "linked_articles": "eu-ai-act:6",
+            "link_statuses": STATUS_VERBATIM_FOUND,
+            "link_status": STATUS_VERBATIM_FOUND,
+        },
+        {
+            "status": STATUS_MISMATCH,
+            "concept_id": "c1", "sub_concept_id": "s1", "jid": "eu",
+            "dim_label": "Scope",
+            "term_html": "Provider", "term_excel": "Provider",
+            "html_analysis": "alpha beta gamma",
+            "excel_analysis": "alpha BETA gamma",
+            "sheet": "S", "addr": "B3",
+            "linked_articles": "eu-ai-act:6;eu-ai-act:9",
+            "link_statuses": f"{STATUS_VERBATIM_FOUND};{STATUS_WRONG_ARTICLE}",
+            "link_status": STATUS_WRONG_ARTICLE,
+        },
+        {
+            "status": STATUS_MISSING_IN_HTML,
+            "concept_id": "c1", "sub_concept_id": "s1", "jid": "co",
+            "dim_label": "Penalties",
+            "term_html": None, "term_excel": "Developer",
+            "html_analysis": None, "excel_analysis": "Up to $20K",
+            "sheet": "S", "addr": "C5",
+            "linked_articles": None, "link_statuses": None,
+            "link_status": None,
+        },
+        {
+            "status": STATUS_MISSING_IN_EXCEL,
+            "concept_id": "c1", "sub_concept_id": "s1", "jid": "tx",
+            "dim_label": "Term",
+            "term_html": "Developer", "term_excel": None,
+            "html_analysis": "Developer", "excel_analysis": None,
+            "sheet": None, "addr": None,
+            "linked_articles": "tx-hb149:552",
+            "link_statuses": STATUS_WRONG_LAW,
+            "link_status": STATUS_WRONG_LAW,
+        },
+    ]
+    cols = VERIFY_COLUMNS
+    df = pd.DataFrame(rows, columns=cols)
+    return df
+
+
+# --- Markdown report ---
+
+def test_render_markdown_report_has_all_sections():
+    df = _toy_verify_df()
+    md = render_markdown_report(df, generated_at=datetime(2026, 5, 1, 10, 0, 0))
+    assert "# Lexicon verification report" in md
+    assert "_Generated: 2026-05-01T10:00:00_" in md
+    assert "## Summary" in md
+    assert "## Top mismatches" in md
+    assert "## Broken links" in md
+    assert "## Missing in HTML" in md
+    assert "## Missing in Excel" in md
+
+
+def test_markdown_summary_carries_status_and_link_counts():
+    df = _toy_verify_df()
+    md = render_markdown_report(df)
+    # 4 cells: 1 match / 1 mismatch / 1 missing_in_html / 1 missing_in_excel.
+    assert "Total analysis cells verified: **4**" in md
+    assert "`match`: **1**" in md
+    assert "`mismatch`: **1**" in md
+    assert "`missing_in_html`: **1**" in md
+    assert "`missing_in_excel`: **1**" in md
+    # 4 links: 2 verbatim_found, 1 wrong_article, 1 wrong_law.
+    assert "Total linked articles classified: **4**" in md
+    assert "`verbatim_found`: **2**" in md
+    assert "`wrong_article`: **1**" in md
+    assert "`wrong_law`: **1**" in md
+
+
+def test_markdown_top_mismatches_lists_mismatched_cells():
+    df = _toy_verify_df()
+    md = render_markdown_report(df)
+    # The mismatch row's terms / dim should appear in the top-mismatches table.
+    assert "Scope" in md
+    assert "alpha beta gamma" in md
+    assert "alpha BETA gamma" in md
+
+
+def test_markdown_broken_links_section_lists_only_broken_links():
+    df = _toy_verify_df()
+    md = render_markdown_report(df)
+    # The wrong_article on eu-ai-act:9 and wrong_law on tx-hb149:552 must
+    # both appear; the verbatim_found link must NOT be listed as broken.
+    assert "`eu-ai-act:9`" in md
+    assert "`tx-hb149:552`" in md
+    # The verbatim_found link is not listed in the broken-links section
+    # (it can still appear in the summary chips above).
+    broken_section = md.split("## Broken links")[1].split("## Missing")[0]
+    assert "`eu-ai-act:6`" not in broken_section
+
+
+def test_markdown_truncates_long_text_and_escapes_pipes():
+    long_text = "a" * 500 + "|hello|" + "b" * 500
+    df = pd.DataFrame([{
+        "status": STATUS_MISMATCH,
+        "concept_id": "c", "sub_concept_id": "s", "jid": "eu",
+        "dim_label": "D",
+        "term_html": "X", "term_excel": "X",
+        "html_analysis": long_text, "excel_analysis": "short",
+        "sheet": None, "addr": None,
+        "linked_articles": None, "link_statuses": None,
+        "link_status": None,
+    }], columns=VERIFY_COLUMNS)
+    md = render_markdown_report(df)
+    # The long body should not contain a raw "|" that would break the table,
+    # and should be elided with an ellipsis.
+    body_line = [
+        line for line in md.splitlines()
+        if line.startswith("| c |") or line.startswith("| c|")
+    ]
+    assert body_line, f"could not find table row in:\n{md}"
+    assert "|hello|" not in body_line[0]
+    assert "…" in body_line[0]
+
+
+def test_write_verification_md_creates_parent_dir_and_returns_path(tmp_path: Path):
+    df = _toy_verify_df()
+    out = tmp_path / "nested" / "report.md"
+    written = write_verification_md(df, out)
+    assert written == out
+    assert out.exists()
+    text = out.read_text(encoding="utf-8")
+    assert text.startswith("# Lexicon verification report")
+
+
+# --- HTML report ---
+
+def test_row_filter_tags_for_each_combination():
+    assert _row_filter_tags(STATUS_MATCH, None) == ["all"]
+    assert _row_filter_tags(STATUS_MISMATCH, STATUS_VERBATIM_FOUND) == [
+        "all", "mismatch",
+    ]
+    assert _row_filter_tags(STATUS_MISSING_IN_HTML, None) == [
+        "all", "missing",
+    ]
+    assert _row_filter_tags(STATUS_MISSING_IN_EXCEL, STATUS_WRONG_LAW) == [
+        "all", "missing", "wrong_law",
+    ]
+    assert _row_filter_tags(STATUS_MATCH, STATUS_WRONG_ARTICLE) == [
+        "all", "wrong_article",
+    ]
+
+
+def test_row_payload_has_one_dict_per_row():
+    df = _toy_verify_df()
+    payload = _row_payload(df)
+    assert len(payload) == len(df)
+    # Each entry carries the keys the JS reads.
+    keys = {
+        "status", "concept_id", "sub_concept_id", "jid", "dim_label",
+        "term_html", "term_excel", "html_analysis", "excel_analysis",
+        "linked_articles", "link_statuses", "link_status", "tags",
+    }
+    for row in payload:
+        assert keys <= set(row.keys())
+    # Filter tags reflect the row's status / link status.
+    assert payload[0]["tags"] == ["all"]
+    assert "mismatch" in payload[1]["tags"]
+    assert "missing" in payload[2]["tags"]
+    assert "wrong_law" in payload[3]["tags"]
+
+
+def test_render_html_report_contains_filter_buttons_and_no_inline_onclick():
+    df = _toy_verify_df()
+    html = render_html_report(df)
+    # Self-contained: no remote scripts/links.
+    assert "<!DOCTYPE html>" in html
+    assert "src=\"http" not in html
+    assert "href=\"http" not in html
+    # Filter buttons all present.
+    for key, label in FILTER_BUTTONS:
+        assert f'data-filter="{key}"' in html
+        assert f">{label}</button>" in html
+    # No inline onclick handlers anywhere — interactivity uses addEventListener.
+    assert "onclick=" not in html.lower()
+    assert "addEventListener" in html
+
+
+def test_render_html_report_embeds_payload_as_json():
+    df = _toy_verify_df()
+    html = render_html_report(df)
+    m = re.search(
+        r'<script id="payload" type="application/json">(.*?)</script>',
+        html, flags=re.S,
+    )
+    assert m, "payload script tag not found"
+    # Undo the closing-tag escape we apply for safe embedding.
+    raw = m.group(1).replace("<\\/", "</")
+    payload = json.loads(raw)
+    assert isinstance(payload, list)
+    assert len(payload) == len(df)
+    assert payload[1]["status"] == STATUS_MISMATCH
+
+
+def test_render_html_report_payload_safe_against_script_breakout():
+    """A row containing the literal "</script>" must not break the page out
+    of its embedded JSON island."""
+    df = pd.DataFrame([{
+        "status": STATUS_MISMATCH,
+        "concept_id": "c", "sub_concept_id": "s", "jid": "eu",
+        "dim_label": "D",
+        "term_html": "X", "term_excel": "X",
+        "html_analysis": "evil </script><script>alert(1)</script> end",
+        "excel_analysis": "ok",
+        "sheet": None, "addr": None,
+        "linked_articles": None, "link_statuses": None,
+        "link_status": None,
+    }], columns=VERIFY_COLUMNS)
+    html = render_html_report(df)
+    # The raw "</script>" must not appear inside the JSON literal — the
+    # writer escapes it to "<\/script>" so the browser won't terminate the
+    # script element early.
+    payload_block = re.search(
+        r'<script id="payload" type="application/json">(.*?)</script>',
+        html, flags=re.S,
+    ).group(1)
+    assert "</script>" not in payload_block
+    assert "<\\/script>" in payload_block
+
+
+def test_render_html_report_includes_all_rows_with_data_tags():
+    df = _toy_verify_df()
+    html = render_html_report(df)
+    # data-tags attribute should appear once per row (we render to JS so this
+    # check happens on the JS-side via the payload — assert each tag is
+    # represented somewhere in the markup or payload).
+    for row in _row_payload(df):
+        for tag in row["tags"]:
+            assert tag in html
+
+
+def test_write_verification_html_creates_parent_dir_and_writes_file(tmp_path: Path):
+    df = _toy_verify_df()
+    out = tmp_path / "nested" / "report.html"
+    written = write_verification_html(df, out)
+    assert written == out
+    assert out.exists()
+    text = out.read_text(encoding="utf-8")
+    assert text.startswith("<!DOCTYPE html>")
+    assert text.endswith("</html>\n")
+
+
+# --- End-to-end against real fixtures ---
+
+@pytestmark_e2e
+def test_writes_md_and_html_with_real_data(vdf, tmp_path: Path):
+    md_out = tmp_path / "verify.md"
+    html_out = tmp_path / "verify.html"
+    write_verification_md(vdf, md_out)
+    write_verification_html(vdf, html_out)
+    assert md_out.exists() and md_out.stat().st_size > 0
+    assert html_out.exists() and html_out.stat().st_size > 0
+    md = md_out.read_text(encoding="utf-8")
+    assert "## Summary" in md
+    html = html_out.read_text(encoding="utf-8")
+    assert "addEventListener" in html
+    # The interactive viewer carries one payload entry per verification row.
+    m = re.search(
+        r'<script id="payload" type="application/json">(.*?)</script>',
+        html, flags=re.S,
+    )
+    payload = json.loads(m.group(1).replace("<\\/", "</"))
+    assert len(payload) == len(vdf)

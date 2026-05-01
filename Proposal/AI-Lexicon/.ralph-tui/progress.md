@@ -91,6 +91,21 @@ after each iteration and it's included in prompts for context.
   alone is enough. See `verify_lexicon.SINGLE_SUB_SHEETS` and
   `verify_lexicon.MULTI_SUB_CELLS` for the canonical lookup tables — they
   isolate the cross-source identity in one place.
+- **Embed a JSON payload as `<script type="application/json">` and escape
+  closing tags.** When generating self-contained HTML reports, ship the row
+  data as a JSON island the page parses on load (`JSON.parse(scriptEl.text
+  Content)`). Always pass the JSON through
+  `json.dumps(...).replace("</", "<\\/")` before embedding so the browser
+  HTML tokenizer cannot terminate the script element early on a literal
+  `</script>` inside a string. See `verify_lexicon.render_html_report` and
+  the test `test_render_html_report_payload_safe_against_script_breakout`.
+- **`/browse` skill blocks `file://` URLs.** To verify a generated HTML
+  artefact in the headless browser, run `python3 -m http.server <port>`
+  inside `outputs/` (or whichever directory holds the file) and point the
+  browser at `http://127.0.0.1:<port>/<file>.html`. Chain commands with
+  `$B chain '[[...]]'` to keep page state alive across goto + clicks +
+  asserts, since individual `$B` calls can hit server timeouts that
+  silently restart the browser context.
 
 ---
 
@@ -292,6 +307,87 @@ after each iteration and it's included in prompts for context.
     in `link_statuses` so no information is lost — the cell row keeps
     one-to-one parity between `linked_articles` and `link_statuses`,
     enforced by `test_linked_articles_and_link_statuses_zip_one_to_one`.
+---
+
+## 2026-05-01 - US-005
+- Extended `iterations/verify_lexicon.py` with three writers fed by the same
+  verification frame:
+  - `write_verification_md` — markdown report with totals, top 20 mismatches,
+    broken-links table (per-link `wrong_article` / `wrong_law`), and
+    missing-in-HTML / missing-in-Excel sections.
+  - `write_verification_html` — single self-contained file with status
+    badges, filter buttons (All / Mismatch / Missing / Wrong Article /
+    Wrong Law), and click-to-expand rows showing a character-level LCS diff
+    of the HTML and Excel analysis side by side.
+  - The CLI now writes the CSV + MD + HTML siblings under one timestamp,
+    and accepts `--md-out` / `--html-out` overrides plus `--out` (which
+    sets the CSV path and derives MD/HTML siblings from it).
+- The HTML viewer ships its row data as a JSON island; an inline JS module
+  uses event delegation on the filter bar and on `<tbody>` for row clicks,
+  with no inline `onclick` handlers anywhere. The diff is computed
+  client-side from the embedded HTML / Excel strings.
+- Files changed:
+  - `iterations/verify_lexicon.py` (+~430 lines: writers, CLI updates,
+    embedded CSS / JS, helpers `_row_filter_tags`, `_row_payload`,
+    `render_markdown_report`, `render_html_report`, etc.)
+  - `iterations/test_verify_lexicon.py` (+15 tests covering MD sections,
+    counts, truncation, HTML payload shape, script-breakout escaping,
+    filter tags, no inline `onclick`, and end-to-end writes against the
+    real fixtures).
+- Validation:
+  - `python3 iterations/verify_lexicon.py` writes all three artefacts:
+    `outputs/lexicon_verification_<ts>.csv`, `.md`, `.html` (the run
+    today produced 410 cells / 387 links with the same counts as US-004).
+  - `python3 -m pytest iterations/test_verify_lexicon.py` — 50 passed.
+  - Full suite: `python3 -m pytest iterations/` — 168 passed; the 2
+    pre-existing browser-flake failures (`test_lexicon_v17.py::
+    test_v17_static_structure` / `test_lexicon_v18.py::test_v18_dom_features`
+    or `test_lexicon_v29.py::test_home_text_from_xlsx`) are unrelated to
+    this story and reproduce on `main`.
+  - `python3 iterations/audit_excel_correspondence.py` runs end-to-end
+    (exit 1 from the same pre-existing v28 discrepancies — verified by
+    stashing this branch's changes and re-running).
+  - Browser verification via `/browse` skill:
+    - Page loads at `http://127.0.0.1:8765/lexicon_verification_<ts>.html`
+      with no console errors. 410 rows + 5 filter buttons render.
+    - Filter buttons: `mismatch` shows 61 rows (all tagged `mismatch`),
+      `missing` shows 86 (= 37 + 49), `wrong_article` shows 20,
+      `wrong_law` shows 11, `all` restores 410. Tag containment
+      verified for every visible row in each filter mode.
+    - Clicked 5 mismatch rows: 5 detail rows expand, each with two
+      `.diff-pane` (HTML | Excel) and `<ins>` / `<del>` highlights
+      (48 inserts and 113 deletes across the 5 expansions in this run).
+    - `document.querySelectorAll('[onclick]').length` is `0` in the
+      loaded page, confirming event delegation is the only interaction
+      mechanism.
+    - Screenshot `/tmp/lexicon_verify_mismatch.png` captures the
+      mismatch filter with three rows expanded, showing the side-by-side
+      character-level diff with red/green highlights.
+- **Learnings:**
+  - The `<script type="application/json">` payload must escape any
+    literal `</script>` in the analysis bodies (`json.dumps(...).replace(
+    "</", "<\\/")`); without it, an analysis cell containing the string
+    `</script>` would terminate the script element early. The
+    counterpart on the JS side undoes the escape if it ever needs to
+    recover the raw form (in this report we don't — `JSON.parse` on the
+    text content works directly because the unescape isn't needed for
+    JSON parsing, only for the browser's HTML tokenizer). Pinned by
+    `test_render_html_report_payload_safe_against_script_breakout`.
+  - The `/browse` headless tool blocks `file://` URLs (security
+    constraint). For local file verification, spin up
+    `python3 -m http.server` on a free port in the `outputs/` dir and
+    point `goto` at `http://127.0.0.1:<port>/<file>.html`. Worth noting
+    in any future tasks that need to verify a generated HTML artefact.
+  - The browse server occasionally times out / restarts between
+    individual `$B` invocations. Chaining the goto + clicks + JS asserts
+    via `$B chain '[[...]]'` keeps the page state alive across the whole
+    verification flow and is much more reliable than calling each
+    command separately.
+  - Character-level LCS diff over analysis bodies that can be ~1-2KB is
+    fast enough to compute lazily on click in JS (Int32Array DP table,
+    O(n*m)). Batching consecutive equal/insert/delete characters into
+    runs keeps the rendered HTML small enough that even a 5-row expand
+    only adds a couple hundred extra DOM nodes.
 ---
 
 
