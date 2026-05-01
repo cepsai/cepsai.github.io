@@ -491,4 +491,65 @@ after each iteration and it's included in prompts for context.
     only adds a couple hundred extra DOM nodes.
 ---
 
+## 2026-05-01 - US-007
+- Created `iterations/digital_lexicon_v30.html` as a byte-identical copy of
+  the US-006 output `iterations/digital_lexicon_v29-corrected.html`. SHA-256
+  of both files matches (`05f936a5b47c066f019d1eb0b507d0be9a661f528449504c
+  9f0fa9ea82bb0e21`), so v30 is exactly the verified, auto-corrected v29
+  baseline that US-008+ can build highlighting features on top of.
+- No code changes were needed beyond `cp`. The v30 file inherits every fix
+  applied in US-006 (61 analysis-text replacements + 6 article-link
+  substitutions, 17 ambiguous wrong_article links surfaced in the injected
+  summary block) and every behaviour of v29.
+- Files changed/created:
+  - `iterations/digital_lexicon_v30.html` (new — byte-identical copy of
+    `digital_lexicon_v29-corrected.html`)
+- Validation:
+  - `python3 -m pytest iterations/` — 202 passed, 2 failed
+    (`test_lexicon_v18.py::test_v18_dom_features` and
+    `test_lexicon_v29.py::test_home_text_from_xlsx`) are the same
+    pre-existing failures noted in US-005/US-006 — unrelated to US-007 and
+    reproduce on `main` without my changes.
+  - `python3 iterations/audit_excel_correspondence.py` runs end-to-end and
+    writes the markdown + CSV reports under `outputs/`. Exit code 1 from
+    the same pre-existing v28 ↔ Excel discrepancies (105 / 43 / 23 / 20 / 9)
+    that were the baseline before US-007 — the script targets v28 so v30
+    does not affect it.
+  - Browser verification via `/browse` skill against
+    `http://127.0.0.1:8767/digital_lexicon_v30.html`:
+    - Page loads with no console errors. Hash router resolves to `#/`
+      (home) and the matrix view loads on `#/concepts?view=matrix`.
+    - Navigated to 5 different concept routes and confirmed each renders
+      its terms (tabs) and cells, all with zero console errors:
+      - `#/concept/model-system` — 3 tabs (High-risk AI system [selected],
+        General-purpose AI model, General-purpose AI system); 25 cells.
+      - `#/concept/risk` — 33 cells; analysis content includes the
+        Systemic / Catastrophic risk dimensions for EU/CA/NY.
+      - `#/concept/incident` — 50 cells.
+      - `#/concept/modification` — 34 cells.
+      - `#/concept/provider-developer` — 4 sub-concept tabs (Provider of
+        limited-risk / high-risk / GPAI models / GPAI models with systemic
+        risk); 53 cells.
+    - Primary-sources / law view (`#/primary-sources/eu-aia`) loads with
+      13 article elements present in the rendered DOM.
+- **Learnings:**
+  - When the next iteration of an HTML artefact is meant to be the
+    starting point for new features (rather than a rebuild), `cp` plus
+    SHA-256 verification is the cleanest possible scaffold. No build
+    script needed; no risk of drift between the verified baseline and
+    the new starting point. The byte-identical hash assertion is the
+    contract.
+  - The v29 SPA's hash router silently rewrites unknown routes back to
+    `#/` (e.g. `#/laws` and `#/regulations` both reverted to `#/` in
+    headless tests). The actual route for the regulations index is
+    `#/primary-sources` and for individual laws `#/primary-sources/<slug>`.
+    Worth knowing if any future highlighting work needs to deep-link into
+    a specific law's article.
+  - Browser-based navigation through chained `$B chain '[[goto], [wait],
+    [js], ...]'` is reliable, but `$B click` sequences across separate
+    invocations can lose ref freshness when the server restarts
+    mid-flow. Prefer one chain per verification flow when verifying a
+    static SPA — same advice as US-005's progress note.
+---
+
 
