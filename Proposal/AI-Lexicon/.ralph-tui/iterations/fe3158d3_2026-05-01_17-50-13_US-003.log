@@ -1,0 +1,91 @@
+# Iteration 3 Log
+
+## Metadata
+
+- **Task ID**: US-003
+- **Task Title**: Verify analyses match the cross-checked Excel exactly
+- **Description**: As a developer, I want a verification pass that compares each analysis in v29 against the cross-checked Excel so that I can prove v29 uses the exact analyses from the source.
+- **Status**: completed
+- **Task Completed**: Yes
+- **Promise Detected**: Yes
+- **Started At**: 2026-05-01T15:50:13.241Z
+- **Ended At**: 2026-05-01T16:08:50.785Z
+- **Duration**: 18m 37s
+- **Input Tokens**: 133
+- **Output Tokens**: 71220
+- **Total Tokens**: 71353
+- **Agent**: claude
+- **Model**: claude-opus-4-7
+- **Sandbox Mode**: auto
+- **Sandbox Network**: Enabled
+--- RAW OUTPUT ---
+[94m[Bash][0m List project root $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/
+[94m[Bash][0m List iterations, outputs, and ralph-tui dirs $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/ /Users/rober...
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/load_lexicon_sources.py[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/parse_v29.py[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/audit_excel_correspondence.py[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/tasks/prd.json[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_load_lexicon_sources.py[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_parse_v29.py[0m
+Let me check the actual data shape by running the existing modules.
+[94m[Bash][0m Check Excel sources exist $ ls -la "/Users/robertpraas/Downloads/Cross-checked_AI terminology and taxonomy_analysis-2.xlsx" "/Us...
+[94m[ToolSearch][0m query: [93mselect:TodoWrite[0m
+[94m[TodoWrite][0m
+[94m[Bash][0m Inspect shape and overlap of (term, dim_label) keys $ python3 -c " import sys sys.path.insert(0, 'iterations') from load_lexicon_sources import load_analy...
+[94m[Bash][0m Inspect Excel sheet and jurisdiction header values $ python3 -c " import sys sys.path.insert(0, 'iterations') from load_lexicon_sources import load_analy...
+[94m[Bash][0m List analysis Excel sheet names $ python3 -c " from openpyxl import load_workbook wb = load_workbook('/Users/robertpraas/Downloads/Cro...
+[94m[Bash][0m Check (sheet, term) → jurisdiction_header relationship $ python3 -c " import sys sys.path.insert(0, 'iterations') from load_lexicon_sources import load_analy...
+Now I understand the data. Let me check the GPAI sheets aren't being picked up due to truncated sheet names, and build my verifier plan.
+[94m[Bash][0m Inspect GPAI_Frontier sheet structure $ python3 -c " from openpyxl import load_workbook wb = load_workbook('/Users/robertpraas/Downloads/Cro...
+[94m[Bash][0m Inspect GPAI_system sheet $ python3 -c " from openpyxl import load_workbook wb = load_workbook('/Users/robertpraas/Downloads/Cro...
+[94m[Bash][0m List unique (cid, sid, jid) tuples in HTML $ python3 -c " import sys sys.path.insert(0, 'iterations') from parse_v29 import parse_v29 df = parse_...
+Now I have a full picture. I need to fix the loader to also pick up the GPAI sheets (whose names get truncated to drop "is"), then build the verifier. Let me make the loader fix first.
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/load_lexicon_sources.py[0m edit: "    src = Path(path) if path else DEFAULT_ANALYSIS..." → "    src = Path(path) if path else DEFAULT_ANALYSIS..."
+[94m[TodoWrite][0m
+[94m[Bash][0m Verify GPAI sheets now load $ python3 -c " import sys sys.path.insert(0, 'iterations') from load_lexicon_sources import load_analy...
+Now let me write the verifier module.
+[94m[Write][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m """"verify_lexicon.py — Per-analysis verification of v29 HTML against the Excel.
+
+US-003: outer-join every analysis cell extracted by ``parse_v29`` against the
+canonical analysis text loaded by ``load_... (18265 chars)"
+[94m[Bash][0m Run verifier to see output $ python3 iterations/verify_lexicon.py 2>&1 | tail -30
+[94m[Bash][0m Sample verifier outputs $ python3 -c " import sys sys.path.insert(0, 'iterations') from verify_lexicon import verify_lexicon d...
+Now let me run the existing pytest suite and the audit to confirm nothing regressed.
+[94m[Bash][0m Run pytest after loader change $ python3 -m pytest iterations/ -x --tb=short 2>&1 | tail -30
+[94m[Bash][0m Run pytest without -x to see all results $ python3 -m pytest iterations/ --tb=no -q 2>&1 | tail -30
+[94m[Bash][0m Check the 3-4 test statuses $ python3 -m pytest iterations/test_lexicon_v17.py::test_v17_static_structure iterations/test_lexicon_...
+[94m[Bash][0m Run pytest excluding flaky browser tests $ python3 -m pytest iterations/ --tb=no -q --ignore=iterations/test_lexicon_v17.py --ignore=iterations...
+[94m[Bash][0m Run audit script $ python3 iterations/audit_excel_correspondence.py 2>&1 | tail -25
+[94m[Write][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_verify_lexicon.py[0m """"Tests for iterations/verify_lexicon.py (US-003)."""
+from __future__ import annotations
+
+from pathlib import Path
+
+import pandas as pd
+import pytest
+
+from load_lexicon_sources import DEFAULT_ANALYSI... (7021 chars)"
+[94m[Bash][0m Run verify_lexicon tests $ python3 -m pytest iterations/test_verify_lexicon.py --tb=short 2>&1 | tail -50
+All 18 tests pass. Let me also run the full pytest to confirm nothing else broke.
+[94m[Bash][0m Full pytest run $ python3 -m pytest iterations/ --tb=no -q 2>&1 | tail -10
+[94m[Bash][0m Final audit run $ python3 iterations/audit_excel_correspondence.py 2>&1 | tail -8
+[94m[Bash][0m Final verifier run $ python3 iterations/verify_lexicon.py 2>&1 | tail -10
+[94m[Bash][0m Sanity-check CSV format $ head -3 outputs/lexicon_verification_20260501_180751.csv
+[94m[TodoWrite][0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m edit: "- **Preserve "NA" (Namibia) as a string** anywhere..." → "- **Preserve "NA" (Namibia) as a string** anywhere..."
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m edit: "  - `BeautifulSoup` `script.string` returns `None`..." → "  - `BeautifulSoup` `script.string` returns `None`..."
+[94m[TodoWrite][0m
+US-003 is complete. Summary:
+
+- **`iterations/verify_lexicon.py`** (new): `verify_lexicon()` outer-joins `parse_v29()` against `load_analyses()` and classifies each `(concept_id, sub_concept_id, dim_label, jid)` cell as `match`, `mismatch`, `missing_in_html`, or `missing_in_excel`. Comparison is exact-text after whitespace normalisation. CLI writes `outputs/lexicon_verification_<timestamp>.csv` and prints status counts.
+- **`iterations/test_verify_lexicon.py`** (new): 18 tests covering the pure helpers, the cell-key resolver, schema, all four status classifications, CSV round-trip, and known-cell sanity checks. All pass.
+- **`iterations/load_lexicon_sources.py`**: small fix — sheet filter changed from `"analysis"` to also accept `"_analy"` so the two truncated GPAI analysis sheets are no longer silently dropped (analyses row count 356 → 377).
+
+**Verification run on current data:** 410 cells — 263 match, 61 mismatch, 37 missing_in_html, 49 missing_in_excel. CSV at `outputs/lexicon_verification_20260501_180751.csv`.
+
+**AC checks:**
+- `python3 -m pytest iterations/` — 137 passed, same 2 pre-existing failures as US-001/US-002 (unrelated).
+- `python3 iterations/audit_excel_correspondence.py` — runs end-to-end (same exit code 1 as before, driven by pre-existing v28 discrepancies).
+
+<promise>COMPLETE</promise>

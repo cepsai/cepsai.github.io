@@ -5,6 +5,37 @@ after each iteration and it's included in prompts for context.
 
 ## Codebase Patterns (Study These First)
 
+- **Verbatim Excel collapses sub-concepts that the HTML keeps separate.**
+  The `Provider_Developer` sheet stores one term per jurisdiction column
+  (EU="Provider", Colorado="Developer", Texas="Developer") and a single
+  block of verbatim text per (sheet, juris) — the HTML's four "Provider of
+  …" sub_concepts (limited-risk / high-risk / GPAI / GPAISR) all share the
+  same EU "Provider" verbatim pool. Same for `Deployer_Supplier`. Single-
+  topic sheets (`Risk`, `Substantial modification`, `Incident`,
+  ` High-risk AI system`, `GPAI_Frontier_Foundation model`,
+  `GPAI system_Generative AI`) carry one block per juris column. Verbatim
+  juris-headers are different from the analysis sheets:
+  `EU` (no `(AIA)`), `U.S. - California` (vs `California (SB 942)`),
+  `Colorado` plain (no `(SB 24-205)`). When mapping HTML cells to verbatim
+  blocks, hand-write a `(cid, sid, jid) → (sheet, juris)` table —
+  see `verify_lexicon.VERBATIM_CELLS`.
+- **Several jurisdictions have NO verbatim block at all.** California /
+  New York columns are absent from `Provider_Developer` and
+  `Deployer_Supplier`; California is absent from `Incident`; Utah is
+  absent from `Deployer_Supplier`; New York is absent from
+  `Substantial modification`. HTML cells for those jids cannot resolve
+  to `verbatim_found` no matter what they link to — they always come back
+  `no_verbatim`. This is a real gap in the source data, not a verifier bug.
+- **The verbatim loader's `JURIS_TO_LAW` fallback over-attributes.** When
+  a verbatim cell has no inline citation, its `law_id` defaults to the
+  jurisdiction's first listed law (e.g. all `U.S. - California` rows
+  default to `ca-sb53`, even if the actual cell text is from `ca-sb942` or
+  `ca-ab2013`). The link verifier surfaces this as `wrong_law` against
+  HTML that correctly cites `ca-sb942`/`ca-ab2013`. Fixing this would
+  require parsing inline article citations (e.g. `22757.1` → `ca-sb942`)
+  inside the verbatim text — out of scope for US-004 but flagged for any
+  future loader work.
+
 - **The v29 (and v28) HTML embeds all data as a `const CONCEPTS = [...]`
   JSON literal inside a `<script>` tag.** Use BeautifulSoup to find the
   right `<script>` element (iterate `soup.find_all("script")` and pick the
@@ -202,4 +233,65 @@ after each iteration and it's included in prompts for context.
     HTML version dropped — exactly the kind of finding the verifier exists
     to surface.
 ---
+
+## 2026-05-01 - US-004
+- Extended `iterations/verify_lexicon.py` to verify each linked article
+  against the verbatim Excel and emit a per-cell `link_status`
+  (`verbatim_found` / `wrong_article` / `wrong_law` / `no_verbatim`),
+  plus per-link breakdown columns `linked_articles` and `link_statuses`.
+- Added `VERBATIM_CELLS`, a `(concept_id, sub_concept_id, jid) →
+  (verbatim_sheet, jurisdiction_header)` lookup that points each HTML cell
+  at the verbatim block whose term it should be looked up under. The
+  verbatim Excel collapses some HTML sub-concepts (e.g. all four "Provider
+  of …" sub_concepts share the EU "Provider" block), so the map's
+  many-to-one shape is intentional.
+- New helpers: `_build_verbatim_indices`, `_resolve_verbatim_term`,
+  `_classify_link`, `_aggregate_link_status`, `_html_links_per_cell`,
+  `_format_links`, `_format_statuses`, `_link_summary_counts`. Aggregation
+  is "worst severity wins" via `_LINK_STATUS_SEVERITY` so reviewers can
+  sort by `link_status` to see the most-broken cells first.
+- Files changed/created:
+  - `iterations/verify_lexicon.py` (extended)
+  - `iterations/test_verify_lexicon.py` (extended, +18 tests, 36 total)
+- Validation:
+  - `python3 iterations/verify_lexicon.py` runs end-to-end. On the current
+    v29 + cross-checked Excel + verbatim Excel: 410 cells verified
+    (263 match / 61 mismatch / 37 missing_in_html / 49 missing_in_excel),
+    387 linked articles classified — 211 verbatim_found, 23 wrong_article,
+    16 wrong_law, 137 no_verbatim. The CSV now carries the new columns
+    alongside the US-003 ones.
+  - `python3 -m pytest iterations/` — 157 passed, 2 failures
+    (`test_lexicon_v17.py::test_v17_static_structure`,
+    `test_lexicon_v29.py::test_home_text_from_xlsx`) are the same pre-
+    existing failures from US-001/US-002/US-003.
+  - `python3 iterations/audit_excel_correspondence.py` runs end-to-end and
+    writes its markdown + CSV reports (exit 0).
+- **Learnings:**
+  - The verbatim Excel's `(sheet, juris)` blocks don't 1:1 with the
+    analysis sheets' multi-sub structure. Building a separate
+    `VERBATIM_CELLS` map (rather than reusing `SINGLE_SUB_SHEETS` /
+    `MULTI_SUB_CELLS`) was cleaner — the analysis side disambiguates by
+    `term`, but the verbatim side has a single term per block, so the
+    HTML cell key alone is enough.
+  - The verbatim loader's `_juris_to_law` fallback is too coarse for
+    California: every "U.S. - California" cell without an inline citation
+    gets `ca-sb53`, masking the real law (`ca-sb942` / `ca-ab2013`). The
+    new `wrong_law` status surfaces this correctly, but it means the
+    headline "wrong_law" count overstates real link errors. A future
+    loader pass should parse inline section citations inside the verbatim
+    text (e.g. `22757.1` → `ca-sb942`) to refine `law_id`.
+  - A verbatim entry with `article_id=None` still anchors the term to the
+    law, so an HTML link to a specific article in that law surfaces as
+    `wrong_article` rather than `wrong_law`. This is the right call —
+    `wrong_law` is reserved for cases where the term has zero entries in
+    the linked law. Test
+    `test_classify_link_article_none_in_verbatim_counts_as_same_law`
+    pins this behaviour.
+  - Aggregating per-cell with "worst severity" lets reviewers sort the
+    CSV by `link_status` directly. The full per-link list is preserved
+    in `link_statuses` so no information is lost — the cell row keeps
+    one-to-one parity between `linked_articles` and `link_statuses`,
+    enforced by `test_linked_articles_and_link_statuses_zip_one_to_one`.
+---
+
 
