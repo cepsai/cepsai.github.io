@@ -47,6 +47,7 @@ import argparse
 import json
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -68,6 +69,8 @@ from verify_lexicon import (  # noqa: E402
 
 DEFAULT_HTML = ITER_DIR / "digital_lexicon_v30.html"
 DEFAULT_LAWS_DIR = ITER_DIR / "laws"
+REPO_OUTPUTS = ITER_DIR.parent / "outputs"
+DEFAULT_UNRESOLVED_MD = REPO_OUTPUTS / "v30_unresolved_articles.md"
 # rapidfuzz token_set_ratio threshold. The PRD lists 70 as the starting
 # point. On the v30 + verbatim Excel snapshot the legitimate
 # corrections cluster at 68.9–100.0 — a default of 65 picks them all
@@ -212,6 +215,34 @@ def best_article_match(
     return best, best_score
 
 
+def top_n_article_matches(
+    query: str, articles: list[dict], n: int = 3,
+) -> list[tuple[dict, float]]:
+    """Return up to ``n`` ``(article, score)`` pairs sorted by score desc.
+
+    Same scoring rule as :func:`best_article_match` (token_set_ratio of
+    normalized query vs ``title + " " + text``), but returns the ranked
+    top-``n`` rather than only the best. Used by US-010 to surface the
+    closest-but-not-confident-enough candidates for manual review.
+    """
+    if not query or not articles or n <= 0:
+        return []
+    q = _normalize_for_match(query)
+    if not q:
+        return []
+    scored: list[tuple[dict, float]] = []
+    for art in articles:
+        body = _normalize_for_match(
+            (art.get("title") or "") + " " + (art.get("text") or "")
+        )
+        if not body:
+            continue
+        score = float(fuzz.token_set_ratio(q, body))
+        scored.append((art, score))
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return scored[:n]
+
+
 # --------------------------------------------------------------------------- #
 # Lookup composition                                                          #
 # --------------------------------------------------------------------------- #
@@ -273,12 +304,16 @@ def _cells_with_no_verbatim(
         reference = getattr(r, "reference", None)
         law_id = getattr(r, "law_id", None)
         article_id = getattr(r, "article_id", None)
+        term = getattr(r, "term", None)
+        dim_label = getattr(r, "dim_label", None)
         if law_id and article_id:
             cell_atoms[key].append((law_id, str(article_id)))
         if key not in cell_meta:
             cell_meta[key] = {
                 "analysis_text": analysis,
                 "reference": reference or "",
+                "term": term or "",
+                "dim_label": dim_label or "",
             }
 
     out: list[dict] = []
@@ -315,6 +350,8 @@ def _cells_with_no_verbatim(
             "jid": jid,
             "analysis_text": analysis_text,
             "reference": meta.get("reference", ""),
+            "term": meta.get("term", ""),
+            "dim_label": meta.get("dim_label", ""),
             "law_id": law_id,
             "cited_anchors": cited_anchors,
         })
@@ -385,6 +422,160 @@ def compute_autocorrect_lookup(
             "score": round(score, 1),
         }
     return lookup
+
+
+# --------------------------------------------------------------------------- #
+# US-010: unresolved-article markdown log                                     #
+# --------------------------------------------------------------------------- #
+
+def compute_unresolved_articles(
+    threshold: float = DEFAULT_THRESHOLD,
+    html_path: Path | str | None = None,
+    verbatim_path: Path | str | None = None,
+    laws_dir: Path | str | None = None,
+    top_n: int = 3,
+) -> list[dict]:
+    """Return one entry per cell whose verbatim is missing AND auto-correct
+    could not pick a candidate above ``threshold``.
+
+    Each entry carries the cell key, the displayed term, the linked law,
+    the originally selected article string (the cell's raw ``reference``)
+    and the top-``top_n`` candidate articles with their similarity scores.
+    Cells whose top match is already one of the cell's citations are
+    excluded — those are "phantom" successes where the analyst already
+    points at the right article.
+    """
+    threshold = float(threshold)
+    html_df = parse_v29(html_path or DEFAULT_HTML)
+    verbatim_df = load_verbatim(verbatim_path)
+    by_block, by_term = _build_verbatim_indices(verbatim_df)
+    blobs = _load_law_blobs(Path(laws_dir) if laws_dir else DEFAULT_LAWS_DIR)
+
+    out: list[dict] = []
+    for rec in _cells_with_no_verbatim(html_df, by_block, by_term):
+        blob = blobs.get(rec["law_id"])
+        if blob is None:
+            continue
+        articles = _blob_articles(blob)
+        if not articles:
+            continue
+        top = top_n_article_matches(rec["analysis_text"], articles, n=top_n)
+        if not top:
+            continue
+        best_art, best_score = top[0]
+        cited = rec.get("cited_anchors") or set()
+        if best_score >= threshold:
+            # Either a real correction (handled by lookup) or phantom
+            # (best already cited — analyst pointed at the right article).
+            # In either case, NOT unresolved.
+            continue
+        candidates = [
+            {
+                "to_label": _make_label(rec["law_id"], art["kind"], str(art["id"])),
+                "to_anchor": str(art["id"]),
+                "kind": art["kind"],
+                "score": round(score, 1),
+            }
+            for (art, score) in top
+        ]
+        out.append({
+            "cid": rec["cid"],
+            "sid": rec["sid"],
+            "dim_id": rec["dim_id"],
+            "jid": rec["jid"],
+            "term": rec.get("term") or "",
+            "dim_label": rec.get("dim_label") or "",
+            "law_id": rec["law_id"],
+            "from_label": rec.get("reference") or "",
+            "cited_anchors": sorted(cited),
+            "best_score": round(best_score, 1),
+            "candidates": candidates,
+        })
+    return out
+
+
+def _format_unresolved_md(
+    unresolved: list[dict],
+    threshold: float,
+    generated_at: datetime,
+) -> str:
+    """Render the markdown body for ``v30_unresolved_articles.md``."""
+    stamp = generated_at.strftime("%Y-%m-%d %H:%M:%S UTC")
+    lines: list[str] = []
+    lines.append("# v30 Unresolved Articles")
+    lines.append("")
+    lines.append(f"_Generated {stamp} (threshold={threshold:g})._")
+    lines.append("")
+
+    if not unresolved:
+        lines.append("No unresolved articles.")
+        lines.append("")
+        return "\n".join(lines)
+
+    lines.append(
+        f"{len(unresolved)} cell(s) where verbatim is missing and "
+        f"auto-correct could not confidently pick an article (best "
+        f"similarity below threshold {threshold:g})."
+    )
+    lines.append("")
+
+    # Sort by best_score descending so the closest-but-not-quite candidates
+    # are surfaced first for human review.
+    ranked = sorted(unresolved, key=lambda r: -float(r.get("best_score", 0.0)))
+
+    for i, rec in enumerate(ranked, 1):
+        term = rec.get("term") or "(no term)"
+        law_id = rec.get("law_id") or "(no law)"
+        cell_path = (
+            f"{rec.get('cid','?')}/{rec.get('sid','?')}/"
+            f"{rec.get('dim_id','?')}/{rec.get('jid','?')}"
+        )
+        lines.append(f"## {i}. {term} — {law_id}")
+        lines.append("")
+        lines.append(f"- **Cell:** `{cell_path}`")
+        if rec.get("dim_label"):
+            lines.append(f"- **Dimension:** {rec['dim_label']}")
+        lines.append(f"- **Term:** {term}")
+        lines.append(f"- **Linked law:** `{law_id}`")
+        from_label = rec.get("from_label") or "_(none)_"
+        lines.append(f"- **Originally selected article:** {from_label}")
+        lines.append("- **Top 3 candidate articles:**")
+        cands = rec.get("candidates") or []
+        if not cands:
+            lines.append("    - _(none)_")
+        else:
+            for c in cands[:3]:
+                lines.append(
+                    f"    - {c['to_label']} — score "
+                    f"{float(c['score']):.1f}"
+                )
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def write_unresolved_articles_md(
+    unresolved: list[dict],
+    out_path: Path | str | None = None,
+    threshold: float = DEFAULT_THRESHOLD,
+    generated_at: datetime | None = None,
+) -> Path:
+    """Write the unresolved-articles markdown log to ``out_path``.
+
+    The file is overwritten on every call. When ``unresolved`` is empty the
+    body is the literal string ``"No unresolved articles."`` under the
+    timestamped header so the file is never empty.
+    """
+    dst = Path(out_path) if out_path else DEFAULT_UNRESOLVED_MD
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if generated_at is None:
+        generated_at = datetime.now(timezone.utc)
+    body = _format_unresolved_md(unresolved, threshold, generated_at)
+    # Always end with a single trailing newline.
+    if not body.endswith("\n"):
+        body += "\n"
+    dst.write_text(body, encoding="utf-8")
+    return dst
 
 
 # --------------------------------------------------------------------------- #
@@ -803,8 +994,15 @@ def build_v30_autocorrect(
     out_path: Path | str | None = None,
     verbatim_path: Path | str | None = None,
     laws_dir: Path | str | None = None,
+    unresolved_md_path: Path | str | None = None,
 ) -> dict:
-    """Compute + inject in one call. Returns ``{"out_path", "lookup"}``."""
+    """Compute + inject + log in one call.
+
+    Returns ``{"out_path", "lookup", "unresolved", "unresolved_md_path"}``.
+    The unresolved-articles markdown log (US-010) is written to
+    ``unresolved_md_path`` (defaults to ``<repo>/outputs/v30_unresolved_articles.md``).
+    Pass ``unresolved_md_path=False`` to skip the log.
+    """
     lookup = compute_autocorrect_lookup(
         threshold=threshold,
         html_path=html_path,
@@ -814,7 +1012,27 @@ def build_v30_autocorrect(
     out = inject_autocorrect_lookup(
         lookup, html_path=html_path, out_path=out_path, threshold=threshold,
     )
-    return {"out_path": out, "lookup": lookup}
+    unresolved = compute_unresolved_articles(
+        threshold=threshold,
+        html_path=html_path,
+        verbatim_path=verbatim_path,
+        laws_dir=laws_dir,
+    )
+    md_path: Path | None
+    if unresolved_md_path is False:
+        md_path = None
+    else:
+        md_path = write_unresolved_articles_md(
+            unresolved,
+            out_path=unresolved_md_path,
+            threshold=threshold,
+        )
+    return {
+        "out_path": out,
+        "lookup": lookup,
+        "unresolved": unresolved,
+        "unresolved_md_path": md_path,
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -825,6 +1043,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
     p.add_argument("--laws-dir", default=str(DEFAULT_LAWS_DIR))
     p.add_argument("--verbatim", default=None)
+    p.add_argument(
+        "--unresolved-md",
+        default=str(DEFAULT_UNRESOLVED_MD),
+        help="Output path for the US-010 unresolved-articles markdown log.",
+    )
     args = p.parse_args(argv)
 
     result = build_v30_autocorrect(
@@ -833,11 +1056,24 @@ def main(argv: list[str] | None = None) -> int:
         out_path=args.out,
         verbatim_path=args.verbatim,
         laws_dir=args.laws_dir,
+        unresolved_md_path=args.unresolved_md,
     )
     print(
         f"US-009 auto-correct: {len(result['lookup'])} cells corrected "
         f"(threshold={args.threshold}) → {result['out_path']}"
     )
+    n_unresolved = len(result["unresolved"])
+    md_target = result["unresolved_md_path"]
+    if n_unresolved == 0:
+        print(
+            f"US-010 unresolved log: 0 unresolved articles "
+            f"→ {md_target}"
+        )
+    else:
+        print(
+            f"US-010 unresolved log: {n_unresolved} cell(s) need manual "
+            f"review → {md_target}"
+        )
     return 0
 
 

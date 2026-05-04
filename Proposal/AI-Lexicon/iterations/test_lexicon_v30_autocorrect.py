@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pytest
@@ -35,15 +36,20 @@ if str(HERE) not in sys.path:
 from build_v30_autocorrect import (  # noqa: E402
     DATA_SCRIPT_ID,
     DEFAULT_THRESHOLD,
+    DEFAULT_UNRESOLVED_MD,
     LAW_LABEL_PREFIX,
     _blob_articles,
+    _format_unresolved_md,
     _key_for_cell,
     _make_label,
     _serialise_lookup,
     best_article_match,
     build_v30_autocorrect,
     compute_autocorrect_lookup,
+    compute_unresolved_articles,
     inject_autocorrect_lookup,
+    top_n_article_matches,
+    write_unresolved_articles_md,
 )
 
 
@@ -436,6 +442,287 @@ def test_us009_register_synthetic_refs():
     # resolves through the existing v29 article-render pipeline.
     assert "_registerSyntheticRefs" in html
     assert "window.REF_MAP" in html
+
+
+# --------------------------------------------------------------------------- #
+# US-010 — unresolved-articles markdown log                                   #
+# --------------------------------------------------------------------------- #
+
+def test_top_n_article_matches_returns_ranked_top_n():
+    articles = [
+        {"id": "1", "title": "Subject matter",
+         "text": "Lays down rules on AI systems."},
+        {"id": "2", "title": "Definitions",
+         "text": "Provider develops AI systems for natural and legal persons."},
+        {"id": "3", "title": "Penalties",
+         "text": "Fines up to thirty-five million euro."},
+        {"id": "4", "title": "Misc",
+         "text": "Unrelated topic."},
+    ]
+    top = top_n_article_matches(
+        "provider develops AI systems natural legal persons",
+        articles,
+        n=3,
+    )
+    assert len(top) == 3
+    # Sorted descending by score.
+    scores = [s for (_, s) in top]
+    assert scores == sorted(scores, reverse=True)
+    # The most relevant article ranks first.
+    assert top[0][0]["id"] == "2"
+
+
+def test_top_n_article_matches_handles_empty():
+    assert top_n_article_matches("", [{"id": "1", "title": "a", "text": "b"}], n=3) == []
+    assert top_n_article_matches("query", [], n=3) == []
+    assert top_n_article_matches("query", [{"id": "1", "title": "a", "text": "b"}], n=0) == []
+
+
+def test_compute_unresolved_articles_yields_entries_at_higher_threshold():
+    """At a strict threshold, cells that previously auto-corrected fall
+    through to the unresolved log."""
+    base = compute_autocorrect_lookup(threshold=DEFAULT_THRESHOLD)
+    assert len(base) >= 5
+    strict_unresolved = compute_unresolved_articles(threshold=99.0)
+    # Strict threshold turns most no_verbatim cells into unresolved entries.
+    assert len(strict_unresolved) >= 1
+
+
+def test_compute_unresolved_articles_excludes_corrected_cells():
+    """Cells the lookup *did* correct must not also appear in the
+    unresolved list — they were resolved, not unresolved."""
+    threshold = DEFAULT_THRESHOLD
+    lookup = compute_autocorrect_lookup(threshold=threshold)
+    unresolved = compute_unresolved_articles(threshold=threshold)
+    lookup_keys = set(lookup.keys())
+    unresolved_keys = {
+        f"{r['cid']}|{r['sid']}|{r['dim_id']}|{r['jid']}"
+        for r in unresolved
+    }
+    assert not (lookup_keys & unresolved_keys), (
+        "a cell appears in BOTH the auto-correct lookup and the "
+        "unresolved log — they must be disjoint sets."
+    )
+
+
+def test_compute_unresolved_articles_entries_have_required_fields():
+    unresolved = compute_unresolved_articles(threshold=DEFAULT_THRESHOLD)
+    if not unresolved:
+        pytest.skip("no unresolved cells in current snapshot")
+    for rec in unresolved:
+        for field in ("cid", "sid", "dim_id", "jid", "term", "law_id",
+                      "from_label", "best_score", "candidates"):
+            assert field in rec, f"missing {field} in {rec}"
+        # Up to top 3 candidates, each with the right shape.
+        assert 1 <= len(rec["candidates"]) <= 3
+        for c in rec["candidates"]:
+            for field in ("to_label", "to_anchor", "kind", "score"):
+                assert field in c
+        # best_score < threshold (otherwise it'd have been auto-corrected
+        # or phantom-skipped — neither belongs here).
+        assert rec["best_score"] < DEFAULT_THRESHOLD
+
+
+def test_compute_unresolved_articles_empty_at_zero_threshold():
+    """At threshold=0 every match is confident, so nothing is unresolved."""
+    unresolved = compute_unresolved_articles(threshold=0.0)
+    assert unresolved == []
+
+
+def test_format_unresolved_md_empty_says_no_unresolved():
+    body = _format_unresolved_md(
+        [], threshold=70.0,
+        generated_at=datetime(2026, 5, 1, 12, 0, 0),
+    )
+    assert "No unresolved articles." in body
+    assert "# v30 Unresolved Articles" in body
+    # File must NOT be empty even when there are no entries.
+    assert body.strip() != ""
+
+
+def test_format_unresolved_md_includes_required_fields_per_entry():
+    rec = {
+        "cid": "incident",
+        "sid": "serious-incident",
+        "dim_id": "term-0-0",
+        "jid": "ca",
+        "term": "Critical safety incident",
+        "dim_label": "Term",
+        "law_id": "ca-sb53",
+        "from_label": "CA SB 53 §22757.11(d)",
+        "best_score": 60.5,
+        "candidates": [
+            {"to_label": "CA SB 53 §22757.13", "to_anchor": "22757.13",
+             "kind": "section", "score": 60.5},
+            {"to_label": "CA SB 53 §22757.12", "to_anchor": "22757.12",
+             "kind": "section", "score": 55.0},
+            {"to_label": "CA SB 53 §22757.11", "to_anchor": "22757.11",
+             "kind": "section", "score": 40.1},
+        ],
+    }
+    body = _format_unresolved_md(
+        [rec], threshold=70.0,
+        generated_at=datetime(2026, 5, 1, 12, 0, 0),
+    )
+    # AC: term, linked law, originally selected article, top 3 candidates.
+    assert "Critical safety incident" in body
+    assert "ca-sb53" in body
+    assert "CA SB 53 §22757.11(d)" in body
+    assert "CA SB 53 §22757.13" in body
+    assert "CA SB 53 §22757.12" in body
+    assert "CA SB 53 §22757.11" in body
+    # Scores rendered.
+    assert "60.5" in body
+    # Timestamp header present.
+    assert "Generated 2026-05-01 12:00:00 UTC" in body
+
+
+def test_format_unresolved_md_truncates_to_top_3():
+    """Even if more than 3 candidates are passed in, the rendered list
+    shows only the top 3 (the build helper requests top_n=3 anyway, but
+    the formatter must enforce the cap defensively)."""
+    rec = {
+        "cid": "x", "sid": "y", "dim_id": "z", "jid": "eu",
+        "term": "T", "dim_label": "", "law_id": "eu-ai-act",
+        "from_label": "Article 1",
+        "best_score": 50.0,
+        "candidates": [
+            {"to_label": f"Article {i}", "to_anchor": str(i),
+             "kind": "article", "score": 50.0 - i}
+            for i in range(1, 8)
+        ],
+    }
+    body = _format_unresolved_md(
+        [rec], threshold=70.0,
+        generated_at=datetime(2026, 5, 1, 12, 0, 0),
+    )
+    # First three candidates rendered.
+    for i in range(1, 4):
+        assert f"Article {i}" in body
+    # Fourth and beyond NOT rendered.
+    assert "Article 5" not in body
+    assert "Article 6" not in body
+    assert "Article 7" not in body
+
+
+def test_write_unresolved_articles_md_empty_writes_non_empty_file(tmp_path):
+    target = tmp_path / "v30_unresolved_articles.md"
+    out = write_unresolved_articles_md([], out_path=target, threshold=65.0)
+    assert out == target
+    assert target.exists()
+    body = target.read_text(encoding="utf-8")
+    assert body.strip() != "", "empty file produced when there are no entries"
+    assert "No unresolved articles." in body
+    assert "# v30 Unresolved Articles" in body
+    # Header is timestamped.
+    assert "Generated " in body and "UTC" in body
+
+
+def test_write_unresolved_articles_md_overwrites(tmp_path):
+    target = tmp_path / "v30_unresolved_articles.md"
+    target.write_text("STALE OLD CONTENT", encoding="utf-8")
+    write_unresolved_articles_md([], out_path=target, threshold=65.0)
+    assert "STALE OLD CONTENT" not in target.read_text(encoding="utf-8")
+
+
+def test_write_unresolved_articles_md_creates_parent(tmp_path):
+    target = tmp_path / "nested" / "dir" / "v30_unresolved_articles.md"
+    write_unresolved_articles_md([], out_path=target, threshold=65.0)
+    assert target.exists()
+
+
+def test_write_unresolved_articles_md_uses_provided_timestamp(tmp_path):
+    target = tmp_path / "log.md"
+    write_unresolved_articles_md(
+        [], out_path=target, threshold=65.0,
+        generated_at=datetime(2030, 1, 2, 3, 4, 5),
+    )
+    body = target.read_text(encoding="utf-8")
+    assert "2030-01-02 03:04:05 UTC" in body
+
+
+def test_default_unresolved_md_path_under_outputs():
+    """The default output path is ``outputs/v30_unresolved_articles.md``
+    under the project root — that's the path the AC pins."""
+    assert DEFAULT_UNRESOLVED_MD.name == "v30_unresolved_articles.md"
+    assert DEFAULT_UNRESOLVED_MD.parent.name == "outputs"
+
+
+def test_build_v30_autocorrect_writes_unresolved_md(tmp_path):
+    src = HTML.read_text(encoding="utf-8")
+    target = tmp_path / "out.html"
+    src_clean = re.sub(
+        r'<script type="application/json" id="v30-autocorrect-data">'
+        r".*?</script>\n?",
+        "",
+        src,
+        flags=re.DOTALL,
+    )
+    src_clean = re.sub(
+        r'<style data-block="us-009">.*?</style>\s*'
+        r'<script data-block="us-009">.*?</script>\n?',
+        "",
+        src_clean,
+        flags=re.DOTALL,
+    )
+    baseline = tmp_path / "v30_baseline.html"
+    baseline.write_text(src_clean, encoding="utf-8")
+    md_target = tmp_path / "v30_unresolved_articles.md"
+    result = build_v30_autocorrect(
+        threshold=DEFAULT_THRESHOLD,
+        html_path=baseline,
+        out_path=target,
+        unresolved_md_path=md_target,
+    )
+    assert result["unresolved_md_path"] == md_target
+    assert md_target.exists()
+    assert "unresolved" in result
+    assert isinstance(result["unresolved"], list)
+    body = md_target.read_text(encoding="utf-8")
+    # Either no entries (and the safety message), or at least one heading.
+    assert body.strip() != ""
+    if result["unresolved"]:
+        assert "## 1." in body
+    else:
+        assert "No unresolved articles." in body
+
+
+def test_build_v30_autocorrect_skips_md_when_path_is_false(tmp_path):
+    src = HTML.read_text(encoding="utf-8")
+    target = tmp_path / "out.html"
+    baseline = tmp_path / "v30_baseline.html"
+    baseline.write_text(src, encoding="utf-8")
+    result = build_v30_autocorrect(
+        threshold=DEFAULT_THRESHOLD,
+        html_path=baseline,
+        out_path=target,
+        unresolved_md_path=False,
+    )
+    assert result["unresolved_md_path"] is None
+    # No new file was written under tmp_path beyond `target`.
+    assert not (tmp_path / "v30_unresolved_articles.md").exists()
+
+
+def test_build_main_cli_writes_unresolved_md(tmp_path, monkeypatch):
+    """End-to-end CLI: --unresolved-md writes the log file."""
+    from build_v30_autocorrect import main as build_main
+
+    src = HTML.read_text(encoding="utf-8")
+    baseline = tmp_path / "v30_baseline.html"
+    baseline.write_text(src, encoding="utf-8")
+    target = tmp_path / "out.html"
+    md_target = tmp_path / "log.md"
+    rc = build_main([
+        "--html", str(baseline),
+        "--out", str(target),
+        "--unresolved-md", str(md_target),
+        "--threshold", str(DEFAULT_THRESHOLD),
+    ])
+    assert rc == 0
+    assert md_target.exists()
+    assert md_target.stat().st_size > 0
+    body = md_target.read_text(encoding="utf-8")
+    assert "# v30 Unresolved Articles" in body
 
 
 # --------------------------------------------------------------------------- #

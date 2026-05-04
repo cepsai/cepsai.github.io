@@ -907,5 +907,97 @@ after each iteration and it's included in prompts for context.
     to §22757.12") even though §22757.12 is already cited.
 ---
 
+## 2026-05-01 - US-010
+- Extended `iterations/build_v30_autocorrect.py` with a Markdown logger
+  for cells whose verbatim row is missing AND whose best-similarity
+  candidate scores below `threshold`. Output goes to
+  `outputs/v30_unresolved_articles.md` and is overwritten on every build.
+- New public API:
+  - `top_n_article_matches(query, articles, n=3)` — ranked top-N
+    candidates with `token_set_ratio` scores; mirrors `best_article_match`
+    but returns the full ranking instead of only the winner.
+  - `compute_unresolved_articles(threshold, html_path, verbatim_path,
+    laws_dir, top_n=3)` — returns one record per unresolved cell
+    carrying `term`, `dim_label`, `law_id`, `from_label` (the cell's
+    raw `cell.reference`), `best_score`, and the top-3 candidate
+    articles. By construction the lookup (US-009) and the unresolved
+    list are disjoint — every no_verbatim cell either auto-corrects,
+    is phantom-skipped (best match already cited), or surfaces here.
+  - `write_unresolved_articles_md(unresolved, out_path, threshold,
+    generated_at=None)` — writes the Markdown file with a UTC
+    timestamp header. Body is `"No unresolved articles."` when the
+    list is empty (file is never produced empty).
+  - `build_v30_autocorrect(..., unresolved_md_path=None)` — orchestrates
+    compute → inject → log. `unresolved_md_path=False` opts out;
+    `None` writes to `outputs/v30_unresolved_articles.md`.
+  - CLI: `--unresolved-md` flag with the same default and a final
+    "US-010 unresolved log: N cell(s) need manual review → path"
+    print.
+- The cells surfaced are sorted by `best_score` descending so reviewers
+  see the closest-but-not-quite candidates first. Each entry shows:
+  `term`, `dim_label`, `law_id`, `cell` path (`cid/sid/dim_id/jid`),
+  `originally selected article` (raw cell.reference), and a
+  bulleted top-3 list of candidate articles with float scores.
+- Files changed/created:
+  - `iterations/build_v30_autocorrect.py` (+~165 lines: helpers +
+    `compute_unresolved_articles` + `_format_unresolved_md` +
+    `write_unresolved_articles_md` + CLI wiring)
+  - `iterations/test_lexicon_v30_autocorrect.py` (+~210 lines, +17
+    tests covering `top_n_article_matches`, `compute_unresolved_articles`
+    (disjointness from lookup, zero/strict thresholds, required
+    fields), `_format_unresolved_md` (empty case, all required fields
+    rendered, top-3 truncation, timestamp), `write_unresolved_articles_md`
+    (overwrite, parent creation, custom timestamp), `build_v30_autocorrect`
+    (skip path with `False`, default path), and the CLI
+    `--unresolved-md` end-to-end)
+  - `outputs/v30_unresolved_articles.md` (regenerated; 31 cells in
+    the current snapshot at threshold 65)
+- Validation:
+  - `python3 iterations/build_v30_autocorrect.py` reports
+    "5 cells corrected (threshold=65.0) → digital_lexicon_v30.html"
+    and "31 cell(s) need manual review → outputs/v30_unresolved_articles.md".
+  - `python3 -m pytest iterations/test_lexicon_v30_autocorrect.py -q`
+    — 45 passed (28 existing US-009 + 17 new US-010).
+  - `python3 -m pytest iterations/` — same pre-existing failures
+    noted in every prior US (`test_lexicon_v18.py::test_v18_dom_features`,
+    `test_lexicon_v29.py::test_home_text_from_xlsx`); all new US-010
+    tests pass cleanly.
+  - `python3 iterations/audit_excel_correspondence.py` runs
+    end-to-end and writes its markdown + CSV reports under
+    `outputs/`. Exit code 1 from the same pre-existing v28 ↔ Excel
+    discrepancies (105/43/23/20/9), unchanged from baseline (audit
+    targets v28; v30 changes do not affect it).
+- **Learnings:**
+  - **Disjointness is the right invariant for the lookup vs. log.**
+    A cell either resolves (in the lookup) or is unresolved (in the
+    log) — never both. Phantom-skip cells (best match already cited)
+    are NOT logged either: auto-correct effectively succeeded by
+    deciding "no change needed". Pin this with a test that checks
+    `lookup_keys & unresolved_keys == set()`.
+  - **Sort the log by `best_score` descending, not by cell key.**
+    The reviewer's question is "which of these are closest to a
+    confident match?" — those are the most actionable manual-review
+    cases. Alphabetical-by-cell would bury the 60-point near-misses
+    behind 20-point true mismatches.
+  - **Empty-file safety needs a literal sentinel string.** The AC
+    "Empty file is not produced — if all analyses resolve, the file
+    says 'No unresolved articles.'" is satisfied by always writing
+    a header + body, with a fixed sentinel body for the empty case.
+    A "skip writing if empty" implementation would silently miss
+    re-runs after a fix lands (the stale prior log would linger).
+  - **`from_label` defaults to the raw `cell.reference`, not a
+    synthesised single-anchor label.** Multi-atom cells (e.g.
+    `California SB53, 22757.15.(a)`) need the full original string
+    so the reviewer can see exactly what the analyst wrote. The
+    candidates already carry their own `_make_label`-rendered
+    target labels, so the reviewer can compare apples-to-apples.
+  - **The `term` and `dim_label` belong in the loaded record, not
+    re-fetched at format time.** `_cells_with_no_verbatim` already
+    walks every parse_v29 row; threading `term` and `dim_label`
+    through the same dict avoids a second pass over the HTML JSON
+    in the writer. Bonus: tests can exercise the formatter against
+    a synthetic record without a full parse_v29 fixture.
+---
+
 
 
