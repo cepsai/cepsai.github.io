@@ -1,0 +1,82 @@
+# Iteration 1 Log
+
+## Metadata
+
+- **Task ID**: US-001
+- **Task Title**: Load and normalise the two Excel sources
+- **Description**: As a developer, I want a single loader module that reads both the cross-checked analysis Excel and the verbatim Excel into normalised pandas DataFrames so that every downstream task works from one can...
+- **Status**: completed
+- **Task Completed**: Yes
+- **Promise Detected**: Yes
+- **Started At**: 2026-05-01T15:32:42.126Z
+- **Ended At**: 2026-05-01T15:43:51.337Z
+- **Duration**: 11m 9s
+- **Input Tokens**: 119
+- **Output Tokens**: 46780
+- **Total Tokens**: 46899
+- **Agent**: claude
+- **Model**: claude-opus-4-7
+- **Sandbox Mode**: auto
+- **Sandbox Network**: Enabled
+--- RAW OUTPUT ---
+[94m[Bash][0m List AI-Lexicon project root $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/
+[94m[Bash][0m List subdirectories $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/ /Users/rober...
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/tasks/prd.json[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/audit_excel_correspondence.py[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/tasks/prd-lexicon-verifier-v30-with-verbatim-highlighting.md[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/build_reference_lookup.py[0m
+[94m[Bash][0m Locate Excel sources in Downloads $ ls -la "/Users/robertpraas/Downloads/" | grep -i "ai term\|cross-checked\|verbatim" 2>/dev/null
+[94m[Bash][0m Inspect Excel sheet structure $ python3 -c " from openpyxl import load_workbook from pathlib import Path  p = Path('/Users/robertpra...
+[94m[Bash][0m Inspect High-risk analysis sheet rows $ python3 -c " from openpyxl import load_workbook from pathlib import Path  p = Path('/Users/robertpra...
+[94m[ToolSearch][0m query: [93mselect:TodoWrite[0m
+[94m[TodoWrite][0m
+[94m[Bash][0m Inspect verbatim sheets $ python3 -c " from openpyxl import load_workbook from pathlib import Path  p = Path('/Users/robertpra...
+[94m[Bash][0m Inspect remaining verbatim sheets $ python3 -c " from openpyxl import load_workbook from pathlib import Path  p = Path('/Users/robertpra...
+[94m[Bash][0m Inspect multi-subconcept analysis sheet $ python3 -c " from openpyxl import load_workbook wb = load_workbook('/Users/robertpraas/Downloads/Cro...
+[94m[Bash][0m Inspect all verbatim sheet headers $ python3 -c " from openpyxl import load_workbook wb = load_workbook('/Users/robertpraas/Downloads/AI ...
+Now I have enough understanding to write the loader. Let me check the test infrastructure and then implement.
+[94m[Bash][0m Discover existing tests $ ls iterations/test_*.py 2>/dev/null | head -5 && python3 -m pytest iterations/ --co -q 2>&1 | head -...
+[94m[Bash][0m Check if pytest collection succeeds $ python3 -m pytest iterations/ --co -q 2>&1 | tail -20
+[94m[Bash][0m Pytest collection from project root $ python3 -m pytest iterations/ --co -q 2>&1 | tail -15
+[94m[Bash][0m Run pytest on iterations $ python3 -m pytest iterations/ -q 2>&1 | tail -10
+[94m[Bash][0m Show v17/v29 failures detail $ python3 -m pytest iterations/test_lexicon_v17.py iterations/test_lexicon_v29.py 2>&1 | tail -30
+[94m[TodoWrite][0m
+Pre-existing failures noted (test_v17 RuntimeError; test_v29 home_text — unrelated to US-001). Writing the loader now.
+[94m[Write][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/load_lexicon_sources.py[0m """"load_lexicon_sources.py — Canonical loader for both Excel inputs.
+
+US-001: a single loader module that reads both the cross-checked analysis
+Excel and the verbatim Excel into normalised pandas Data... (20968 chars)"
+Now let me run the loader as a sanity check before writing tests.
+[94m[Bash][0m Run loader as main $ python3 iterations/load_lexicon_sources.py 2>&1 | head -60
+The loader works. Now let me write tests.
+[94m[Write][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_load_lexicon_sources.py[0m """"Tests for iterations/load_lexicon_sources.py (US-001).
+
+These tests are skipped when the source Excel files are not present (e.g. on
+CI without the developer's Downloads folder), so they remain non... (7134 chars)"
+[94m[Bash][0m Run the new loader tests $ cd iterations && python3 -m pytest test_load_lexicon_sources.py -v 2>&1 | tail -40
+All 13 tests pass. Now run the full project test suite and the audit script.
+[94m[Bash][0m Run full pytest suite $ python3 -m pytest iterations/ 2>&1 | tail -10
+[94m[Bash][0m Run full pytest suite from project root $ cd /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon && python3 -m pytest ite...
+[94m[TodoWrite][0m
+[94m[Bash][0m Run audit script $ python3 iterations/audit_excel_correspondence.py 2>&1 | tail -30
+[94m[Bash][0m Check audit exit code $ echo "exit=$?"
+[94m[Bash][0m Verify audit failure pre-dates my changes $ git stash pop
+Audit-script non-zero exit pre-dates US-001 — it's flagging v28 HTML drift, unrelated to the new loader module. Updating progress.md now.
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m edit: "# Ralph Progress Log
+
+This file tracks progress ac..." → "# Ralph Progress Log
+
+This file tracks progress ac..."
+[94m[TodoWrite][0m
+US-001 acceptance criteria status:
+- ✅ `iterations/load_lexicon_sources.py` exposes `load_analyses()` and `load_verbatim()` returning pandas DataFrames
+- ✅ Loader handles actual column structure (4-col vs 5-col blocks, header on row 1 or row 2 depending on sheet)
+- ✅ Each row keyed by `(term, law_id, article_id)` — verified by `test_analyses_and_verbatim_share_some_join_keys`
+- ✅ Empty cells preserved as `None` (`_no_nan_strings` test)
+- ✅ ISO `NA` (Namibia) preservation guarded in `_norm_str` and tested
+- ✅ Prints row counts + 5-row sample when run as `__main__`
+- ✅ `python -m pytest iterations/` — 13 new tests pass; 2 pre-existing failures unrelated to US-001
+- ✅ `python iterations/audit_excel_correspondence.py` runs end-to-end (its exit-1 reflects pre-existing v28 HTML drift that pre-dates this change)
+
+<promise>COMPLETE</promise>

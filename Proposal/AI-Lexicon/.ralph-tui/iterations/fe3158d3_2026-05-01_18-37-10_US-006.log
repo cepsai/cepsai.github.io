@@ -1,0 +1,126 @@
+# Iteration 6 Log
+
+## Metadata
+
+- **Task ID**: US-006
+- **Task Title**: Produce v29-corrected.html with auto-applied fixes
+- **Description**: As a user, I want a corrected copy of v29 with mismatches resolved so that I can review and adopt fixes without manual editing.
+- **Status**: completed
+- **Task Completed**: Yes
+- **Promise Detected**: Yes
+- **Started At**: 2026-05-01T16:37:10.515Z
+- **Ended At**: 2026-05-01T16:57:57.434Z
+- **Duration**: 20m 46s
+- **Input Tokens**: 191
+- **Output Tokens**: 53198
+- **Total Tokens**: 53389
+- **Agent**: claude
+- **Model**: claude-opus-4-7
+- **Sandbox Mode**: auto
+- **Sandbox Network**: Enabled
+--- RAW OUTPUT ---
+[94m[Bash][0m List iterations directory contents $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/ 2>&1 | head ...
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m
+Now let me understand the v29 HTML structure and the parser, so I can build the corrector.
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/parse_v29.py[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_verify_lexicon.py[0m
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_verify_lexicon.py[0m
+Now let me look at the audit script and the tasks/prd.json:
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/tasks/prd.json[0m
+[94m[Bash][0m Check v29 HTML existence and size $ ls /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/digital_lexic...
+[94m[ToolSearch][0m query: [93mselect:TodoWrite[0m
+[94m[TodoWrite][0m
+Let me look at v29 HTML structure to understand the JSON layout for editing:
+[94m[Bash][0m Find CONCEPTS literal location $ grep -n "const CONCEPTS = " /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon...
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/digital_lexicon_v29.html[0m
+
+[91m[Error: File content (163695 tokens) exceeds maximum allowed tokens (25000). Use offset and limit parameters to read specific portions of the file, or search for specific content instead of reading the whole file.][0m
+[94m[Bash][0m Show lines around CONCEPTS literal $ awk 'NR>=1440 && NR<=1450 { print NR": "substr($0,1,200) }' /Users/robertpraas/Documents/GitHub/ceps...
+Let me look at parse_atomic to understand article_id format:
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/build_reference_lookup.py[0m
+[94m[Bash][0m Show top of v29 HTML and body tags $ awk 'NR>=1 && NR<=20 { print NR": "substr($0,1,200) }' /Users/robertpraas/Documents/GitHub/cepsai.gi...
+[94m[Bash][0m Show body opening area $ awk 'NR>=525 && NR<=545 { print NR": "substr($0,1,200) }' /Users/robertpraas/Documents/GitHub/cepsai...
+Let me check `audit_excel_correspondence.py` and look at what tests exist:
+[94m[Bash][0m Check audit script header and list tests $ head -40 /Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/audit_e...
+[94m[TodoWrite][0m
+Let me verify the JSON serialization format matches the source:
+[94m[Bash][0m Compare original JSON to round-tripped JSON $ for i in range(src_start, len(html)):     c = html[i]     if in_str:         if esc: esc=False      ...
+Round-trips byte-for-byte. Now let me check what corrections we'd apply against the real data:
+[94m[Bash][0m Count fixable corrections in real data $ ')     if len(per_a) != len(per_s):         continue     block = VERBATIM_CELLS.get((r.concept_id, r...
+Now I'll add the corrector to `verify_lexicon.py`:
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m edit: "from load_lexicon_sources import load_analyses, lo..." → "from build_reference_lookup import parse_atomic  #..."
+Now I'll add the corrector functions before the CLI section. Let me first find a good location:
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m edit: "# ------------------------------------------------..." → "# ------------------------------------------------..."
+[94m[TodoWrite][0m
+Now wire the `--fix` CLI flag:
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m edit: "    p.add_argument(
+        "--html-out", default=..." → "    p.add_argument(
+        "--html-out", default=..."
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/verify_lexicon.py[0m edit: "    write_verification_csv(df, csv_path)
+    write..." → "    write_verification_csv(df, csv_path)
+    write..."
+Now let me run a quick smoke test:
+[94m[Bash][0m Smoke test build_corrected_html $ python3 -c " import sys sys.path.insert(0, 'iterations') from verify_lexicon import build_corrected_...
+Now verify that running the verifier against the corrected file shows fewer mismatches:
+[94m[Bash][0m Validate corrected file with verifier $ python3 -c " import sys, hashlib sys.path.insert(0, 'iterations') from verify_lexicon import verify_...
+Excellent — 61 mismatches gone, 6 link fixes applied, original unchanged. Now write tests:
+[94m[Read][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_verify_lexicon.py[0m
+[94m[TodoWrite][0m
+
+[91m[Error: <tool_use_error>InputValidationError: TodoWrite failed due to the following issue:
+The required parameter `todos[6].activeForm` is missing</tool_use_error>][0m
+[94m[TodoWrite][0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_verify_lexicon.py[0m edit: "from load_lexicon_sources import DEFAULT_ANALYSIS,..." → "from load_lexicon_sources import DEFAULT_ANALYSIS,..."
+Now append the US-006 tests:
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/iterations/test_verify_lexicon.py[0m edit: "@pytestmark_e2e
+def test_writes_md_and_html_with_r..." → "@pytestmark_e2e
+def test_writes_md_and_html_with_r..."
+Now run the test suite:
+[94m[Bash][0m Run verify_lexicon tests $ python3 -m pytest iterations/test_verify_lexicon.py -x --tb=short 2>&1 | tail -80
+[94m[Bash][0m Read test output $ sleep 5 && tail -100 /private/tmp/claude-501/-Users-robertpraas-Documents-GitHub-cepsai-github-io-Pr...
+[94m[Bash][0m Read test output again $ tail -100 /private/tmp/claude-501/-Users-robertpraas-Documents-GitHub-cepsai-github-io-Proposal-AI-L...
+[94m[Bash][0m Check task dir $ ls -la /private/tmp/claude-501/-Users-robertpraas-Documents-GitHub-cepsai-github-io-Proposal-AI-Lexi...
+[94m[Bash][0m Run verify_lexicon tests in foreground $ python3 -m pytest iterations/test_verify_lexicon.py --tb=short 2>&1 | tail -100
+[94m[Bash][0m Read task output $ tail -150 /private/tmp/claude-501/-Users-robertpraas-Documents-GitHub-cepsai-github-io-Proposal-AI-L...
+All 81 tests pass. Now run the full test suite and the audit script:
+[94m[TodoWrite][0m
+[94m[Bash][0m Run full test suite $ python3 -m pytest iterations/ --tb=short 2>&1 | tail -30
+[94m[Bash][0m Run audit script $ python3 iterations/audit_excel_correspondence.py 2>&1 | tail -40
+[94m[Bash][0m Check audit exit code $ echo $?
+Let me verify the audit exit code is pre-existing:
+[94m[Bash][0m Stash changes and re-run audit on baseline $ echo "exit code on main:" $? echo "---" git stash pop 2>&1 | head -5
+[94m[Bash][0m Verify stash pop $ git stash pop 2>&1 | tail -10
+[94m[Bash][0m Clean up stash, verify status $ git stash drop 2>&1 | tail -3 git status 2>&1 | head -15
+[94m[Bash][0m Show only relevant project files $ git status iterations/ tasks/ .ralph-tui/ outputs/ 2>&1 | head -30
+Let me run the full test suite once more and verify the corrected file's structure:
+[94m[Bash][0m Check earlier full test output $ cat /private/tmp/claude-501/-Users-robertpraas-Documents-GitHub-cepsai-github-io-Proposal-AI-Lexicon...
+[94m[Bash][0m Run full pytest suite on iterations/ $ python3 -m pytest iterations/ -q 2>&1 | tail -25
+[94m[Bash][0m Read full test results $ cat /private/tmp/claude-501/-Users-robertpraas-Documents-GitHub-cepsai-github-io-Proposal-AI-Lexicon...
+All 81 verify_lexicon tests pass. The 2 failures are pre-existing (documented in US-001 and US-002 progress notes). Let me do a quick browser-based sanity check of the corrected file:
+[94m[Bash][0m Regenerate canonical corrected file $ python3 -c " import sys sys.path.insert(0, 'iterations') from verify_lexicon import build_corrected_...
+[94m[Bash][0m Serve and probe corrected HTML $ python3 -m http.server 8775 --directory iterations >/tmp/http8775.log 2>&1 & HTTP_PID=$! sleep 1 ech...
+Now let me document learnings and signal completion:
+[94m[TodoWrite][0m
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m edit: "- **`/browse` skill blocks `file://` URLs.** To ve..." → "- **`/browse` skill blocks `file://` URLs.** To ve..."
+[94m[Edit][0m [95m/Users/robertpraas/Documents/GitHub/cepsai.github.io/Proposal/AI-Lexicon/.ralph-tui/progress.md[0m edit: "## 2026-05-01 - US-005" → "## 2026-05-01 - US-006
+- Extended `iterations/veri..."
+[94m[TodoWrite][0m
+US-006 is complete. Summary of what shipped:
+
+- **`iterations/verify_lexicon.py`** — added `build_corrected_html()` plus helpers (`_extract_concepts_span`, `_serialize_concepts`, `_compute_corrections`, `_apply_correction`, `_substitute_article_in_reference`, `_render_summary_block`, `_inject_summary_block`); added `--fix` and `--fix-out` CLI flags.
+- **`iterations/test_verify_lexicon.py`** — +18 tests covering span extraction, JSON round-trip, atom replacement, correction generation/application, summary block, body injection, end-to-end against real fixtures, original-file integrity, and the CLI flag.
+- **`iterations/digital_lexicon_v29-corrected.html`** — generated artefact with 67 fixes applied (61 mismatched analyses + 6 unique wrong_article links) and 17 ambiguous link mismatches surfaced for manual review in the summary banner.
+
+Validation:
+- `python3 -m pytest iterations/test_verify_lexicon.py` — 81 passed.
+- `python3 -m pytest iterations/` — 202 passed, 2 pre-existing failures unrelated to this change.
+- `python3 iterations/audit_excel_correspondence.py` — runs end-to-end (same exit-1 from baseline v28 discrepancies).
+- Re-verifying the corrected file shows 0 mismatches (was 61) and `wrong_article` 23 → 17.
+- Original v29 SHA-256 unchanged — pinned by a test.
+
+<promise>COMPLETE</promise>

@@ -1,0 +1,379 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <style type="text/css">
+    /* --- CSS STYLES --- */
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: Arial, sans-serif;
+      background: #ffffff;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 16fr 2fr 2fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+    }
+
+    #container1 {
+      grid-row: 1;
+      grid-column: 1 / span 2;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    #container2 {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #container2-5 {
+      grid-row: 3;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(2px, 3vw, 10px);
+      padding: clamp(6px, 1.2vh, 10px) clamp(8px, 5vw, 20px);
+      overflow: hidden;
+    }
+
+    #container3 {
+      grid-row: 4;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 20px 2px 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #container4 {
+      grid-row: 4;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px 2px 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #treemap {
+      width: 100%;
+      height: 100%;
+    }
+
+    .logo {
+      height: 100%;
+      max-height: 30px;
+      object-fit: contain;
+    }
+
+    .source-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .custom-legend {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 14px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .legend-square {
+      width: 12px;
+      height: 12px;
+    }
+
+    .slider-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: 1px solid #e0e0e0;
+      padding: 5px 10px;
+      border-radius: 4px;
+    }
+
+    .range-wrapper {
+      position: relative;
+      width: 200px;
+      height: 20px;
+    }
+
+    .year-slider {
+      -webkit-appearance: none;
+      position: absolute;
+      width: 100%;
+      background: transparent;
+      pointer-events: none;
+    }
+
+    .year-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 14px;
+      width: 14px;
+      border-radius: 50%;
+      background: #4169E1;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+
+    .range-fill {
+      position: absolute;
+      height: 5px;
+      background: #4169E1;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .button-group {
+      display: flex;
+      border: 1px solid #e0e0e0;
+    }
+
+    .control-btn {
+      padding: 5px 10px;
+      font-size: 10px;
+      border: none;
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .control-btn.active {
+      background: #4169E1;
+      color: #fff;
+    }
+  </style>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+
+<body>
+  <div class="viz-grid">
+    <div id="container1"><div id="treemap"></div></div>
+    <div id="container2"><div class="custom-legend" id="legend"></div></div>
+    <div id="container2-5">
+      <div class="slider-container">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span id="year-start-value">2000</span>
+          <div class="range-wrapper">
+            <div class="range-fill" id="range-fill"></div>
+            <input type="range" id="year-start-slider" class="year-slider" min="2000" max="2025" value="2000">
+            <input type="range" id="year-end-slider" class="year-slider" min="2000" max="2025" value="2025">
+          </div>
+          <span id="year-end-value">2025</span>
+        </div>
+      </div>
+      <div class="button-group" id="limit-group">
+        <button class="control-btn active" data-limit="50">50</button>
+        <button class="control-btn" data-limit="100">100</button>
+        <button class="control-btn" data-limit="all">ALL</button>
+      </div>
+      <div class="button-group" id="category-group">
+        <button class="control-btn" data-category="countries">COUNTRIES</button>
+        <button class="control-btn active" data-category="cities">CITIES</button>
+      </div>
+      <div class="button-group" id="metric-group">
+        <button class="control-btn" data-metric="investments">INVESTMENTS</button>
+        <button class="control-btn" data-metric="patents">PATENTS</button>
+        <button class="control-btn active" data-metric="publications">PUBLICATIONS</button>
+      </div>
+    </div>
+    <div id="container3">
+      <div class="source-text">Source: <a href="https://openalex.org/" target="_blank">OpenAlex</a></div>
+    </div>
+    <div id="container4">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="Logo" />
+    </div>
+  </div>
+
+  <script>
+    // --- HARDCODED DATA (OPENALEX PUBLICATIONS EXAMPLE) ---
+    var hardcodedData = [
+      { parent: "China", name: "Beijing", value: 450200 },
+      { parent: "China", name: "Shanghai", value: 310500 },
+      { parent: "US", name: "Boston", value: 285000 },
+      { parent: "US", name: "New York", value: 270400 },
+      { parent: "United Kingdom", name: "London", value: 255000 },
+      { parent: "China", name: "Nanjing", value: 210000 },
+      { parent: "EU", name: "Paris", value: 195000 },
+      { parent: "US", name: "Cambridge", value: 180000 },
+      { parent: "China", name: "Guangzhou", value: 175000 },
+      { parent: "US", name: "Stanford", value: 160000 },
+      { parent: "Japan", name: "Tokyo", value: 155000 },
+      { parent: "South Korea", name: "Seoul", value: 150000 },
+      { parent: "United Kingdom", name: "Cambridge (UK)", value: 145000 },
+      { parent: "EU", name: "Berlin", value: 140000 },
+      { parent: "US", name: "Los Angeles", value: 135000 },
+      { parent: "EU", name: "Madrid", value: 120000 },
+      { parent: "US", name: "Chicago", value: 115000 },
+      { parent: "United Kingdom", name: "Oxford", value: 110000 },
+      { parent: "China", name: "Wuhan", value: 108000 },
+      { parent: "Canada", name: "Toronto", value: 105000 },
+      { parent: "EU", name: "Munich", value: 102000 },
+      { parent: "US", name: "Seattle", value: 98000 },
+      { parent: "China", name: "Hangzhou", value: 95000 },
+      { parent: "EU", name: "Amsterdam", value: 92000 },
+      { parent: "Singapore", name: "Singapore", value: 90000 },
+      { parent: "EU", name: "Stockholm", value: 88000 },
+      { parent: "Australia", name: "Melbourne", value: 85000 },
+      { parent: "US", name: "San Diego", value: 82000 },
+      { parent: "EU", name: "Zurich", value: 80000 },
+      { parent: "Australia", name: "Sydney", value: 78000 },
+      { parent: "EU", name: "Barcelona", value: 76000 },
+      { parent: "US", name: "Philadelphia", value: 74000 },
+      { parent: "China", name: "Chengdu", value: 72000 },
+      { parent: "EU", name: "Rome", value: 70000 },
+      { parent: "US", name: "Houston", value: 68000 },
+      { parent: "EU", name: "Vienna", value: 65000 },
+      { parent: "Japan", name: "Osaka", value: 63000 },
+      { parent: "China", name: "Tianjin", value: 61000 },
+      { parent: "US", name: "Atlanta", value: 59000 },
+      { parent: "EU", name: "Copenhagen", value: 57000 },
+      { parent: "US", name: "Washington D.C.", value: 55000 },
+      { parent: "EU", name: "Milan", value: 53000 },
+      { parent: "US", name: "Berkeley", value: 51000 },
+      { parent: "Canada", name: "Vancouver", value: 49000 },
+      { parent: "EU", name: "Helsinki", value: 47000 },
+      { parent: "US", name: "Austin", value: 45000 },
+      { parent: "China", name: "Xi'an", value: 43000 },
+      { parent: "EU", name: "Brussels", value: 41000 },
+      { parent: "Brazil", name: "São Paulo", value: 39000 },
+      { parent: "US", name: "Baltimore", value: 37000 }
+    ];
+
+    // Variables
+    var currentLimit = '50';
+    var currentCategory = 'cities';
+    var currentMetric = 'publications';
+    var currentYearStart = '2000';
+    var currentYearEnd = '2025';
+    var activeGroups = new Set();
+    var groupColors = {};
+    
+    var regionColorMap = {
+      "US": "#ec787a",
+      "China": "#fadb56",
+      "EU": "#f5ae6c",
+      "Europe": "#f5ae6c",
+      "United Kingdom": "#887aa5",
+      "Rest of the world": "#81b29a"
+    };
+
+    function formatNumber(num) {
+      if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+      if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+      return Math.round(num).toString();
+    }
+
+    var treemap = new d3plus.Treemap()
+      .select("#treemap")
+      .groupBy(["parent", "name"])
+      .sum("value")
+      .layoutPadding(2)
+      .legend(false)
+      .color(function (d) { return groupColors[d.parent] || "#7a98ad"; })
+      .label(function(d) {
+        return d.name + "\n" + formatNumber(d.value);
+      });
+
+    function updateVisualization() {
+      // Filter by active legend groups
+      var filtered = hardcodedData.filter(d => activeGroups.has(d.parent));
+      
+      // Sort and Limit
+      var sorted = filtered.sort((a,b) => b.value - a.value);
+      var limited = currentLimit === 'all' ? sorted : sorted.slice(0, parseInt(currentLimit));
+
+      treemap.data(limited).render();
+    }
+
+    function buildLegend() {
+      var groups = Array.from(new Set(hardcodedData.map(d => d.parent)));
+      var legend = document.getElementById('legend');
+      legend.innerHTML = '';
+      
+      groups.forEach((g, i) => {
+        groupColors[g] = regionColorMap[g] || d3.schemeCategory10[i % 10];
+        activeGroups.add(g);
+
+        var item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = `<div class="legend-square" style="background:${groupColors[g]}"></div><span>${g}</span>`;
+        item.onclick = function() {
+          if(activeGroups.has(g)) { activeGroups.delete(g); item.style.opacity = '0.3'; }
+          else { activeGroups.add(g); item.style.opacity = '1'; }
+          updateVisualization();
+        };
+        legend.appendChild(item);
+      });
+    }
+
+    // Initialize UI Controls
+    function init() {
+      buildLegend();
+      
+      document.querySelectorAll('.control-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          var group = this.parentElement.id;
+          document.querySelectorAll(`#${group} .control-btn`).forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+          
+          if(group === 'limit-group') currentLimit = this.dataset.limit;
+          updateVisualization();
+        });
+      });
+
+      // Simple Slider Logic
+      var s = document.getElementById('year-start-slider');
+      var e = document.getElementById('year-end-slider');
+      var fill = document.getElementById('range-fill');
+      
+      function updateSlider() {
+        var val1 = parseInt(s.value);
+        var val2 = parseInt(e.value);
+        if(val1 > val2) [val1, val2] = [val2, val1];
+        
+        document.getElementById('year-start-value').textContent = val1;
+        document.getElementById('year-end-value').textContent = val2;
+        
+        var left = ((val1 - 2000) / 25) * 100;
+        var width = ((val2 - val1) / 25) * 100;
+        fill.style.left = left + "%";
+        fill.style.width = width + "%";
+      }
+
+      s.oninput = updateSlider;
+      e.oninput = updateSlider;
+      updateSlider();
+      updateVisualization();
+    }
+
+    init();
+  </script>
+</body>
+</html>

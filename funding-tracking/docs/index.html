@@ -171,6 +171,17 @@
     margin-top: 2px;
   }
   td.tracker { white-space: nowrap; }
+  td.also-found {
+    white-space: normal;
+    line-height: 1.6;
+    max-width: 180px;
+  }
+  td.also-found .src-tag {
+    margin: 1px 2px 1px 0;
+    font-size: 10px;
+    padding: 1px 6px;
+  }
+  td.also-found .muted { color: var(--muted); }
   .src-tag {
     display: inline-block;
     padding: 2px 8px;
@@ -240,6 +251,7 @@
       <th class="col-check"><input type="checkbox" id="checkAll" title="Select all visible"></th>
       <th data-sort="title">Title</th>
       <th data-sort="source_tracker">Tracker</th>
+      <th>Also found by</th>
       <th data-sort="deadline" class="sorted asc">Deadline</th>
       <th data-sort="amount_raw">Amount</th>
       <th data-sort="thematic_fit">Fit</th>
@@ -282,6 +294,16 @@ function rowKey(r) {
 function isArchived(key) {
   if (LOCAL_UNARCHIVED.has(key)) return false;
   return SERVER_ARCHIVED.has(key) || LOCAL_ARCHIVED.has(key);
+}
+
+// After dedup, archive state may live under a duplicate's rowKey rather than
+// the canonical's — check both. Falls back to plain isArchived() for raw keys.
+function isArchivedRow(r) {
+  if (isArchived(rowKey(r))) return true;
+  if (r.dup_keys) {
+    for (const k of r.dup_keys) if (isArchived(k)) return true;
+  }
+  return false;
 }
 
 function saveLocalArchive() {
@@ -356,6 +378,55 @@ function coerceRow(r) {
   return out;
 }
 
+// ----- Cross-tracker dedup ----------------------------------------------
+// Different trackers will sometimes find the same call (e.g. Schmidt Sciences,
+// Jacobs Foundation appearing in both ai-agents and global-dev). Collapse to
+// one canonical row per call and surface the other trackers in `also_found_by`.
+//
+// Dedup key: normalized URL when present (most reliable), else (funder, title)
+// after normalizing whitespace and stripping any trailing parenthetical such as
+// "(HORIZON-CL4-…)". The canonical row is the first one seen — we preserve its
+// rowKey, and stash the other rows' keys in `dup_keys` so archive state from
+// any of them propagates to the canonical.
+function normUrl(u) {
+  if (!u) return "";
+  let s = String(u).trim().toLowerCase();
+  s = s.replace(/^https?:\/\//, "").replace(/^www\./, "");
+  return s.replace(/\/+$/, "");
+}
+function normTitle(t) {
+  if (!t) return "";
+  return String(t).toLowerCase().replace(/\s*\([^)]*\)\s*$/, "").replace(/\s+/g, " ").trim();
+}
+function dedupKey(r) {
+  const u = normUrl(r.url);
+  if (u) return "u:" + u;
+  return "ft:" + (r.funder || "").toLowerCase().trim() + "|" + normTitle(r.title);
+}
+function dedupRows(rows) {
+  const groups = new Map();
+  for (const r of rows) {
+    const k = dedupKey(r);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  }
+  const out = [];
+  for (const grp of groups.values()) {
+    const canonical = { ...grp[0] };
+    // Archive state: archived if ANY member was archived in the Sheet.
+    canonical.archived = grp.some(r => r.archived);
+    // Other trackers that also found this call (sorted, deduped, exclude primary).
+    const others = [...new Set(grp.slice(1).map(r => r.source_tracker).filter(Boolean))]
+      .filter(t => t !== canonical.source_tracker)
+      .sort();
+    canonical.also_found_by = others;
+    // Stash duplicate rowKeys for archive-state lookup across renames.
+    canonical.dup_keys = grp.slice(1).map(rowKey);
+    out.push(canonical);
+  }
+  return out;
+}
+
 async function fetchFundingFromSheet() {
   if (!CONFIG.fundingCsvUrl) return null;
   try {
@@ -417,11 +488,24 @@ function escapeHtml(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+// Always-on exclusion: drop Horizon Europe calls. Matches either the
+// "Horizon Europe" phrase in title/funder, or the "HORIZON-..." call-code
+// prefix (HORIZON-CL4-, HORIZON-EIE-, etc.) in title or url. Avoids false
+// positives like "Horizon1000" by requiring word-boundary "europe" or a
+// hyphen after HORIZON.
+const HORIZON_EUROPE_RE = /\bhorizon\s*europe\b|\bhorizon-/i;
+function isHorizonEurope(r) {
+  return HORIZON_EUROPE_RE.test(r.title || "")
+      || HORIZON_EUROPE_RE.test(r.funder || "")
+      || HORIZON_EUROPE_RE.test(r.url || "");
+}
+
 function visibleRows() {
   const q = STATE.q.toLowerCase();
   const trackerFilter = STATE.trackers;
   let rows = DATA.filter(r => {
-    const archived = isArchived(rowKey(r));
+    if (isHorizonEurope(r)) return false;
+    const archived = isArchivedRow(r);
     if (!STATE.showArchived && archived) return false;
     if (STATE.showArchived && !archived) return false;
     if (trackerFilter.size && !trackerFilter.has(r.source_tracker)) return false;
@@ -449,8 +533,11 @@ function render() {
     const key = rowKey(r);
     const tr = document.createElement("tr");
     if (SELECTED.has(key)) tr.classList.add("selected");
-    if (isArchived(key)) tr.classList.add("archived");
+    if (isArchivedRow(r)) tr.classList.add("archived");
     const dl = fmtDeadline(r);
+    const alsoCell = (r.also_found_by && r.also_found_by.length)
+      ? r.also_found_by.map(t => `<span class="src-tag src-${t}">${t}</span>`).join(" ")
+      : '<span class="muted">—</span>';
     tr.innerHTML = `
       <td class="col-check"><input type="checkbox" data-key="${escapeHtml(key)}" ${SELECTED.has(key) ? "checked" : ""}></td>
       <td class="title">
@@ -458,6 +545,7 @@ function render() {
         ${r.funder ? `<span class="funder">${escapeHtml(r.funder)}</span>` : ""}
       </td>
       <td class="tracker"><span class="src-tag src-${r.source_tracker}">${r.source_tracker}</span></td>
+      <td class="also-found">${alsoCell}</td>
       <td class="deadline ${dl.cls}">${dl.text}</td>
       <td class="amount">${escapeHtml(r.amount_raw || "—")}</td>
       <td>${r.thematic_fit ? "★".repeat(r.thematic_fit) : "—"}</td>
@@ -465,10 +553,12 @@ function render() {
     tbody.appendChild(tr);
   }
   document.getElementById("empty").style.display = rows.length ? "none" : "block";
-  const totalArchived = DATA.filter(r => isArchived(rowKey(r))).length;
+  // Counts exclude Horizon Europe rows so the totals match what's visible.
+  const visibleData = DATA.filter(r => !isHorizonEurope(r));
+  const totalArchived = visibleData.filter(r => isArchivedRow(r)).length;
   const pending = LOCAL_ARCHIVED.size + LOCAL_UNARCHIVED.size;
   document.getElementById("meta").textContent =
-    `${rows.length} ${STATE.showArchived ? "archived" : "active"} · ${DATA.length} total · ${totalArchived} archived` +
+    `${rows.length} ${STATE.showArchived ? "archived" : "active"} · ${visibleData.length} total · ${totalArchived} archived` +
     (pending ? ` · ${pending} unsynced local change${pending === 1 ? "" : "s"}` : "");
   updateActionBar();
   document.getElementById("checkAll").checked = false;
@@ -617,8 +707,11 @@ document.getElementById("showArchived").onchange = e => {
 };
 
 function applyData(rows) {
-  DATA = rows;
-  SERVER_ARCHIVED = new Set(DATA.filter(r => r.archived).map(rowKey));
+  // Build SERVER_ARCHIVED from the *raw* rows (each tracker's own row may be
+  // archived in the Sheet under its own rowKey), then dedup so the dashboard
+  // shows one row per unique call with `also_found_by` populated.
+  SERVER_ARCHIVED = new Set(rows.filter(r => r.archived).map(rowKey));
+  DATA = dedupRows(rows);
 }
 
 Promise.all([

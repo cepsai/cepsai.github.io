@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>AI Agent papers (quarterly)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* ─── BASE ────────────────────────────────────────────────────────────────── */
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        /* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 16fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+            position: relative;
+        }
+
+        #title-container {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-start;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .title-text {
+            font-size: clamp(22px, 4vh, 36px);
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        #subtitle-container {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .subtitle-text {
+            font-size: clamp(17px, 2.4vw, 24px);
+            font-weight: 500;
+            color: #475569;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #container3 {
+            grid-row: 3;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: default;
+        }
+
+        /* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
+
+        #viz {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        /* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a,
+        .source-text a:visited {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: default;
+            font-style: normal;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: 100%;
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        /* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr !important;
+                grid-template-columns: 1fr !important;
+                padding-bottom: 0;
+            }
+
+            #container1 {
+                grid-row: 1 !important;
+                grid-column: 1 !important;
+            }
+
+            #title-container,
+            #subtitle-container,
+            #container2,
+            #container3,
+            #container4,
+            #container5 {
+                display: none !important;
+            }
+
+            .source-text,
+            .logo {
+                display: none !important;
+            }
+        }
+
+        /* ─── CHART-SPECIFIC ──────────────────────────────────────────────────────── */
+
+        .loading-state,
+        .empty-state,
+        .error-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(13px, 1.5vw, 16px);
+            color: #475569;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+        }
+
+        .chart-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 12px;
+            padding: 14px 16px;
+            box-shadow: 0 18px 28px rgba(15, 23, 42, 0.15);
+            border: 1px solid rgba(39, 86, 211, 0.15);
+            min-width: 200px;
+            max-width: 260px;
+            font-size: 12px;
+            color: #0f172a;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            z-index: 10;
+        }
+
+        .tooltip-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .tooltip-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .tooltip-sub {
+            font-size: 12px;
+            color: #475569;
+            margin-top: 4px;
+        }
+
+        .y-grid line {
+            stroke: rgba(148, 163, 184, 0.35);
+            stroke-dasharray: 3 4;
+        }
+
+        .y-grid .domain {
+            display: none;
+        }
+
+        .x-axis text,
+        .y-axis text {
+            font-size: 14px;
+            fill: #475569;
+        }
+
+        .x-axis path,
+        .y-axis path,
+        .x-axis line,
+        .y-axis line {
+            stroke: #d0d7e8;
+        }
+
+        .total-line {
+            fill: none;
+            stroke: #0f172a;
+            stroke-width: 1.6;
+        }
+
+        .focus-line {
+            stroke: rgba(15, 23, 42, 0.7);
+            stroke-width: 1;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .focus-dot {
+            fill: #0f172a;
+            stroke: #ffffff;
+            stroke-width: 2;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .interaction-overlay {
+            cursor: crosshair;
+        }
+
+        .y-axis-label {
+            font-size: 18px;
+            font-weight: 600;
+            fill: #000000;
+        }
+
+        .chart-title {
+            font-size: clamp(22px, 4vh, 36px);
+            font-weight: 700;
+            fill: #0f172a;
+        }
+
+        .quarter-axis-label {
+            font-size: 11px;
+            fill: #475569;
+        }
+
+        .year-axis-label {
+            font-size: 12px;
+            font-weight: 600;
+            fill: #0f172a;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="title-container">
+            <div class="title-text" id="title-text"></div>
+        </div>
+        <div id="subtitle-container">
+            <div class="subtitle-text" id="subtitle-text"></div>
+        </div>
+        <div id="container1" class="container viz-container">
+            <div id="viz" role="img" aria-label="Quarterly count of AI Agent papers, colored by year"></div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-text" id="source-text">Source: <a href="https://openalex.org/" target="_blank" rel="noopener">OpenAlex</a></div>
+        </div>
+        <div id="container4" class="container logo-container">
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const SHOW_CONTAINER_2 = 0;  // legend
+        const SHOW_CONTAINER_3 = 1;  // source
+        const SHOW_CONTAINER_4 = 1;  // logo
+        const SHOW_CONTAINER_5 = 0;  // footnote
+
+        (function applyContainerVisibility() {
+            const vizGrid = document.querySelector('.viz-grid');
+            const c2 = document.getElementById('container2');
+            const c3 = document.getElementById('container3');
+            const c4 = document.getElementById('container4');
+            const c5 = document.getElementById('container5');
+            const title = document.getElementById('title-container');
+            const subtitle = document.getElementById('subtitle-container');
+
+            if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+            if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+            if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+            if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+            const row2Visible = SHOW_CONTAINER_5;
+            const row3Visible = SHOW_CONTAINER_2;
+            const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+            // Row 1: title. Row 2: subtitle. Row 3: chart. Subsequent rows: footnote/legend/source+logo.
+            let gridRows = ['1.6fr', '1fr'];
+            let currentRow = 3;
+            const chartHeight = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+            gridRows.push(`${chartHeight}fr`);
+
+            if (title) title.style.gridRow = '1';
+            if (subtitle) subtitle.style.gridRow = '2';
+
+            if (row2Visible) { gridRows.push('1fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+            if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+            if (row4Visible) {
+                gridRows.push('1fr'); currentRow++;
+                if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+                if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+                if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+                if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+            }
+
+            vizGrid.style.gridTemplateRows = gridRows.join(' ');
+            document.getElementById('container1').style.gridRow = '3';
+        })();
+
+        const DATA_PATH = 'openalex.csv';
+        const CHART_TITLE = 'How much AI research is on AI Agents?';
+        const CHART_SUBTITLE = 'Share of AI Agent papers in AI papers';
+        document.getElementById('title-text').textContent = CHART_TITLE;
+        document.getElementById('subtitle-text').textContent = CHART_SUBTITLE;
+        const VIZ_CONTAINER_ID = 'viz';
+        const COLOR_PALETTE = ['#5BB5C1', '#4A94C3', '#3F75CC', '#3355CB', '#4A48D4', '#6654DB', '#8A60E0'];
+
+        const KEY_MOMENTS = [
+            { date: '2022-11-30', subtitle: 'ChatGPT', logo: 'logos/chatgpt.png' },
+            { date: '2024-12-31', subtitle: 'smolagents library', logo: 'logos/smolagents.png' },
+            { date: '2025-11-24', subtitle: 'Openclaw', logo: 'logos/openclaw.png' }
+        ];
+
+        const numberFormatter = d3.format(',');
+        const shortFormatter = value => d3.format('~s')(value).replace('G', 'B').toUpperCase();
+        const formatTooltipDate = q => q;
+
+        const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
+        const chartContainer = document.getElementById('container1');
+
+        const tooltipElement = document.createElement('div');
+        tooltipElement.className = 'chart-tooltip';
+        chartContainer.appendChild(tooltipElement);
+
+        let preparedRows = [];
+        let stackKeys = [];
+        let colorScale = null;
+
+        function hideTooltip() {
+            tooltipElement.style.opacity = 0;
+        }
+
+        function parseQuarter(period) {
+            const m = /^(\d{4})Q([1-4])$/.exec(period);
+            if (!m) return null;
+            const year = +m[1];
+            const q = +m[2];
+            return new Date(Date.UTC(year, (q - 1) * 3 + 1, 15));
+        }
+
+        function parseCSVLine(line) {
+            const out = [];
+            let cur = '', inQ = false;
+            for (let i = 0; i < line.length; i++) {
+                const c = line[i];
+                if (inQ) {
+                    if (c === '"') {
+                        if (line[i + 1] === '"') { cur += '"'; i++; }
+                        else inQ = false;
+                    } else cur += c;
+                } else {
+                    if (c === ',') { out.push(cur); cur = ''; }
+                    else if (c === '"') inQ = true;
+                    else cur += c;
+                }
+            }
+            out.push(cur);
+            return out;
+        }
+
+        function loadQuarterAll(csvText) {
+            const lines = csvText.trim().split(/\r?\n/);
+            const header = parseCSVLine(lines[0]);
+            const idx = Object.fromEntries(header.map((h, i) => [h, i]));
+            const rows = [];
+            for (let i = 1; i < lines.length; i++) {
+                const r = parseCSVLine(lines[i]);
+                if (r[idx.granularity] !== 'quarter' || r[idx.sector] !== 'All') continue;
+                const date = parseQuarter(r[idx.period]);
+                if (!date) continue;
+                const n_agent = +r[idx.n_agent] || 0;
+                const openalex_ai = +r[idx.openalex_ai] || 0;
+                rows.push({
+                    date,
+                    period: r[idx.period],
+                    n_agent,
+                    openalex_ai,
+                    share: openalex_ai ? (100 * n_agent / openalex_ai) : 0
+                });
+            }
+            rows.sort((a, b) => a.date - b.date);
+            const years = Array.from(new Set(rows.map(d => d.date.getUTCFullYear()))).sort();
+            return { rows, keys: years.map(String) };
+        }
+
+        function renderVisualization(data, width, height) {
+            if (!data.length || !vizContainer) return;
+
+            hideTooltip();
+            vizContainer.innerHTML = '';
+
+            const isSmallWindow = height < 500 || width < 600;
+            const margin = {
+                top: isSmallWindow ? 12 : 20,
+                right: 32,
+                bottom: isSmallWindow ? 44 : 78,
+                left: isSmallWindow ? 60 : 90
+            };
+            const innerWidth = Math.max(0, width - margin.left - margin.right);
+            const innerHeight = Math.max(0, height - margin.top - margin.bottom);
+
+            if (!innerWidth || !innerHeight) {
+                vizContainer.innerHTML = '<div class="empty-state">Not enough space to render the chart.</div>';
+                return;
+            }
+
+            const yearAxisFontSize = isSmallWindow
+                ? 12
+                : Math.max(16, Math.min(26, innerWidth * 0.03));
+
+            const svg = d3.select(vizContainer)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            const chartGroup = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            const xMin = data[0].date;
+            const xMax = data[data.length - 1].date;
+
+            const x = d3.scaleUtc()
+                .domain([xMin, xMax])
+                .range([0, innerWidth]);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.share)]).nice()
+                .range([innerHeight, 0]);
+
+            chartGroup.append('g')
+                .attr('class', 'y-grid')
+                .call(d3.axisLeft(y).tickSize(-innerWidth).tickFormat(''));
+
+            const gradientId = 'year-gradient';
+            const defs = svg.append('defs');
+            const gradient = defs.append('linearGradient')
+                .attr('id', gradientId)
+                .attr('x1', '0%').attr('x2', '100%')
+                .attr('y1', '0%').attr('y2', '0%');
+
+            const totalTime = xMax - xMin;
+            stackKeys.forEach(year => {
+                const yearStart = new Date(Date.UTC(parseInt(year), 0, 1));
+                const yearEnd = new Date(Date.UTC(parseInt(year) + 1, 0, 1));
+                const start = yearStart < xMin ? xMin : yearStart;
+                const end = yearEnd > xMax ? xMax : yearEnd;
+                if (start < end) {
+                    const startPct = ((start - xMin) / totalTime) * 100;
+                    const endPct = ((end - xMin) / totalTime) * 100;
+                    const color = colorScale(year);
+                    gradient.append('stop').attr('offset', startPct + '%').attr('stop-color', color);
+                    gradient.append('stop').attr('offset', endPct + '%').attr('stop-color', color);
+                }
+            });
+
+            const areaTotal = d3.area()
+                .x(d => x(d.date))
+                .y0(innerHeight)
+                .y1(d => y(d.share))
+                .curve(d3.curveMonotoneX);
+
+            chartGroup.append('path')
+                .datum(data)
+                .attr('class', 'total-area')
+                .attr('fill', `url(#${gradientId})`)
+                .attr('d', areaTotal)
+                .attr('opacity', 0.9);
+
+            stackKeys.forEach(year => {
+                const yearStart = new Date(Date.UTC(parseInt(year), 0, 1));
+                if (yearStart > xMin && yearStart < xMax) {
+                    chartGroup.append('line')
+                        .attr('x1', x(yearStart))
+                        .attr('x2', x(yearStart))
+                        .attr('y1', 0)
+                        .attr('y2', innerHeight)
+                        .attr('stroke', 'rgba(15, 23, 42, 0.2)')
+                        .attr('stroke-dasharray', '4 4');
+                }
+            });
+
+            const totalLine = chartGroup.append('path')
+                .datum(data)
+                .attr('class', 'total-line')
+                .attr('d', d3.line()
+                    .x(d => x(d.date))
+                    .y(d => y(d.share))
+                    .curve(d3.curveMonotoneX)
+                );
+
+            const totalLineNode = totalLine.node();
+            const totalLineLength = totalLineNode.getTotalLength();
+            function yOnLineAtX(targetX) {
+                let lo = 0, hi = totalLineLength;
+                for (let i = 0; i < 32; i++) {
+                    const mid = (lo + hi) / 2;
+                    const pt = totalLineNode.getPointAtLength(mid);
+                    if (pt.x < targetX) lo = mid; else hi = mid;
+                }
+                return totalLineNode.getPointAtLength((lo + hi) / 2).y;
+            }
+
+            const xAxis = d3.axisBottom(x).ticks(0).tickFormat(() => '');
+            chartGroup.append('g')
+                .attr('class', 'x-axis')
+                .attr('transform', `translate(0,${innerHeight})`)
+                .call(xAxis);
+
+            const yearAxisLabelData = stackKeys.map(year => {
+                const yearStart = new Date(Date.UTC(parseInt(year), 0, 1));
+                const yearEnd = new Date(Date.UTC(parseInt(year) + 1, 0, 1));
+                const start = yearStart < xMin ? xMin : yearStart;
+                const end = yearEnd > xMax ? xMax : yearEnd;
+                if (start >= end) return null;
+                const midTime = start.getTime() + (end.getTime() - start.getTime()) / 2;
+                return { year, x: x(new Date(midTime)) };
+            }).filter(Boolean);
+
+            const quarterRowY = innerHeight + (isSmallWindow ? 14 : 18);
+            const yearRowY = innerHeight + (isSmallWindow ? 32 : 50);
+
+            chartGroup.append('g')
+                .attr('class', 'quarter-axis-labels')
+                .selectAll('text')
+                .data(data)
+                .join('text')
+                .attr('class', 'quarter-axis-label')
+                .attr('x', d => x(d.date))
+                .attr('y', quarterRowY)
+                .attr('text-anchor', 'middle')
+                .text(d => 'Q' + d.period.slice(-1));
+
+            chartGroup.append('g')
+                .attr('class', 'year-axis-labels')
+                .selectAll('text')
+                .data(yearAxisLabelData)
+                .join('text')
+                .attr('class', 'year-axis-label')
+                .attr('x', d => d.x)
+                .attr('y', yearRowY)
+                .attr('text-anchor', 'middle')
+                .style('font-size', `${yearAxisFontSize}px`)
+                .text(d => d.year);
+
+            const yAxis = d3.axisLeft(y)
+                .ticks(Math.min(5, Math.floor(innerHeight / 90)))
+                .tickFormat(value => value + '%');
+
+            chartGroup.append('g')
+                .attr('class', 'y-axis')
+                .call(yAxis);
+
+            if (!isSmallWindow) {
+                chartGroup.append('text')
+                    .attr('class', 'y-axis-label')
+                    .attr('transform', 'rotate(-90)')
+                    .attr('x', -innerHeight / 2)
+                    .attr('y', -margin.left + 24)
+                    .attr('text-anchor', 'middle')
+                    .text('Share (%)');
+            }
+
+            const focusLine = chartGroup.append('line')
+                .attr('class', 'focus-line')
+                .attr('y1', 0)
+                .attr('y2', innerHeight);
+
+            const focusDot = chartGroup.append('circle')
+                .attr('class', 'focus-dot')
+                .attr('r', 4.5);
+
+            const bisectDate = d3.bisector(d => d.date).left;
+
+            if (KEY_MOMENTS && KEY_MOMENTS.length) {
+                const momentsGroup = chartGroup.append('g').attr('class', 'key-moments');
+                const momentDateFormatter = d3.utcFormat('%b %Y');
+                const parseISO = d3.utcParse('%Y-%m-%d');
+                const logoSize = Math.max(30, Math.min(50, innerHeight * 0.06));
+                const labelLineOffset = isSmallWindow ? 3 : 5;
+                const labelSubtitleOffset = isSmallWindow ? 13 : 18;
+
+                let defs = svg.select('defs');
+                if (defs.empty()) defs = svg.append('defs');
+
+                KEY_MOMENTS.forEach((moment, mIdx) => {
+                    const mDate = parseISO(moment.date);
+                    if (!mDate) return;
+
+                    const xPos = x(mDate);
+                    const yPosData = yOnLineAtX(xPos);
+
+                    const logoCenterY = yPosData / 2;
+
+                    momentsGroup.append('line')
+                        .attr('x1', xPos)
+                        .attr('x2', xPos)
+                        .attr('y1', logoCenterY + logoSize / 2)
+                        .attr('y2', innerHeight)
+                        .attr('stroke', '#0f172a')
+                        .attr('stroke-width', 1)
+                        .attr('stroke-dasharray', '2 2')
+                        .attr('opacity', 0.7);
+
+                    const clipId = `moment-clip-${mIdx}`;
+                    defs.append('clipPath')
+                        .attr('id', clipId)
+                        .append('circle')
+                        .attr('cx', logoSize / 2)
+                        .attr('cy', logoSize / 2)
+                        .attr('r', logoSize / 2);
+
+                    const logoGroup = momentsGroup.append('g')
+                        .attr('transform', `translate(${xPos}, ${logoCenterY})`);
+
+                    logoGroup.append('circle')
+                        .attr('cx', 0).attr('cy', 0)
+                        .attr('r', logoSize / 2)
+                        .attr('fill', '#ffffff');
+
+                    logoGroup.append('image')
+                        .attr('href', moment.logo)
+                        .attr('x', 0).attr('y', 0)
+                        .attr('width', logoSize)
+                        .attr('height', logoSize)
+                        .attr('transform', `translate(${-logoSize / 2}, ${-logoSize / 2})`)
+                        .attr('clip-path', `url(#${clipId})`)
+                        .attr('preserveAspectRatio', 'xMidYMid slice');
+
+                    logoGroup.append('circle')
+                        .attr('cx', 0).attr('cy', 0)
+                        .attr('r', logoSize / 2)
+                        .attr('fill', 'none')
+                        .attr('stroke', '#0f172a')
+                        .attr('stroke-width', 2);
+
+                    if (!isSmallWindow) {
+                        const annotation = logoGroup.append('g')
+                            .attr('transform', `translate(${-logoSize / 2 - 10}, 0)`);
+
+                        const dateText = annotation.append('text')
+                            .attr('x', 0).attr('y', 0)
+                            .attr('text-anchor', 'end')
+                            .style('font-size', 'clamp(10px, 1.6vh, 15px)')
+                            .attr('font-weight', '700')
+                            .attr('fill', '#0f172a')
+                            .text(momentDateFormatter(mDate));
+
+                        const textWidth = dateText.node().getComputedTextLength() || 100;
+
+                        annotation.append('line')
+                            .attr('x1', 0)
+                            .attr('x2', -textWidth)
+                            .attr('y1', labelLineOffset)
+                            .attr('y2', labelLineOffset)
+                            .attr('stroke', '#0f172a')
+                            .attr('stroke-width', 2);
+
+                        annotation.append('text')
+                            .attr('x', 0)
+                            .attr('y', labelSubtitleOffset)
+                            .attr('text-anchor', 'end')
+                            .style('font-size', 'clamp(8px, 1.3vh, 11px)')
+                            .attr('fill', '#475569')
+                            .text(moment.subtitle);
+                    }
+
+                    momentsGroup.append('circle')
+                        .attr('cx', xPos)
+                        .attr('cy', yPosData)
+                        .attr('r', 6)
+                        .attr('fill', '#0f172a')
+                        .attr('stroke', '#ffffff')
+                        .attr('stroke-width', 2);
+                });
+            }
+
+            const overlay = chartGroup.append('rect')
+                .attr('class', 'interaction-overlay')
+                .attr('width', innerWidth)
+                .attr('height', innerHeight)
+                .attr('fill', 'transparent');
+
+            overlay
+                .on('mousemove', function (event) {
+                    const [mx, my] = d3.pointer(event, this);
+                    if (mx < 0 || mx > innerWidth || my < 0 || my > innerHeight) {
+                        focusLine.style('opacity', 0);
+                        focusDot.style('opacity', 0);
+                        hideTooltip();
+                        return;
+                    }
+                    const hoveredDate = x.invert(mx);
+                    const index = Math.min(Math.max(bisectDate(data, hoveredDate), 1), data.length - 1);
+                    const d0 = data[index - 1];
+                    const d1 = data[index];
+                    const d = hoveredDate - d0.date > d1.date - hoveredDate ? d1 : d0;
+
+                    const xPos = x(d.date);
+                    const yPos = y(d.share);
+
+                    focusLine
+                        .attr('x1', xPos)
+                        .attr('x2', xPos)
+                        .style('opacity', 1);
+
+                    focusDot
+                        .attr('cx', xPos)
+                        .attr('cy', yPos)
+                        .style('opacity', 1);
+
+                    const sharePct = d.share.toFixed(2) + '%';
+                    tooltipElement.innerHTML = `
+                        <div class="tooltip-title">${formatTooltipDate(d.period)}</div>
+                        <div class="tooltip-value">${sharePct}</div>
+                        <div class="tooltip-sub">${numberFormatter(d.n_agent)} agent / ${numberFormatter(d.openalex_ai)} AI papers</div>
+                    `;
+                    tooltipElement.style.opacity = 1;
+
+                    const tooltipWidth = tooltipElement.offsetWidth || 220;
+                    const tooltipHeight = tooltipElement.offsetHeight || 100;
+                    const containerWidth = vizContainer.clientWidth;
+                    const containerHeight = vizContainer.clientHeight;
+                    let left = margin.left + xPos + 16;
+                    if (left + tooltipWidth > containerWidth) {
+                        left = margin.left + xPos - tooltipWidth - 16;
+                    }
+                    left = Math.max(8, Math.min(containerWidth - tooltipWidth - 8, left));
+                    let top = margin.top + yPos - tooltipHeight - 12;
+                    if (top < 8) {
+                        top = margin.top + yPos + 12;
+                    }
+                    top = Math.max(8, Math.min(containerHeight - tooltipHeight - 8, top));
+                    tooltipElement.style.left = `${left}px`;
+                    tooltipElement.style.top = `${top}px`;
+                })
+                .on('mouseleave', function () {
+                    focusLine.style('opacity', 0);
+                    focusDot.style('opacity', 0);
+                    hideTooltip();
+                });
+        }
+
+        function renderVisualizationForContainer() {
+            if (!vizContainer || !preparedRows.length) return;
+            const rect = vizContainer.getBoundingClientRect();
+            renderVisualization(preparedRows, rect.width, rect.height);
+        }
+
+        function loadData() {
+            if (vizContainer) {
+                vizContainer.innerHTML = '<div class="loading-state">Loading…</div>';
+            }
+            fetch(DATA_PATH)
+                .then(r => r.text())
+                .then(text => {
+                    const result = loadQuarterAll(text);
+                    if (!result.rows.length) {
+                        vizContainer.innerHTML = '<div class="empty-state">No quarterly data found.</div>';
+                        return;
+                    }
+                    preparedRows = result.rows;
+                    stackKeys = result.keys;
+                    // Anchor colors to a base year so the same year always gets the same
+                    // color across charts that share this palette.
+                    const COLOR_BASE_YEAR = 2020;
+                    colorScale = d3.scaleOrdinal()
+                        .domain(stackKeys)
+                        .range(stackKeys.map(year => {
+                            const i = (parseInt(year, 10) - COLOR_BASE_YEAR) % COLOR_PALETTE.length;
+                            return COLOR_PALETTE[(i + COLOR_PALETTE.length) % COLOR_PALETTE.length];
+                        }));
+                    renderVisualizationForContainer();
+                })
+                .catch(error => {
+                    console.error(error);
+                    if (vizContainer) {
+                        vizContainer.innerHTML = '<div class="error-state">Unable to load openalex.csv.</div>';
+                    }
+                });
+        }
+
+        let resizeTimer;
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(renderVisualizationForContainer, 120);
+        });
+
+        if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+            const resizeObserver = new ResizeObserver(renderVisualizationForContainer);
+            resizeObserver.observe(vizContainer);
+        }
+
+        loadData();
+    </script>
+</body>
+
+</html>

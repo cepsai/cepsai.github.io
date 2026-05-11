@@ -1,188 +1,221 @@
 {
-  "name": "Digital Lexicon Tool v28 - Article Link Audit, Superscript FLOPs, and Terminology Fixes",
-  "branchName": "feature/digital-lexicon-v28",
+  "name": "Lexicon Verifier + v30 with Verbatim Highlighting",
+  "description": "Two-part feature: (1) verifier that audits digital_lexicon_v29.html against the cross-checked analysis Excel and verbatim source Excel, producing markdown/CSV/HTML diff outputs and a v29-corrected.html; (2) digital_lexicon_v30.html that highlights verbatim spans in the law-article view and auto-corrects article selection when no verbatim is available.",
+  "branchName": "ralph/lexicon-verifier-v30",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Inventory the Excel reference and document expected mappings",
-      "description": "As a developer, I want a single document listing every regulatory text covered by the tool, every article reference per term, and every terminology decision so that downstream stories can be verified against a checked baseline.",
+      "title": "Load and normalise the two Excel sources",
+      "description": "As a developer, I want a single loader module that reads both the cross-checked analysis Excel and the verbatim Excel into normalised pandas DataFrames so that every downstream task works from one canonical representation.",
       "acceptanceCriteria": [
-        "Open /Users/robertpraas/Downloads/Cross-checked_AI terminology and taxonomy_analysis_final.xlsx and inspect every sheet; do not infer from filename",
-        "Produce iterations/v28_excel_inventory.md listing: (a) the 12 regulatory texts the tool covers, (b) each term/row with its expected article references per regulatory text, (c) terminology resolutions (including 'Developer' vs 'Deployer' for limited-risk AI systems based on what the Excel actually says)",
-        "Echo back the inventory structure to the user (sheets, columns, row counts) before proceeding to fixes",
-        "Flag any rows where the Excel reference is ambiguous or conflicts with v27 HTML"
+        "New module iterations/load_lexicon_sources.py exposes load_analyses() and load_verbatim() returning pandas DataFrames",
+        "Loader handles the actual column structure of both files (inspect first, do not infer)",
+        "Each row is keyed by (term, law_id, article_id) so analyses and verbatim can be joined",
+        "Empty/missing verbatim cells are preserved as None, not NaN strings",
+        "Country code edge case: if any law_id uses ISO codes, 'NA' (Namibia) is not treated as null",
+        "Module prints row counts and a 5-row sample when run as __main__",
+        "python -m pytest iterations/ passes",
+        "python iterations/audit_excel_correspondence.py passes"
       ],
       "priority": 1,
       "passes": true,
+      "notes": "",
       "dependsOn": [],
       "completionNotes": "Completed by agent"
     },
     {
       "id": "US-002",
-      "title": "Set up v28 scaffold from v27",
-      "description": "As a developer, I want build_v28.py and digital_lexicon_v28.html created in iterations/ so that subsequent fixes have a working baseline to modify.",
+      "title": "Extract analyses and article references from v29 HTML",
+      "description": "As a developer, I want a parser that extracts every (term, analysis_text, linked_law, linked_article) tuple from digital_lexicon_v29.html so that the verifier can compare HTML state against Excel ground truth.",
       "acceptanceCriteria": [
-        "iterations/build_v28.py created by copying iterations/build_v27.py",
-        "Running python iterations/build_v28.py produces iterations/digital_lexicon_v28.html byte-equivalent to the v27 output (no behavior changes yet)",
-        "iterations/test_lexicon_v28.py created by copying the v27 test file with paths updated to v28",
-        "All tests pass on the unchanged scaffold"
+        "New module iterations/parse_v29.py returns a DataFrame with columns: term, analysis_text, law_id, article_id",
+        "Uses BeautifulSoup (or lxml) — no regex-only HTML parsing",
+        "Round-trips analysis text without whitespace/punctuation drift (preserves the exact string)",
+        "Handles entries that have multiple linked articles",
+        "Prints total analyses found and unique laws referenced when run as __main__",
+        "python -m pytest iterations/ passes",
+        "python iterations/audit_excel_correspondence.py passes"
       ],
       "priority": 1,
       "passes": true,
+      "notes": "",
       "dependsOn": [],
       "completionNotes": "Completed by agent"
     },
     {
       "id": "US-003",
-      "title": "Render all exponent notation as HTML superscript",
-      "description": "As a user reading the lexicon, I want exponent notation (FLOPs thresholds, parameter counts, any other powers) to render as proper superscript so that the values are unambiguous and look professional.",
+      "title": "Verify analyses match the cross-checked Excel exactly",
+      "description": "As a developer, I want a verification pass that compares each analysis in v29 against the cross-checked Excel so that I can prove v29 uses the exact analyses from the source.",
       "acceptanceCriteria": [
-        "Identify every occurrence of exponent notation in build_v28.py source data (training compute thresholds like 10^25, 10^23; parameter counts; any other powers)",
-        "Replace ASCII forms (e.g., 10^25, 10**25, 10²⁵, plain '10 to the 25th') with HTML <sup> markup in the rendered output",
-        "Superscript rendering verified in browser across at least 3 different tables and the opening overview table",
-        "No regression in non-exponent numeric content"
+        "New module iterations/verify_lexicon.py produces a per-analysis status: match, mismatch, missing_in_html, missing_in_excel",
+        "Comparison is exact-text after normalising whitespace",
+        "Mismatches include both the HTML version and the Excel version side by side",
+        "Output saved to outputs/lexicon_verification_<timestamp>.csv",
+        "Console summary shows counts per status",
+        "python -m pytest iterations/ passes",
+        "python iterations/audit_excel_correspondence.py passes"
       ],
       "priority": 2,
       "passes": true,
+      "notes": "",
       "dependsOn": [
+        "US-001",
         "US-002"
       ],
       "completionNotes": "Completed by agent"
     },
     {
       "id": "US-004",
-      "title": "Correct opening category table terminology",
-      "description": "As a user, I want the opening category table to label the limited-risk roles consistently with CEPS' chosen terminology so that the categorization is clear at a glance.",
+      "title": "Verify analysis-to-article links resolve to verbatim entries",
+      "description": "As a developer, I want each (term, law, article) link in v29 verified against the verbatim Excel so that I know every analysis points to a real source article.",
       "acceptanceCriteria": [
-        "In the opening category table only (per user spec 4C), the limited-risk row labels read 'provider of limited-risk AI systems' and 'Developer of limited-risk AI systems' — exact capitalization as stated, unless the Excel reference dictates otherwise",
-        "If the Excel reference says 'Deployer' rather than 'Developer', flag this to the user before changing and document the resolution",
-        "Detail tables (the dedicated provider/deployer tables) are NOT renamed in this story",
-        "Visual check in browser confirms the opening table reads correctly"
+        "For each linked article, look up the (law_id, article_id) pair in the verbatim DataFrame",
+        "Status values: verbatim_found, no_verbatim, wrong_article, wrong_law",
+        "wrong_article is set when verbatim Excel has the term in the same law but a different article",
+        "wrong_law is set when the term has no entry in the linked law but exists in another",
+        "Results merged into the same CSV from US-003",
+        "python -m pytest iterations/ passes",
+        "python iterations/audit_excel_correspondence.py passes"
       ],
       "priority": 2,
       "passes": true,
+      "notes": "",
       "dependsOn": [
-        "US-001",
-        "US-002"
+        "US-003"
       ],
       "completionNotes": "Completed by agent"
     },
     {
       "id": "US-005",
-      "title": "Fix the 'provider of limited-risk AI systems' table content",
-      "description": "As a user, I want the limited-risk-AI-systems provider table to reflect the corrected content from the Excel reference so that the listed obligations and articles are accurate.",
+      "title": "Generate markdown report + interactive HTML diff viewer",
+      "description": "As a user, I want a human-readable report and a clickable diff viewer so that I can review verification results without parsing CSV.",
       "acceptanceCriteria": [
-        "Diff the v27 limited-risk provider table against the Excel reference; document each discrepancy",
-        "Apply all corrections (rows, articles, descriptions) to build_v28.py",
-        "Pop-ups for every article in this table link to the correct regulatory text passage",
-        "Browser verification: every article cell in this table opens the right pop-up"
+        "outputs/lexicon_verification_<timestamp>.md summarises totals, top mismatches, and broken links",
+        "outputs/lexicon_verification_<timestamp>.html is a self-contained page that lists every analysis with status badges",
+        "HTML viewer supports filter buttons: All / Mismatch / Missing / Wrong Article / Wrong Law",
+        "Clicking a mismatch row shows the HTML text and Excel text side by side with character-level diff",
+        "No inline onclick handlers — use addEventListener and event delegation",
+        "python -m pytest iterations/ passes",
+        "python iterations/audit_excel_correspondence.py passes",
+        "Verify in browser using /browse skill: open the diff viewer, click filter buttons, expand >=5 mismatch rows and confirm side-by-side diff renders"
       ],
-      "priority": 2,
+      "priority": 3,
       "passes": true,
+      "notes": "",
       "dependsOn": [
-        "US-001",
-        "US-002"
+        "US-004"
       ],
       "completionNotes": "Completed by agent"
     },
     {
       "id": "US-006",
-      "title": "Audit article links — EU regulatory texts",
-      "description": "As a user, I want every article reference across all tables to open the correct passage from the cited EU regulatory text (AI Act, GDPR, DSA, DMA, and any other EU text covered by the tool).",
+      "title": "Produce v29-corrected.html with auto-applied fixes",
+      "description": "As a user, I want a corrected copy of v29 with mismatches resolved so that I can review and adopt fixes without manual editing.",
       "acceptanceCriteria": [
-        "Enumerate every EU regulatory text covered by v27 (per the Excel inventory from US-001)",
-        "For each EU text, verify every article reference in every table pop-up against the Excel reference",
-        "Fix every mismatch in build_v28.py",
-        "Browser verification: spot-check at least 5 article links per EU text, confirming pop-up content matches the cited article"
+        "iterations/digital_lexicon_v29-corrected.html is generated when verifier runs in --fix mode",
+        "Mismatched analysis text is replaced with the cross-checked Excel text",
+        "Wrong article links are updated to point to the article confirmed by the verbatim Excel",
+        "Original v29 file is not modified",
+        "A summary block at the top of the corrected file lists every change applied",
+        "python -m pytest iterations/ passes",
+        "python iterations/audit_excel_correspondence.py passes"
       ],
-      "priority": 2,
+      "priority": 3,
       "passes": true,
+      "notes": "",
       "dependsOn": [
-        "US-001",
-        "US-002"
+        "US-004"
       ],
       "completionNotes": "Completed by agent"
     },
     {
       "id": "US-007",
-      "title": "Audit article links — US federal regulatory texts",
-      "description": "As a user, I want every article reference to US federal regulatory texts to open the correct passage so that US-context citations are reliable.",
+      "title": "Build digital_lexicon_v30.html scaffold",
+      "description": "As a user, I want v30 to start as a verified copy of v29-corrected.html so that highlighting features build on a known-good base.",
       "acceptanceCriteria": [
-        "Enumerate every US federal text covered by v27 (per the Excel inventory)",
-        "Verify every article reference against the Excel reference",
-        "Fix every mismatch in build_v28.py",
-        "Browser verification: spot-check at least 3 article links per US federal text"
+        "iterations/digital_lexicon_v30.html exists in the iterations folder",
+        "All v29 functionality preserved (term list, analysis panel, law/article view)",
+        "No regressions: clicking any term still loads its analysis and law",
+        "Verified in browser using /browse skill across >=5 terms",
+        "python -m pytest iterations/ passes",
+        "python iterations/audit_excel_correspondence.py passes"
       ],
-      "priority": 2,
+      "priority": 4,
       "passes": true,
+      "notes": "",
       "dependsOn": [
-        "US-001",
-        "US-002"
+        "US-006"
       ],
       "completionNotes": "Completed by agent"
     },
     {
       "id": "US-008",
-      "title": "Audit article links — US state laws",
-      "description": "As a user, I want every article reference to US state laws to open the correct passage so that state-level citations are reliable.",
+      "title": "Highlight verbatim spans in the law article on analysis click",
+      "description": "As a user, I want the verbatim text from the source Excel highlighted inside the displayed law article so that I can see exactly which words back the analysis.",
       "acceptanceCriteria": [
-        "Enumerate every US state law covered by v27 (per the Excel inventory — e.g., Colorado AI Act, California laws, etc.)",
-        "Verify every article reference against the Excel reference",
-        "Fix every mismatch in build_v28.py",
-        "Browser verification: spot-check at least 3 article links per state law"
+        "When an analysis is clicked, the law article view scrolls to and wraps the verbatim text in <mark> with yellow background",
+        "If the verbatim string contains multiple sentences, every contiguous span is wrapped",
+        "Whitespace/quote variants (smart quotes, non-breaking spaces) are matched leniently",
+        "Existing <mark> from a previous click is cleared before applying new highlight",
+        "No inline onclick handlers — use addEventListener and event delegation",
+        "python -m pytest iterations/ passes",
+        "python iterations/audit_excel_correspondence.py passes",
+        "Verified in browser via /browse skill: click >=5 analyses across different laws and confirm highlights"
       ],
-      "priority": 2,
+      "priority": 5,
       "passes": true,
+      "notes": "",
       "dependsOn": [
-        "US-001",
-        "US-002"
+        "US-007",
+        "US-001"
       ],
       "completionNotes": "Completed by agent"
     },
     {
       "id": "US-009",
-      "title": "Audit article links — remaining regulatory texts",
-      "description": "As a user, I want any regulatory texts not covered by US-006/007/008 (international, sectoral, or other) to also have correct article links so that the audit covers all 12 texts in scope.",
+      "title": "Auto-correct article selection when no verbatim exists",
+      "description": "As a user, I want v30 to automatically pick the correct article when an analysis has no verbatim entry so that I never see an analysis pointing to the wrong article.",
       "acceptanceCriteria": [
-        "Confirm every regulatory text from the Excel inventory has been audited (US-006 + US-007 + US-008 + this story = 12 total)",
-        "Fix any remaining mismatches in build_v28.py",
-        "Browser verification: spot-check at least 3 article links per remaining text"
+        "When clicked analysis has no verbatim row, run a similarity search against all articles in the linked law",
+        "Use token-overlap or fuzzy match (rapidfuzz) — score threshold configurable, default 70",
+        "If a better article is found, update the displayed article and show a small inline note: 'Article auto-corrected from X to Y'",
+        "Inline note uses a styled custom popup, not the native title attribute",
+        "If no candidate scores above threshold, fall back to US-010 logging",
+        "Auto-correction logic lives in JS embedded in v30, with the lookup table pre-computed at build time and inlined as JSON",
+        "python -m pytest iterations/ passes",
+        "python iterations/audit_excel_correspondence.py passes",
+        "Verify in browser using /browse skill: trigger >=5 analyses with missing verbatim and confirm auto-correct note appears"
       ],
-      "priority": 2,
+      "priority": 6,
       "passes": true,
+      "notes": "",
       "dependsOn": [
-        "US-006",
-        "US-007",
         "US-008"
       ],
       "completionNotes": "Completed by agent"
     },
     {
       "id": "US-010",
-      "title": "Update tests and run full quality gate",
-      "description": "As a developer, I want the test suite extended to cover the v28-specific invariants so that future regressions are caught automatically.",
+      "title": "Log warnings to a markdown file when auto-correct fails",
+      "description": "As a developer, I want a markdown log of every analysis where verbatim is missing and auto-correct could not confidently pick an article so that I can manually review them.",
       "acceptanceCriteria": [
-        "Add tests asserting every <sup> superscript renders for known exponent values",
-        "Add tests asserting opening-table labels match the agreed strings",
-        "Add a smoke test that every article reference in the rendered HTML resolves to a non-empty pop-up content block",
-        "python iterations/test_lexicon_v28.py passes",
-        "Final browser verification via /browse: walk through the lexicon, click through all 12 regulatory tables, confirm no broken pop-ups"
+        "outputs/v30_unresolved_articles.md is generated by the build step (a Python script that pre-computes the JSON lookup)",
+        "Each entry shows: term, linked law, originally selected article, top 3 candidate articles with scores",
+        "File is overwritten on each build with a timestamped header",
+        "Empty file is not produced — if all analyses resolve, the file says 'No unresolved articles.'",
+        "python -m pytest iterations/ passes",
+        "python iterations/audit_excel_correspondence.py passes"
       ],
-      "priority": 3,
+      "priority": 7,
       "passes": true,
+      "notes": "",
       "dependsOn": [
-        "US-003",
-        "US-004",
-        "US-005",
-        "US-006",
-        "US-007",
-        "US-008",
         "US-009"
       ],
       "completionNotes": "Completed by agent"
     }
   ],
   "metadata": {
-    "updatedAt": "2026-04-29T07:41:58.149Z"
+    "updatedAt": "2026-05-04T06:39:58.753Z"
   }
 }

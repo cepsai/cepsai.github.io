@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Bel-AI Industrial Ecosystem — Combined Dashboard</title>
+<style>
+  html, body { margin: 0; padding: 0; font-family: Arial, sans-serif; background: #fafbfd; color: #1c2436; }
+  body { padding-bottom: 60px; }
+
+  header.top {
+    position: sticky; top: 0; z-index: 50;
+    background: #fff; border-bottom: 1px solid #e3e6ee;
+    padding: 10px 22px;
+    display: flex; align-items: center; gap: 22px; flex-wrap: wrap;
+  }
+  header.top h1 { font-size: 18px; margin: 0; color: #102b66; }
+  header.top h1 small { font-weight: 400; color: #5a6275; font-size: 13px; margin-left: 6px; }
+  nav.toc { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav.toc a {
+    font-size: 11.5px; font-weight: 600; color: #4169E1;
+    text-decoration: none; padding: 4px 9px; border: 1px solid #c4d2f5;
+    border-radius: 14px; background: #eef3ff;
+  }
+  nav.toc a:hover { background: #4169E1; color: #fff; }
+
+  .global-controls { margin-left: auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .control-label { font-size: 10.5px; font-weight: 700; color: #5a6275; letter-spacing: 0.04em; text-transform: uppercase; }
+  .slider-row { display: flex; align-items: center; gap: 8px; }
+  .range-wrapper { position: relative; width: 220px; height: 24px; }
+  .range-wrapper::before {
+    content:""; position: absolute; left:0; right:0; top:50%;
+    transform: translateY(-50%); height: 4px; background:#e0e0e0; border-radius: 3px;
+  }
+  .range-wrapper input[type=range] {
+    position: absolute; left:0; right:0; top:50%; transform: translateY(-50%);
+    margin: 0; width: 100%; -webkit-appearance: none; background: transparent; pointer-events: none;
+  }
+  .year-slider-top { z-index: 2; }
+  .range-wrapper input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%;
+    background:#4169E1; cursor: pointer; pointer-events: auto; margin-top: -4.5px;
+  }
+  .range-wrapper input[type=range]::-moz-range-thumb {
+    width: 13px; height: 13px; border-radius: 50%; background:#4169E1; border: none;
+    cursor: pointer; pointer-events: auto;
+  }
+  .year-value { font-size: 11px; font-weight: 700; color:#4169E1; min-width: 32px; text-align: center; }
+
+  section.section {
+    max-width: 1320px; margin: 0 auto; padding: 22px 22px 8px;
+  }
+  section.section h2 { font-size: 22px; color: #102b66; margin: 0 0 4px; }
+  section.section .lead { font-size: 13px; color: #5a6275; margin: 0 0 14px; }
+
+  .grid {
+    display: grid;
+    gap: 14px;
+  }
+  .grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .grid.layout-pubs { grid-template-columns: 1.4fr 1fr 1fr; grid-template-rows: 360px 360px; }
+  .grid.layout-pats { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 320px 320px 320px; }
+  .grid.layout-inv { grid-template-columns: 1.2fr 1fr 1fr; grid-template-rows: 320px 320px; }
+  .grid.layout-adopt { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 240px 240px; }
+  .grid.layout-bench { grid-template-columns: 1.1fr 1fr; grid-template-rows: 360px; }
+
+  .panel {
+    background: #fff;
+    border: 1px solid #e3e6ee; border-radius: 8px;
+    display: flex; flex-direction: column;
+    min-width: 0; min-height: 0; overflow: hidden;
+  }
+  .panel-title {
+    font-size: 11.5px; font-weight: 700;
+    color: #5a6275; letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 8px 12px;
+    border-bottom: 1px solid #eef0f6;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .panel-title .panel-sub {
+    font-size: 11px; font-weight: 500; color: #888;
+    text-transform: none; letter-spacing: 0;
+  }
+  .panel-body { flex: 1; min-height: 0; min-width: 0; position: relative; padding: 6px; }
+  .panel-body svg { display: block; width: 100%; height: 100%; }
+
+  /* Placeholder */
+  .placeholder {
+    border: 1.5px dashed #c4ccd9;
+    background: repeating-linear-gradient(45deg, #f7f8fb 0 8px, #fff 8px 16px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 18px; gap: 4px; text-align: center;
+    height: 100%; box-sizing: border-box;
+  }
+  .placeholder .ph-tag {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    color: #b07819; background: #fff5dd; border: 1px solid #ecd6a3;
+    padding: 2px 8px; border-radius: 12px; text-transform: uppercase;
+  }
+  .placeholder .ph-msg { font-size: 12px; color: #5a6275; max-width: 360px; line-height: 1.4; }
+
+  /* Map */
+  .land { fill: #e9eaee; stroke: #fff; stroke-width: 0.5px; }
+  .country-boundary { fill: none; stroke: #c0c2cb; stroke-width: 0.4px; }
+  circle.bubble { fill: #b8c2e0; fill-opacity: 0.65; stroke: #fff; stroke-width: 1px; }
+  circle.bubble.be { fill: #4169E1; fill-opacity: 0.85; stroke: #102b66; stroke-width: 1.5px; }
+
+  /* Lines */
+  path.line-other { fill: none; stroke-width: 1.6px; opacity: 0.8; }
+  path.line-be { fill: none; stroke: #4169E1; stroke-width: 2.8px; }
+  path.line-eu-avg { fill: none; stroke: #5a6275; stroke-width: 1.4px; stroke-dasharray: 4 3; }
+  .legend-row { display: flex; flex-wrap: wrap; gap: 10px; padding: 4px 8px; font-size: 10.5px; }
+  .legend-chip { display: flex; align-items: center; gap: 4px; color: #444; }
+  .legend-chip .swatch { width: 10px; height: 3px; }
+
+  /* Bars */
+  rect.bar { stroke: none; }
+  rect.bar.be { fill: #4169E1; }
+  rect.bar.other { fill: #b8c2e0; }
+  text.axis-label, .axis text { font-size: 10.5px; fill: #4a5063; }
+  .axis path, .axis line { stroke: #c0c2cb; }
+
+  /* Treemap */
+  .tree-rect { stroke: #fff; stroke-width: 1px; fill: #cdd2dc; }
+  .tree-rect.be { fill: #4169E1; stroke: #102b66; stroke-width: 2px; }
+  .tree-label { font-size: 10px; pointer-events: none; fill: #1c2436; }
+  .tree-label.be { fill: #fff; font-weight: 700; }
+
+  /* Radar */
+  .radar-axis { stroke: #d0d4dc; stroke-dasharray: 2 2; }
+  .radar-grid { fill: none; stroke: #e0e3eb; }
+  .radar-area { fill-opacity: 0.18; stroke-width: 2px; }
+
+  /* Tooltip */
+  .tooltip {
+    position: fixed; pointer-events: none; opacity: 0;
+    background: #fff; padding: 6px 9px;
+    border: 1px solid #c4d2f5; border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    font-size: 11.5px; z-index: 2000;
+  }
+
+  /* Benchmark table */
+  table.bench {
+    width: 100%; border-collapse: collapse; font-size: 12px;
+  }
+  table.bench th, table.bench td {
+    padding: 6px 8px; border-bottom: 1px solid #eef0f6; text-align: right;
+  }
+  table.bench th:first-child, table.bench td:first-child { text-align: left; }
+  table.bench thead th { background: #f7f8fb; color: #5a6275; font-weight: 700; }
+  table.bench tbody tr.be td { font-weight: 700; color: #1f3fa6; background: #eef3ff; }
+
+  footer.foot {
+    max-width: 1320px; margin: 0 auto;
+    padding: 12px 22px; font-size: 11px; color: #5a6275;
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+  footer.foot a { color: #2756d3; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>Bel-AI — Industrial Ecosystem <small>Belgium vs EU founding six (BE · NL · LU · DE · FR · IT)</small></h1>
+  <nav class="toc">
+    <a href="#sec-pubs">2. Publications</a>
+    <a href="#sec-pats">3. Patents</a>
+    <a href="#sec-inv">4. Startups</a>
+    <a href="#sec-adopt">5. Adoption</a>
+    <a href="#sec-bench">6. Benchmark</a>
+  </nav>
+  <div class="global-controls">
+    <span class="control-label">Year range</span>
+    <div class="slider-row">
+      <span class="year-value" id="year-start-value">2014</span>
+      <div class="range-wrapper">
+        <input type="range" id="year-start" min="2000" max="2025" value="2014">
+        <input type="range" id="year-end"   min="2000" max="2025" value="2025" class="year-slider-top">
+      </div>
+      <span class="year-value" id="year-end-value">2025</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============================ §2 PUBLICATIONS ============================ -->
+<section class="section" id="sec-pubs">
+  <h2>2. Scientific Publications <span style="color:#888;font-size:14px;font-weight:400">— OpenAlex 2014–2025</span></h2>
+  <p class="lead">AI publication output across BE and the EU founding six.</p>
+  <div class="grid layout-pubs">
+    <div class="panel" style="grid-row: 1 / span 2;">
+      <div class="panel-title">Time-series — annual AI publications <span class="panel-sub">BE thick; EU-6 peers</span></div>
+      <div class="panel-body" data-render="line" data-metric="publications" data-geos="BE,NL,LU,DE,FR,IT" data-show-eu-avg="true"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Belgium — publications by city <span class="panel-sub">5 BE cities, period total</span></div>
+      <div class="panel-body" data-render="be-city-map" data-metric="publications"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Europe — publications by country <span class="panel-sub">EU-27, period total</span></div>
+      <div class="panel-body" data-render="eu-country-map" data-metric="publications"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Top BE institutions <span class="panel-sub">treemap</span></div>
+      <div class="panel-body" data-render="placeholder" data-msg="Awaiting OpenAlex institution-level extract. Current SRIP CSVs are aggregated to country/city only."></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Co-authorship network <span class="panel-sub">nice-to-have</span></div>
+      <div class="panel-body" data-render="placeholder" data-msg="Awaiting OpenAlex co-author edge list. Build force-directed graph once edges are produced."></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ §3 PATENTS ============================ -->
+<section class="section" id="sec-pats">
+  <h2>3. Patents <span style="color:#888;font-size:14px;font-weight:400">— OECD REGPAT 2014–2024</span></h2>
+  <p class="lead">AI patent activity, absolute and per-capita.</p>
+  <div class="grid layout-pats">
+    <div class="panel">
+      <div class="panel-title">Time-series — annual AI patents</div>
+      <div class="panel-body" data-render="line" data-metric="patents" data-geos="BE,NL,LU,DE,FR,IT" data-show-eu-avg="true"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Bar — patents per million inhabitants <span class="panel-sub">period total / pop</span></div>
+      <div class="panel-body" data-render="bar-per-capita" data-metric="patents" data-geos="BE,NL,LU,DE,FR,IT" data-pop-unit="1000000"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Time-series — patents per million over time</div>
+      <div class="panel-body" data-render="line-per-capita" data-metric="patents" data-geos="BE,NL,LU,DE,FR,IT" data-pop-unit="1000000"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Belgium — patents by city</div>
+      <div class="panel-body" data-render="be-city-map" data-metric="patents"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Europe — patents by country</div>
+      <div class="panel-body" data-render="eu-country-map" data-metric="patents"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Belgian cities — treemap</div>
+      <div class="panel-body" data-render="be-city-tree" data-metric="patents"></div>
+    </div>
+    <div class="panel" style="grid-column: 1 / span 3;">
+      <div class="panel-title">Top BE patent applicants (organisations)</div>
+      <div class="panel-body" data-render="placeholder" data-msg="Awaiting REGPAT applicant-level extract. Current SRIP files are aggregated by inventor location only."></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ §4 STARTUP INVESTMENTS ============================ -->
+<section class="section" id="sec-inv">
+  <h2>4. Startup Investments <span style="color:#888;font-size:14px;font-weight:400">— Crunchbase 2014–2026</span></h2>
+  <p class="lead">AI startup investment activity by city and country, with per-capita comparison.</p>
+  <div class="grid layout-inv">
+    <div class="panel" style="grid-row: 1 / span 2;">
+      <div class="panel-title">Annual AI investment <span class="panel-sub">USD; BE vs EU-6</span></div>
+      <div class="panel-body" data-render="line" data-metric="investments" data-geos="BE,NL,LU,DE,FR,IT" data-show-eu-avg="true"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Belgium — startup investment by city <span class="panel-sub">zoom &amp; pan</span></div>
+      <div class="panel-body" data-render="be-city-map" data-metric="investments" data-zoom="true"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Bar — investment per capita <span class="panel-sub">USD / inhabitant, period total</span></div>
+      <div class="panel-body" data-render="bar-per-capita" data-metric="investments" data-geos="BE,NL,LU,DE,FR,IT" data-pop-unit="1"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">GenAI vs other AI — stacked time-series</div>
+      <div class="panel-body" data-render="placeholder" data-msg="Awaiting GenAI sub-flag in Crunchbase aggregates. Current SRIP file is filtered to a single AI domain. Re-run cb_srip.py with the GenAI tag preserved to populate."></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">GICS sector treemap</div>
+      <div class="panel-body" data-render="placeholder" data-msg="Awaiting GICS sector aggregation. The AI-filtered CSVs collapse all sectors into one. Re-aggregate cb_srip output by GICS industry group."></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ §5 ADOPTION ============================ -->
+<section class="section" id="sec-adopt">
+  <h2>5. Firm-Level Adoption <span style="color:#888;font-size:14px;font-weight:400">— Eurostat isoc_eb_ai + Statbel 2021–2025</span></h2>
+  <p class="lead">All adoption visuals are stubbed pending Eurostat / Statbel extracts.</p>
+  <div class="grid layout-adopt">
+    <div class="panel"><div class="panel-title">5a Bar — share of firms using AI</div>
+      <div class="panel-body" data-render="placeholder" data-msg="BE vs EU vs NL/DE/FR. Source: Eurostat isoc_eb_ai."></div></div>
+    <div class="panel"><div class="panel-title">5b Time-series 2021–2025</div>
+      <div class="panel-body" data-render="placeholder" data-msg="Adoption trend by survey wave."></div></div>
+    <div class="panel"><div class="panel-title">5c Horizontal bar — 8 AI tech types</div>
+      <div class="panel-body" data-render="placeholder" data-msg="Eurostat tech-type breakdown."></div></div>
+    <div class="panel"><div class="panel-title">5d Firm-size comparison</div>
+      <div class="panel-body" data-render="placeholder" data-msg="Adoption by size class (10-49, 50-249, 250+)."></div></div>
+    <div class="panel"><div class="panel-title">5e Sectoral heatmap + BE regional map</div>
+      <div class="panel-body" data-render="placeholder" data-msg="NACE→GICS sectoral heatmap + NUTS-2 BE regions. Needs Statbel microdata."></div></div>
+  </div>
+</section>
+
+<!-- ============================ §6 BENCHMARK ============================ -->
+<section class="section" id="sec-bench">
+  <h2>6. Benchmark synthesis <span style="color:#888;font-size:14px;font-weight:400">— BE vs EU-6, four pillars</span></h2>
+  <p class="lead">Per-capita scores normalised to 0-100 across the EU-6. Adoption pillar pending data.</p>
+  <div class="grid layout-bench">
+    <div class="panel">
+      <div class="panel-title">Radar — BE vs EU-6 (per-capita, normalised)</div>
+      <div class="panel-body" data-render="radar"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Compact comparison table</div>
+      <div class="panel-body" data-render="bench-table"></div>
+    </div>
+  </div>
+</section>
+
+<footer class="foot">
+  <div>
+    Sources:
+    <a href="https://openalex.org/" target="_blank">OpenAlex</a>,
+    <a href="https://www.oecd.org/sti/inno/oecdpatentdatabase.htm" target="_blank">OECD REGPAT</a>,
+    <a href="https://www.crunchbase.com/" target="_blank">Crunchbase</a>,
+    <a href="https://ec.europa.eu/eurostat/databrowser/view/isoc_eb_ai" target="_blank">Eurostat isoc_eb_ai</a>,
+    Statbel.
+  </div>
+  <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+    <img src="https://aiworld.eu/logo-transparent.svg" style="height:24px;" alt="AI World logo">
+  </a>
+</footer>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://unpkg.com/topojson@3"></script>
+<script>
+/* ============================ Config ============================ */
+const METRICS = {
+  publications: {
+    label: 'Publications', basePathCountry: 'country/openalex', basePathUrban: 'urban/openalex',
+    formatter: formatCount, yearMin: 2014, yearMax: 2025
+  },
+  patents: {
+    label: 'Patents', basePathCountry: 'country/regpat', basePathUrban: 'urban/regpat',
+    formatter: formatCount, yearMin: 2014, yearMax: 2024
+  },
+  investments: {
+    label: 'Investments (USD)', basePathCountry: 'country/crunchbase', basePathUrban: 'urban/crunchbase',
+    formatter: formatCurrency, yearMin: 2014, yearMax: 2026
+  }
+};
+
+const EU_FOUNDING_SIX = ['BE','NL','LU','DE','FR','IT'];
+const EU27 = ["AT","BE","BG","HR","CY","CZ","DK","EE","FI","FR","DE","GR","HU","IE","IT",
+              "LV","LT","LU","MT","NL","PL","PT","RO","SK","SI","ES","SE"];
+
+/* Capital lat/lon for the country bubble map */
+const EU_REF = {
+  AT:[48.21,16.37,'Austria'],   BE:[50.85, 4.35,'Belgium'],
+  BG:[42.70,23.32,'Bulgaria'],  HR:[45.81,15.98,'Croatia'],
+  CY:[35.17,33.36,'Cyprus'],    CZ:[50.08,14.44,'Czechia'],
+  DK:[55.68,12.57,'Denmark'],   EE:[59.44,24.75,'Estonia'],
+  FI:[60.17,24.94,'Finland'],   FR:[48.86, 2.35,'France'],
+  DE:[52.52,13.41,'Germany'],   GR:[37.98,23.73,'Greece'],
+  HU:[47.50,19.04,'Hungary'],   IE:[53.35,-6.26,'Ireland'],
+  IT:[41.90,12.50,'Italy'],     LV:[56.95,24.11,'Latvia'],
+  LT:[54.69,25.27,'Lithuania'], LU:[49.61, 6.13,'Luxembourg'],
+  MT:[35.90,14.51,'Malta'],     NL:[52.37, 4.90,'Netherlands'],
+  PL:[52.23,21.01,'Poland'],    PT:[38.72,-9.14,'Portugal'],
+  RO:[44.43,26.10,'Romania'],   SK:[48.15,17.11,'Slovakia'],
+  SI:[46.06,14.51,'Slovenia'],  ES:[40.42,-3.70,'Spain'],
+  SE:[59.33,18.07,'Sweden']
+};
+
+/* Country populations (UN/Eurostat 2024 estimates, integers) */
+const POP = {
+  BE: 11700000, NL: 17900000, LU:    660000,
+  DE: 84500000, FR: 68000000, IT: 58900000,
+  EU: 449000000
+};
+
+/* Color scale for the EU-6 (BE always royal blue) */
+const PEER_COLORS = {
+  BE: '#4169E1', NL: '#e07a40', LU: '#7a98ad',
+  DE: '#5aa55a', FR: '#c25b8a', IT: '#b58a3a'
+};
+
+/* Year-range state (global) */
+let yearStart = 2014, yearEnd = 2025;
+
+/* Data caches */
+const yearlyByMetric = {};   // metric -> {year -> [{iso, value}]}
+const urbanByMetric = {};    // metric -> {year -> rows}
+let crosswalk = null;
+let beCities = [];           // [{urban_id, urban_name, lat, lon}]
+let worldTopo = null;
+
+/* ============================ Utilities ============================ */
+const tooltip = d3.select('#tooltip');
+function showTip(html, evt) { tooltip.style('opacity', 1).html(html); moveTip(evt); }
+function moveTip(evt) {
+  tooltip.style('left', (evt.clientX + 12) + 'px').style('top', (evt.clientY - 10) + 'px');
+}
+function hideTip() { tooltip.style('opacity', 0); }
+
+function formatCount(n) {
+  n = +n || 0;
+  if (n >= 1e9) return (n/1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return d3.format(',')(Math.round(n));
+}
+function formatCurrency(n) {
+  n = +n || 0;
+  if (n >= 1e9) return '$' + (n/1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return '$' + (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return '$' + (n/1e3).toFixed(1) + 'K';
+  return '$' + d3.format(',')(Math.round(n));
+}
+function isoFromGeo(geo) {
+  const m = (geo || '').match(/\(([^)]+)\)\s*$/);
+  return m ? m[1].trim().toUpperCase() : null;
+}
+function urbanIdFromGeo(geo) {
+  const m = (geo || '').match(/\((\d+)\)\s*$/);
+  return m ? +m[1] : null;
+}
+
+/* ============================ Data loading ============================ */
+async function loadCrosswalk() {
+  if (crosswalk) return crosswalk;
+  const txt = await fetch('crosswalk.json').then(r => r.text());
+  crosswalk = JSON.parse(txt.replace(/:\s*NaN/g, ': null'));
+  beCities = crosswalk
+    .filter(c => (c.country_id || '').toUpperCase() === 'BE'
+                 && c.urban_id != null && isFinite(+c.latitude) && isFinite(+c.longitude))
+    .map(c => ({
+      urban_id: +c.urban_id, name: c.urban_name,
+      lat: +c.latitude, lon: +c.longitude, pop: +c.population
+    }));
+  return crosswalk;
+}
+
+async function loadWorldTopo() {
+  if (worldTopo) return worldTopo;
+  worldTopo = await d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+  return worldTopo;
+}
+
+async function loadCountryYearly(metric) {
+  if (yearlyByMetric[metric]) return yearlyByMetric[metric];
+  const cfg = METRICS[metric];
+  const years = d3.range(2000, 2027);
+  const safeCsv = p => d3.csv(p).catch(() => []);
+  const byYear = {};
+  await Promise.all(years.map(async y => {
+    const rows = await safeCsv(`${cfg.basePathCountry}/${y}.csv`);
+    const acc = {};
+    rows.forEach(r => {
+      const dom = (r.domain || '').trim().replace(/^"(.*)"$/, '$1');
+      if (dom !== 'Artificial Intelligence') return;
+      const code = isoFromGeo((r.geo || '').trim());
+      if (!code) return;
+      acc[code] = (acc[code] || 0) + (+r.count || 0);
+    });
+    byYear[y] = Object.entries(acc).map(([iso, value]) => ({ iso, value }));
+  }));
+  yearlyByMetric[metric] = byYear;
+  return byYear;
+}
+
+async function loadUrbanYearly(metric) {
+  if (urbanByMetric[metric]) return urbanByMetric[metric];
+  const cfg = METRICS[metric];
+  const years = d3.range(2000, 2027);
+  const safeCsv = p => d3.csv(p).catch(() => []);
+  const byYear = {};
+  await Promise.all(years.map(async y => {
+    const rows = await safeCsv(`${cfg.basePathUrban}/${y}.csv`);
+    byYear[y] = rows.filter(r => {
+      const dom = (r.domain || '').trim().replace(/^"(.*)"$/, '$1');
+      return dom === 'Artificial Intelligence';
+    }).map(r => ({
+      geo: (r.geo || '').trim(),
+      urban_id: urbanIdFromGeo((r.geo || '').trim()),
+      value: +r.count || 0
+    }));
+  }));
+  urbanByMetric[metric] = byYear;
+  return byYear;
+}
+
+/* ============================ Aggregations ============================ */
+function sumYearsForGeo(metric, iso) {
+  const m = yearlyByMetric[metric] || {};
+  const [a, b] = clampedRange(metric);
+  let s = 0;
+  for (let y = a; y <= b; y++) (m[y] || []).forEach(r => { if (r.iso === iso) s += r.value; });
+  return s;
+}
+function clampedRange(metric) {
+  const cfg = METRICS[metric];
+  return [Math.max(yearStart, cfg.yearMin), Math.min(yearEnd, cfg.yearMax)];
+}
+function timeSeriesForGeo(metric, iso) {
+  const m = yearlyByMetric[metric] || {};
+  const [a, b] = clampedRange(metric);
+  const out = [];
+  for (let y = a; y <= b; y++) {
+    const row = (m[y] || []).find(r => r.iso === iso);
+    out.push({ year: y, value: row ? row.value : 0 });
+  }
+  return out;
+}
+function euAvgSeries(metric) {
+  const m = yearlyByMetric[metric] || {};
+  const [a, b] = clampedRange(metric);
+  const out = [];
+  for (let y = a; y <= b; y++) {
+    const sum = (m[y] || []).reduce((s, r) => EU27.includes(r.iso) ? s + r.value : s, 0);
+    out.push({ year: y, value: sum / EU27.length });
+  }
+  return out;
+}
+function euCountryTotalsForRange(metric) {
+  const m = yearlyByMetric[metric] || {};
+  const [a, b] = clampedRange(metric);
+  const acc = {};
+  EU27.forEach(c => acc[c] = 0);
+  for (let y = a; y <= b; y++) {
+    (m[y] || []).forEach(r => {
+      if (acc[r.iso] !== undefined) acc[r.iso] += r.value;
+    });
+  }
+  return EU27.map(c => ({ iso: c, name: (EU_REF[c] && EU_REF[c][2]) || c, value: acc[c] }));
+}
+function beCityTotalsForRange(metric) {
+  const m = urbanByMetric[metric] || {};
+  const [a, b] = clampedRange(metric);
+  const ids = new Set(beCities.map(c => c.urban_id));
+  const acc = {};
+  for (let y = a; y <= b; y++) {
+    (m[y] || []).forEach(r => {
+      if (r.urban_id != null && ids.has(r.urban_id)) {
+        acc[r.urban_id] = (acc[r.urban_id] || 0) + r.value;
+      }
+    });
+  }
+  return beCities.map(c => ({
+    urban_id: c.urban_id, name: c.name, lat: c.lat, lon: c.lon, pop: c.pop,
+    value: acc[c.urban_id] || 0
+  }));
+}
+
+/* ============================ Renderers ============================ */
+function renderPlaceholder(node, msg) {
+  const el = document.createElement('div');
+  el.className = 'placeholder';
+  el.innerHTML = `<span class="ph-tag">awaiting data</span>
+                  <span class="ph-msg">${msg}</span>`;
+  node.innerHTML = '';
+  node.appendChild(el);
+}
+
+/* ----- Line chart ----- */
+function renderLine(node, opts) {
+  const metric = opts.metric;
+  const geos = opts.geos.split(',').map(s => s.trim());
+  const showAvg = opts.showEuAvg === 'true';
+  const cfg = METRICS[metric];
+
+  node.innerHTML = '';
+  const svg = d3.select(node).append('svg');
+  const W = node.clientWidth || 500;
+  const H = (node.clientHeight || 280) - 22; // legend
+  svg.attr('width', W).attr('height', H);
+
+  const margin = { top: 12, right: 14, bottom: 22, left: 56 };
+  const innerW = Math.max(W - margin.left - margin.right, 100);
+  const innerH = Math.max(H - margin.top - margin.bottom, 80);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const series = {};
+  geos.forEach(c => series[c] = timeSeriesForGeo(metric, c));
+  const avg = showAvg ? euAvgSeries(metric) : null;
+
+  let yMax = 0;
+  Object.values(series).forEach(s => s.forEach(p => { if (p.value > yMax) yMax = p.value; }));
+  if (avg) avg.forEach(p => { if (p.value > yMax) yMax = p.value; });
+  yMax = yMax || 1;
+
+  const [a, b] = clampedRange(metric);
+  const x = d3.scaleLinear().domain([a, b]).range([0, innerW]);
+  const y = d3.scaleLinear().domain([0, yMax]).nice().range([innerH, 0]);
+
+  const lineGen = d3.line()
+    .x(d => x(d.year)).y(d => y(d.value))
+    .defined(d => d.value != null && !isNaN(d.value));
+
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${innerH})`)
+    .call(d3.axisBottom(x).ticks(Math.max(2, innerW / 70)).tickFormat(d3.format('d')));
+  g.append('g').attr('class','axis')
+    .call(d3.axisLeft(y).ticks(5).tickFormat(d => formatCount(d)));
+
+  if (avg) {
+    g.append('path').attr('class','line-eu-avg').attr('d', lineGen(avg));
+  }
+
+  geos.filter(c => c !== 'BE').forEach(c => {
+    g.append('path').attr('class','line-other')
+      .attr('stroke', PEER_COLORS[c] || '#888')
+      .attr('d', lineGen(series[c]))
+      .on('mouseover', e => {
+        const last = series[c][series[c].length - 1];
+        showTip(`<b>${c}</b><br>${last.year}: ${cfg.formatter(last.value)}`, e);
+      }).on('mousemove', moveTip).on('mouseout', hideTip);
+  });
+  if (series.BE) {
+    g.append('path').attr('class','line-be').attr('d', lineGen(series.BE))
+      .on('mouseover', e => {
+        const last = series.BE[series.BE.length - 1];
+        showTip(`<b>Belgium</b><br>${last.year}: ${cfg.formatter(last.value)}`, e);
+      }).on('mousemove', moveTip).on('mouseout', hideTip);
+  }
+
+  // legend
+  const lr = document.createElement('div');
+  lr.className = 'legend-row';
+  geos.forEach(c => {
+    lr.innerHTML += `<span class="legend-chip"><span class="swatch" style="background:${PEER_COLORS[c]||'#888'};${c==='BE'?'height:5px;':''}"></span>${c}</span>`;
+  });
+  if (avg) lr.innerHTML += `<span class="legend-chip"><span class="swatch" style="background:#5a6275;border-top:1px dashed #5a6275;"></span>EU-27 avg</span>`;
+  node.appendChild(lr);
+}
+
+/* ----- Bar per-capita ----- */
+function renderBarPerCapita(node, opts) {
+  const metric = opts.metric;
+  const geos = opts.geos.split(',').map(s => s.trim());
+  const popUnit = +opts.popUnit || 1;
+  const cfg = METRICS[metric];
+
+  node.innerHTML = '';
+  const svg = d3.select(node).append('svg');
+  const W = node.clientWidth || 400;
+  const H = node.clientHeight || 260;
+  svg.attr('width', W).attr('height', H);
+
+  const margin = { top: 12, right: 12, bottom: 28, left: 60 };
+  const innerW = Math.max(W - margin.left - margin.right, 100);
+  const innerH = Math.max(H - margin.top - margin.bottom, 80);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const data = geos.map(c => {
+    const total = sumYearsForGeo(metric, c);
+    const pop = POP[c] || 0;
+    const per = pop ? total / (pop / popUnit) : 0;
+    return { iso: c, total, pop, per };
+  });
+
+  const x = d3.scaleBand().domain(geos).range([0, innerW]).padding(0.25);
+  const y = d3.scaleLinear().domain([0, d3.max(data, d => d.per) || 1]).nice().range([innerH, 0]);
+
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${innerH})`)
+    .call(d3.axisBottom(x));
+  g.append('g').attr('class','axis')
+    .call(d3.axisLeft(y).ticks(5).tickFormat(d => formatCount(d)));
+
+  g.selectAll('rect.bar').data(data).enter().append('rect')
+    .attr('class', d => 'bar ' + (d.iso === 'BE' ? 'be' : 'other'))
+    .attr('x', d => x(d.iso))
+    .attr('y', d => y(d.per))
+    .attr('width', x.bandwidth())
+    .attr('height', d => innerH - y(d.per))
+    .on('mouseover', (e, d) => showTip(
+      `<b>${d.iso}</b><br>` +
+      `${cfg.formatter(d.per)} per ${formatCount(popUnit)}<br>` +
+      `Total: ${cfg.formatter(d.total)}<br>` +
+      `Pop: ${formatCount(d.pop)}`, e))
+    .on('mousemove', moveTip).on('mouseout', hideTip);
+
+  g.selectAll('text.bar-label').data(data).enter().append('text')
+    .attr('class','tree-label')
+    .attr('x', d => x(d.iso) + x.bandwidth()/2)
+    .attr('y', d => y(d.per) - 4)
+    .attr('text-anchor','middle')
+    .attr('font-size', '10px')
+    .text(d => formatCount(d.per));
+}
+
+/* ----- Per-capita line over time ----- */
+function renderLinePerCapita(node, opts) {
+  const metric = opts.metric;
+  const geos = opts.geos.split(',').map(s => s.trim());
+  const popUnit = +opts.popUnit || 1;
+  const cfg = METRICS[metric];
+
+  node.innerHTML = '';
+  const svg = d3.select(node).append('svg');
+  const W = node.clientWidth || 400;
+  const H = (node.clientHeight || 260) - 22;
+  svg.attr('width', W).attr('height', H);
+
+  const margin = { top: 12, right: 14, bottom: 22, left: 56 };
+  const innerW = Math.max(W - margin.left - margin.right, 100);
+  const innerH = Math.max(H - margin.top - margin.bottom, 80);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const series = {};
+  geos.forEach(c => {
+    const pop = POP[c] || 0;
+    series[c] = timeSeriesForGeo(metric, c).map(p => ({
+      year: p.year,
+      value: pop ? p.value / (pop / popUnit) : 0
+    }));
+  });
+
+  let yMax = 0;
+  Object.values(series).forEach(s => s.forEach(p => { if (p.value > yMax) yMax = p.value; }));
+  yMax = yMax || 1;
+
+  const [a, b] = clampedRange(metric);
+  const x = d3.scaleLinear().domain([a, b]).range([0, innerW]);
+  const y = d3.scaleLinear().domain([0, yMax]).nice().range([innerH, 0]);
+
+  const lineGen = d3.line().x(d => x(d.year)).y(d => y(d.value));
+
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${innerH})`)
+    .call(d3.axisBottom(x).ticks(Math.max(2, innerW / 70)).tickFormat(d3.format('d')));
+  g.append('g').attr('class','axis')
+    .call(d3.axisLeft(y).ticks(5).tickFormat(d => formatCount(d)));
+
+  geos.filter(c => c !== 'BE').forEach(c => {
+    g.append('path').attr('class','line-other')
+      .attr('stroke', PEER_COLORS[c] || '#888')
+      .attr('d', lineGen(series[c]));
+  });
+  if (series.BE) {
+    g.append('path').attr('class','line-be').attr('d', lineGen(series.BE));
+  }
+
+  const lr = document.createElement('div');
+  lr.className = 'legend-row';
+  geos.forEach(c => {
+    lr.innerHTML += `<span class="legend-chip"><span class="swatch" style="background:${PEER_COLORS[c]||'#888'};"></span>${c}</span>`;
+  });
+  node.appendChild(lr);
+}
+
+/* ----- BE city map ----- */
+function renderBeCityMap(node, opts) {
+  const metric = opts.metric;
+  const cfg = METRICS[metric];
+
+  node.innerHTML = '';
+  const svg = d3.select(node).append('svg');
+  const W = node.clientWidth || 360;
+  const H = node.clientHeight || 280;
+  svg.attr('width', W).attr('height', H);
+
+  const projection = d3.geoMercator()
+    .center([4.7, 50.6])
+    .scale(W * 22)
+    .translate([W/2, H/2]);
+  const path = d3.geoPath().projection(projection);
+
+  if (worldTopo) {
+    const root = svg.append('g');
+    root.append('path')
+      .datum(topojson.feature(worldTopo, worldTopo.objects.countries))
+      .attr('class','land').attr('d', path);
+    root.append('path')
+      .datum(topojson.mesh(worldTopo, worldTopo.objects.countries, (a,b) => a !== b))
+      .attr('class','country-boundary').attr('d', path);
+  }
+
+  const data = beCityTotalsForRange(metric).filter(d => d.value > 0);
+  const max = d3.max(data, d => d.value) || 1;
+  const r = d3.scaleSqrt().domain([0, max]).range([3, Math.min(W, H) * 0.18]);
+
+  svg.append('g').selectAll('circle.bubble').data(data, d => d.urban_id).enter()
+    .append('circle')
+    .attr('class','bubble be')
+    .attr('cx', d => projection([d.lon, d.lat])[0])
+    .attr('cy', d => projection([d.lon, d.lat])[1])
+    .attr('r', d => r(d.value))
+    .on('mouseover', (e, d) => showTip(
+      `<b>${d.name}</b><br>${cfg.formatter(d.value)}`, e))
+    .on('mousemove', moveTip).on('mouseout', hideTip);
+
+  svg.append('g').selectAll('text.city-label').data(data).enter()
+    .append('text')
+    .attr('x', d => projection([d.lon, d.lat])[0] + r(d.value) + 4)
+    .attr('y', d => projection([d.lon, d.lat])[1] + 3)
+    .attr('font-size', '10px')
+    .attr('fill', '#102b66')
+    .text(d => d.name);
+
+  if (opts.zoom === 'true') {
+    svg.call(d3.zoom().scaleExtent([1, 6]).on('zoom', e => svg.selectAll('g').attr('transform', e.transform)));
+  }
+}
+
+/* ----- EU country map ----- */
+function renderEuCountryMap(node, opts) {
+  const metric = opts.metric;
+  const cfg = METRICS[metric];
+
+  node.innerHTML = '';
+  const svg = d3.select(node).append('svg');
+  const W = node.clientWidth || 360;
+  const H = node.clientHeight || 280;
+  svg.attr('width', W).attr('height', H);
+
+  const projection = d3.geoMercator()
+    .center([10, 52])
+    .scale(Math.min(W * 0.85, H * 1.3))
+    .translate([W/2, H/2]);
+  const path = d3.geoPath().projection(projection);
+
+  if (worldTopo) {
+    const root = svg.append('g');
+    root.append('path')
+      .datum(topojson.feature(worldTopo, worldTopo.objects.countries))
+      .attr('class','land').attr('d', path);
+    root.append('path')
+      .datum(topojson.mesh(worldTopo, worldTopo.objects.countries, (a,b) => a !== b))
+      .attr('class','country-boundary').attr('d', path);
+  }
+
+  const data = euCountryTotalsForRange(metric).map(d => {
+    const ref = EU_REF[d.iso];
+    if (!ref) return null;
+    const [x, y] = projection([ref[1], ref[0]]);
+    return { ...d, x, y };
+  }).filter(d => d && isFinite(d.x) && isFinite(d.y));
+
+  const max = d3.max(data, d => d.value) || 1;
+  const r = d3.scaleSqrt().domain([0, max]).range([2, Math.min(W, H) * 0.08]);
+
+  const bg = svg.append('g');
+  bg.selectAll('circle').data(data, d => d.iso).enter().append('circle')
+    .attr('class', d => 'bubble' + (d.iso === 'BE' ? ' be' : ''))
+    .attr('cx', d => d.x).attr('cy', d => d.y).attr('r', d => r(d.value))
+    .on('mouseover', (e, d) => showTip(`<b>${d.name} (${d.iso})</b><br>${cfg.formatter(d.value)}`, e))
+    .on('mousemove', moveTip).on('mouseout', hideTip);
+  bg.selectAll('circle.bubble.be').raise();
+}
+
+/* ----- BE city treemap ----- */
+function renderBeCityTree(node, opts) {
+  const metric = opts.metric;
+  const cfg = METRICS[metric];
+
+  node.innerHTML = '';
+  const svg = d3.select(node).append('svg');
+  const W = node.clientWidth || 360;
+  const H = node.clientHeight || 280;
+  svg.attr('width', W).attr('height', H);
+
+  const data = beCityTotalsForRange(metric).filter(d => d.value > 0);
+  if (!data.length) {
+    svg.append('text').attr('x', W/2).attr('y', H/2).attr('text-anchor','middle')
+      .attr('font-size','12px').attr('fill','#888').text('No data in selected range');
+    return;
+  }
+
+  const root = d3.hierarchy({ children: data }).sum(d => d.value).sort((a,b) => b.value - a.value);
+  d3.treemap().size([W, H]).paddingInner(1).round(true)(root);
+
+  const cells = svg.append('g').selectAll('g.cell').data(root.leaves()).enter().append('g')
+    .attr('transform', d => `translate(${d.x0},${d.y0})`);
+  cells.append('rect')
+    .attr('class', d => 'tree-rect' + (d.data.urban_id === 75 ? ' be' : ''))   // Bruxelles highlighted
+    .attr('width', d => Math.max(0, d.x1 - d.x0))
+    .attr('height', d => Math.max(0, d.y1 - d.y0))
+    .on('mouseover', (e, d) => showTip(`<b>${d.data.name}</b><br>${cfg.formatter(d.data.value)}`, e))
+    .on('mousemove', moveTip).on('mouseout', hideTip);
+  cells.append('text').attr('class', d => 'tree-label' + (d.data.urban_id === 75 ? ' be' : ''))
+    .attr('x', 4).attr('y', 12).text(d => (d.x1 - d.x0 > 40 && d.y1 - d.y0 > 18) ? d.data.name : '');
+  cells.append('text').attr('class', d => 'tree-label' + (d.data.urban_id === 75 ? ' be' : ''))
+    .attr('x', 4).attr('y', 24).text(d => (d.x1 - d.x0 > 60 && d.y1 - d.y0 > 32) ? cfg.formatter(d.data.value) : '');
+}
+
+/* ----- Radar ----- */
+function renderRadar(node) {
+  node.innerHTML = '';
+  const svg = d3.select(node).append('svg');
+  const W = node.clientWidth || 400;
+  const H = node.clientHeight || 320;
+  svg.attr('width', W).attr('height', H);
+
+  const cx = W/2, cy = H/2 + 10;
+  const radius = Math.min(W, H) / 2 - 30;
+
+  /* Per-capita values per country per pillar (BE highlighted; adoption left blank) */
+  const pillars = ['Publications', 'Patents', 'Investments', 'Adoption'];
+  const popUnits = { Publications: 1e6, Patents: 1e6, Investments: 1, Adoption: 1 };
+  const metricKey = { Publications: 'publications', Patents: 'patents', Investments: 'investments' };
+
+  const peers = ['BE', 'NL', 'LU', 'DE', 'FR', 'IT'];
+
+  // Compute per-capita raw per pillar per peer
+  const raw = {};
+  peers.forEach(c => raw[c] = {});
+  pillars.forEach(p => {
+    if (p === 'Adoption') {
+      peers.forEach(c => raw[c][p] = null); // pending
+      return;
+    }
+    const m = metricKey[p];
+    const u = popUnits[p];
+    peers.forEach(c => {
+      const tot = sumYearsForGeo(m, c);
+      const pop = POP[c] || 0;
+      raw[c][p] = pop ? tot / (pop / u) : 0;
+    });
+  });
+
+  // Normalize 0..1 per pillar across peers (max-normalisation)
+  const norm = {};
+  peers.forEach(c => norm[c] = {});
+  pillars.forEach(p => {
+    const vals = peers.map(c => raw[c][p]).filter(v => v != null);
+    const max = Math.max(...vals, 1);
+    peers.forEach(c => norm[c][p] = raw[c][p] == null ? null : raw[c][p] / max);
+  });
+
+  // Axes
+  const angle = i => (i / pillars.length) * 2 * Math.PI - Math.PI/2;
+  const grid = svg.append('g').attr('transform', `translate(${cx},${cy})`);
+  [0.25, 0.5, 0.75, 1].forEach(t => {
+    const pts = pillars.map((_, i) => [Math.cos(angle(i))*radius*t, Math.sin(angle(i))*radius*t]);
+    grid.append('polygon').attr('class','radar-grid')
+      .attr('points', pts.map(p => p.join(',')).join(' '));
+  });
+  pillars.forEach((p, i) => {
+    grid.append('line').attr('class','radar-axis')
+      .attr('x1', 0).attr('y1', 0)
+      .attr('x2', Math.cos(angle(i))*radius)
+      .attr('y2', Math.sin(angle(i))*radius);
+    grid.append('text')
+      .attr('x', Math.cos(angle(i)) * (radius + 14))
+      .attr('y', Math.sin(angle(i)) * (radius + 14))
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'middle')
+      .attr('font-size', '11px').attr('fill', '#5a6275')
+      .text(p + (p === 'Adoption' ? ' *' : ''));
+  });
+
+  peers.forEach(c => {
+    const pts = pillars.map((p, i) => {
+      const v = norm[c][p];
+      const r = (v == null ? 0 : v) * radius;
+      return [Math.cos(angle(i)) * r, Math.sin(angle(i)) * r];
+    });
+    grid.append('polygon').attr('class', 'radar-area')
+      .attr('points', pts.map(p => p.join(',')).join(' '))
+      .attr('fill', PEER_COLORS[c])
+      .attr('stroke', PEER_COLORS[c])
+      .attr('fill-opacity', c === 'BE' ? 0.32 : 0.10)
+      .attr('stroke-width', c === 'BE' ? 2.5 : 1.4);
+  });
+
+  // legend
+  const lr = document.createElement('div');
+  lr.className = 'legend-row';
+  peers.forEach(c => {
+    lr.innerHTML += `<span class="legend-chip"><span class="swatch" style="background:${PEER_COLORS[c]};"></span>${c}</span>`;
+  });
+  lr.innerHTML += `<span style="margin-left:auto;color:#a07a18;font-size:10px;">* Adoption pending Eurostat data</span>`;
+  node.appendChild(lr);
+}
+
+/* ----- Benchmark table ----- */
+function renderBenchTable(node) {
+  node.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'padding: 8px 12px; overflow:auto; height:100%; box-sizing:border-box;';
+  const tbl = document.createElement('table');
+  tbl.className = 'bench';
+  const peers = ['BE', 'NL', 'LU', 'DE', 'FR', 'IT'];
+
+  const head = document.createElement('thead');
+  head.innerHTML = `<tr>
+    <th>Country</th>
+    <th>Pubs (per M)</th>
+    <th>Patents (per M)</th>
+    <th>Inv ($/cap)</th>
+    <th>Adoption</th>
+    <th>Pop (M)</th>
+  </tr>`;
+  tbl.appendChild(head);
+
+  const body = document.createElement('tbody');
+  peers.forEach(c => {
+    const pop = POP[c] || 0;
+    const pubs = pop ? sumYearsForGeo('publications', c) / (pop/1e6) : 0;
+    const pats = pop ? sumYearsForGeo('patents', c) / (pop/1e6) : 0;
+    const inv  = pop ? sumYearsForGeo('investments', c) / pop : 0;
+    const tr = document.createElement('tr');
+    if (c === 'BE') tr.className = 'be';
+    tr.innerHTML = `<td>${c}</td>
+      <td>${formatCount(pubs)}</td>
+      <td>${formatCount(pats)}</td>
+      <td>$${formatCount(inv)}</td>
+      <td style="color:#a07a18;">pending</td>
+      <td>${(pop/1e6).toFixed(1)}</td>`;
+    body.appendChild(tr);
+  });
+  tbl.appendChild(body);
+  wrap.appendChild(tbl);
+
+  const note = document.createElement('div');
+  note.style.cssText = 'padding: 6px 12px; font-size:10.5px; color:#a07a18;';
+  note.textContent = 'Adoption column awaiting Eurostat isoc_eb_ai extract.';
+  wrap.appendChild(note);
+
+  node.appendChild(wrap);
+}
+
+/* ============================ Dispatch ============================ */
+function renderAll() {
+  document.querySelectorAll('[data-render]').forEach(node => {
+    const kind = node.dataset.render;
+    try {
+      switch (kind) {
+        case 'placeholder':       renderPlaceholder(node, node.dataset.msg || ''); break;
+        case 'line':              renderLine(node, { metric: node.dataset.metric, geos: node.dataset.geos, showEuAvg: node.dataset.showEuAvg }); break;
+        case 'bar-per-capita':    renderBarPerCapita(node, { metric: node.dataset.metric, geos: node.dataset.geos, popUnit: node.dataset.popUnit }); break;
+        case 'line-per-capita':   renderLinePerCapita(node, { metric: node.dataset.metric, geos: node.dataset.geos, popUnit: node.dataset.popUnit }); break;
+        case 'be-city-map':       renderBeCityMap(node, { metric: node.dataset.metric, zoom: node.dataset.zoom }); break;
+        case 'eu-country-map':    renderEuCountryMap(node, { metric: node.dataset.metric }); break;
+        case 'be-city-tree':      renderBeCityTree(node, { metric: node.dataset.metric }); break;
+        case 'radar':             renderRadar(node); break;
+        case 'bench-table':       renderBenchTable(node); break;
+      }
+    } catch (err) {
+      console.error('render error', kind, err);
+      node.innerHTML = `<div class="placeholder"><span class="ph-tag">render error</span><span class="ph-msg">${err.message}</span></div>`;
+    }
+  });
+}
+
+/* ============================ Controls ============================ */
+function wireControls() {
+  const startSlider = document.getElementById('year-start');
+  const endSlider   = document.getElementById('year-end');
+  const startLabel  = document.getElementById('year-start-value');
+  const endLabel    = document.getElementById('year-end-value');
+
+  let renderTimer;
+  function debouncedRender() {
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(renderAll, 60);
+  }
+
+  startSlider.addEventListener('input', e => {
+    if (+e.target.value > +endSlider.value) e.target.value = endSlider.value;
+    yearStart = +e.target.value; startLabel.textContent = yearStart; debouncedRender();
+  });
+  endSlider.addEventListener('input', e => {
+    if (+e.target.value < +startSlider.value) e.target.value = startSlider.value;
+    yearEnd = +e.target.value; endLabel.textContent = yearEnd; debouncedRender();
+  });
+
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(renderAll, 120);
+  });
+}
+
+/* ============================ Init ============================ */
+(async function init() {
+  wireControls();
+  await Promise.all([
+    loadCrosswalk(),
+    loadWorldTopo(),
+    loadCountryYearly('publications'),
+    loadCountryYearly('patents'),
+    loadCountryYearly('investments'),
+    loadUrbanYearly('publications'),
+    loadUrbanYearly('patents'),
+    loadUrbanYearly('investments')
+  ]);
+  renderAll();
+})();
+</script>
+</body>
+</html>
