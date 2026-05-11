@@ -164,10 +164,14 @@
     </div>
 
     <script>
-        const DATA_PATH = (() => {
+        const DATA_VERSION = (() => {
             const v = new URLSearchParams(window.location.search).get('v');
-            return v && /^\d+$/.test(v) ? `github_v${v}.csv` : 'github.csv';
+            return v && /^\d+$/.test(v) ? parseInt(v, 10) : null;
         })();
+        const DATA_PATH = DATA_VERSION ? `github_v${DATA_VERSION}.csv` : 'github.csv';
+        const CHART_TITLE = DATA_VERSION === 2
+            ? 'Share of AI Agent PRs among Top 1M GitHub repos'
+            : 'Share of AI Agent PRs among Top AI GitHub repos';
         const VIZ_CONTAINER_ID = 'viz';
         const COLOR_PALETTE = ['#5BB5C1', '#4A94C3', '#3F75CC', '#3355CB', '#4A48D4', '#6654DB', '#8A60E0'];
 
@@ -434,7 +438,7 @@
                 .attr('x', margin.left)
                 .attr('y', isSmallWindow ? 24 : 38)
                 .attr('text-anchor', 'start')
-                .text('Share of AI Agent PRs among AI-related GitHub repos');
+                .text(CHART_TITLE);
 
             const focusLine = chartGroup.append('line')
                 .attr('class', 'focus-line')
