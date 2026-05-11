@@ -164,7 +164,10 @@
     </div>
 
     <script>
-        const DATA_PATH = 'github.csv';
+        const DATA_PATH = (() => {
+            const v = new URLSearchParams(window.location.search).get('v');
+            return v && /^\d+$/.test(v) ? `github_v${v}.csv` : 'github.csv';
+        })();
         const VIZ_CONTAINER_ID = 'viz';
         const COLOR_PALETTE = ['#5BB5C1', '#4A94C3', '#3F75CC', '#3355CB', '#4A48D4', '#6654DB', '#8A60E0'];
 
@@ -648,7 +651,7 @@
                 .catch(error => {
                     console.error(error);
                     if (vizContainer) {
-                        vizContainer.innerHTML = '<div class="error-state">Unable to load github.csv.</div>';
+                        vizContainer.innerHTML = `<div class="error-state">Unable to load ${DATA_PATH}.</div>`;
                     }
                 });
         }
