@@ -759,16 +759,18 @@
             const yearRowY = innerHeight + (isSmallWindow ? 32 : 50);
             const monthFormatter = d3.utcFormat('%b');
 
-            chartGroup.append('g')
-                .attr('class', 'quarter-axis-labels')
-                .selectAll('text')
-                .data(data.filter(d => d.date.getUTCMonth() % 3 === 0))
-                .join('text')
-                .attr('class', 'quarter-axis-label')
-                .attr('x', d => x(d.date))
-                .attr('y', monthRowY)
-                .attr('text-anchor', 'middle')
-                .text(d => monthFormatter(d.date));
+            if (!isSmallWindow) {
+                chartGroup.append('g')
+                    .attr('class', 'quarter-axis-labels')
+                    .selectAll('text')
+                    .data(data.filter(d => d.date.getUTCMonth() % 3 === 0))
+                    .join('text')
+                    .attr('class', 'quarter-axis-label')
+                    .attr('x', d => x(d.date))
+                    .attr('y', monthRowY)
+                    .attr('text-anchor', 'middle')
+                    .text(d => monthFormatter(d.date));
+            }
 
             chartGroup.append('g')
                 .attr('class', 'year-axis-labels')
@@ -807,7 +809,7 @@
 
             const bisectDate = d3.bisector(d => d.date).left;
 
-            if (MODE === 1) {
+            if (MODE === 1 && !isSmallWindow) {
                 const dateFormatter = d3.utcFormat('%b %Y');
                 const baseNumberFont = Math.max(22, Math.min(38, innerHeight * 0.055));
                 const baseDateFont = Math.max(11, Math.min(15, innerHeight * 0.022));
@@ -830,7 +832,8 @@
                     const yPosData = y(row.all_total_cum);
 
                     const isHeadline = threshold >= 1_000_000;
-                    const scale = isHeadline ? 1.2 : 1.0;
+                    const isMinor = threshold < 500_000;
+                    const scale = isHeadline ? 1.2 : isMinor ? 0.7 : 1.0;
                     const numberFont = baseNumberFont * scale;
                     const dateFont = baseDateFont * scale;
                     const stackHeight = numberFont + gap + lineThickness + gap + dateFont;
