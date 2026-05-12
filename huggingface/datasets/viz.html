@@ -809,11 +809,10 @@
 
             if (MODE === 1) {
                 const dateFormatter = d3.utcFormat('%b %Y');
-                const numberFont = Math.max(22, Math.min(38, innerHeight * 0.055));
-                const dateFont = Math.max(11, Math.min(15, innerHeight * 0.022));
+                const baseNumberFont = Math.max(22, Math.min(38, innerHeight * 0.055));
+                const baseDateFont = Math.max(11, Math.min(15, innerHeight * 0.022));
                 const gap = 4;
                 const lineThickness = 2;
-                const stackHeight = numberFont + gap + lineThickness + gap + dateFont;
 
                 const firstCum = data[0] ? data[0].all_total_cum : 0;
                 const milestones = MILESTONES
@@ -829,7 +828,15 @@
                 milestones.forEach(({ threshold, row }) => {
                     const xPos = x(row.date);
                     const yPosData = y(row.all_total_cum);
-                    const badgeCenterY = Math.max(stackHeight / 2 + 8, yPosData / 2);
+
+                    const isHeadline = threshold >= 1_000_000;
+                    const scale = isHeadline ? 1.2 : 1.0;
+                    const numberFont = baseNumberFont * scale;
+                    const dateFont = baseDateFont * scale;
+                    const stackHeight = numberFont + gap + lineThickness + gap + dateFont;
+                    const badgeCenterY = isHeadline
+                        ? -stackHeight / 2 - 6
+                        : Math.max(stackHeight / 2 + 8, yPosData / 2);
                     const topY = badgeCenterY - stackHeight / 2;
 
                     milestonesGroup.append('line')
@@ -855,7 +862,7 @@
                         .text(formatMilestone(threshold));
 
                     const numberWidth = numberText.node().getComputedTextLength() || numberFont * 2;
-                    const halfLine = Math.max(numberWidth / 2 + 4, 26);
+                    const halfLine = Math.max(numberWidth / 2 + 4, 26 * scale);
 
                     badgeGroup.append('line')
                         .attr('x1', -halfLine)
