@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>AI Agent PRs (monthly)</title>
+    <title>AI Agent PRs — status breakdown</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
@@ -145,6 +145,7 @@
             display: flex;
             align-items: center;
             cursor: pointer;
+            flex-shrink: 0;
         }
 
         .logo-collab {
@@ -153,6 +154,7 @@
             color: #9ca3af;
             line-height: 1;
             user-select: none;
+            flex-shrink: 0;
         }
 
         /* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
@@ -162,6 +164,62 @@
             height: 100%;
             min-height: 0;
             min-width: 0;
+        }
+
+        /* ─── LEGEND (dataviz pattern) ────────────────────────────────────────────── */
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1vw, 14px);
+            background: rgba(255, 255, 255, 1);
+            padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+            border-radius: clamp(6px, 1vw, 12px);
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(0.7rem, 1.4vw, 1rem);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 8px);
+            font-weight: 600;
+            color: #333;
+            font-size: inherit;
+            padding: 2px 6px;
+            cursor: default;
+        }
+
+        .legend-square {
+            width: clamp(10px, 1vw, 14px);
+            height: clamp(10px, 1vw, 14px);
+            border-radius: 0;
+            flex-shrink: 0;
+        }
+
+        /* Vertical legend variant (legend=2): sits to the right of the chart. */
+        #container2.legend-vertical {
+            align-items: center;
+            justify-content: center;
+            padding: 0 clamp(6px, 1vw, 14px);
+        }
+
+        #container2.legend-vertical .legend {
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            flex-wrap: nowrap;
+            gap: clamp(6px, 1.4vh, 14px);
+            padding: clamp(6px, 1.4vh, 14px) clamp(8px, 1.2vw, 14px);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #container2.legend-vertical .legend-item {
+            width: 100%;
         }
 
         /* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
@@ -188,15 +246,13 @@
         .logo {
             height: 100%;
             width: auto;
-            max-height: 100%;
-            max-width: 100%;
+            max-height: clamp(20px, 4.5vh, 56px);
             pointer-events: auto;
             object-fit: contain;
         }
 
         .logo.logo-github {
-            height: 90%;
-            max-height: 90%;
+            max-height: clamp(18px, 4vh, 50px);
         }
 
         /* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
@@ -223,7 +279,8 @@
             }
 
             .source-text,
-            .logo {
+            .logo,
+            .legend {
                 display: none !important;
             }
         }
@@ -251,8 +308,8 @@
             padding: 14px 16px;
             box-shadow: 0 18px 28px rgba(15, 23, 42, 0.15);
             border: 1px solid rgba(39, 86, 211, 0.15);
-            min-width: 200px;
-            max-width: 260px;
+            min-width: 220px;
+            max-width: 280px;
             font-size: 12px;
             color: #0f172a;
             opacity: 0;
@@ -263,19 +320,43 @@
         .tooltip-title {
             font-weight: 600;
             font-size: 13px;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
 
-        .tooltip-value {
-            font-size: 20px;
-            font-weight: 700;
+        .tooltip-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 12px;
             color: #0f172a;
+            padding: 2px 0;
         }
 
-        .tooltip-sub {
+        .tooltip-row .label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #475569;
+        }
+
+        .tooltip-row .swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .tooltip-row .value {
+            font-weight: 700;
+        }
+
+        .tooltip-total {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(15, 23, 42, 0.1);
             font-size: 12px;
             color: #475569;
-            margin-top: 4px;
         }
 
         .y-grid line {
@@ -300,23 +381,9 @@
             stroke: #d0d7e8;
         }
 
-        .total-line {
-            fill: none;
-            stroke: #0f172a;
-            stroke-width: 1.6;
-        }
-
         .focus-line {
             stroke: rgba(15, 23, 42, 0.7);
             stroke-width: 1;
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .focus-dot {
-            fill: #0f172a;
-            stroke: #ffffff;
-            stroke-width: 2;
             opacity: 0;
             pointer-events: none;
         }
@@ -329,12 +396,6 @@
             font-size: 18px;
             font-weight: 600;
             fill: #000000;
-        }
-
-        .chart-title {
-            font-size: clamp(22px, 4vh, 36px);
-            font-weight: 700;
-            fill: #0f172a;
         }
 
         .quarter-axis-label {
@@ -359,10 +420,14 @@
             <div class="subtitle-text" id="subtitle-text"></div>
         </div>
         <div id="container1" class="container viz-container">
-            <div id="viz" role="img" aria-label="Monthly share of AI Agent PRs on GitHub, colored by year"></div>
+            <div id="viz" role="img" aria-label="Monthly share of AI Agent PR statuses (merged, closed, open, draft)">
+            </div>
         </div>
         <div id="container5" class="container footnote-container">
             <div class="footnote-text" id="footnote-text"></div>
+        </div>
+        <div id="container2" class="container legend-container">
+            <div class="legend" id="legend"></div>
         </div>
         <div id="container3" class="container source-container">
             <div class="source-text" id="source-text">Source: <a href="https://github.com/" target="_blank"
@@ -380,13 +445,22 @@
     </div>
 
     <script>
-        const SHOW_CONTAINER_2 = 0;
+
+        const LEGEND_MODE = (() => {
+            const v = new URLSearchParams(window.location.search).get('legend');
+            if (v === '0') return 0;
+            if (v === '2') return 2;
+            return 1;
+        })();
+
+        const SHOW_CONTAINER_2 = LEGEND_MODE === 0 ? 0 : 1;
         const SHOW_CONTAINER_3 = 1;
         const SHOW_CONTAINER_4 = 1;
         const SHOW_CONTAINER_5 = 1;
 
         (function applyContainerVisibility() {
             const vizGrid = document.querySelector('.viz-grid');
+            const c1 = document.getElementById('container1');
             const c2 = document.getElementById('container2');
             const c3 = document.getElementById('container3');
             const c4 = document.getElementById('container4');
@@ -399,8 +473,9 @@
             if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
             if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
 
+            const legendInSideColumn = LEGEND_MODE === 2 && SHOW_CONTAINER_2;
             const row2Visible = SHOW_CONTAINER_5;
-            const row3Visible = SHOW_CONTAINER_2;
+            const row3Visible = SHOW_CONTAINER_2 && !legendInSideColumn;
             const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
 
             let gridRows = ['1.6fr', '1fr'];
@@ -411,6 +486,8 @@
 
             if (title) title.style.gridRow = '1';
             if (subtitle) subtitle.style.gridRow = '2';
+
+            const chartRow = 3;
 
             if (row2Visible) { gridRows.push(`${footnoteRow}fr`); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
             if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
@@ -423,30 +500,61 @@
             }
 
             vizGrid.style.gridTemplateRows = gridRows.join(' ');
-            document.getElementById('container1').style.gridRow = '3';
+
+            if (legendInSideColumn) {
+                vizGrid.style.gridTemplateColumns = 'minmax(0, 1fr) clamp(120px, 14vw, 200px)';
+                c1.style.gridRow = String(chartRow);
+                c1.style.gridColumn = '1';
+                c2.classList.add('legend-vertical');
+                c2.style.gridRow = String(chartRow);
+                c2.style.gridColumn = '2';
+                if (c4) c4.style.overflow = 'visible';
+            } else {
+                c1.style.gridRow = String(chartRow);
+                c1.style.gridColumn = '1 / span 2';
+            }
         })();
 
         const DATA_VERSION = (() => {
             const v = new URLSearchParams(window.location.search).get('v');
-            return v && /^\d+$/.test(v) ? parseInt(v, 10) : null;
+            const n = v && /^\d+$/.test(v) ? parseInt(v, 10) : 3;
+            return n === 4 ? 4 : 3;
         })();
-        const DATA_PATH = DATA_VERSION ? `github_v${DATA_VERSION}.csv` : 'github.csv';
-        const CHART_TITLE = DATA_VERSION === 2
-            ? 'How much code is written by AI Agents?'
+        const DATA_PATH = `github_v${DATA_VERSION}.csv`;
+
+        const SOURCE = (() => {
+            const v = new URLSearchParams(window.location.search).get('source');
+            return v === 'humans' ? 'humans' : 'agents';
+        })();
+        const SOURCE_PREFIX = SOURCE === 'humans' ? 'human' : 'agent';
+        const SOURCE_LABEL = SOURCE === 'humans' ? 'Human' : 'AI Agent';
+        const CHART_TITLE = SOURCE === 'humans'
+            ? 'How much code is written by Humans?'
             : 'How much code is written by AI Agents?';
-        const CHART_SUBTITLE = DATA_VERSION === 2
-            ? 'Share of AI Agent Pull Requests among Top GitHub Repos'
-            : 'Share of AI Agent Pull Requests among Top AI GitHub Repos';
-        const CHART_FOOTNOTE = DATA_VERSION === 2
-            ? "* AI agent written code corresponds to a pull request authored by one of eight AI coding tool repositories: Claude Code, Codex, Jules, Devin, Cursor, Cosine, Codegen, or GitHub Copilot - identified by author name or branch name. All repos correspond to the full OpenSSF's top 1 million most widely used open-source projects."
-            : "* AI Agent written code corresponds to a pull request authored by one of eight AI coding tool repositories: Claude Code, Codex, Jules, Devin, Cursor, Cosine, Codegen, or GitHub Copilot - identified by author name or branch name. AI repos correspond to AI-related projects from OpenSSF's top 1 million most widely used open-source projects.";
+        const CHART_SUBTITLE = DATA_VERSION === 4
+            ? `Share of ${SOURCE_LABEL} Pull Requests among Top GitHub Repos`
+            : `Share of ${SOURCE_LABEL} Pull Requests among Top AI GitHub Repos`;
+        const CHART_FOOTNOTE = SOURCE === 'humans'
+            ? (DATA_VERSION === 4
+                ? "* Human-written code corresponds to a pull request not attributed to one of the tracked AI coding tools. All repos correspond to the full OpenSSF's top 1 million most widely used open-source projects."
+                : "* Human-written code corresponds to a pull request not attributed to one of the tracked AI coding tools. AI repos correspond to AI-related projects from OpenSSF's top 1 million most widely used open-source projects.")
+            : (DATA_VERSION === 4
+                ? "* AI agent written code corresponds to a pull request authored by one of eight AI coding tool repositories: Claude Code, Codex, Jules, Devin, Cursor, Cosine, Codegen, or GitHub Copilot - identified by author name or branch name. All repos correspond to the full OpenSSF's top 1 million most widely used open-source projects."
+                : "* AI Agent written code corresponds to a pull request authored by one of eight AI coding tool repositories: Claude Code, Codex, Jules, Devin, Cursor, Cosine, Codegen, or GitHub Copilot - identified by author name or branch name. AI repos correspond to AI-related projects from OpenSSF's top 1 million most widely used open-source projects.");
         document.getElementById('title-text').textContent = CHART_TITLE;
         document.getElementById('subtitle-text').textContent = CHART_SUBTITLE;
         document.getElementById('footnote-text').textContent = CHART_FOOTNOTE;
-        const Y_MAX_V2 = 8;
-        const Y_MAX_DEFAULT = 9.5;
+
         const VIZ_CONTAINER_ID = 'viz';
-        const COLOR_PALETTE = ['#264653', '#2a9d8f', '#3F75CC', '#3355CB', '#4A48D4', '#6654DB', '#8A60E0'];
+
+
+        const STACK_KEYS = [
+            { key: 'merged_pct', countKey: `${SOURCE_PREFIX}_merged`, label: 'Merged', color: '#9bc53d' },
+            { key: 'closed_pct', countKey: `${SOURCE_PREFIX}_closed`, label: 'Closed', color: '#ef3e36' },
+            { key: 'open_pct', countKey: `${SOURCE_PREFIX}_open`, label: 'Open', color: '#ffca3a' },
+            { key: 'draft_pct', countKey: `${SOURCE_PREFIX}_draft`, label: 'Draft', color: '#94a3b8' }
+        ];
+        const COLOR_BY_KEY = Object.fromEntries(STACK_KEYS.map(s => [s.key, s.color]));
 
         const KEY_MOMENTS = [
             { date: '2025-09-15', subtitle: 'GPT-5-Codex', logo: 'logos/gpt-5-codex.svg' },
@@ -455,8 +563,14 @@
         ];
 
         const numberFormatter = d3.format(',');
-        const shortFormatter = value => d3.format('~s')(value).replace('G', 'B').toUpperCase();
-        const formatTooltipDate = q => q;
+        const percentFormatter = d3.format('.1%');
+        function shortFormatter(v) {
+            if (!isFinite(v)) return '';
+            if (Math.abs(v) >= 1e9) return d3.format('.1f')(v / 1e9) + 'B';
+            if (Math.abs(v) >= 1e6) return d3.format('.1f')(v / 1e6) + 'M';
+            if (Math.abs(v) >= 1e3) return d3.format('.1f')(v / 1e3).replace(/\.0$/, '') + 'k';
+            return d3.format(',')(v);
+        }
 
         const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
         const chartContainer = document.getElementById('container1');
@@ -466,8 +580,7 @@
         chartContainer.appendChild(tooltipElement);
 
         let preparedRows = [];
-        let stackKeys = [];
-        let colorScale = null;
+        let monthYears = [];
 
         function hideTooltip() {
             tooltipElement.style.opacity = 0;
@@ -506,21 +619,53 @@
             const rows = [];
             for (let i = 1; i < lines.length; i++) {
                 const r = parseCSVLine(lines[i]);
-                const date = parseISODate(r[idx.week]);
+                const date = parseISODate(r[idx.month]);
                 if (!date) continue;
-                const agent_prs = +r[idx.agent_prs] || 0;
-                const all_prs = +r[idx.all_prs] || 0;
-                const ratio = +r[idx.agent_share] || 0;
-                rows.push({
+                const all_total = +r[idx.all_total] || 0;
+                const src_merged = +r[idx[`${SOURCE_PREFIX}_merged`]] || 0;
+                const src_closed = +r[idx[`${SOURCE_PREFIX}_closed`]] || 0;
+                const src_open = +r[idx[`${SOURCE_PREFIX}_open`]] || 0;
+                const src_draft = +r[idx[`${SOURCE_PREFIX}_draft`]] || 0;
+                const src_total = +r[idx[`${SOURCE_PREFIX}_total`]] || 0;
+                const safeDen = all_total || 1;
+                const row = {
                     date,
-                    agent_prs,
-                    all_prs,
-                    share: ratio * 100
-                });
+                    all_total,
+                    source_total: src_total,
+                    source_share: src_total / safeDen,
+                    merged_pct: src_merged / safeDen,
+                    closed_pct: src_closed / safeDen,
+                    open_pct: src_open / safeDen,
+                    draft_pct: src_draft / safeDen
+                };
+                row[`${SOURCE_PREFIX}_merged`] = src_merged;
+                row[`${SOURCE_PREFIX}_closed`] = src_closed;
+                row[`${SOURCE_PREFIX}_open`] = src_open;
+                row[`${SOURCE_PREFIX}_draft`] = src_draft;
+                rows.push(row);
             }
             rows.sort((a, b) => a.date - b.date);
             const years = Array.from(new Set(rows.map(d => d.date.getUTCFullYear()))).sort();
-            return { rows, keys: years.map(String) };
+            return { rows, years: years.map(String) };
+        }
+
+        function buildLegend() {
+            const legend = document.getElementById('legend');
+            legend.innerHTML = '';
+            STACK_KEYS.slice().reverse().forEach(s => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+
+                const square = document.createElement('span');
+                square.className = 'legend-square';
+                square.style.background = s.color;
+
+                const label = document.createElement('span');
+                label.textContent = s.label;
+
+                item.append(square, label);
+                legend.appendChild(item);
+            });
         }
 
         function renderVisualization(data, width, height) {
@@ -566,55 +711,58 @@
                 .domain([xMin, xMax])
                 .range([0, innerWidth]);
 
-            const dataMax = d3.max(data, d => d.share);
-            const yDomainMax = DATA_VERSION === 2
-                ? Math.max(dataMax, Y_MAX_V2)
-                : Y_MAX_DEFAULT;
+            const yMaxData = d3.max(data, d => d.source_share) || 0.01;
+            const yDomainMax = yMaxData >= 0.5
+                ? yMaxData + 0.1
+                : yMaxData * 1.1;
             const y = d3.scaleLinear()
-                .domain([0, yDomainMax]).nice()
+                .domain([0, yDomainMax])
                 .range([innerHeight, 0]);
+            if (yMaxData < 0.5) y.nice();
 
             chartGroup.append('g')
                 .attr('class', 'y-grid')
-                .call(d3.axisLeft(y).tickSize(-innerWidth).tickFormat(''));
+                .call(d3.axisLeft(y).ticks(5).tickSize(-innerWidth).tickFormat(''));
 
-            const gradientId = 'year-gradient';
-            const defs = svg.append('defs');
-            const gradient = defs.append('linearGradient')
-                .attr('id', gradientId)
-                .attr('x1', '0%').attr('x2', '100%')
-                .attr('y1', '0%').attr('y2', '0%');
+            const stack = d3.stack().keys(STACK_KEYS.map(s => s.key));
+            const series = stack(data);
 
-            const totalTime = xMax - xMin;
-            stackKeys.forEach(year => {
-                const yearStart = new Date(Date.UTC(parseInt(year), 0, 1));
-                const yearEnd = new Date(Date.UTC(parseInt(year) + 1, 0, 1));
-                const start = yearStart < xMin ? xMin : yearStart;
-                const end = yearEnd > xMax ? xMax : yearEnd;
-                if (start < end) {
-                    const startPct = ((start - xMin) / totalTime) * 100;
-                    const endPct = ((end - xMin) / totalTime) * 100;
-                    const color = colorScale(year);
-                    gradient.append('stop').attr('offset', startPct + '%').attr('stop-color', color);
-                    gradient.append('stop').attr('offset', endPct + '%').attr('stop-color', color);
-                }
-            });
-
-            const areaTotal = d3.area()
-                .x(d => x(d.date))
-                .y0(innerHeight)
-                .y1(d => y(d.share))
+            const area = d3.area()
+                .x(d => x(d.data.date))
+                .y0(d => y(d[0]))
+                .y1(d => y(d[1]))
                 .curve(d3.curveMonotoneX);
 
-            chartGroup.append('path')
-                .datum(data)
-                .attr('class', 'total-area')
-                .attr('fill', `url(#${gradientId})`)
-                .attr('d', areaTotal)
-                .attr('opacity', 0.9);
+            chartGroup.selectAll('path.stacked-area')
+                .data(series)
+                .join('path')
+                .attr('class', 'stacked-area')
+                .attr('fill', d => COLOR_BY_KEY[d.key])
+                .attr('opacity', 0.92)
+                .attr('d', area);
 
-            // Dashed vertical separators at year boundaries
-            stackKeys.forEach(year => {
+            const topLine = chartGroup.append('path')
+                .datum(data)
+                .attr('fill', 'none')
+                .attr('stroke', 'none')
+                .attr('d', d3.line()
+                    .x(d => x(d.date))
+                    .y(d => y(d.source_share))
+                    .curve(d3.curveMonotoneX)
+                );
+            const topLineNode = topLine.node();
+            const topLineLength = topLineNode.getTotalLength();
+            function yOnLineAtX(targetX) {
+                let lo = 0, hi = topLineLength;
+                for (let i = 0; i < 32; i++) {
+                    const mid = (lo + hi) / 2;
+                    const pt = topLineNode.getPointAtLength(mid);
+                    if (pt.x < targetX) lo = mid; else hi = mid;
+                }
+                return topLineNode.getPointAtLength((lo + hi) / 2).y;
+            }
+
+            monthYears.forEach(year => {
                 const yearStart = new Date(Date.UTC(parseInt(year), 0, 1));
                 if (yearStart > xMin && yearStart < xMax) {
                     chartGroup.append('line')
@@ -622,31 +770,10 @@
                         .attr('x2', x(yearStart))
                         .attr('y1', 0)
                         .attr('y2', innerHeight)
-                        .attr('stroke', 'rgba(15, 23, 42, 0.2)')
+                        .attr('stroke', 'rgba(15, 23, 42, 0.25)')
                         .attr('stroke-dasharray', '4 4');
                 }
             });
-
-            const totalLine = chartGroup.append('path')
-                .datum(data)
-                .attr('class', 'total-line')
-                .attr('d', d3.line()
-                    .x(d => x(d.date))
-                    .y(d => y(d.share))
-                    .curve(d3.curveMonotoneX)
-                );
-
-            const totalLineNode = totalLine.node();
-            const totalLineLength = totalLineNode.getTotalLength();
-            function yOnLineAtX(targetX) {
-                let lo = 0, hi = totalLineLength;
-                for (let i = 0; i < 32; i++) {
-                    const mid = (lo + hi) / 2;
-                    const pt = totalLineNode.getPointAtLength(mid);
-                    if (pt.x < targetX) lo = mid; else hi = mid;
-                }
-                return totalLineNode.getPointAtLength((lo + hi) / 2).y;
-            }
 
             const xAxis = d3.axisBottom(x).ticks(0).tickFormat(() => '');
             chartGroup.append('g')
@@ -654,7 +781,7 @@
                 .attr('transform', `translate(0,${innerHeight})`)
                 .call(xAxis);
 
-            const yearAxisLabelData = stackKeys.map(year => {
+            const yearAxisLabelData = monthYears.map(year => {
                 const yearStart = new Date(Date.UTC(parseInt(year), 0, 1));
                 const yearEnd = new Date(Date.UTC(parseInt(year) + 1, 0, 1));
                 const start = yearStart < xMin ? xMin : yearStart;
@@ -693,7 +820,7 @@
 
             const yAxis = d3.axisLeft(y)
                 .ticks(Math.min(5, Math.floor(innerHeight / 90)))
-                .tickFormat(value => value + '%');
+                .tickFormat(d3.format('.1%'));
 
             chartGroup.append('g')
                 .attr('class', 'y-axis')
@@ -713,10 +840,6 @@
                 .attr('class', 'focus-line')
                 .attr('y1', 0)
                 .attr('y2', innerHeight);
-
-            const focusDot = chartGroup.append('circle')
-                .attr('class', 'focus-dot')
-                .attr('r', 4.5);
 
             const bisectDate = d3.bisector(d => d.date).left;
 
@@ -812,7 +935,6 @@
                             .text(moment.subtitle);
                     }
 
-                    // Dot at the data intersection.
                     momentsGroup.append('circle')
                         .attr('cx', xPos)
                         .attr('cy', yPosData)
@@ -834,7 +956,6 @@
                     const [mx, my] = d3.pointer(event, this);
                     if (mx < 0 || mx > innerWidth || my < 0 || my > innerHeight) {
                         focusLine.style('opacity', 0);
-                        focusDot.style('opacity', 0);
                         hideTooltip();
                         return;
                     }
@@ -845,29 +966,32 @@
                     const d = hoveredDate - d0.date > d1.date - hoveredDate ? d1 : d0;
 
                     const xPos = x(d.date);
-                    const yPos = y(d.share);
 
                     focusLine
                         .attr('x1', xPos)
                         .attr('x2', xPos)
                         .style('opacity', 1);
 
-                    focusDot
-                        .attr('cx', xPos)
-                        .attr('cy', yPos)
-                        .style('opacity', 1);
-
-                    const sharePct = d.share.toFixed(2) + '%';
                     const monthLabel = d3.utcFormat('%b %Y')(d.date);
+                    const rowsHtml = STACK_KEYS.slice().reverse().map(s => {
+                        const share = d[s.key] || 0;
+                        const count = d[s.countKey] || 0;
+                        return `
+                            <div class="tooltip-row">
+                                <span class="label"><span class="swatch" style="background:${s.color}"></span>${s.label}</span>
+                                <span class="value">${percentFormatter(share)} <span style="color:#94a3b8;font-weight:500">(${numberFormatter(count)})</span></span>
+                            </div>`;
+                    }).join('');
+
                     tooltipElement.innerHTML = `
                         <div class="tooltip-title">${monthLabel}</div>
-                        <div class="tooltip-value">${sharePct}</div>
-                        <div class="tooltip-sub">${numberFormatter(d.agent_prs)} agent / ${numberFormatter(d.all_prs)} PRs</div>
+                        ${rowsHtml}
+                        <div class="tooltip-total">${percentFormatter(d.source_share)} total, ${numberFormatter(d.source_total)} / ${numberFormatter(d.all_total)} PRs</div>
                     `;
                     tooltipElement.style.opacity = 1;
 
-                    const tooltipWidth = tooltipElement.offsetWidth || 220;
-                    const tooltipHeight = tooltipElement.offsetHeight || 100;
+                    const tooltipWidth = tooltipElement.offsetWidth || 240;
+                    const tooltipHeight = tooltipElement.offsetHeight || 140;
                     const containerWidth = vizContainer.clientWidth;
                     const containerHeight = vizContainer.clientHeight;
                     let left = margin.left + xPos + 16;
@@ -875,9 +999,9 @@
                         left = margin.left + xPos - tooltipWidth - 16;
                     }
                     left = Math.max(8, Math.min(containerWidth - tooltipWidth - 8, left));
-                    let top = margin.top + yPos - tooltipHeight - 12;
+                    let top = margin.top + my - tooltipHeight - 12;
                     if (top < 8) {
-                        top = margin.top + yPos + 12;
+                        top = margin.top + my + 12;
                     }
                     top = Math.max(8, Math.min(containerHeight - tooltipHeight - 8, top));
                     tooltipElement.style.left = `${left}px`;
@@ -885,7 +1009,6 @@
                 })
                 .on('mouseleave', function () {
                     focusLine.style('opacity', 0);
-                    focusDot.style('opacity', 0);
                     hideTooltip();
                 });
         }
@@ -909,16 +1032,8 @@
                         return;
                     }
                     preparedRows = result.rows;
-                    stackKeys = result.keys;
-                    // Anchor colors to a base year so the same year always gets the same
-                    // color across charts that share this palette.
-                    const COLOR_BASE_YEAR = 2020;
-                    colorScale = d3.scaleOrdinal()
-                        .domain(stackKeys)
-                        .range(stackKeys.map(year => {
-                            const i = (parseInt(year, 10) - COLOR_BASE_YEAR) % COLOR_PALETTE.length;
-                            return COLOR_PALETTE[(i + COLOR_PALETTE.length) % COLOR_PALETTE.length];
-                        }));
+                    monthYears = result.years;
+                    buildLegend();
                     renderVisualizationForContainer();
                 })
                 .catch(error => {
@@ -932,7 +1047,7 @@
         let resizeTimer;
         window.addEventListener('resize', function () {
             clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(renderVisualizationForContainer, 120);
+            resizeTimer = setTimeout(renderVisualizationForContainer, 220);
         });
 
         if (typeof ResizeObserver !== 'undefined' && vizContainer) {
