@@ -170,6 +170,14 @@
             font-size: inherit;
             padding: 2px 6px;
             cursor: default;
+            min-width: 0;
+        }
+
+        .legend-item > span:last-child {
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            min-width: 0;
+            line-height: 1.2;
         }
 
         .legend-square {
@@ -468,7 +476,7 @@
             vizGrid.style.gridTemplateRows = gridRows.join(' ');
 
             if (legendInSideColumn) {
-                vizGrid.style.gridTemplateColumns = 'minmax(0, 1fr) clamp(120px, 14vw, 200px)';
+                vizGrid.style.gridTemplateColumns = 'minmax(0, 1fr) clamp(150px, 18vw, 240px)';
                 c1.style.gridRow = String(chartRow);
                 c1.style.gridColumn = '1';
                 c2.classList.add('legend-vertical');
@@ -628,7 +636,10 @@
             hideTooltip();
             vizContainer.innerHTML = '';
 
-            const isSmallWindow = height < 500 || width < 600;
+            const isSmallWindow = height < 500 || width < 500;
+            // Window-based gate (independent of how legend=2 shrinks the chart column),
+            // used to decide whether to render milestones.
+            const showMilestones = window.innerWidth >= 500 && window.innerHeight >= 500;
             const margin = {
                 top: isSmallWindow ? 12 : 20,
                 right: 32,
@@ -809,7 +820,7 @@
 
             const bisectDate = d3.bisector(d => d.date).left;
 
-            if (MODE === 1 && !isSmallWindow) {
+            if (MODE === 1 && showMilestones) {
                 const dateFormatter = d3.utcFormat('%b %Y');
                 const baseNumberFont = Math.max(22, Math.min(38, innerHeight * 0.055));
                 const baseDateFont = Math.max(11, Math.min(15, innerHeight * 0.022));
