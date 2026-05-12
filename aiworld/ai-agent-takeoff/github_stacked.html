@@ -548,13 +548,17 @@
         const VIZ_CONTAINER_ID = 'viz';
 
 
+        // ?mode=0 (default) → % share of all PRs. ?mode=1 → absolute PR counts.
+        const MODE = new URLSearchParams(window.location.search).get('mode') === '1' ? 1 : 0;
+
         const STACK_KEYS = [
-            { key: 'merged_pct', countKey: `${SOURCE_PREFIX}_merged`, label: 'Merged', color: '#9bc53d' },
-            { key: 'closed_pct', countKey: `${SOURCE_PREFIX}_closed`, label: 'Rejected', color: '#ef3e36' },
-            { key: 'open_pct', countKey: `${SOURCE_PREFIX}_open`, label: 'Open', color: '#ffca3a' },
-            { key: 'draft_pct', countKey: `${SOURCE_PREFIX}_draft`, label: 'Draft', color: '#94a3b8' }
+            { pctKey: 'merged_pct', countKey: `${SOURCE_PREFIX}_merged`, label: 'Merged', color: '#9bc53d' },
+            { pctKey: 'closed_pct', countKey: `${SOURCE_PREFIX}_closed`, label: 'Rejected', color: '#ef3e36' },
+            { pctKey: 'open_pct', countKey: `${SOURCE_PREFIX}_open`, label: 'Open', color: '#ffca3a' },
+            { pctKey: 'draft_pct', countKey: `${SOURCE_PREFIX}_draft`, label: 'Draft', color: '#94a3b8' }
         ];
-        const COLOR_BY_KEY = Object.fromEntries(STACK_KEYS.map(s => [s.key, s.color]));
+        const STACK_VALUE_KEY = MODE === 1 ? 'countKey' : 'pctKey';
+        const COLOR_BY_KEY = Object.fromEntries(STACK_KEYS.map(s => [s[STACK_VALUE_KEY], s.color]));
 
         const KEY_MOMENTS = [
             { date: '2025-09-15', subtitle: 'GPT-5-Codex', logo: 'logos/gpt-5-codex.svg' },
@@ -711,20 +715,31 @@
                 .domain([xMin, xMax])
                 .range([0, innerWidth]);
 
-            const yMaxData = d3.max(data, d => d.source_share) || 0.01;
-            const yDomainMax = yMaxData >= 0.5
-                ? yMaxData + 0.1
-                : yMaxData * 1.1;
+            const topValueOf = MODE === 1 ? (d => d.source_total) : (d => d.source_share);
+            const yMaxData = d3.max(data, topValueOf) || (MODE === 1 ? 1 : 0.01);
+            let yDomainMax;
+            let applyNice = false;
+            if (MODE === 1) {
+                yDomainMax = yMaxData * 1.1;
+                applyNice = true;
+            } else if (yMaxData >= 0.5) {
+                // Humans: extend above 100% so the stack doesn't touch the top.
+                yDomainMax = yMaxData + 0.1;
+            } else {
+                // Agents: scale to data with 10% headroom + .nice().
+                yDomainMax = yMaxData * 1.1;
+                applyNice = true;
+            }
             const y = d3.scaleLinear()
                 .domain([0, yDomainMax])
                 .range([innerHeight, 0]);
-            if (yMaxData < 0.5) y.nice();
+            if (applyNice) y.nice();
 
             chartGroup.append('g')
                 .attr('class', 'y-grid')
                 .call(d3.axisLeft(y).ticks(5).tickSize(-innerWidth).tickFormat(''));
 
-            const stack = d3.stack().keys(STACK_KEYS.map(s => s.key));
+            const stack = d3.stack().keys(STACK_KEYS.map(s => s[STACK_VALUE_KEY]));
             const series = stack(data);
 
             const area = d3.area()
@@ -747,7 +762,7 @@
                 .attr('stroke', 'none')
                 .attr('d', d3.line()
                     .x(d => x(d.date))
-                    .y(d => y(d.source_share))
+                    .y(d => y(topValueOf(d)))
                     .curve(d3.curveMonotoneX)
                 );
             const topLineNode = topLine.node();
@@ -820,7 +835,7 @@
 
             const yAxis = d3.axisLeft(y)
                 .ticks(Math.min(5, Math.floor(innerHeight / 90)))
-                .tickFormat(d3.format('.1%'));
+                .tickFormat(MODE === 1 ? shortFormatter : d3.format('.1%'));
 
             chartGroup.append('g')
                 .attr('class', 'y-axis')
@@ -833,7 +848,7 @@
                     .attr('x', -innerHeight / 2)
                     .attr('y', -margin.left + 24)
                     .attr('text-anchor', 'middle')
-                    .text('Share of Pull Requests');
+                    .text(MODE === 1 ? 'Pull Requests' : 'Share of Pull Requests');
             }
 
             const focusLine = chartGroup.append('line')
@@ -974,19 +989,21 @@
 
                     const monthLabel = d3.utcFormat('%b %Y')(d.date);
                     const rowsHtml = STACK_KEYS.slice().reverse().map(s => {
-                        const share = d[s.key] || 0;
+                        const share = d[s.pctKey] || 0;
                         const count = d[s.countKey] || 0;
+                        const primary = MODE === 1 ? numberFormatter(count) : percentFormatter(share);
+                        const secondary = MODE === 1 ? percentFormatter(share) : numberFormatter(count);
                         return `
                             <div class="tooltip-row">
                                 <span class="label"><span class="swatch" style="background:${s.color}"></span>${s.label}</span>
-                                <span class="value">${percentFormatter(share)} <span style="color:#94a3b8;font-weight:500">(${numberFormatter(count)})</span></span>
+                                <span class="value">${primary} <span style="color:#94a3b8;font-weight:500">(${secondary})</span></span>
                             </div>`;
                     }).join('');
 
                     tooltipElement.innerHTML = `
                         <div class="tooltip-title">${monthLabel}</div>
                         ${rowsHtml}
-                        <div class="tooltip-total">${percentFormatter(d.source_share)} total, ${numberFormatter(d.source_total)} / ${numberFormatter(d.all_total)} PRs</div>
+                        <div class="tooltip-total">${MODE === 1 ? numberFormatter(d.source_total) + ' total, ' + percentFormatter(d.source_share) + ' of all PRs' : percentFormatter(d.source_share) + ' total, ' + numberFormatter(d.source_total) + ' / ' + numberFormatter(d.all_total) + ' PRs'}</div>
                     `;
                     tooltipElement.style.opacity = 1;
 
