@@ -528,12 +528,15 @@
         })();
         const SOURCE_PREFIX = SOURCE === 'humans' ? 'human' : 'agent';
         const SOURCE_LABEL = SOURCE === 'humans' ? 'Human' : 'AI Agent';
+        // ?mode=0 (default) → % share of all PRs. ?mode=1 → absolute PR counts.
+        const MODE = new URLSearchParams(window.location.search).get('mode') === '1' ? 1 : 0;
         const CHART_TITLE = SOURCE === 'humans'
             ? 'How much code is written by Humans?'
             : 'How much code is written by AI Agents?';
-        const CHART_SUBTITLE = DATA_VERSION === 4
-            ? `Share of ${SOURCE_LABEL} Pull Requests among Top GitHub Repos`
-            : `Share of ${SOURCE_LABEL} Pull Requests among Top AI GitHub Repos`;
+        const REPO_SCOPE = DATA_VERSION === 4 ? 'Top GitHub Repos' : 'Top AI GitHub Repos';
+        const CHART_SUBTITLE = MODE === 1
+            ? `Count of ${SOURCE_LABEL} Pull Requests among ${REPO_SCOPE}`
+            : `Share of ${SOURCE_LABEL} Pull Requests among ${REPO_SCOPE}`;
         const CHART_FOOTNOTE = SOURCE === 'humans'
             ? (DATA_VERSION === 4
                 ? "* Human-written code corresponds to a pull request not attributed to one of the tracked AI coding tools. All repos correspond to the full OpenSSF's top 1 million most widely used open-source projects."
@@ -548,11 +551,8 @@
         const VIZ_CONTAINER_ID = 'viz';
 
 
-        // ?mode=0 (default) → % share of all PRs. ?mode=1 → absolute PR counts.
-        const MODE = new URLSearchParams(window.location.search).get('mode') === '1' ? 1 : 0;
-
         const STACK_KEYS = [
-            { pctKey: 'merged_pct', countKey: `${SOURCE_PREFIX}_merged`, label: 'Merged', color: '#9bc53d' },
+            { pctKey: 'merged_pct', countKey: `${SOURCE_PREFIX}_merged`, label: 'Merged', color: '#76b900' },
             { pctKey: 'closed_pct', countKey: `${SOURCE_PREFIX}_closed`, label: 'Rejected', color: '#ef3e36' },
             { pctKey: 'open_pct', countKey: `${SOURCE_PREFIX}_open`, label: 'Open', color: '#ffca3a' },
             { pctKey: 'draft_pct', countKey: `${SOURCE_PREFIX}_draft`, label: 'Draft', color: '#94a3b8' }
@@ -723,10 +723,8 @@
                 yDomainMax = yMaxData * 1.1;
                 applyNice = true;
             } else if (yMaxData >= 0.5) {
-                // Humans: extend above 100% so the stack doesn't touch the top.
                 yDomainMax = yMaxData + 0.1;
             } else {
-                // Agents: scale to data with 10% headroom + .nice().
                 yDomainMax = yMaxData * 1.1;
                 applyNice = true;
             }
