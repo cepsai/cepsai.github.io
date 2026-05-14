@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI Agent PRs — Top 50 Enterprises</title>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+    <style>
+        /* ─── BASE ────────────────────────────────────────────────────────────────── */
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        /* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 16fr 1fr 2fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #title-container {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-start;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .title-text {
+            font-size: clamp(22px, 4vh, 36px);
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        #subtitle-container {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .subtitle-text {
+            font-size: clamp(17px, 2.4vw, 24px);
+            font-weight: 500;
+            color: #475569;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        #container1 {
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        #container1 .chart-wrapper {
+            flex: 1 1 auto;
+            display: flex;
+            min-width: 0;
+            height: 100%;
+            margin-left: 0;
+        }
+
+        #container1 .chart-wrapper-inner {
+            flex: 1 1 auto;
+            display: flex;
+            min-width: 0;
+            height: 100%;
+        }
+
+        #container2 {
+            grid-column: 1 / span 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1vh, 12px);
+            overflow: hidden;
+        }
+
+        /* ─── SELECTOR BUTTONS ────────────────────────────────────────────────── */
+
+        .selector-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(2px, 0.5vw, 6px);
+            padding: clamp(2px, 0.4vw, 4px);
+            border-radius: 6px;
+            border: 1px solid rgba(17, 24, 39, 0.15);
+            background: #f8fafc;
+            max-width: 100%;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        .selector-button {
+            border: none;
+            background: transparent;
+            padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+            border-radius: 6px;
+            font-size: clamp(9px, 1.4vw, 13px);
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+            white-space: nowrap;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        .selector-button.active {
+            background: #2756d3;
+            color: #fff;
+        }
+
+        #container3 {
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+            gap: clamp(6px, 1vw, 14px);
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .logo-collab {
+            font-size: clamp(12px, 1.6vw, 18px);
+            font-weight: 400;
+            color: #9ca3af;
+            line-height: 1;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        /* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
+
+        #viz {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        /* ─── LEGEND (treemap variant: sharp squares, white pill) ─────────────────── */
+
+        .custom-legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1.5vw, 14px);
+            background: rgba(255, 255, 255, 0.9);
+            padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 16px);
+            border-radius: clamp(6px, 1.2vw, 12px);
+            overflow: auto;
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 8px);
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            font-weight: 600;
+            color: #333;
+            font-size: inherit;
+            padding: 2px 6px;
+        }
+
+        .legend-item.inactive {
+            opacity: 0.35;
+        }
+
+        .legend-square {
+            width: clamp(10px, 1.1vw, 14px);
+            height: clamp(10px, 1.1vw, 14px);
+            border-radius: 0;
+            flex-shrink: 0;
+        }
+
+        .legend-item:focus-visible {
+            outline: 2px solid rgba(0, 0, 0, 0.5);
+            outline-offset: 2px;
+        }
+
+        /* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a,
+        .source-text a:visited {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: clamp(20px, 4.5vh, 56px);
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .logo.logo-github {
+            max-height: clamp(18px, 4vh, 50px);
+        }
+
+        /* ─── EMPTY / ERROR STATE ─────────────────────────────────────────────────── */
+
+        .error-message,
+        .loading-message {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            font-size: clamp(12px, 1.6vw, 18px);
+            font-weight: 600;
+            color: #475569;
+            text-align: center;
+            padding: clamp(12px, 2vh, 20px);
+        }
+
+        /* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr !important;
+                grid-template-columns: 1fr !important;
+                padding-bottom: 0;
+            }
+
+            #container1 {
+                grid-row: 1 !important;
+                grid-column: 1 !important;
+            }
+
+            #title-container,
+            #subtitle-container,
+            #container2,
+            #container3,
+            #container4 {
+                display: none !important;
+            }
+
+            .custom-legend,
+            .source-text,
+            .logo {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="title-container">
+            <div class="title-text" id="title-text"></div>
+        </div>
+        <div id="subtitle-container">
+            <div class="subtitle-text" id="subtitle-text"></div>
+        </div>
+        <div id="container1" class="container viz-container">
+            <div id="viz"></div>
+        </div>
+        <div id="container2" class="container legend-container">
+            <div class="selector-group" id="metric-selector" role="tablist" aria-label="Size metric">
+                <button class="selector-button" data-metric="share" role="tab">AI Agent share</button>
+                <button class="selector-button" data-metric="stars" role="tab">Repo stars</button>
+            </div>
+            <div class="custom-legend" id="legend"></div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-text" id="source-text">Source: <a href="https://github.com/" target="_blank"
+                    rel="noopener">GitHub</a></div>
+        </div>
+        <div id="container4" class="container logo-container">
+            <a href="https://github.com" target="_blank" rel="noopener">
+                <img src="logos/GitHub.svg" class="logo logo-github" alt="GitHub logo">
+            </a>
+            <span class="logo-collab">×</span>
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="./logos/aiworld.svg" class="logo" alt="AI World logo">
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // ─── CONFIG ─────────────────────────────────────────────────────────────
+        const SHOW_CONTAINER_2 = 1;  // legend
+        const SHOW_CONTAINER_3 = 1;  // source
+        const SHOW_CONTAINER_4 = 1;  // logo
+
+        const SHOW_TOOLTIP = 1;
+        // ?top=100 → top 100 enterprises. Default: top 50.
+        const TOP_N = new URLSearchParams(window.location.search).get('top') === '100' ? 100 : 50;
+        const DATA_PATH = `enterprise_viz_treemap_top${TOP_N}_v2.csv`;
+
+        // ?metric=stars → size by sum_stars
+        // default       → size by agent_share (AI agent share of pull requests)
+        let currentMetric = new URLSearchParams(window.location.search).get('metric') === 'stars'
+            ? 'stars'
+            : 'share';
+
+        const TITLES = {
+            share: 'Which enterprises have the highest AI Agent adoption?',
+            stars: 'Which enterprises lead in open source on GitHub?'
+        };
+        const SUBTITLES = {
+            share: 'Top 50 enterprises on GitHub, sized by AI Agent share of pull requests',
+            stars: 'Top 50 enterprises on GitHub, sized by combined repository stars'
+        };
+        function applyMetricCopy() {
+            document.getElementById('title-text').textContent = TITLES[currentMetric];
+            document.getElementById('subtitle-text').textContent = SUBTITLES[currentMetric];
+        }
+        applyMetricCopy();
+
+        // ─── GRID VISIBILITY ────────────────────────────────────────────────────
+        (function applyContainerVisibility() {
+            const vizGrid = document.querySelector('.viz-grid');
+            const c1 = document.getElementById('container1');
+            const c2 = document.getElementById('container2');
+            const c3 = document.getElementById('container3');
+            const c4 = document.getElementById('container4');
+            const title = document.getElementById('title-container');
+            const subtitle = document.getElementById('subtitle-container');
+
+            if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+            if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+            if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+
+            const row3Visible = SHOW_CONTAINER_2;
+            const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+            const gridRows = ['1.6fr', '1fr'];
+            let currentRow = 2;
+            const chartHeight = 20 - (row3Visible ? 2 : 0) - (row4Visible ? 1 : 0);
+            gridRows.push(`${chartHeight}fr`);
+
+            if (title) title.style.gridRow = '1';
+            if (subtitle) subtitle.style.gridRow = '2';
+            currentRow = 3;
+            if (c1) c1.style.gridRow = String(currentRow);
+
+            if (row3Visible) { gridRows.push('2fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+            if (row4Visible) {
+                gridRows.push('1fr'); currentRow++;
+                if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+                if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+                if (SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+                if (!SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+            }
+
+            vizGrid.style.gridTemplateRows = gridRows.join(' ');
+        })();
+
+        // ─── COLOR PALETTE (by superparent = category) ──────────────────────────
+        const GROUP_LABELS = {
+            'company': 'Company',
+            'company-subsidiary': 'Subsidiary',
+            'company-research-lab': 'Research Lab',
+            'community': 'Community'
+        };
+
+        const GROUP_COLORS = {
+            'company': '#2756d3',              // blue
+            'company-subsidiary': '#f97316',   // orange
+            'company-research-lab': '#8b5cf6', // violet
+            'community': '#10b981'             // emerald
+        };
+
+        function getGroupColor(category) {
+            return GROUP_COLORS[category] || '#666666';
+        }
+
+        // ─── HELPERS ────────────────────────────────────────────────────────────
+        function parseNum(value) {
+            if (value == null || value === '') return 0;
+            const n = Number(String(value).replace(/,/g, ''));
+            return Number.isFinite(n) ? n : 0;
+        }
+
+        function smartFormat(v) {
+            if (!isFinite(v)) return 'N/A';
+            if (Math.abs(v) >= 1e9) return d3.format('.1f')(v / 1e9) + 'B';
+            if (Math.abs(v) >= 1e6) return d3.format('.1f')(v / 1e6) + 'M';
+            if (Math.abs(v) >= 1e3) return d3.format(',')(v);
+            return d3.format(',')(v);
+        }
+
+        function percentFormat(v) {
+            if (!isFinite(v)) return '–';
+            return d3.format('.2%')(v);
+        }
+
+        function normalizeData(rows) {
+            return rows.map(d => ({
+                category: d.category,
+                parent: d.parent,
+                name: d.owner,
+                value: currentMetric === 'stars' ? parseNum(d.sum_stars) : parseNum(d.agent_share),
+                sum_stars: parseNum(d.sum_stars),
+                agent_total: parseNum(d.agent_total),
+                human_total: parseNum(d.human_total),
+                all_total: parseNum(d.all_total),
+                agent_share: parseNum(d.agent_share),
+                is_subsidiary: d.is_subsidiary
+            })).filter(d => d.value > 0 && GROUP_COLORS[d.category]);
+        }
+
+        function displayMessage(cls, message) {
+            const el = document.getElementById('viz');
+            if (el) el.innerHTML = `<div class="${cls}">${message}</div>`;
+        }
+
+        // ─── STATE ──────────────────────────────────────────────────────────────
+        const vizContainer = document.getElementById('viz');
+        let originalData = [];
+        let treemapData = [];
+        let treemapInstance = null;
+        let legendInitialized = false;
+        const activeGroups = new Set(Object.keys(GROUP_COLORS));
+
+        // ─── LEGEND ─────────────────────────────────────────────────────────────
+        function buildLegend() {
+            if (legendInitialized) return;
+            const legend = document.getElementById('legend');
+            legend.innerHTML = '';
+
+            Object.keys(GROUP_COLORS).forEach(group => {
+                const item = document.createElement('div');
+                item.className = 'legend-item interactive active';
+                item.setAttribute('role', 'button');
+                item.setAttribute('tabindex', '0');
+                item.setAttribute('aria-pressed', 'true');
+                item.dataset.group = group;
+
+                const square = document.createElement('span');
+                square.className = 'legend-square';
+                square.style.background = GROUP_COLORS[group];
+
+                const label = document.createElement('span');
+                label.textContent = GROUP_LABELS[group];
+
+                item.append(square, label);
+
+                const toggle = () => {
+                    if (activeGroups.has(group)) {
+                        if (activeGroups.size === 1) return; // keep at least one active
+                        activeGroups.delete(group);
+                    } else {
+                        activeGroups.add(group);
+                    }
+                    updateVisualization();
+                };
+
+                item.addEventListener('click', toggle);
+                item.addEventListener('keydown', e => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggle();
+                    }
+                });
+                legend.appendChild(item);
+            });
+
+            legendInitialized = true;
+        }
+
+        function updateLegendStyles() {
+            const legend = document.getElementById('legend');
+            if (!legend) return;
+            legend.querySelectorAll('.legend-item').forEach(item => {
+                const isActive = activeGroups.has(item.dataset.group);
+                item.classList.toggle('inactive', !isActive);
+                item.classList.toggle('active', isActive);
+                item.setAttribute('aria-pressed', String(isActive));
+            });
+        }
+
+        // ─── TREEMAP ────────────────────────────────────────────────────────────
+        function ensureTreemapInstance(width, height) {
+            if (!vizContainer) return null;
+            if (!treemapInstance) {
+                treemapInstance = new d3plus.Treemap()
+                    .select('#viz')
+                    .data(treemapData)
+                    .groupBy(['category', 'parent', 'name'])
+                    .tooltip(!!SHOW_TOOLTIP)
+                    .tooltipConfig({
+                        title: d => {
+                            if (d && d.name) return d.name;
+                            if (d && GROUP_LABELS[d.id]) return GROUP_LABELS[d.id];
+                            return d && d.id ? d.id : '';
+                        },
+                        body: d => {
+                            if (!d) return '';
+                            // Top-level group: category
+                            if (GROUP_LABELS[d.id] && !d.name) {
+                                return `<strong>Category:</strong> ${GROUP_LABELS[d.id]}`;
+                            }
+                            // Mid-level group: corporate parent rollup
+                            if (!d.name && d.id) {
+                                return `<strong>Corporate parent:</strong> ${d.id}`;
+                            }
+                            // Leaf
+                            const lines = [];
+                            lines.push(`<strong>Category:</strong> ${GROUP_LABELS[d.category] || d.category}`);
+                            if (d.parent && d.parent !== d.name) {
+                                lines.push(`<strong>Corporate parent:</strong> ${d.parent}`);
+                            }
+                            lines.push(`<strong>AI Agent PRs:</strong> ${smartFormat(d.agent_total)}`);
+                            lines.push(`<strong>All PRs:</strong> ${smartFormat(d.all_total)}`);
+                            lines.push(`<strong>AI Agent share:</strong> ${percentFormat(d.agent_share)}`);
+                            lines.push(`<strong>Repo stars:</strong> ${smartFormat(d.sum_stars)}`);
+                            return lines.join('<br>');
+                        }
+                    })
+                    .sum('value')
+                    .layoutPadding(2)
+                    .legend(false)
+                    .color(d => {
+                        if (d && d.category && GROUP_COLORS[d.category]) return getGroupColor(d.category);
+                        if (d && GROUP_COLORS[d.id]) return getGroupColor(d.id);
+                        return '#666666';
+                    })
+                    .shapeConfig({
+                        rx: 0,
+                        ry: 0,
+                        stroke: d => {
+                            if (d && d.depth === 0 && GROUP_COLORS[d.id]) return getGroupColor(d.id);
+                            if (d && d.depth === 1) return 'rgba(15, 23, 42, 0.35)';
+                            return 'transparent';
+                        },
+                        strokeWidth: d => {
+                            if (d && d.depth === 0 && GROUP_COLORS[d.id]) return 3;
+                            if (d && d.depth === 1) return 1;
+                            return 0;
+                        }
+                    })
+                    .config({
+                        label: d => d.name
+                    });
+            }
+            if (typeof treemapInstance.width === 'function' && width) treemapInstance.width(width);
+            if (typeof treemapInstance.height === 'function' && height) treemapInstance.height(height);
+            return treemapInstance;
+        }
+
+        function updateVisualization() {
+            treemapData = normalizeData(originalData).filter(d => activeGroups.has(d.category));
+            if (!treemapData.length) {
+                displayMessage('error-message', 'No data for the selected categories.');
+                treemapInstance = null;
+                updateLegendStyles();
+                return;
+            }
+            const rect = vizContainer.getBoundingClientRect();
+            const instance = ensureTreemapInstance(rect.width, rect.height);
+            if (!instance) return;
+            instance.data(treemapData).render();
+            updateLegendStyles();
+        }
+
+        function renderVisualization() {
+            buildLegend();
+            updateVisualization();
+        }
+
+        function renderVisualizationForContainer() {
+            if (!vizContainer) return;
+            if (!originalData.length) return;
+            renderVisualization();
+        }
+
+        // ─── METRIC SELECTOR ────────────────────────────────────────────────────
+        function syncMetricSelector() {
+            document.querySelectorAll('#metric-selector .selector-button').forEach(btn => {
+                const active = btn.dataset.metric === currentMetric;
+                btn.classList.toggle('active', active);
+                btn.setAttribute('aria-selected', String(active));
+            });
+        }
+
+        document.querySelectorAll('#metric-selector .selector-button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const next = btn.dataset.metric;
+                if (next === currentMetric) return;
+                currentMetric = next;
+                applyMetricCopy();
+                syncMetricSelector();
+                if (originalData.length) updateVisualization();
+            });
+        });
+        syncMetricSelector();
+
+        // ─── DATA LOAD ──────────────────────────────────────────────────────────
+        displayMessage('loading-message', 'Loading…');
+
+        d3.csv(DATA_PATH).then(rows => {
+            originalData = rows;
+            const ready = normalizeData(originalData);
+            if (!ready.length) {
+                displayMessage('error-message', 'No data available.');
+                return;
+            }
+            vizContainer.innerHTML = '';
+            renderVisualization();
+        }).catch(err => {
+            console.error(err);
+            displayMessage('error-message', `Unable to load ${DATA_PATH}.`);
+        });
+
+        // ─── RESIZE ─────────────────────────────────────────────────────────────
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(renderVisualizationForContainer, 120);
+        });
+
+        if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+            new ResizeObserver(() => renderVisualizationForContainer()).observe(vizContainer);
+        }
+    </script>
+</body>
+
+</html>
