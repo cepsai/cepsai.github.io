@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>OpenRouter token usage</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+/* ─── BASE ────────────────────────────────────────────────────────────────── */
+
+html, body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    height: 100vh;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+    background-color: white;
+}
+
+/* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
+/*
+    Standard 4-container layout:
+      container1 → main chart (spans full width, row 1)
+      container2 → center controls, e.g. selector buttons / legend (row 2)
+      container3 → bottom-left, e.g. source text (row 3)
+      container4 → bottom-right, e.g. logo (row 3)
+*/
+
+.viz-grid {
+    display: grid;
+    grid-template-rows: 16fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    padding-bottom: clamp(8px, 2vh, 18px);
+}
+
+#container1 {
+    grid-row: 1;
+    grid-column: 1 / span 2;
+    overflow: hidden;
+    min-height: 0;
+}
+
+#container1 .chart-wrapper {
+    flex: 1 1 auto;
+    display: flex;
+    min-width: 0;
+    height: 100%;
+    margin-left: 0;
+}
+
+#container1 .chart-wrapper-inner {
+    flex: 1 1 auto;
+    display: flex;
+    min-width: 0;
+    height: 100%;
+}
+
+#container2 {
+    grid-row: 2;
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+#container3 {
+    grid-row: 3;
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+#container4 {
+    grid-row: 3;
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+    gap: clamp(6px, 1vw, 14px);
+}
+
+#container4 a {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    cursor: default;
+    flex-shrink: 0;
+}
+
+/* ─── TITLE + SUBTITLE (optional rows above #container1) ──────────────────── */
+/*
+    When the chart has its own headline, add #title-container and
+    #subtitle-container as the first two rows of .viz-grid. The
+    applyContainerVisibility IIFE handles the row math.
+*/
+
+#title-container {
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: 0 clamp(12px, 2vw, 24px);
+    overflow: hidden;
+    min-height: 0;
+}
+
+.title-text {
+    font-size: clamp(22px, 4vh, 36px);
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+#subtitle-container {
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 0 clamp(12px, 2vw, 24px);
+    overflow: hidden;
+    min-height: 0;
+}
+
+.subtitle-text {
+    font-size: clamp(17px, 2.4vw, 24px);
+    font-weight: 500;
+    color: #475569;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* ─── MULTI-LOGO COLLAB (X × Y in #container4) ────────────────────────────── */
+
+.logo-collab {
+    font-size: clamp(12px, 1.6vw, 18px);
+    font-weight: 400;
+    color: #9ca3af;
+    line-height: 1;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+/* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
+
+#viz {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+}
+
+#chart {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* ─── SELECTOR BUTTONS ────────────────────────────────────────────────────── */
+/*
+    Use .selector-group + .selector-button for tab-style toggles.
+    Add .active to the selected button.
+*/
+
+.selector-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(2px, 0.5vw, 6px);
+    padding: clamp(2px, 0.4vw, 4px);
+    border-radius: 6px;
+    border: 1px solid rgba(17, 24, 39, 0.15);
+    background: #f8fafc;
+    max-width: 100%;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.selector-button {
+    border: none;
+    background: transparent;
+    padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+    border-radius: 6px;
+    font-size: clamp(9px, 1.4vw, 13px);
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.selector-button.active {
+    background: #2756d3;
+    color: #fff;
+}
+
+/* ─── DROPDOWN ────────────────────────────────────────────────────────────── */
+/*
+    Use .selector-dropdown > .selector-dropdown-toggle + .selector-dropdown-menu
+    for long option lists. Menu opens upward (bottom: calc(100% + 6px)).
+    Toggle aria-expanded and .open class to show/hide.
+*/
+
+.selector-dropdown {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.selector-dropdown-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(6px, 1vw, 10px);
+    padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+    border: 1px solid rgba(17, 24, 39, 0.15);
+    border-radius: 6px;
+    background: #f8fafc;
+    font-size: clamp(9px, 1.4vw, 13px);
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.selector-dropdown-toggle:hover {
+    border-color: rgba(17, 24, 39, 0.3);
+}
+
+.selector-dropdown-toggle:focus-visible {
+    outline: 2px solid #2756d3;
+    outline-offset: 1px;
+}
+
+.selector-dropdown-toggle::after {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid #475569;
+    border-bottom: 2px solid #475569;
+    transform: rotate(45deg);
+    flex-shrink: 0;
+    margin-top: -2px;
+    transition: transform 0.2s ease;
+}
+
+.selector-dropdown-toggle[aria-expanded="true"]::after {
+    transform: rotate(-135deg);
+    margin-top: 2px;
+}
+
+.selector-dropdown-menu {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    min-width: 100%;
+    width: max-content;
+    max-height: clamp(180px, 30vh, 320px);
+    overflow-y: auto;
+    background: #f8fafc;
+    border: 1px solid rgba(17, 24, 39, 0.15);
+    border-radius: 6px;
+    padding: clamp(2px, 0.4vw, 4px);
+    display: none;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.selector-dropdown-menu.open {
+    display: block;
+}
+
+.selector-dropdown-option {
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: left;
+    padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+    border-radius: 6px;
+    font-size: clamp(9px, 1.4vw, 13px);
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+}
+
+.selector-dropdown-option:hover,
+.selector-dropdown-option:focus {
+    background: rgba(39, 86, 211, 0.08);
+    outline: none;
+}
+
+.selector-dropdown-option.active {
+    background: #2756d3;
+    color: #fff;
+}
+
+/* ─── SLIDER ──────────────────────────────────────────────────────────────── */
+/*
+    Structure: #slider-container > .slider-wrapper > .slider-track-bg + input.year-slider
+    Optional: .slider-dot markers on track, .slider-tooltip above thumb.
+*/
+
+#slider-container {
+    grid-row: 4;
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-self: center;
+    gap: clamp(8px, 1vw, 16px);
+    padding: clamp(4px, 1vh, 8px) clamp(8px, 2vw, 24px);
+    overflow: visible;
+    min-height: 0;
+    max-width: 500px;
+    width: 100%;
+}
+
+.slider-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 40px;
+}
+
+.slider-track-bg {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+}
+
+.slider-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.slider-tooltip {
+    position: absolute;
+    bottom: -18px;
+    transform: translateX(-50%);
+    font-size: clamp(11px, 1.2vw, 13px);
+    font-weight: 600;
+    color: #fff;
+    background: #1e293b;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.slider-tooltip::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 5px solid #1e293b;
+}
+
+.year-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: transparent;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    position: relative;
+    z-index: 2;
+}
+
+.year-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 3px solid #fff;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+
+.year-slider::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.15);
+}
+
+.year-slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
+    cursor: pointer;
+}
+
+/* ─── LEGEND ──────────────────────────────────────────────────────────────── */
+/*
+    .legend > .legend-item > .legend-square + text
+    Use .legend-square for categorical color swatches.
+*/
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(6px, 1vw, 14px);
+    background: rgba(255, 255, 255, 1);
+    padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+    border-radius: clamp(6px, 1vw, 12px);
+    max-width: 100%;
+    max-height: 100%;
+    font-size: clamp(0.625rem, 1.4vw, 1rem);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: clamp(4px, 1vw, 8px);
+    font-weight: 600;
+    color: #333;
+    font-size: inherit;
+    padding: 2px 6px;
+    cursor: default;
+}
+
+.legend-item.interactive {
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.legend-item.dim {
+    opacity: 0.35;
+}
+
+.legend-item:focus-visible {
+    outline: 2px solid rgba(0, 0, 0, 0.5);
+    outline-offset: 2px;
+}
+
+.legend-square {
+    width: clamp(8px, 0.9vw, 12px);
+    height: clamp(8px, 0.9vw, 12px);
+    border-radius: 0;       /* bars/categorical: 0 */
+    /* border-radius: 4px; for line/scatter charts */
+    flex-shrink: 0;
+}
+
+/* ─── FOOTNOTE ────────────────────────────────────────────────────────────── */
+/*
+    Use .footnote-text inside #container5 (row between chart and legend).
+    Right-aligned by default. Same size scale as .source-text.
+*/
+
+.footnote-text {
+    font-size: clamp(10px, 1.6vw, 16px);
+    font-style: italic;
+    color: #333;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+
+.source-text {
+    font-size: clamp(10px, 1.6vw, 16px);
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    font-style: normal;
+}
+
+.source-text a {
+    color: #2756d3;
+    text-decoration: underline;
+    cursor: default;
+    font-style: normal;
+}
+
+.source-text a:hover {
+    cursor: pointer;
+}
+
+.source-text a:visited {
+    color: #2756d3;
+}
+
+#container4 a:hover {
+    cursor: pointer;
+}
+
+.logo {
+    height: 100%;
+    width: auto;
+    max-height: 100%;
+    max-width: 100%;
+    pointer-events: auto;
+    object-fit: contain;
+}
+
+/* ─── CHART ELEMENTS (D3) ─────────────────────────────────────────────────── */
+
+.axis path,
+.axis line {
+    stroke: #cfd2d7;
+}
+
+.tick text {
+    font-weight: 600;
+    fill: #4b5563;
+}
+
+.grid-lines line {
+    stroke: #DBDBDB;
+    stroke-dasharray: 2, 3;
+}
+
+.grid-lines path {
+    stroke: none;
+}
+
+.bar-label {
+    fill: #555;
+    font-weight: 500;
+}
+
+/* ─── LOAD / EMPTY / ERROR STATES ─────────────────────────────────────────── */
+/*
+    Inject into #viz while data loads / when filtered result is empty /
+    when a fetch fails. Always full-width, full-height, centered.
+*/
+
+.loading-state,
+.empty-state,
+.error-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(13px, 1.5vw, 16px);
+    color: #475569;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+}
+
+.error-state {
+    color: #b91c1c;
+}
+
+/* ─── CARD TOOLTIP (multi-series time-series charts) ──────────────────────── */
+/*
+    Preferred for stacked area, multi-line, and any tooltip that needs to
+    list per-series values. Append a <div class="chart-tooltip"> into
+    #container1 (which is position: relative) and position with
+    container-relative offsets. For a single-value pill, the simpler
+    #tooltip pattern (fixed position, appended to body) is still fine.
+*/
+
+.chart-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.98);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 18px 28px rgba(15, 23, 42, 0.15);
+    border: 1px solid rgba(39, 86, 211, 0.15);
+    min-width: 220px;
+    max-width: 280px;
+    font-size: 12px;
+    color: #0f172a;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10;
+}
+
+.tooltip-title {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+.tooltip-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    color: #0f172a;
+    padding: 2px 0;
+}
+
+.tooltip-row .label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #475569;
+}
+
+.tooltip-row .swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.tooltip-row .value {
+    font-weight: 700;
+}
+
+.tooltip-total {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(15, 23, 42, 0.1);
+    font-size: 12px;
+    color: #475569;
+}
+
+/* ─── TIME-SERIES AXIS + HOVER ELEMENTS ───────────────────────────────────── */
+/*
+    Used by area-timeseries, line-timeseries, and any chart with a time
+    x-axis. .y-grid replaces the generic .grid-lines styling with a
+    dashed slate-tinted look. Two-row x-axis uses .month-axis-label /
+    .quarter-axis-label for the sub-year row and .year-axis-label for
+    the larger year row below.
+*/
+
+.y-grid line {
+    stroke: rgba(148, 163, 184, 0.35);
+    stroke-dasharray: 3 4;
+}
+
+.y-grid .domain {
+    display: none;
+}
+
+.x-axis text,
+.y-axis text {
+    font-size: 14px;
+    fill: #475569;
+}
+
+.x-axis path,
+.y-axis path,
+.x-axis line,
+.y-axis line {
+    stroke: #d0d7e8;
+}
+
+.focus-line {
+    stroke: rgba(15, 23, 42, 0.7);
+    stroke-width: 1;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.interaction-overlay {
+    cursor: crosshair;
+}
+
+.y-axis-label {
+    font-size: 18px;
+    font-weight: 600;
+    fill: #000000;
+}
+
+.month-axis-label,
+.quarter-axis-label {
+    font-size: 11px;
+    fill: #475569;
+}
+
+.year-axis-label {
+    font-size: 12px;
+    font-weight: 600;
+    fill: #0f172a;
+}
+
+/* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+
+@media (max-height: 500px) {
+    .viz-grid {
+        grid-template-rows: 1fr !important;
+        grid-template-columns: 1fr !important;
+        padding-bottom: 0;
+    }
+
+    #container1 {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+    }
+
+    #title-container,
+    #subtitle-container,
+    #container2,
+    #container3,
+    #container4,
+    #container5 {
+        display: none !important;
+    }
+
+    .legend,
+    .source-text,
+    .logo,
+    .footnote-text,
+    .title-text,
+    .subtitle-text {
+        display: none !important;
+    }
+}
+
+
+/* Chart-specific additions */
+#container1 {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 8px clamp(10px, 1.5vw, 18px) 0;
+}
+.viz-split {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  gap: clamp(4px, 0.8vh, 10px);
+}
+.viz-pane {
+  position: relative;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.viz-pane.treemap-pane { flex: 1.05 1 0; }
+.viz-pane.lolli-pane   { flex: 1 1 0; }
+.pane-title {
+  font-size: clamp(11px, 1.2vw, 13px);
+  font-weight: 600;
+  color: #475569;
+  margin: 0 0 4px 2px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  flex: 0 0 auto;
+}
+.pane-svg-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+}
+svg.pane-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.treemap rect { stroke: #ffffff; stroke-width: 2; }
+.treemap text { pointer-events: none; font-family: inherit; fill: #ffffff; font-weight: 600; }
+.treemap text.small { font-weight: 500; }
+.lolli .axis path, .lolli .axis line { stroke: #cfd2d7; shape-rendering: crispEdges; }
+.lolli .axis text { fill: #4b5563; font-weight: 600; }
+.lolli .grid line { stroke: #DBDBDB; stroke-dasharray: 2 3; }
+.lolli .grid path { display: none; }
+.lolli .stem { stroke: #c2c8d0; stroke-width: 3; stroke-linecap: round; }
+.lolli .dot { stroke-width: 1.2; }
+
+#tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.94);
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 9px;
+  border-radius: 6px;
+  transform: translate(-50%, calc(-100% - 12px));
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 80ms linear;
+  z-index: 30;
+}
+#tooltip b { font-weight: 700; }
+
+.controls-row { display: flex; gap: clamp(6px, 1vw, 14px); align-items: center; flex-wrap: wrap; justify-content: center; }
+.controls-row .seg-label { font-size: clamp(10px, 1.2vw, 12px); color: #475569; font-weight: 600; }
+  </style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1" class="container viz-container">
+    <div class="viz-split">
+      <div class="viz-pane treemap-pane">
+        <div class="pane-title" id="tm-title">Share of total tokens — by author</div>
+        <div class="pane-svg-wrap">
+          <svg id="treemap" class="pane-svg treemap"></svg>
+        </div>
+      </div>
+      <div class="viz-pane lolli-pane">
+        <div class="pane-title" id="ll-title">Tokens by author (trillions)</div>
+        <div class="pane-svg-wrap">
+          <svg id="lollipop" class="pane-svg lolli"></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="container2" class="container legend-container">
+    <div class="controls-row">
+      <div class="selector-group" id="seg-gran" role="tablist" aria-label="Granularity">
+        <button class="selector-button active" data-v="authors">Authors</button>
+        <button class="selector-button" data-v="models">Models</button>
+      </div>
+      <div class="selector-group" id="seg-others" role="tablist" aria-label="Others bucket">
+        <button class="selector-button active" data-v="exclude">Exclude “others”</button>
+        <button class="selector-button" data-v="include">Include “others”</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="container3" class="container source-container">
+    <div class="source-text" id="source-text">Source: <a href="https://openrouter.ai/rankings" target="_blank" rel="noopener">OpenRouter</a></div>
+  </div>
+
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+    </a>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────
+const SHOW_TITLES      = 0;
+const SHOW_CONTAINER_2 = 1;
+const SHOW_CONTAINER_3 = 1;
+const SHOW_CONTAINER_4 = 1;
+const SHOW_CONTAINER_5 = 0;
+
+(function applyContainerVisibility() {
+  const vizGrid = document.querySelector('.viz-grid');
+  const c1 = document.getElementById('container1');
+  const c2 = document.getElementById('container2');
+  const c3 = document.getElementById('container3');
+  const c4 = document.getElementById('container4');
+  const c5 = document.getElementById('container5');
+
+  if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+  if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+  if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+  if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+  const row2Visible = SHOW_CONTAINER_5;
+  const row3Visible = SHOW_CONTAINER_2;
+  const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+  let gridRows = [];
+  let currentRow = 1;
+  const chartRow = currentRow;
+
+  const footnoteRow = 1.3;
+  // Slightly heavier chrome rows so the legend pill + controls breathe.
+  const legendRow = 1.4;
+  const sourceRow = 1;
+  const reservedRows = (row2Visible ? footnoteRow : 0) + (row3Visible ? legendRow : 0) + (row4Visible ? sourceRow : 0);
+  const chartHeight = 20 - reservedRows;
+  gridRows.push(`${chartHeight}fr`);
+
+  c1.style.gridRow = String(chartRow);
+  c1.style.gridColumn = '1 / span 2';
+
+  if (row2Visible) { gridRows.push(`${footnoteRow}fr`); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+  if (row3Visible) { gridRows.push(`${legendRow}fr`); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+  if (row4Visible) {
+    gridRows.push(`${sourceRow}fr`); currentRow++;
+    if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+    if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+    if (SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+    if (!SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+  }
+
+  vizGrid.style.gridTemplateRows = gridRows.join(' ');
+})();
+
+// ── Data ──────────────────────────────────────────────────────────────────
+const DATA = {"include":{"tm_ids":["author::Others","author::anthropic","author::google","author::x-ai","author::deepseek","author::minimax","author::xiaomi","author::moonshotai","author::tencent","author::qwen","author::stepfun","author::openrouter","author::z-ai","author::openai","author::arcee-ai","author::nvidia","author::tngtech","model::Others","model::x-ai/grok-code-fast-1","model::deepseek/deepseek-v3.2-20251201","model::google/gemini-3-flash-preview-20251217","model::anthropic/claude-4.6-sonnet-20260217","model::minimax/minimax-m2.5-20260211","model::google/gemini-2.5-flash","model::anthropic/claude-4.5-sonnet-20250929","model::xiaomi/mimo-v2-pro-20260318","model::anthropic/claude-4.6-opus-20260205","model::anthropic/claude-4-sonnet-20250522","model::stepfun/step-3.5-flash:free","model::qwen/qwen3.6-plus-04-02:free","model::x-ai/grok-4.1-fast","model::minimax/minimax-m2.7-20260318","model::google/gemini-2.0-flash-001","model::moonshotai/kimi-k2.6-20260420","model::moonshotai/kimi-k2.5-0127","model::tencent/hy3-preview-20260421:free","model::anthropic/claude-4.7-opus-20260416","model::deepseek/deepseek-v4-flash-20260423","model::tencent/hy3-preview-20260421","model::google/gemini-2.5-pro","model::anthropic/claude-4.5-opus-20251124","model::google/gemini-2.5-flash-lite","model::deepseek/deepseek-chat-v3-0324","model::xiaomi/mimo-v2-flash-20251210:free","model::x-ai/grok-4.1-fast:free","model::deepseek/deepseek-chat-v3-0324:free","model::z-ai/glm-5-turbo-20260315","model::deepseek/deepseek-v4-pro-20260423","model::x-ai/grok-4-fast:free","model::stepfun/step-3.5-flash","model::qwen/qwen3.6-plus-preview:free","model::openrouter/hunter-alpha","model::anthropic/claude-3-7-sonnet-20250219","model::x-ai/grok-4-fast","model::arcee-ai/trinity-large-preview:free","model::z-ai/glm-5-20260211","model::google/gemini-2.5-flash-preview-05-20","model::openrouter/owl-alpha","model::deepseek/deepseek-chat-v3.1:free","model::openai/gpt-4o-mini","model::openai/gpt-oss-120b","model::nvidia/nemotron-3-super-120b-a12b-20230311:free","model::openai/gpt-4.1-mini-2025-04-14","model::qwen/qwen3-coder-480b-a35b-07-25","model::minimax/minimax-m2","model::minimax/minimax-m2:free","model::google/gemini-2.5-pro-preview-03-25","model::minimax/minimax-m2.1","model::deepseek/deepseek-r1-0528:free","model::openrouter/sonoma-sky-alpha","model::google/gemini-3-pro-preview-20251117","model::qwen/qwen3-coder-480b-a35b-07-25:free","model::qwen/qwen3-30b-a3b-04-28","model::google/gemini-2.5-flash-preview-04-17","model::openrouter/horizon-beta","model::google/gemini-2.5-flash-lite-preview-06-17","model::google/gemini-2.5-pro-preview-06-05","model::openrouter/sherlock-think-alpha","model::google/gemini-2.0-flash-lite-001","model::openrouter/polaris-alpha","model::deepseek/deepseek-chat-v3.1","model::openai/gpt-oss-20b","model::openai/gpt-5-2025-08-07","model::qwen/qwen3-coder-30b-a3b-instruct","model::tngtech/deepseek-r1t2-chimera:free"],"tm_labels":["Others","anthropic","google","x-ai","deepseek","minimax","xiaomi","moonshotai","tencent","qwen","stepfun","openrouter","z-ai","openai","arcee-ai","nvidia","tngtech","Others","x-ai/grok-code-fast-1","deepseek/deepseek-v3.2-20251201","google/gemini-3-flash-preview-20251217","anthropic/claude-4.6-sonnet-20260217","minimax/minimax-m2.5-20260211","google/gemini-2.5-flash","anthropic/claude-4.5-sonnet-20250929","xiaomi/mimo-v2-pro-20260318","anthropic/claude-4.6-opus-20260205","anthropic/claude-4-sonnet-20250522","stepfun/step-3.5-flash:free","qwen/qwen3.6-plus-04-02:free","x-ai/grok-4.1-fast","minimax/minimax-m2.7-20260318","google/gemini-2.0-flash-001","moonshotai/kimi-k2.6-20260420","moonshotai/kimi-k2.5-0127","tencent/hy3-preview-20260421:free","anthropic/claude-4.7-opus-20260416","deepseek/deepseek-v4-flash-20260423","tencent/hy3-preview-20260421","google/gemini-2.5-pro","anthropic/claude-4.5-opus-20251124","google/gemini-2.5-flash-lite","deepseek/deepseek-chat-v3-0324","xiaomi/mimo-v2-flash-20251210:free","x-ai/grok-4.1-fast:free","deepseek/deepseek-chat-v3-0324:free","z-ai/glm-5-turbo-20260315","deepseek/deepseek-v4-pro-20260423","x-ai/grok-4-fast:free","stepfun/step-3.5-flash","qwen/qwen3.6-plus-preview:free","openrouter/hunter-alpha","anthropic/claude-3-7-sonnet-20250219","x-ai/grok-4-fast","arcee-ai/trinity-large-preview:free","z-ai/glm-5-20260211","google/gemini-2.5-flash-preview-05-20","openrouter/owl-alpha","deepseek/deepseek-chat-v3.1:free","openai/gpt-4o-mini","openai/gpt-oss-120b","nvidia/nemotron-3-super-120b-a12b-20230311:free","openai/gpt-4.1-mini-2025-04-14","qwen/qwen3-coder-480b-a35b-07-25","minimax/minimax-m2","minimax/minimax-m2:free","google/gemini-2.5-pro-preview-03-25","minimax/minimax-m2.1","deepseek/deepseek-r1-0528:free","openrouter/sonoma-sky-alpha","google/gemini-3-pro-preview-20251117","qwen/qwen3-coder-480b-a35b-07-25:free","qwen/qwen3-30b-a3b-04-28","google/gemini-2.5-flash-preview-04-17","openrouter/horizon-beta","google/gemini-2.5-flash-lite-preview-06-17","google/gemini-2.5-pro-preview-06-05","openrouter/sherlock-think-alpha","google/gemini-2.0-flash-lite-001","openrouter/polaris-alpha","deepseek/deepseek-chat-v3.1","openai/gpt-oss-20b","openai/gpt-5-2025-08-07","qwen/qwen3-coder-30b-a3b-instruct","tngtech/deepseek-r1t2-chimera:free"],"tm_parents":["","","","","","","","","","","","","","","","","","author::Others","author::x-ai","author::deepseek","author::google","author::anthropic","author::minimax","author::google","author::anthropic","author::xiaomi","author::anthropic","author::anthropic","author::stepfun","author::qwen","author::x-ai","author::minimax","author::google","author::moonshotai","author::moonshotai","author::tencent","author::anthropic","author::deepseek","author::tencent","author::google","author::anthropic","author::google","author::deepseek","author::xiaomi","author::x-ai","author::deepseek","author::z-ai","author::deepseek","author::x-ai","author::stepfun","author::qwen","author::openrouter","author::anthropic","author::x-ai","author::arcee-ai","author::z-ai","author::google","author::openrouter","author::deepseek","author::openai","author::openai","author::nvidia","author::openai","author::qwen","author::minimax","author::minimax","author::google","author::minimax","author::deepseek","author::openrouter","author::google","author::qwen","author::qwen","author::google","author::openrouter","author::google","author::google","author::openrouter","author::google","author::openrouter","author::deepseek","author::openai","author::openai","author::qwen","author::tngtech"],"tm_values":[218.607420404455,54.189840325247,45.291404555331,32.477355340399,30.388399627159,21.388667998387,12.703325931263,11.913557207996,9.935912398539,9.113974680466,7.965122473704,3.667656986303,3.429044261722,2.683789791003,1.513261133035,0.659092546817,0.079039878033,218.607420404455,20.809801013025,17.727376103286,17.653313135368,13.89840098756,13.610001577153,11.909403335174,11.681563363295,10.284302614396,9.480841579068,9.323297022922,6.318144367863,6.266906299649,6.211561446956,6.149576356356,6.117566932272,6.067556350431,5.846000857565,5.712855664214,5.12877086497,4.518539884104,4.223056734325,3.873439109278,3.095514433804,2.931874734852,2.767255477165,2.419023316867,2.164581663867,1.997637162477,1.997467386597,1.916144988167,1.715479934271,1.646978105841,1.641112084767,1.584738747232,1.581452073628,1.57593128228,1.513261133035,1.431576875125,1.244426422182,1.181461523236,0.90491481264,0.893645068145,0.847706159774,0.659092546817,0.658141782626,0.635465621799,0.607923947521,0.579407245829,0.525278052283,0.441758871528,0.407370943428,0.398975275815,0.32516680315,0.223792112584,0.214755896857,0.197664213096,0.189540499184,0.18461450286,0.167326945089,0.162963573231,0.161330369727,0.149977367605,0.149160255892,0.145704767415,0.138592013043,0.13194266481,0.079039878033],"tm_a_ids":["author::Others","author::anthropic","author::google","author::x-ai","author::deepseek","author::minimax","author::xiaomi","author::moonshotai","author::tencent","author::qwen","author::stepfun","author::openrouter","author::z-ai","author::openai","author::arcee-ai","author::nvidia","author::tngtech"],"tm_a_labels":["Others","anthropic","google","x-ai","deepseek","minimax","xiaomi","moonshotai","tencent","qwen","stepfun","openrouter","z-ai","openai","arcee-ai","nvidia","tngtech"],"tm_a_parents":["","","","","","","","","","","","","","","","",""],"tm_a_values":[218.607420404455,54.189840325247,45.291404555331,32.477355340399,30.388399627159,21.388667998387,12.703325931263,11.913557207996,9.935912398539,9.113974680466,7.965122473704,3.667656986303,3.429044261722,2.683789791003,1.513261133035,0.659092546817,0.079039878033],"m_x":["Others","x-ai/grok-code-fast-1","deepseek/deepseek-v3.2-20251201","google/gemini-3-flash-preview-20251217","anthropic/claude-4.6-sonnet-20260217","minimax/minimax-m2.5-20260211","google/gemini-2.5-flash","anthropic/claude-4.5-sonnet-20250929","xiaomi/mimo-v2-pro-20260318","anthropic/claude-4.6-opus-20260205","anthropic/claude-4-sonnet-20250522","stepfun/step-3.5-flash:free","qwen/qwen3.6-plus-04-02:free","x-ai/grok-4.1-fast","minimax/minimax-m2.7-20260318","google/gemini-2.0-flash-001","moonshotai/kimi-k2.6-20260420","moonshotai/kimi-k2.5-0127","tencent/hy3-preview-20260421:free","anthropic/claude-4.7-opus-20260416","deepseek/deepseek-v4-flash-20260423","tencent/hy3-preview-20260421","google/gemini-2.5-pro","anthropic/claude-4.5-opus-20251124","google/gemini-2.5-flash-lite","deepseek/deepseek-chat-v3-0324","xiaomi/mimo-v2-flash-20251210:free","x-ai/grok-4.1-fast:free","deepseek/deepseek-chat-v3-0324:free","z-ai/glm-5-turbo-20260315","deepseek/deepseek-v4-pro-20260423","x-ai/grok-4-fast:free","stepfun/step-3.5-flash","qwen/qwen3.6-plus-preview:free","openrouter/hunter-alpha","anthropic/claude-3-7-sonnet-20250219","x-ai/grok-4-fast","arcee-ai/trinity-large-preview:free","z-ai/glm-5-20260211","google/gemini-2.5-flash-preview-05-20","openrouter/owl-alpha","deepseek/deepseek-chat-v3.1:free","openai/gpt-4o-mini","openai/gpt-oss-120b","nvidia/nemotron-3-super-120b-a12b-20230311:free","openai/gpt-4.1-mini-2025-04-14","qwen/qwen3-coder-480b-a35b-07-25","minimax/minimax-m2","minimax/minimax-m2:free","google/gemini-2.5-pro-preview-03-25","minimax/minimax-m2.1","deepseek/deepseek-r1-0528:free","openrouter/sonoma-sky-alpha","google/gemini-3-pro-preview-20251117","qwen/qwen3-coder-480b-a35b-07-25:free","qwen/qwen3-30b-a3b-04-28","google/gemini-2.5-flash-preview-04-17","openrouter/horizon-beta","google/gemini-2.5-flash-lite-preview-06-17","google/gemini-2.5-pro-preview-06-05","openrouter/sherlock-think-alpha","google/gemini-2.0-flash-lite-001","openrouter/polaris-alpha","deepseek/deepseek-chat-v3.1","openai/gpt-oss-20b","openai/gpt-5-2025-08-07","qwen/qwen3-coder-30b-a3b-instruct","tngtech/deepseek-r1t2-chimera:free"],"m_y":[218.607420404455,20.809801013025,17.727376103286,17.653313135368,13.89840098756,13.610001577153,11.909403335174,11.681563363295,10.284302614396,9.480841579068,9.323297022922,6.318144367863,6.266906299649,6.211561446956,6.149576356356,6.117566932272,6.067556350431,5.846000857565,5.712855664214,5.12877086497,4.518539884104,4.223056734325,3.873439109278,3.095514433804,2.931874734852,2.767255477165,2.419023316867,2.164581663867,1.997637162477,1.997467386597,1.916144988167,1.715479934271,1.646978105841,1.641112084767,1.584738747232,1.581452073628,1.57593128228,1.513261133035,1.431576875125,1.244426422182,1.181461523236,0.90491481264,0.893645068145,0.847706159774,0.659092546817,0.658141782626,0.635465621799,0.607923947521,0.579407245829,0.525278052283,0.441758871528,0.407370943428,0.398975275815,0.32516680315,0.223792112584,0.214755896857,0.197664213096,0.189540499184,0.18461450286,0.167326945089,0.162963573231,0.161330369727,0.149977367605,0.149160255892,0.145704767415,0.138592013043,0.13194266481,0.079039878033],"a_x":["Others","anthropic","google","x-ai","deepseek","minimax","xiaomi","moonshotai","tencent","qwen","stepfun","openrouter","z-ai","openai","arcee-ai","nvidia","tngtech"],"a_y":[218.607420404455,54.189840325247,45.291404555331,32.477355340399,30.388399627159,21.388667998387,12.703325931263,11.913557207996,9.935912398539,9.113974680466,7.965122473704,3.667656986303,3.429044261722,2.683789791003,1.513261133035,0.659092546817,0.079039878033]},"exclude":{"tm_ids":["author::anthropic","author::google","author::x-ai","author::deepseek","author::minimax","author::xiaomi","author::moonshotai","author::tencent","author::qwen","author::stepfun","author::openrouter","author::z-ai","author::openai","author::arcee-ai","author::nvidia","author::tngtech","model::x-ai/grok-code-fast-1","model::deepseek/deepseek-v3.2-20251201","model::google/gemini-3-flash-preview-20251217","model::anthropic/claude-4.6-sonnet-20260217","model::minimax/minimax-m2.5-20260211","model::google/gemini-2.5-flash","model::anthropic/claude-4.5-sonnet-20250929","model::xiaomi/mimo-v2-pro-20260318","model::anthropic/claude-4.6-opus-20260205","model::anthropic/claude-4-sonnet-20250522","model::stepfun/step-3.5-flash:free","model::qwen/qwen3.6-plus-04-02:free","model::x-ai/grok-4.1-fast","model::minimax/minimax-m2.7-20260318","model::google/gemini-2.0-flash-001","model::moonshotai/kimi-k2.6-20260420","model::moonshotai/kimi-k2.5-0127","model::tencent/hy3-preview-20260421:free","model::anthropic/claude-4.7-opus-20260416","model::deepseek/deepseek-v4-flash-20260423","model::tencent/hy3-preview-20260421","model::google/gemini-2.5-pro","model::anthropic/claude-4.5-opus-20251124","model::google/gemini-2.5-flash-lite","model::deepseek/deepseek-chat-v3-0324","model::xiaomi/mimo-v2-flash-20251210:free","model::x-ai/grok-4.1-fast:free","model::deepseek/deepseek-chat-v3-0324:free","model::z-ai/glm-5-turbo-20260315","model::deepseek/deepseek-v4-pro-20260423","model::x-ai/grok-4-fast:free","model::stepfun/step-3.5-flash","model::qwen/qwen3.6-plus-preview:free","model::openrouter/hunter-alpha","model::anthropic/claude-3-7-sonnet-20250219","model::x-ai/grok-4-fast","model::arcee-ai/trinity-large-preview:free","model::z-ai/glm-5-20260211","model::google/gemini-2.5-flash-preview-05-20","model::openrouter/owl-alpha","model::deepseek/deepseek-chat-v3.1:free","model::openai/gpt-4o-mini","model::openai/gpt-oss-120b","model::nvidia/nemotron-3-super-120b-a12b-20230311:free","model::openai/gpt-4.1-mini-2025-04-14","model::qwen/qwen3-coder-480b-a35b-07-25","model::minimax/minimax-m2","model::minimax/minimax-m2:free","model::google/gemini-2.5-pro-preview-03-25","model::minimax/minimax-m2.1","model::deepseek/deepseek-r1-0528:free","model::openrouter/sonoma-sky-alpha","model::google/gemini-3-pro-preview-20251117","model::qwen/qwen3-coder-480b-a35b-07-25:free","model::qwen/qwen3-30b-a3b-04-28","model::google/gemini-2.5-flash-preview-04-17","model::openrouter/horizon-beta","model::google/gemini-2.5-flash-lite-preview-06-17","model::google/gemini-2.5-pro-preview-06-05","model::openrouter/sherlock-think-alpha","model::google/gemini-2.0-flash-lite-001","model::openrouter/polaris-alpha","model::deepseek/deepseek-chat-v3.1","model::openai/gpt-oss-20b","model::openai/gpt-5-2025-08-07","model::qwen/qwen3-coder-30b-a3b-instruct","model::tngtech/deepseek-r1t2-chimera:free"],"tm_labels":["anthropic","google","x-ai","deepseek","minimax","xiaomi","moonshotai","tencent","qwen","stepfun","openrouter","z-ai","openai","arcee-ai","nvidia","tngtech","x-ai/grok-code-fast-1","deepseek/deepseek-v3.2-20251201","google/gemini-3-flash-preview-20251217","anthropic/claude-4.6-sonnet-20260217","minimax/minimax-m2.5-20260211","google/gemini-2.5-flash","anthropic/claude-4.5-sonnet-20250929","xiaomi/mimo-v2-pro-20260318","anthropic/claude-4.6-opus-20260205","anthropic/claude-4-sonnet-20250522","stepfun/step-3.5-flash:free","qwen/qwen3.6-plus-04-02:free","x-ai/grok-4.1-fast","minimax/minimax-m2.7-20260318","google/gemini-2.0-flash-001","moonshotai/kimi-k2.6-20260420","moonshotai/kimi-k2.5-0127","tencent/hy3-preview-20260421:free","anthropic/claude-4.7-opus-20260416","deepseek/deepseek-v4-flash-20260423","tencent/hy3-preview-20260421","google/gemini-2.5-pro","anthropic/claude-4.5-opus-20251124","google/gemini-2.5-flash-lite","deepseek/deepseek-chat-v3-0324","xiaomi/mimo-v2-flash-20251210:free","x-ai/grok-4.1-fast:free","deepseek/deepseek-chat-v3-0324:free","z-ai/glm-5-turbo-20260315","deepseek/deepseek-v4-pro-20260423","x-ai/grok-4-fast:free","stepfun/step-3.5-flash","qwen/qwen3.6-plus-preview:free","openrouter/hunter-alpha","anthropic/claude-3-7-sonnet-20250219","x-ai/grok-4-fast","arcee-ai/trinity-large-preview:free","z-ai/glm-5-20260211","google/gemini-2.5-flash-preview-05-20","openrouter/owl-alpha","deepseek/deepseek-chat-v3.1:free","openai/gpt-4o-mini","openai/gpt-oss-120b","nvidia/nemotron-3-super-120b-a12b-20230311:free","openai/gpt-4.1-mini-2025-04-14","qwen/qwen3-coder-480b-a35b-07-25","minimax/minimax-m2","minimax/minimax-m2:free","google/gemini-2.5-pro-preview-03-25","minimax/minimax-m2.1","deepseek/deepseek-r1-0528:free","openrouter/sonoma-sky-alpha","google/gemini-3-pro-preview-20251117","qwen/qwen3-coder-480b-a35b-07-25:free","qwen/qwen3-30b-a3b-04-28","google/gemini-2.5-flash-preview-04-17","openrouter/horizon-beta","google/gemini-2.5-flash-lite-preview-06-17","google/gemini-2.5-pro-preview-06-05","openrouter/sherlock-think-alpha","google/gemini-2.0-flash-lite-001","openrouter/polaris-alpha","deepseek/deepseek-chat-v3.1","openai/gpt-oss-20b","openai/gpt-5-2025-08-07","qwen/qwen3-coder-30b-a3b-instruct","tngtech/deepseek-r1t2-chimera:free"],"tm_parents":["","","","","","","","","","","","","","","","","author::x-ai","author::deepseek","author::google","author::anthropic","author::minimax","author::google","author::anthropic","author::xiaomi","author::anthropic","author::anthropic","author::stepfun","author::qwen","author::x-ai","author::minimax","author::google","author::moonshotai","author::moonshotai","author::tencent","author::anthropic","author::deepseek","author::tencent","author::google","author::anthropic","author::google","author::deepseek","author::xiaomi","author::x-ai","author::deepseek","author::z-ai","author::deepseek","author::x-ai","author::stepfun","author::qwen","author::openrouter","author::anthropic","author::x-ai","author::arcee-ai","author::z-ai","author::google","author::openrouter","author::deepseek","author::openai","author::openai","author::nvidia","author::openai","author::qwen","author::minimax","author::minimax","author::google","author::minimax","author::deepseek","author::openrouter","author::google","author::qwen","author::qwen","author::google","author::openrouter","author::google","author::google","author::openrouter","author::google","author::openrouter","author::deepseek","author::openai","author::openai","author::qwen","author::tngtech"],"tm_values":[54.189840325247,45.291404555331,32.477355340399,30.388399627159,21.388667998387,12.703325931263,11.913557207996,9.935912398539,9.113974680466,7.965122473704,3.667656986303,3.429044261722,2.683789791003,1.513261133035,0.659092546817,0.079039878033,20.809801013025,17.727376103286,17.653313135368,13.89840098756,13.610001577153,11.909403335174,11.681563363295,10.284302614396,9.480841579068,9.323297022922,6.318144367863,6.266906299649,6.211561446956,6.149576356356,6.117566932272,6.067556350431,5.846000857565,5.712855664214,5.12877086497,4.518539884104,4.223056734325,3.873439109278,3.095514433804,2.931874734852,2.767255477165,2.419023316867,2.164581663867,1.997637162477,1.997467386597,1.916144988167,1.715479934271,1.646978105841,1.641112084767,1.584738747232,1.581452073628,1.57593128228,1.513261133035,1.431576875125,1.244426422182,1.181461523236,0.90491481264,0.893645068145,0.847706159774,0.659092546817,0.658141782626,0.635465621799,0.607923947521,0.579407245829,0.525278052283,0.441758871528,0.407370943428,0.398975275815,0.32516680315,0.223792112584,0.214755896857,0.197664213096,0.189540499184,0.18461450286,0.167326945089,0.162963573231,0.161330369727,0.149977367605,0.149160255892,0.145704767415,0.138592013043,0.13194266481,0.079039878033],"tm_a_ids":["author::anthropic","author::google","author::x-ai","author::deepseek","author::minimax","author::xiaomi","author::moonshotai","author::tencent","author::qwen","author::stepfun","author::openrouter","author::z-ai","author::openai","author::arcee-ai","author::nvidia","author::tngtech"],"tm_a_labels":["anthropic","google","x-ai","deepseek","minimax","xiaomi","moonshotai","tencent","qwen","stepfun","openrouter","z-ai","openai","arcee-ai","nvidia","tngtech"],"tm_a_parents":["","","","","","","","","","","","","","","",""],"tm_a_values":[54.189840325247,45.291404555331,32.477355340399,30.388399627159,21.388667998387,12.703325931263,11.913557207996,9.935912398539,9.113974680466,7.965122473704,3.667656986303,3.429044261722,2.683789791003,1.513261133035,0.659092546817,0.079039878033],"m_x":["x-ai/grok-code-fast-1","deepseek/deepseek-v3.2-20251201","google/gemini-3-flash-preview-20251217","anthropic/claude-4.6-sonnet-20260217","minimax/minimax-m2.5-20260211","google/gemini-2.5-flash","anthropic/claude-4.5-sonnet-20250929","xiaomi/mimo-v2-pro-20260318","anthropic/claude-4.6-opus-20260205","anthropic/claude-4-sonnet-20250522","stepfun/step-3.5-flash:free","qwen/qwen3.6-plus-04-02:free","x-ai/grok-4.1-fast","minimax/minimax-m2.7-20260318","google/gemini-2.0-flash-001","moonshotai/kimi-k2.6-20260420","moonshotai/kimi-k2.5-0127","tencent/hy3-preview-20260421:free","anthropic/claude-4.7-opus-20260416","deepseek/deepseek-v4-flash-20260423","tencent/hy3-preview-20260421","google/gemini-2.5-pro","anthropic/claude-4.5-opus-20251124","google/gemini-2.5-flash-lite","deepseek/deepseek-chat-v3-0324","xiaomi/mimo-v2-flash-20251210:free","x-ai/grok-4.1-fast:free","deepseek/deepseek-chat-v3-0324:free","z-ai/glm-5-turbo-20260315","deepseek/deepseek-v4-pro-20260423","x-ai/grok-4-fast:free","stepfun/step-3.5-flash","qwen/qwen3.6-plus-preview:free","openrouter/hunter-alpha","anthropic/claude-3-7-sonnet-20250219","x-ai/grok-4-fast","arcee-ai/trinity-large-preview:free","z-ai/glm-5-20260211","google/gemini-2.5-flash-preview-05-20","openrouter/owl-alpha","deepseek/deepseek-chat-v3.1:free","openai/gpt-4o-mini","openai/gpt-oss-120b","nvidia/nemotron-3-super-120b-a12b-20230311:free","openai/gpt-4.1-mini-2025-04-14","qwen/qwen3-coder-480b-a35b-07-25","minimax/minimax-m2","minimax/minimax-m2:free","google/gemini-2.5-pro-preview-03-25","minimax/minimax-m2.1","deepseek/deepseek-r1-0528:free","openrouter/sonoma-sky-alpha","google/gemini-3-pro-preview-20251117","qwen/qwen3-coder-480b-a35b-07-25:free","qwen/qwen3-30b-a3b-04-28","google/gemini-2.5-flash-preview-04-17","openrouter/horizon-beta","google/gemini-2.5-flash-lite-preview-06-17","google/gemini-2.5-pro-preview-06-05","openrouter/sherlock-think-alpha","google/gemini-2.0-flash-lite-001","openrouter/polaris-alpha","deepseek/deepseek-chat-v3.1","openai/gpt-oss-20b","openai/gpt-5-2025-08-07","qwen/qwen3-coder-30b-a3b-instruct","tngtech/deepseek-r1t2-chimera:free"],"m_y":[20.809801013025,17.727376103286,17.653313135368,13.89840098756,13.610001577153,11.909403335174,11.681563363295,10.284302614396,9.480841579068,9.323297022922,6.318144367863,6.266906299649,6.211561446956,6.149576356356,6.117566932272,6.067556350431,5.846000857565,5.712855664214,5.12877086497,4.518539884104,4.223056734325,3.873439109278,3.095514433804,2.931874734852,2.767255477165,2.419023316867,2.164581663867,1.997637162477,1.997467386597,1.916144988167,1.715479934271,1.646978105841,1.641112084767,1.584738747232,1.581452073628,1.57593128228,1.513261133035,1.431576875125,1.244426422182,1.181461523236,0.90491481264,0.893645068145,0.847706159774,0.659092546817,0.658141782626,0.635465621799,0.607923947521,0.579407245829,0.525278052283,0.441758871528,0.407370943428,0.398975275815,0.32516680315,0.223792112584,0.214755896857,0.197664213096,0.189540499184,0.18461450286,0.167326945089,0.162963573231,0.161330369727,0.149977367605,0.149160255892,0.145704767415,0.138592013043,0.13194266481,0.079039878033],"a_x":["anthropic","google","x-ai","deepseek","minimax","xiaomi","moonshotai","tencent","qwen","stepfun","openrouter","z-ai","openai","arcee-ai","nvidia","tngtech"],"a_y":[54.189840325247,45.291404555331,32.477355340399,30.388399627159,21.388667998387,12.703325931263,11.913557207996,9.935912398539,9.113974680466,7.965122473704,3.667656986303,3.429044261722,2.683789791003,1.513261133035,0.659092546817,0.079039878033]}};
+const state = { gran: "authors", others: "exclude" };
+
+// ── Tooltip ───────────────────────────────────────────────────────────────
+const tooltip = document.getElementById("tooltip");
+function showTip(html, evt) {
+  tooltip.innerHTML = html;
+  tooltip.style.left = evt.clientX + "px";
+  tooltip.style.top = evt.clientY + "px";
+  tooltip.style.opacity = 1;
+}
+function hideTip() { tooltip.style.opacity = 0; }
+
+// ── Color palette (4-hue base extended; assigned by author name) ──────────
+const BASE_HUES = ["#2756d3", "#f97316", "#8b5cf6", "#10b981", "#E53229", "#06b6d4", "#f59e0b", "#1d4ed8", "#db2777", "#0ea5e9", "#65a30d", "#9333ea", "#ea580c", "#0891b2", "#be185d", "#16a34a"];
+const authorColor = (() => {
+  const cache = new Map();
+  return name => {
+    if (!cache.has(name)) {
+      const i = cache.size;
+      cache.set(name, BASE_HUES[i % BASE_HUES.length]);
+    }
+    return cache.get(name);
+  };
+})();
+// Pre-seed in fixed author order so colors are stable across views.
+DATA.exclude.a_x.forEach(authorColor);
+if (DATA.include.a_x) DATA.include.a_x.forEach(authorColor);
+
+// ── Hierarchy builder ─────────────────────────────────────────────────────
+function buildHierarchy(v, mode) {
+  if (mode === "authors") {
+    return {
+      name: "root",
+      children: v.tm_a_ids.map((id, i) => ({
+        id, name: v.tm_a_labels[i], value: v.tm_a_values[i], author: v.tm_a_labels[i]
+      }))
+    };
+  }
+  const ids = v.tm_ids, labels = v.tm_labels, parents = v.tm_parents, values = v.tm_values;
+  const nodes = new Map();
+  ids.forEach((id, i) => nodes.set(id, {
+    id, name: labels[i], value: values[i], parent: parents[i], children: []
+  }));
+  const root = { name: "root", children: [] };
+  nodes.forEach(n => {
+    if (!n.parent) root.children.push(n);
+    else {
+      const p = nodes.get(n.parent);
+      if (p) p.children.push(n); else root.children.push(n);
+    }
+  });
+  function tag(node, ancestorAuthor) {
+    const isAuthor = node.id && node.id.startsWith("author::");
+    const author = isAuthor ? node.name : (ancestorAuthor || node.name.split("/")[0]);
+    node.author = author;
+    if (node.children && node.children.length) {
+      delete node.value;
+      node.children.forEach(c => tag(c, author));
+    }
+  }
+  root.children.forEach(c => tag(c, null));
+  return root;
+}
+
+// ── Treemap ───────────────────────────────────────────────────────────────
+function renderTreemap() {
+  const svg = d3.select("#treemap");
+  svg.selectAll("*").remove();
+  const wrap = svg.node().parentNode;
+  const W = wrap.clientWidth;
+  const H = wrap.clientHeight;
+  if (W < 10 || H < 10) return;
+  svg.attr("viewBox", `0 0 ${W} ${H}`);
+
+  const v = DATA[state.others];
+  const root = d3.hierarchy(buildHierarchy(v, state.gran))
+    .sum(d => d.value || 0)
+    .sort((a, b) => b.value - a.value);
+
+  const isModels = state.gran === "models";
+  d3.treemap()
+    .size([W, H])
+    .paddingInner(2)
+    .paddingTop(d => (d.depth === 0 && isModels) ? Math.max(18, Math.min(22, H * 0.045)) : 2)
+    .paddingOuter(2)
+    .round(true)(root);
+
+  const total = root.value || 1;
+
+  const lvl1 = svg.append("g").selectAll("g")
+    .data(root.children)
+    .join("g")
+    .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+  lvl1.append("rect")
+    .attr("width", d => Math.max(0, d.x1 - d.x0))
+    .attr("height", d => Math.max(0, d.y1 - d.y0))
+    .attr("fill", d => authorColor(d.data.author))
+    .on("mousemove", (e, d) => showTip(
+      `<b>${d.data.name}</b><br>${d.value.toFixed(2)}T tokens (${(d.value / total * 100).toFixed(1)}%)`, e))
+    .on("mouseleave", hideTip);
+
+  lvl1.each(function(d) {
+    const w = d.x1 - d.x0, h = d.y1 - d.y0;
+    if (w < 38 || h < 16) return;
+    const g = d3.select(this);
+    const pad = 5;
+    const fontSize = Math.max(10, Math.min(17, Math.sqrt(w * h) / (isModels ? 11 : 8)));
+    g.append("text")
+      .attr("x", pad)
+      .attr("y", pad + fontSize * 0.9)
+      .style("font-size", fontSize + "px")
+      .text(d.data.name);
+    if (h > fontSize * 2.4 && w > 56) {
+      g.append("text")
+        .attr("class", "small")
+        .attr("x", pad)
+        .attr("y", pad + fontSize * 2.0)
+        .style("font-size", Math.max(9, fontSize * 0.72) + "px")
+        .style("opacity", 0.9)
+        .text(d.value.toFixed(2) + "T");
+    }
+  });
+
+  if (isModels) {
+    const leaves = root.leaves().filter(d => d.depth === 2);
+    const lvl2 = svg.append("g").selectAll("g")
+      .data(leaves)
+      .join("g")
+      .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+    lvl2.append("rect")
+      .attr("width", d => Math.max(0, d.x1 - d.x0))
+      .attr("height", d => Math.max(0, d.y1 - d.y0))
+      .attr("fill", d => d3.color(authorColor(d.data.author)).brighter(0.4))
+      .attr("fill-opacity", 0.95)
+      .on("mousemove", (e, d) => showTip(
+        `<b>${d.data.name}</b><br>${d.value.toFixed(3)}T tokens`, e))
+      .on("mouseleave", hideTip);
+
+    lvl2.each(function(d) {
+      const w = d.x1 - d.x0, h = d.y1 - d.y0;
+      if (w < 46 || h < 14) return;
+      const g = d3.select(this);
+      const label = d.data.name.includes("/") ? d.data.name.split("/")[1] : d.data.name;
+      const fontSize = Math.max(9, Math.min(12, Math.sqrt(w * h) / 13));
+      const maxChars = Math.max(2, Math.floor((w - 8) / (fontSize * 0.55)));
+      const text = label.length > maxChars ? label.slice(0, Math.max(2, maxChars - 1)) + "…" : label;
+      g.append("text")
+        .attr("class", "small")
+        .attr("x", 4)
+        .attr("y", fontSize + 2)
+        .style("font-size", fontSize + "px")
+        .text(text);
+    });
+  }
+}
+
+// ── Lollipop ──────────────────────────────────────────────────────────────
+function renderLollipop() {
+  const svg = d3.select("#lollipop");
+  svg.selectAll("*").remove();
+  const wrap = svg.node().parentNode;
+  const W = wrap.clientWidth;
+  const H = wrap.clientHeight;
+  if (W < 10 || H < 10) return;
+  svg.attr("viewBox", `0 0 ${W} ${H}`);
+
+  const v = DATA[state.others];
+  const isModels = state.gran === "models";
+  const xs = isModels ? v.m_x : v.a_x;
+  const ys = isModels ? v.m_y : v.a_y;
+
+  const items = xs.map((name, i) => ({ name, value: ys[i] }));
+
+  // Dynamic margins
+  const longest = d3.max(xs, s => {
+    const lbl = isModels && s.includes("/") ? s.split("/")[1] : s;
+    return lbl.length;
+  });
+  const axisFont = Math.max(8, Math.min(12, W / Math.max(8, xs.length) * 0.65));
+  const labelPx = Math.max(46, Math.min(150, longest * axisFont * 0.55 + 8));
+  const margin = {
+    top: 6,
+    right: 12,
+    bottom: labelPx,
+    left: 38
+  };
+  const iw = Math.max(40, W - margin.left - margin.right);
+  const ih = Math.max(30, H - margin.top - margin.bottom);
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleBand().domain(xs).range([0, iw]).padding(isModels ? 0.42 : 0.32);
+  const y = d3.scaleLinear().domain([0, d3.max(ys) * 1.08]).nice().range([ih, 0]);
+
+  g.append("g")
+    .attr("class", "axis grid")
+    .call(d3.axisLeft(y).ticks(4).tickSize(-iw).tickFormat(d => d + "T"))
+    .selectAll("text").style("font-size", "10px");
+
+  const xAxis = g.append("g")
+    .attr("class", "axis")
+    .attr("transform", `translate(0,${ih})`)
+    .call(d3.axisBottom(x).tickSize(4));
+
+  xAxis.selectAll("text")
+    .style("font-size", axisFont + "px")
+    .style("text-anchor", "end")
+    .attr("dx", "-0.4em")
+    .attr("dy", "0.3em")
+    .attr("transform", "rotate(-45)")
+    .text(function(d) {
+      return isModels && d.includes("/") ? d.split("/")[1] : d;
+    });
+
+  g.append("g").selectAll("line.stem")
+    .data(items)
+    .join("line")
+    .attr("class", "stem")
+    .attr("x1", d => x(d.name) + x.bandwidth() / 2)
+    .attr("x2", d => x(d.name) + x.bandwidth() / 2)
+    .attr("y1", y(0))
+    .attr("y2", d => y(d.value));
+
+  const r = isModels ? Math.max(3.5, Math.min(5.5, iw / xs.length * 0.18))
+                     : Math.max(5, Math.min(8.5, iw / xs.length * 0.22));
+  g.append("g").selectAll("circle")
+    .data(items)
+    .join("circle")
+    .attr("class", "dot")
+    .attr("cx", d => x(d.name) + x.bandwidth() / 2)
+    .attr("cy", d => y(d.value))
+    .attr("r", r)
+    .attr("fill", d => authorColor(isModels ? (d.name.split("/")[0]) : d.name))
+    .attr("stroke", d => d3.color(authorColor(isModels ? (d.name.split("/")[0]) : d.name)).darker(0.6))
+    .on("mousemove", (e, d) => showTip(`<b>${d.name}</b><br>${d.value.toFixed(3)}T tokens`, e))
+    .on("mouseleave", hideTip);
+}
+
+// ── Render ────────────────────────────────────────────────────────────────
+function render() {
+  const isModels = state.gran === "models";
+  document.getElementById("tm-title").textContent = isModels
+    ? "Share of total tokens — by model, grouped by author"
+    : "Share of total tokens — by author";
+  document.getElementById("ll-title").textContent = isModels
+    ? "Tokens by model (trillions)"
+    : "Tokens by author (trillions)";
+  renderTreemap();
+  renderLollipop();
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────
+function wireSeg(id, key) {
+  document.querySelectorAll(`#${id} .selector-button`).forEach(btn => {
+    btn.addEventListener("click", () => {
+      state[key] = btn.dataset.v;
+      document.querySelectorAll(`#${id} .selector-button`).forEach(b => b.classList.toggle("active", b === btn));
+      render();
+    });
+  });
+}
+wireSeg("seg-gran", "gran");
+wireSeg("seg-others", "others");
+
+// ── Resize ────────────────────────────────────────────────────────────────
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(render, 120);
+});
+
+if (typeof ResizeObserver !== "undefined") {
+  new ResizeObserver(() => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(render, 120);
+  }).observe(document.getElementById("container1"));
+}
+
+render();
+</script>
+</body>
+</html>
