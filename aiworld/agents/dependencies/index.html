@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AI agent framework dependencies — libraries.io vs Ecosyste.ms</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --bg: #0f1115;
+  --card: #161a22;
+  --card-2: #1c2230;
+  --text: #e6e9ef;
+  --muted: #8b94a7;
+  --accent: #7aa2ff;
+  --accent-2: #ffb86c;
+  --border: #262d3d;
+  --pypi: #3675a8;
+  --npm:  #cb3837;
+  --lib:  #f08c00;
+  --eco:  #6db66d;
+}
+* { box-sizing: border-box; }
+html, body { margin:0; padding:0; background: var(--bg); color: var(--text); font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 32px 24px 64px; }
+header.page { border-bottom: 1px solid var(--border); padding-bottom: 18px; margin-bottom: 22px; }
+header.page h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: -0.01em; }
+header.page p.lede { margin: 0; color: var(--muted); max-width: 880px; }
+header.page .meta { margin-top: 10px; color: var(--muted); font-size: 12px; }
+header.page .meta a { color: var(--accent); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 4px; }
+nav.toc a {
+  display:inline-block; padding: 6px 10px; border-radius: 999px;
+  background: var(--card); color: var(--text); text-decoration: none;
+  border: 1px solid var(--border); font-size: 12px;
+}
+nav.toc a:hover { border-color: var(--accent); color: var(--accent); }
+.summary { width: 100%; border-collapse: collapse; margin: 24px 0 40px; background: var(--card); border-radius: 10px; overflow: hidden; }
+.summary th, .summary td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+.summary thead th { background: var(--card-2); color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+.summary .num { text-align: right; font-variant-numeric: tabular-nums; }
+.summary tbody tr:hover { background: rgba(122, 162, 255, 0.06); }
+.lib-cell { background: rgba(240, 140, 0, 0.04); }
+.eco-cell { background: rgba(109, 182, 109, 0.04); }
+.card { background: var(--card); border-radius: 14px; padding: 22px 24px; margin-bottom: 28px; border: 1px solid var(--border); }
+.card-head { display:flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; align-items: flex-start; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+.card-head h2 { margin: 0 0 4px; font-size: 22px; }
+.card-head .desc { margin: 0; color: var(--muted); max-width: 640px; }
+.badges { display:flex; gap: 6px; flex-wrap: wrap; }
+.badge { background: var(--card-2); padding: 4px 10px; border-radius: 6px; text-decoration: none; color: var(--text); border: 1px solid var(--border); font-size: 12px; }
+.badge:hover { border-color: var(--accent); }
+.badge-eco { background: var(--border); padding: 1px 6px; border-radius: 4px; margin-right: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; }
+.badge-pypi .badge-eco { background: var(--pypi); }
+.badge-npm  .badge-eco { background: var(--npm); }
+.repo-meta { display:flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
+.repo-meta a { color: var(--accent); text-decoration: none; }
+.variant { margin-top: 22px; padding-top: 16px; border-top: 1px dashed var(--border); }
+.variant:first-of-type { border-top: none; margin-top: 0; padding-top: 0; }
+.variant-head { display:flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.variant-head h4 { margin: 0; font-size: 15px; font-weight: 600; color: var(--muted); }
+.variant-head h4 code { color: var(--text); }
+.links { font-size: 12px; }
+.links a { color: var(--accent); text-decoration: none; margin-left: 6px; }
+.links a:hover { text-decoration: underline; }
+.stats-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0 18px; }
+.stat { background: var(--card-2); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); }
+.stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.stat-value { font-size: 18px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.stat-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.cols { display:grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 22px; }
+@media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+.col h5 { font-size: 13px; margin: 0 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+.dep-list { margin: 0; padding-left: 18px; }
+.dep-list li { margin-bottom: 3px; font-size: 13px; }
+.dep-list code { background: rgba(255,255,255,0.05); padding: 1px 5px; border-radius: 4px; }
+.dep-req { color: var(--muted); font-size: 11px; margin-left: 4px; }
+.opt-details { margin-top: 10px; }
+.opt-details summary { cursor: pointer; color: var(--muted); padding: 4px 0; font-size: 12px; }
+table.dependents { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 4px; }
+table.dependents th, table.dependents td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+table.dependents th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; }
+table.dependents .num { text-align: right; font-variant-numeric: tabular-nums; }
+table.dependents .desc { color: var(--muted); }
+.muted { color: var(--muted); }
+.small { font-size: 11px; }
+code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.92em; }
+footer.page { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
+footer.page a { color: var(--accent); }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0 0; font-size: 12px; color: var(--muted); }
+.legend .sw { display:inline-block; width: 12px; height: 12px; vertical-align: middle; margin-right: 4px; border-radius: 2px; }
+.legend .sw.lib { background: var(--lib); opacity: 0.5; }
+.legend .sw.eco { background: var(--eco); opacity: 0.5; }
+h3.section { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 32px 0 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="page">
+  <h1>AI agent framework dependencies</h1>
+  <p class="lede">Dependency footprint and downstream reach for ten AI-agent frameworks across PyPI and npm — what each package <em>depends on</em>, and <em>who depends on it</em>. Data cross-referenced between <a href="https://libraries.io/" target="_blank" rel="noopener">libraries.io</a> and <a href="https://packages.ecosyste.ms/" target="_blank" rel="noopener">Ecosyste.ms</a>.</p>
+  <div class="meta">Generated 2026-05-19 12:59 UTC. Numbers from these sources differ — see <a href="#methodology">methodology</a> at the bottom for why.</div>
+  <div class="legend">
+    <span><span class="sw lib"></span>libraries.io columns</span>
+    <span><span class="sw eco"></span>Ecosyste.ms columns</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <a href="#card-langchain">LangChain</a><a href="#card-llamaindex">LlamaIndex</a><a href="#card-autogen">AutoGen</a><a href="#card-crewai">CrewAI</a><a href="#card-smolagents">smolagents</a><a href="#card-pydantic-ai">Pydantic AI</a><a href="#card-mastra">Mastra</a><a href="#card-vercel-ai-sdk">Vercel AI SDK</a><a href="#card-browser-use">browser-use</a><a href="#card-fast-agent">fast-agent</a>
+</nav>
+
+<h3 class="section">Summary — both sources side-by-side</h3>
+
+    <table class="summary">
+    <thead><tr>
+      <th>Framework</th><th>Package</th><th>Latest</th>
+      <th class='num'>Downloads/mo</th>
+      <th class='num lib-cell'>Dep pkgs<br><span class='muted small'>libraries.io</span></th>
+      <th class='num eco-cell'>Dep pkgs<br><span class='muted small'>Ecosyste.ms</span></th>
+      <th class='num lib-cell'>Dep repos<br><span class='muted small'>libraries.io</span></th>
+      <th class='num eco-cell'>Dep repos<br><span class='muted small'>Ecosyste.ms</span></th>
+      <th class='num'>SourceRank</th>
+      <th class='num'>★</th>
+      <th>License</th>
+    </tr></thead>
+    <tbody>
+    <tr>
+        <td>LangChain</td>
+        <td><code>langchain</code> <span class="muted">(pypi)</span></td>
+        <td>1.3.1<br><span class='muted small'>2026-05-15</span></td>
+        <td class='num'>242.3M</td>
+        <td class='num lib-cell'>5.04K</td>
+        <td class='num eco-cell'>1.1K</td>
+        <td class='num lib-cell'>2.17K</td>
+        <td class='num eco-cell'>18.7K</td>
+        <td class='num'>27</td>
+        <td class='num'>94.1K</td>
+        <td>MIT</td>
+        </tr><tr>
+        <td>LangChain</td>
+        <td><code>langchain</code> <span class="muted">(npm)</span></td>
+        <td>1.3.0<br><span class='muted small'>2026-04-03</span></td>
+        <td class='num'>9.6M</td>
+        <td class='num lib-cell'>1.78K</td>
+        <td class='num eco-cell'>216</td>
+        <td class='num lib-cell'>628</td>
+        <td class='num eco-cell'>3.0K</td>
+        <td class='num'>24</td>
+        <td class='num'>12.6K</td>
+        <td>MIT</td>
+        </tr><tr>
+        <td>LlamaIndex</td>
+        <td><code>llama-index</code> <span class="muted">(pypi)</span></td>
+        <td>0.14.13<br><span class='muted small'>2026-01-21</span></td>
+        <td class='num'>6.2M</td>
+        <td class='num lib-cell'>685</td>
+        <td class='num eco-cell'>153</td>
+        <td class='num lib-cell'>282</td>
+        <td class='num eco-cell'>1.5K</td>
+        <td class='num'>22</td>
+        <td class='num'>26.3K</td>
+        <td>MIT</td>
+        </tr><tr>
+        <td>LlamaIndex</td>
+        <td><code>llamaindex</code> <span class="muted">(npm)</span></td>
+        <td>0.12.1<br><span class='muted small'>2025-12-02</span></td>
+        <td class='num'>452.4K</td>
+        <td class='num lib-cell'>111</td>
+        <td class='num eco-cell'>6</td>
+        <td class='num lib-cell'>41</td>
+        <td class='num eco-cell'>1</td>
+        <td class='num'>18</td>
+        <td class='num'>1.4K</td>
+        <td>MIT</td>
+        </tr><tr>
+        <td>AutoGen</td>
+        <td><code>autogen-agentchat</code> <span class="muted">(pypi)</span></td>
+        <td>0.7.5<br><span class='muted small'>2025-09-30</span></td>
+        <td class='num'>859.6K</td>
+        <td class='num lib-cell'>75</td>
+        <td class='num eco-cell'>0</td>
+        <td class='num lib-cell'>41</td>
+        <td class='num eco-cell'>0</td>
+        <td class='num'>20</td>
+        <td class='num'>44.4K</td>
+        <td>Other</td>
+        </tr><tr>
+        <td>AutoGen</td>
+        <td><code>pyautogen</code> <span class="muted">(pypi)</span></td>
+        <td>0.10.0<br><span class='muted small'>2025-07-15</span></td>
+        <td class='num'>1.2M</td>
+        <td class='num lib-cell'>74</td>
+        <td class='num eco-cell'>37</td>
+        <td class='num lib-cell'>36</td>
+        <td class='num eco-cell'>3</td>
+        <td class='num'>18</td>
+        <td class='num'>2.9K</td>
+        <td>Other</td>
+        </tr><tr>
+        <td>CrewAI</td>
+        <td><code>crewai</code> <span class="muted">(pypi)</span></td>
+        <td>1.14.4<br><span class='muted small'>2026-04-30</span></td>
+        <td class='num'>9.2M</td>
+        <td class='num lib-cell'>938</td>
+        <td class='num eco-cell'>9</td>
+        <td class='num lib-cell'>512</td>
+        <td class='num eco-cell'>0</td>
+        <td class='num'>22</td>
+        <td class='num'>41.0K</td>
+        <td>MIT</td>
+        </tr><tr>
+        <td>smolagents</td>
+        <td><code>smolagents</code> <span class="muted">(pypi)</span></td>
+        <td>1.25.0<br><span class='muted small'>2026-05-14</span></td>
+        <td class='num'>582.8K</td>
+        <td class='num lib-cell'>155</td>
+        <td class='num eco-cell'>0</td>
+        <td class='num lib-cell'>81</td>
+        <td class='num eco-cell'>0</td>
+        <td class='num'>11</td>
+        <td class='num'>26.9K</td>
+        <td>Apache-2.0</td>
+        </tr><tr>
+        <td>Pydantic AI</td>
+        <td><code>pydantic-ai</code> <span class="muted">(pypi)</span></td>
+        <td>1.97.0<br><span class='muted small'>2026-05-15</span></td>
+        <td class='num'>38.5M</td>
+        <td class='num lib-cell'>675</td>
+        <td class='num eco-cell'>0</td>
+        <td class='num lib-cell'>332</td>
+        <td class='num eco-cell'>0</td>
+        <td class='num'>23</td>
+        <td class='num'>16.9K</td>
+        <td>MIT</td>
+        </tr><tr>
+        <td>Mastra</td>
+        <td><code>@mastra/core</code> <span class="muted">(npm)</span></td>
+        <td>1.33.1<br><span class='muted small'>2026-05-13</span></td>
+        <td class='num'>3.5M</td>
+        <td class='num lib-cell'>590</td>
+        <td class='num eco-cell'>0</td>
+        <td class='num lib-cell'>102</td>
+        <td class='num eco-cell'>0</td>
+        <td class='num'>22</td>
+        <td class='num'>23.6K</td>
+        <td>Apache-2.0</td>
+        </tr><tr>
+        <td>Vercel AI SDK</td>
+        <td><code>ai</code> <span class="muted">(npm)</span></td>
+        <td>6.0.164<br><span class='muted small'>2026-04-16</span></td>
+        <td class='num'>45.2M</td>
+        <td class='num lib-cell'>6.73K</td>
+        <td class='num eco-cell'>185</td>
+        <td class='num lib-cell'>2.04K</td>
+        <td class='num eco-cell'>2.5K</td>
+        <td class='num'>26</td>
+        <td class='num'>7.6K</td>
+        <td>Apache-2.0</td>
+        </tr><tr>
+        <td>browser-use</td>
+        <td><code>browser-use</code> <span class="muted">(pypi)</span></td>
+        <td>0.12.6<br><span class='muted small'>2026-04-02</span></td>
+        <td class='num'>11.4M</td>
+        <td class='num lib-cell'>168</td>
+        <td class='num eco-cell'>0</td>
+        <td class='num lib-cell'>70</td>
+        <td class='num eco-cell'>0</td>
+        <td class='num'>20</td>
+        <td class='num'>72.5K</td>
+        <td>MIT</td>
+        </tr><tr>
+        <td>fast-agent</td>
+        <td><code>fast-agent-mcp</code> <span class="muted">(pypi)</span></td>
+        <td>0.6.22<br><span class='muted small'>2026-04-21</span></td>
+        <td class='num'>90.0K</td>
+        <td class='num lib-cell'>16</td>
+        <td class='num eco-cell'>0</td>
+        <td class='num lib-cell'>7</td>
+        <td class='num eco-cell'>0</td>
+        <td class='num'>8</td>
+        <td class='num'>18.7K</td>
+        <td>Other</td>
+        </tr>
+    </tbody>
+    </table>
+    
+
+<h3 class="section">Per-framework detail</h3>
+
+    <section class="card" id="card-langchain">
+      <header class="card-head">
+        <div>
+          <h2>LangChain</h2>
+          <p class="desc">Building applications with LLMs through composability</p>
+          <div class="repo-meta"><span>★ 94.1K</span><span>⑂ 15.2K forks</span><span>👁 688 watchers</span><span><a href="https://github.com/langchain-ai/langchain" target="_blank" rel="noopener">langchain-ai/langchain</a></span></div>
+        </div>
+        <div class="badges"><a class="badge badge-pypi" href="https://pypi.org/project/langchain/" target="_blank" rel="noopener"><span class="badge-eco">pypi</span> langchain</a><a class="badge badge-npm" href="https://www.npmjs.com/package/langchain" target="_blank" rel="noopener"><span class="badge-eco">npm</span> langchain</a></div>
+      </header>
+      
+        <div class="variant">
+          <div class="variant-head">
+            <h4>PYPI: <code>langchain</code></h4>
+            <div class="links"><a href="https://pypi.org/project/langchain/" target="_blank" rel="noopener">PyPI</a> · <a href="https://libraries.io/pypi/langchain" target="_blank" rel="noopener">libraries.io</a> · <a href="https://packages.ecosyste.ms/registries/pypi.org/packages/langchain" target="_blank" rel="noopener">Ecosyste.ms</a> · <a href="https://github.com/langchain-ai/langchain" target="_blank" rel="noopener">GitHub</a> · <a href="https://docs.langchain.com/" target="_blank" rel="noopener">Homepage</a></div>
+          </div>
+          <div class="stats-grid"><div class="stat"><div class="stat-label">Downloads</div><div class="stat-value">242.3M</div><div class=stat-sub>last month</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent packages</div><div class="stat-value">1.1K</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent repos</div><div class="stat-value">18.7K</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent packages</div><div class="stat-value">5.04K</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent repos</div><div class="stat-value">2.17K</div></div>
+<div class="stat"><div class="stat-label">SourceRank (libraries.io)</div><div class="stat-value">27</div></div>
+<div class="stat"><div class="stat-label">Latest release</div><div class="stat-value">1.3.1</div><div class=stat-sub>2026-05-15</div></div>
+<div class="stat"><div class="stat-label">Total releases (libraries.io)</div><div class="stat-value">495</div></div>
+<div class="stat"><div class="stat-label">Docker images using it</div><div class="stat-value">429</div><div class=stat-sub>14.9M pulls</div></div>
+<div class="stat"><div class="stat-label">License</div><div class="stat-value">MIT</div></div></div>
+          <div class="cols">
+            <div class="col deps-col"><h5>Runtime dependencies (3)</h5><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-core/" target="_blank" rel="noopener"><code>langchain-core</code></a> <span class="dep-req">&lt;2.0.0,&gt;=1.4.0</span></li><li><a href="https://pypi.org/project/langgraph/" target="_blank" rel="noopener"><code>langgraph</code></a> <span class="dep-req">&lt;1.3.0,&gt;=1.2.0</span></li><li><a href="https://pypi.org/project/pydantic/" target="_blank" rel="noopener"><code>pydantic</code></a> <span class="dep-req">&lt;3.0.0,&gt;=2.7.4</span></li></ul><details class='opt-details'><summary>Optional / extras: extra == &quot;anthropic&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-anthropic/" target="_blank" rel="noopener"><code>langchain-anthropic</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;aws&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-aws/" target="_blank" rel="noopener"><code>langchain-aws</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;azure-ai&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-azure-ai/" target="_blank" rel="noopener"><code>langchain-azure-ai</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;baseten&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-baseten/" target="_blank" rel="noopener"><code>langchain-baseten</code></a> <span class="dep-req">&gt;=0.2.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;community&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-community/" target="_blank" rel="noopener"><code>langchain-community</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;deepseek&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-deepseek/" target="_blank" rel="noopener"><code>langchain-deepseek</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;fireworks&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-fireworks/" target="_blank" rel="noopener"><code>langchain-fireworks</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;google-genai&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-google-genai/" target="_blank" rel="noopener"><code>langchain-google-genai</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;google-vertexai&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-google-vertexai/" target="_blank" rel="noopener"><code>langchain-google-vertexai</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;groq&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-groq/" target="_blank" rel="noopener"><code>langchain-groq</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;huggingface&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-huggingface/" target="_blank" rel="noopener"><code>langchain-huggingface</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;mistralai&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-mistralai/" target="_blank" rel="noopener"><code>langchain-mistralai</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;ollama&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-ollama/" target="_blank" rel="noopener"><code>langchain-ollama</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;openai&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-openai/" target="_blank" rel="noopener"><code>langchain-openai</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;perplexity&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-perplexity/" target="_blank" rel="noopener"><code>langchain-perplexity</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;together&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-together/" target="_blank" rel="noopener"><code>langchain-together</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;xai&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/langchain-xai/" target="_blank" rel="noopener"><code>langchain-xai</code></a> <span class="dep-req">*</span></li></ul></details></div>
+            <div class="col dependents-col"><h5>Who depends on <code>langchain</code> (top 25 of 1.1K on Ecosyste.ms — sorted by monthly downloads)</h5><table class='dependents'><thead><tr><th>Package</th><th class='num'>Downloads/mo</th><th class='num'>Stars</th><th>Description</th></tr></thead><tbody><tr><td><a href='https://pypi.org/project/langfuse/' target='_blank' rel='noopener'><code>langfuse</code></a></td><td class='num'>18.7M</td><td class='num'>34</td><td class='desc'>A client library for accessing langfuse</td></tr><tr><td><a href='https://pypi.org/project/unstructured/' target='_blank' rel='noopener'><code>unstructured</code></a></td><td class='num'>3.2M</td><td class='num'>13.1K</td><td class='desc'>A library that prepares raw documents for downstream ML tasks.</td></tr><tr><td><a href='https://pypi.org/project/langwatch/' target='_blank' rel='noopener'><code>langwatch</code></a></td><td class='num'>321.7K</td><td class='num'>2.6K</td><td class='desc'>LangWatch Python SDK, for monitoring your LLMs</td></tr><tr><td><a href='https://pypi.org/project/langchain-google-calendar-tools/' target='_blank' rel='noopener'><code>langchain-google-calendar-tools</code></a></td><td class='num'>205.7K</td><td class='num'>4</td><td class='desc'>This repo walks through connecting to the Google Calendar API.</td></tr><tr><td><a href='https://pypi.org/project/langchain-openrouter/' target='_blank' rel='noopener'><code>langchain-openrouter</code></a></td><td class='num'>91.6K</td><td class='num'>2</td><td class='desc'>An integration package connecting OpenRouter and LangChain</td></tr><tr><td><a href='https://pypi.org/project/xinference/' target='_blank' rel='noopener'><code>xinference</code></a></td><td class='num'>27.5K</td><td class='num'>9.2K</td><td class='desc'>Model Serving Made Easy</td></tr><tr><td><a href='https://pypi.org/project/pueblo/' target='_blank' rel='noopener'><code>pueblo</code></a></td><td class='num'>26.0K</td><td class='num'>1</td><td class='desc'>Pueblo - a Python toolbox library.</td></tr><tr><td><a href='https://pypi.org/project/langchain-tools/' target='_blank' rel='noopener'><code>langchain-tools</code></a></td><td class='num'>16.4K</td><td class='num'>0</td><td class='desc'>Simplifying, enhancing, and extending the LangChain library functionality</td></tr><tr><td><a href='https://pypi.org/project/timescale-vector/' target='_blank' rel='noopener'><code>timescale-vector</code></a></td><td class='num'>6.0K</td><td class='num'>28</td><td class='desc'>Python library for storing vector data in Postgres</td></tr><tr><td><a href='https://pypi.org/project/gradio-tools/' target='_blank' rel='noopener'><code>gradio-tools</code></a></td><td class='num'>1.2K</td><td class='num'>38.0K</td><td class='desc'>Use Gradio Apps as tools for LLM Agents</td></tr><tr><td><a href='https://pypi.org/project/bioimageio-chatbot/' target='_blank' rel='noopener'><code>bioimageio-chatbot</code></a></td><td class='num'>1.1K</td><td class='num'>17</td><td class='desc'>Your Personal Assistant in Computational BioImaging.</td></tr><tr><td><a href='https://pypi.org/project/langcorn/' target='_blank' rel='noopener'><code>langcorn</code></a></td><td class='num'>711</td><td class='num'>933</td><td class='desc'>A Python package creating rest api interface for LangChain</td></tr><tr><td><a href='https://pypi.org/project/fastbots/' target='_blank' rel='noopener'><code>fastbots</code></a></td><td class='num'>590</td><td class='num'>6</td><td class='desc'>A simple library designed for rapid bot and scraper development using Selenium and the POM (Page Object Model) design.</td></tr><tr><td><a href='https://pypi.org/project/gpt-engineer/' target='_blank' rel='noopener'><code>gpt-engineer</code></a></td><td class='num'>544</td><td class='num'>54.9K</td><td class='desc'>Specify what you want it to build, the AI asks for clarification, and then builds it.</td></tr><tr><td><a href='https://pypi.org/project/napari-chatgpt/' target='_blank' rel='noopener'><code>napari-chatgpt</code></a></td><td class='num'>504</td><td class='num'>277</td><td class='desc'>Omega: an autonomous LLM-powered agent for conversational image processing and analysis in napari. Supports OpenAI, Anth</td></tr><tr><td><a href='https://pypi.org/project/blar-graph/' target='_blank' rel='noopener'><code>blar-graph</code></a></td><td class='num'>491</td><td class='num'>154</td><td class='desc'>Llm agent to search within a graph</td></tr><tr><td><a href='https://pypi.org/project/langchain-utils/' target='_blank' rel='noopener'><code>langchain-utils</code></a></td><td class='num'>457</td><td class='num'>8</td><td class='desc'>Utilities built upon the langchain library</td></tr><tr><td><a href='https://pypi.org/project/bia-bob/' target='_blank' rel='noopener'><code>bia-bob</code></a></td><td class='num'>309</td><td class='num'>121</td><td class='desc'>A Jupyter-based assistant for image data analysis tasks</td></tr><tr><td><a href='https://pypi.org/project/gai-lib/' target='_blank' rel='noopener'><code>gai-lib</code></a></td><td class='num'>241</td><td class='num'>0</td><td class='desc'>Refer to https://gai-labs.github.io/gai for more information</td></tr><tr><td><a href='https://pypi.org/project/ailingbot/' target='_blank' rel='noopener'><code>ailingbot</code></a></td><td class='num'>196</td><td class='num'>62</td><td class='desc'>An all-in-one solution to empower your IM bot with AI.</td></tr><tr><td><a href='https://pypi.org/project/langgraph-studio/' target='_blank' rel='noopener'><code>langgraph-studio</code></a></td><td class='num'>184</td><td class='num'>—</td><td class='desc'></td></tr><tr><td><a href='https://pypi.org/project/openplugin/' target='_blank' rel='noopener'><code>openplugin</code></a></td><td class='num'>163</td><td class='num'>0</td><td class='desc'></td></tr><tr><td><a href='https://pypi.org/project/ionic-langchain/' target='_blank' rel='noopener'><code>ionic-langchain</code></a></td><td class='num'>154</td><td class='num'>—</td><td class='desc'></td></tr><tr><td><a href='https://pypi.org/project/berrydb/' target='_blank' rel='noopener'><code>berrydb</code></a></td><td class='num'>143</td><td class='num'>—</td><td class='desc'>The database for unstructured data and AI apps</td></tr><tr><td><a href='https://pypi.org/project/bahila-extractor/' target='_blank' rel='noopener'><code>bahila-extractor</code></a></td><td class='num'>139</td><td class='num'>—</td><td class='desc'></td></tr></tbody></table></div>
+          </div>
+        </div>
+        
+        <div class="variant">
+          <div class="variant-head">
+            <h4>NPM: <code>langchain</code></h4>
+            <div class="links"><a href="https://www.npmjs.com/package/langchain" target="_blank" rel="noopener">npm</a> · <a href="https://libraries.io/npm/langchain" target="_blank" rel="noopener">libraries.io</a> · <a href="https://packages.ecosyste.ms/registries/npmjs.org/packages/langchain" target="_blank" rel="noopener">Ecosyste.ms</a> · <a href="https://github.com/langchain-ai/langchain" target="_blank" rel="noopener">GitHub</a> · <a href="https://docs.langchain.com/" target="_blank" rel="noopener">Homepage</a></div>
+          </div>
+          <div class="stats-grid"><div class="stat"><div class="stat-label">Downloads</div><div class="stat-value">9.6M</div><div class=stat-sub>last month</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent packages</div><div class="stat-value">216</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent repos</div><div class="stat-value">3.0K</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent packages</div><div class="stat-value">1.78K</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent repos</div><div class="stat-value">628</div></div>
+<div class="stat"><div class="stat-label">SourceRank (libraries.io)</div><div class="stat-value">24</div></div>
+<div class="stat"><div class="stat-label">Latest release</div><div class="stat-value">1.3.0</div><div class=stat-sub>2026-04-03</div></div>
+<div class="stat"><div class="stat-label">Total releases (libraries.io)</div><div class="stat-value">446</div></div>
+<div class="stat"><div class="stat-label">Docker images using it</div><div class="stat-value">84</div><div class=stat-sub>150.6M pulls</div></div>
+<div class="stat"><div class="stat-label">License</div><div class="stat-value">MIT</div></div></div>
+          <div class="cols">
+            <div class="col deps-col"><h5>Runtime dependencies (5)</h5><ul class='dep-list'><li><a href="https://www.npmjs.com/package/@langchain/langgraph" target="_blank" rel="noopener"><code>@langchain/langgraph</code></a> <span class="dep-req">^1.2.6</span></li><li><a href="https://www.npmjs.com/package/@langchain/langgraph-checkpoint" target="_blank" rel="noopener"><code>@langchain/langgraph-checkpoint</code></a> <span class="dep-req">^1.0.1</span></li><li><a href="https://www.npmjs.com/package/langsmith" target="_blank" rel="noopener"><code>langsmith</code></a> <span class="dep-req">&gt;=0.5.0 &lt;1.0.0</span></li><li><a href="https://www.npmjs.com/package/uuid" target="_blank" rel="noopener"><code>uuid</code></a> <span class="dep-req">^11.1.0</span></li><li><a href="https://www.npmjs.com/package/zod" target="_blank" rel="noopener"><code>zod</code></a> <span class="dep-req">^3.25.76 || ^4</span></li></ul></div>
+            <div class="col dependents-col"><h5>Who depends on <code>langchain</code> (top 25 of 216 on Ecosyste.ms — sorted by monthly downloads)</h5><table class='dependents'><thead><tr><th>Package</th><th class='num'>Downloads/mo</th><th class='num'>Stars</th><th>Description</th></tr></thead><tbody><tr><td><a href='https://www.npmjs.com/package/ai' target='_blank' rel='noopener'><code>ai</code></a></td><td class='num'>45.2M</td><td class='num'>7.6K</td><td class='desc'>AI SDK by Vercel - build apps like ChatGPT, Claude, Gemini, and more with a single interface for any model using the Ver</td></tr><tr><td><a href='https://www.npmjs.com/package/ai' target='_blank' rel='noopener'><code>ai</code></a></td><td class='num'>45.2M</td><td class='num'>7.6K</td><td class='desc'>AI SDK by Vercel - build apps like ChatGPT, Claude, Gemini, and more with a single interface for any model using the Ver</td></tr><tr><td><a href='https://www.npmjs.com/package/@langchain/community' target='_blank' rel='noopener'><code>@langchain/community</code></a></td><td class='num'>3.4M</td><td class='num'>12.6K</td><td class='desc'>Third-party integrations for LangChain.js</td></tr><tr><td><a href='https://www.npmjs.com/package/@langchain/community' target='_blank' rel='noopener'><code>@langchain/community</code></a></td><td class='num'>3.4M</td><td class='num'>12.6K</td><td class='desc'>Third-party integrations for LangChain.js</td></tr><tr><td><a href='https://www.npmjs.com/package/@langchain/weaviate' target='_blank' rel='noopener'><code>@langchain/weaviate</code></a></td><td class='num'>1.0M</td><td class='num'>17.7K</td><td class='desc'>Weaviate integration for LangChain.js</td></tr><tr><td><a href='https://www.npmjs.com/package/@langchain/groq' target='_blank' rel='noopener'><code>@langchain/groq</code></a></td><td class='num'>792.3K</td><td class='num'>17.7K</td><td class='desc'>Groq integration for LangChain.js</td></tr><tr><td><a href='https://www.npmjs.com/package/@langchain/mistralai' target='_blank' rel='noopener'><code>@langchain/mistralai</code></a></td><td class='num'>607.4K</td><td class='num'>17.7K</td><td class='desc'>MistralAI integration for LangChain.js</td></tr><tr><td><a href='https://www.npmjs.com/package/@langchain/pinecone' target='_blank' rel='noopener'><code>@langchain/pinecone</code></a></td><td class='num'>531.1K</td><td class='num'>17.7K</td><td class='desc'>LangChain integration for Pinecone&#x27;s vector database</td></tr><tr><td><a href='https://www.npmjs.com/package/@getzep/zep-js' target='_blank' rel='noopener'><code>@getzep/zep-js</code></a></td><td class='num'>378.2K</td><td class='num'>63</td><td class='desc'>Zep: Fast, scalable building blocks for production LLM apps</td></tr><tr><td><a href='https://www.npmjs.com/package/@traceloop/node-server-sdk' target='_blank' rel='noopener'><code>@traceloop/node-server-sdk</code></a></td><td class='num'>342.9K</td><td class='num'>248</td><td class='desc'>Traceloop Software Development Kit (SDK) for Node.js</td></tr><tr><td><a href='https://www.npmjs.com/package/n8n' target='_blank' rel='noopener'><code>n8n</code></a></td><td class='num'>318.2K</td><td class='num'>186.7K</td><td class='desc'>n8n Workflow Automation Tool</td></tr><tr><td><a href='https://www.npmjs.com/package/langfuse-langchain' target='_blank' rel='noopener'><code>langfuse-langchain</code></a></td><td class='num'>307.9K</td><td class='num'>129</td><td class='desc'></td></tr><tr><td><a href='https://www.npmjs.com/package/@lobehub/i18n-cli' target='_blank' rel='noopener'><code>@lobehub/i18n-cli</code></a></td><td class='num'>155.5K</td><td class='num'>367</td><td class='desc'>Lobe i18n is a CLI tool that automate translate your i18n localization with AI</td></tr><tr><td><a href='https://www.npmjs.com/package/@traceloop/instrumentation-langchain' target='_blank' rel='noopener'><code>@traceloop/instrumentation-langchain</code></a></td><td class='num'>134.0K</td><td class='num'>264</td><td class='desc'>OpenTelemetry instrumentation for LangchainJS</td></tr><tr><td><a href='https://www.npmjs.com/package/@lobehub/seo-cli' target='_blank' rel='noopener'><code>@lobehub/seo-cli</code></a></td><td class='num'>131.8K</td><td class='num'>366</td><td class='desc'>Lobe seo is a CLI tool that automate generation seo content for mdx</td></tr><tr><td><a href='https://www.npmjs.com/package/@arizeai/openinference-instrumentation-langchain' target='_blank' rel='noopener'><code>@arizeai/openinference-instrumentation-langchain</code></a></td><td class='num'>128.4K</td><td class='num'>958</td><td class='desc'>OpenInference Instrumentation for LangChain.js</td></tr><tr><td><a href='https://www.npmjs.com/package/@lobehub/chat' target='_blank' rel='noopener'><code>@lobehub/chat</code></a></td><td class='num'>61.8K</td><td class='num'>15.5K</td><td class='desc'>Lobe Chat - an open-source, high-performance chatbot framework that supports speech synthesis, multimodal, and extensibl</td></tr><tr><td><a href='https://www.npmjs.com/package/llm-agents' target='_blank' rel='noopener'><code>llm-agents</code></a></td><td class='num'>14.2K</td><td class='num'>—</td><td class='desc'>LLM Agent framework for Node.js</td></tr><tr><td><a href='https://www.npmjs.com/package/@aj-archipelago/cortex' target='_blank' rel='noopener'><code>@aj-archipelago/cortex</code></a></td><td class='num'>2.0K</td><td class='num'>60</td><td class='desc'>Cortex is a GraphQL API for AI. It provides a simple, extensible interface for using AI services from OpenAI, Azure and </td></tr><tr><td><a href='https://www.npmjs.com/package/koishi-plugin-chatluna-character' target='_blank' rel='noopener'><code>koishi-plugin-chatluna-character</code></a></td><td class='num'>1.8K</td><td class='num'>53</td><td class='desc'>Let the large language model play a role, disguise as a group friend</td></tr><tr><td><a href='https://www.npmjs.com/package/@mrck-labs/anton-sdk' target='_blank' rel='noopener'><code>@mrck-labs/anton-sdk</code></a></td><td class='num'>1.8K</td><td class='num'>—</td><td class='desc'></td></tr><tr><td><a href='https://www.npmjs.com/package/rws-js-server' target='_blank' rel='noopener'><code>rws-js-server</code></a></td><td class='num'>1.7K</td><td class='num'>0</td><td class='desc'>RWS-JS is a flexible server for fullstack Realtime Web Suite framework that you can use to set up web servers, WebSocket</td></tr><tr><td><a href='https://www.npmjs.com/package/@roadiehq/rag-ai-backend-embeddings-openai' target='_blank' rel='noopener'><code>@roadiehq/rag-ai-backend-embeddings-openai</code></a></td><td class='num'>1.6K</td><td class='num'>236</td><td class='desc'>The OpenAI backend module for the @roadiehq/rag-ai plugin.</td></tr><tr><td><a href='https://www.npmjs.com/package/embedchain' target='_blank' rel='noopener'><code>embedchain</code></a></td><td class='num'>1.6K</td><td class='num'>—</td><td class='desc'>embedchain is a framework to easily create LLM powered bots over any dataset</td></tr><tr><td><a href='https://www.npmjs.com/package/@rws-framework/server' target='_blank' rel='noopener'><code>@rws-framework/server</code></a></td><td class='num'>1.4K</td><td class='num'>0</td><td class='desc'>## Table of Contents</td></tr></tbody></table></div>
+          </div>
+        </div>
+        
+    </section>
+    
+
+    <section class="card" id="card-llamaindex">
+      <header class="card-head">
+        <div>
+          <h2>LlamaIndex</h2>
+          <p class="desc">Interface between LLMs and your data</p>
+          <div class="repo-meta"><span>★ 26.3K</span><span>⑂ 3.3K forks</span><span>👁 200 watchers</span><span><a href="https://github.com/run-llama/llama_index" target="_blank" rel="noopener">run-llama/llama_index</a></span></div>
+        </div>
+        <div class="badges"><a class="badge badge-pypi" href="https://pypi.org/project/llama-index/" target="_blank" rel="noopener"><span class="badge-eco">pypi</span> llama-index</a><a class="badge badge-npm" href="https://www.npmjs.com/package/llamaindex" target="_blank" rel="noopener"><span class="badge-eco">npm</span> llamaindex</a></div>
+      </header>
+      
+        <div class="variant">
+          <div class="variant-head">
+            <h4>PYPI: <code>llama-index</code></h4>
+            <div class="links"><a href="https://pypi.org/project/llama-index/" target="_blank" rel="noopener">PyPI</a> · <a href="https://libraries.io/pypi/llama-index" target="_blank" rel="noopener">libraries.io</a> · <a href="https://packages.ecosyste.ms/registries/pypi.org/packages/llama-index" target="_blank" rel="noopener">Ecosyste.ms</a> · <a href="https://github.com/run-llama/llama_index" target="_blank" rel="noopener">GitHub</a> · <a href="https://llamaindex.ai" target="_blank" rel="noopener">Homepage</a></div>
+          </div>
+          <div class="stats-grid"><div class="stat"><div class="stat-label">Downloads</div><div class="stat-value">6.2M</div><div class=stat-sub>last month</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent packages</div><div class="stat-value">153</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent repos</div><div class="stat-value">1.5K</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent packages</div><div class="stat-value">685</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent repos</div><div class="stat-value">282</div></div>
+<div class="stat"><div class="stat-label">SourceRank (libraries.io)</div><div class="stat-value">22</div></div>
+<div class="stat"><div class="stat-label">Latest release</div><div class="stat-value">0.14.13</div><div class=stat-sub>2026-01-21</div></div>
+<div class="stat"><div class="stat-label">Total releases (libraries.io)</div><div class="stat-value">503</div></div>
+<div class="stat"><div class="stat-label">Docker images using it</div><div class="stat-value">45</div><div class=stat-sub>637.4K pulls</div></div>
+<div class="stat"><div class="stat-label">License</div><div class="stat-value">MIT</div></div></div>
+          <div class="cols">
+            <div class="col deps-col"><h5>Runtime dependencies (7)</h5><ul class='dep-list'><li><a href="https://pypi.org/project/llama-index-core/" target="_blank" rel="noopener"><code>llama-index-core</code></a> <span class="dep-req">&lt;0.15.0,&gt;=0.14.13</span></li><li><a href="https://pypi.org/project/llama-index-embeddings-openai/" target="_blank" rel="noopener"><code>llama-index-embeddings-openai</code></a> <span class="dep-req">&lt;0.6,&gt;=0.5.0</span></li><li><a href="https://pypi.org/project/llama-index-indices-managed-llama-cloud/" target="_blank" rel="noopener"><code>llama-index-indices-managed-llama-cloud</code></a> <span class="dep-req">&gt;=0.4.0</span></li><li><a href="https://pypi.org/project/llama-index-llms-openai/" target="_blank" rel="noopener"><code>llama-index-llms-openai</code></a> <span class="dep-req">&lt;0.7,&gt;=0.6.0</span></li><li><a href="https://pypi.org/project/llama-index-readers-file/" target="_blank" rel="noopener"><code>llama-index-readers-file</code></a> <span class="dep-req">&lt;0.6,&gt;=0.5.0</span></li><li><a href="https://pypi.org/project/llama-index-readers-llama-parse/" target="_blank" rel="noopener"><code>llama-index-readers-llama-parse</code></a> <span class="dep-req">&gt;=0.4.0</span></li><li><a href="https://pypi.org/project/nltk/" target="_blank" rel="noopener"><code>nltk</code></a> <span class="dep-req">&gt;3.8.1</span></li></ul></div>
+            <div class="col dependents-col"><h5>Who depends on <code>llama-index</code> (top 25 of 153 on Ecosyste.ms — sorted by monthly downloads)</h5><table class='dependents'><thead><tr><th>Package</th><th class='num'>Downloads/mo</th><th class='num'>Stars</th><th>Description</th></tr></thead><tbody><tr><td><a href='https://pypi.org/project/llama-parse/' target='_blank' rel='noopener'><code>llama-parse</code></a></td><td class='num'>26.5M</td><td class='num'>36.4K</td><td class='desc'>Parse files into RAG-Optimized formats.</td></tr><tr><td><a href='https://pypi.org/project/llama-parse/' target='_blank' rel='noopener'><code>llama-parse</code></a></td><td class='num'>26.5M</td><td class='num'>36.4K</td><td class='desc'>Parse files into RAG-Optimized formats.</td></tr><tr><td><a href='https://pypi.org/project/arize-phoenix/' target='_blank' rel='noopener'><code>arize-phoenix</code></a></td><td class='num'>1.5M</td><td class='num'>9.2K</td><td class='desc'>AI Observability and Evaluation</td></tr><tr><td><a href='https://pypi.org/project/embedchain/' target='_blank' rel='noopener'><code>embedchain</code></a></td><td class='num'>1.1M</td><td class='num'>54.9K</td><td class='desc'>Simplest open source retrieval (RAG) framework</td></tr><tr><td><a href='https://pypi.org/project/embedchain/' target='_blank' rel='noopener'><code>embedchain</code></a></td><td class='num'>1.1M</td><td class='num'>54.9K</td><td class='desc'>Simplest open source retrieval (RAG) framework</td></tr><tr><td><a href='https://pypi.org/project/portkey-ai/' target='_blank' rel='noopener'><code>portkey-ai</code></a></td><td class='num'>500.8K</td><td class='num'>86</td><td class='desc'>Python client library for the Portkey API</td></tr><tr><td><a href='https://pypi.org/project/portkey-ai/' target='_blank' rel='noopener'><code>portkey-ai</code></a></td><td class='num'>500.8K</td><td class='num'>86</td><td class='desc'>Python client library for the Portkey API</td></tr><tr><td><a href='https://pypi.org/project/composio-core/' target='_blank' rel='noopener'><code>composio-core</code></a></td><td class='num'>413.5K</td><td class='num'>28.0K</td><td class='desc'>[DEPRECATED] Core package to act as a bridge between composio platform and other services. Please use &#x27;composio&#x27; instead</td></tr><tr><td><a href='https://pypi.org/project/composio-core/' target='_blank' rel='noopener'><code>composio-core</code></a></td><td class='num'>413.5K</td><td class='num'>28.0K</td><td class='desc'>[DEPRECATED] Core package to act as a bridge between composio platform and other services. Please use &#x27;composio&#x27; instead</td></tr><tr><td><a href='https://pypi.org/project/openinference-instrumentation-llama-index/' target='_blank' rel='noopener'><code>openinference-instrumentation-llama-index</code></a></td><td class='num'>297.3K</td><td class='num'>677</td><td class='desc'>OpenInference LlamaIndex Instrumentation</td></tr><tr><td><a href='https://pypi.org/project/agentscope/' target='_blank' rel='noopener'><code>agentscope</code></a></td><td class='num'>201.4K</td><td class='num'>24.5K</td><td class='desc'>AgentScope: A Flexible yet Robust Multi-Agent Platform.</td></tr><tr><td><a href='https://pypi.org/project/agentscope/' target='_blank' rel='noopener'><code>agentscope</code></a></td><td class='num'>201.4K</td><td class='num'>24.5K</td><td class='desc'>AgentScope: A Flexible yet Robust Multi-Agent Platform.</td></tr><tr><td><a href='https://pypi.org/project/langflow/' target='_blank' rel='noopener'><code>langflow</code></a></td><td class='num'>108.1K</td><td class='num'>147.8K</td><td class='desc'>A Python package with a built-in web application</td></tr><tr><td><a href='https://pypi.org/project/openbb/' target='_blank' rel='noopener'><code>openbb</code></a></td><td class='num'>78.4K</td><td class='num'>41.3K</td><td class='desc'>Investment research for everyone, anywhere.</td></tr><tr><td><a href='https://pypi.org/project/trulens-eval/' target='_blank' rel='noopener'><code>trulens-eval</code></a></td><td class='num'>42.0K</td><td class='num'>2.1K</td><td class='desc'>Backwards-compatibility package for API of trulens_eval&lt;1.0.0 using API of trulens-*&gt;=1.0.0.</td></tr><tr><td><a href='https://pypi.org/project/trulens-eval/' target='_blank' rel='noopener'><code>trulens-eval</code></a></td><td class='num'>42.0K</td><td class='num'>2.1K</td><td class='desc'>Backwards-compatibility package for API of trulens_eval&lt;1.0.0 using API of trulens-*&gt;=1.0.0.</td></tr><tr><td><a href='https://pypi.org/project/swarms/' target='_blank' rel='noopener'><code>swarms</code></a></td><td class='num'>39.3K</td><td class='num'>5.9K</td><td class='desc'>Swarms - TGSC</td></tr><tr><td><a href='https://pypi.org/project/swarms/' target='_blank' rel='noopener'><code>swarms</code></a></td><td class='num'>39.3K</td><td class='num'>5.9K</td><td class='desc'>Swarms - TGSC</td></tr><tr><td><a href='https://pypi.org/project/r2r/' target='_blank' rel='noopener'><code>r2r</code></a></td><td class='num'>32.9K</td><td class='num'>1.1K</td><td class='desc'>SciPhi R2R</td></tr><tr><td><a href='https://pypi.org/project/r2r/' target='_blank' rel='noopener'><code>r2r</code></a></td><td class='num'>32.9K</td><td class='num'>1.1K</td><td class='desc'>SciPhi R2R</td></tr><tr><td><a href='https://pypi.org/project/metaphor-connectors/' target='_blank' rel='noopener'><code>metaphor-connectors</code></a></td><td class='num'>26.7K</td><td class='num'>8</td><td class='desc'>A collection of Python-based &#x27;connectors&#x27; that extract metadata from various sources to ingest into the Metaphor app.</td></tr><tr><td><a href='https://pypi.org/project/metaphor-connectors/' target='_blank' rel='noopener'><code>metaphor-connectors</code></a></td><td class='num'>26.7K</td><td class='num'>8</td><td class='desc'>A collection of Python-based &#x27;connectors&#x27; that extract metadata from various sources to ingest into the Metaphor app.</td></tr><tr><td><a href='https://pypi.org/project/llama-hub/' target='_blank' rel='noopener'><code>llama-hub</code></a></td><td class='num'>17.6K</td><td class='num'>3.5K</td><td class='desc'>A library of community-driven data loaders for LLMs. Use with LlamaIndex and/or LangChain. </td></tr><tr><td><a href='https://pypi.org/project/llama-hub/' target='_blank' rel='noopener'><code>llama-hub</code></a></td><td class='num'>17.6K</td><td class='num'>3.5K</td><td class='desc'>A library of community-driven data loaders for LLMs. Use with LlamaIndex and/or LangChain. </td></tr><tr><td><a href='https://pypi.org/project/composio-llamaindex/' target='_blank' rel='noopener'><code>composio-llamaindex</code></a></td><td class='num'>14.1K</td><td class='num'>27.2K</td><td class='desc'>Use Composio to get array of tools with LlamaIndex Agent Workflows.</td></tr></tbody></table></div>
+          </div>
+        </div>
+        
+        <div class="variant">
+          <div class="variant-head">
+            <h4>NPM: <code>llamaindex</code></h4>
+            <div class="links"><a href="https://www.npmjs.com/package/llamaindex" target="_blank" rel="noopener">npm</a> · <a href="https://libraries.io/npm/llamaindex" target="_blank" rel="noopener">libraries.io</a> · <a href="https://packages.ecosyste.ms/registries/npmjs.org/packages/llamaindex" target="_blank" rel="noopener">Ecosyste.ms</a> · <a href="https://github.com/run-llama/llama_index" target="_blank" rel="noopener">GitHub</a> · <a href="https://llamaindex.ai" target="_blank" rel="noopener">Homepage</a></div>
+          </div>
+          <div class="stats-grid"><div class="stat"><div class="stat-label">Downloads</div><div class="stat-value">452.4K</div><div class=stat-sub>last month</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent packages</div><div class="stat-value">6</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent repos</div><div class="stat-value">1</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent packages</div><div class="stat-value">111</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent repos</div><div class="stat-value">41</div></div>
+<div class="stat"><div class="stat-label">SourceRank (libraries.io)</div><div class="stat-value">18</div></div>
+<div class="stat"><div class="stat-label">Latest release</div><div class="stat-value">0.12.1</div><div class=stat-sub>2025-12-02</div></div>
+<div class="stat"><div class="stat-label">Total releases (libraries.io)</div><div class="stat-value">294</div></div>
+<div class="stat"><div class="stat-label">Docker images using it</div><div class="stat-value">1</div><div class=stat-sub>5.0M pulls</div></div>
+<div class="stat"><div class="stat-label">License</div><div class="stat-value">MIT</div></div></div>
+          <div class="cols">
+            <div class="col deps-col"><h5>Runtime dependencies (8)</h5><ul class='dep-list'><li><a href="https://www.npmjs.com/package/@types/lodash" target="_blank" rel="noopener"><code>@types/lodash</code></a> <span class="dep-req">^4.17.7</span></li><li><a href="https://www.npmjs.com/package/@types/node" target="_blank" rel="noopener"><code>@types/node</code></a> <span class="dep-req">^24.0.13</span></li><li><a href="https://www.npmjs.com/package/lodash" target="_blank" rel="noopener"><code>lodash</code></a> <span class="dep-req">^4.17.21</span></li><li><a href="https://www.npmjs.com/package/magic-bytes.js" target="_blank" rel="noopener"><code>magic-bytes.js</code></a> <span class="dep-req">^1.10.0</span></li><li><a href="https://www.npmjs.com/package/@llamaindex/core" target="_blank" rel="noopener"><code>@llamaindex/core</code></a> <span class="dep-req">0.6.22</span></li><li><a href="https://www.npmjs.com/package/@llamaindex/env" target="_blank" rel="noopener"><code>@llamaindex/env</code></a> <span class="dep-req">0.1.30</span></li><li><a href="https://www.npmjs.com/package/@llamaindex/node-parser" target="_blank" rel="noopener"><code>@llamaindex/node-parser</code></a> <span class="dep-req">2.0.22</span></li><li><a href="https://www.npmjs.com/package/@llamaindex/workflow" target="_blank" rel="noopener"><code>@llamaindex/workflow</code></a> <span class="dep-req">1.1.24</span></li></ul></div>
+            <div class="col dependents-col"><h5>Who depends on <code>llamaindex</code> (top 25 of 6 on Ecosyste.ms — sorted by monthly downloads)</h5><table class='dependents'><thead><tr><th>Package</th><th class='num'>Downloads/mo</th><th class='num'>Stars</th><th>Description</th></tr></thead><tbody><tr><td><a href='https://www.npmjs.com/package/portkey-ai' target='_blank' rel='noopener'><code>portkey-ai</code></a></td><td class='num'>518.5K</td><td class='num'>43</td><td class='desc'>Node client library for the Portkey API</td></tr><tr><td><a href='https://www.npmjs.com/package/@traceloop/instrumentation-llamaindex' target='_blank' rel='noopener'><code>@traceloop/instrumentation-llamaindex</code></a></td><td class='num'>517.0K</td><td class='num'>264</td><td class='desc'>Llamaindex Instrumentation</td></tr><tr><td><a href='https://www.npmjs.com/package/@traceloop/node-server-sdk' target='_blank' rel='noopener'><code>@traceloop/node-server-sdk</code></a></td><td class='num'>342.9K</td><td class='num'>248</td><td class='desc'>Traceloop Software Development Kit (SDK) for Node.js</td></tr><tr><td><a href='https://www.npmjs.com/package/lunary' target='_blank' rel='noopener'><code>lunary</code></a></td><td class='num'>61.8K</td><td class='num'>9</td><td class='desc'>Lunary is an open-source platform for AI developers.</td></tr><tr><td><a href='https://www.npmjs.com/package/@traceloop/instrumentation-azure' target='_blank' rel='noopener'><code>@traceloop/instrumentation-azure</code></a></td><td class='num'>56.1K</td><td class='num'>264</td><td class='desc'>Azure OpenAI Instrumentaion</td></tr><tr><td><a href='https://www.npmjs.com/package/@llamaindex/pinecone' target='_blank' rel='noopener'><code>@llamaindex/pinecone</code></a></td><td class='num'>12.5K</td><td class='num'>3.1K</td><td class='desc'>Pinecone Storage for LlamaIndex</td></tr><tr><td><a href='https://www.npmjs.com/package/flowise-components' target='_blank' rel='noopener'><code>flowise-components</code></a></td><td class='num'>10.2K</td><td class='num'>—</td><td class='desc'>Flowiseai Components</td></tr><tr><td><a href='https://www.npmjs.com/package/genaiscript' target='_blank' rel='noopener'><code>genaiscript</code></a></td><td class='num'>9.9K</td><td class='num'>56</td><td class='desc'>A CLI for GenAIScript, a generative AI scripting framework.</td></tr><tr><td><a href='https://www.npmjs.com/package/@llamaindex/community' target='_blank' rel='noopener'><code>@llamaindex/community</code></a></td><td class='num'>6.3K</td><td class='num'>1.4K</td><td class='desc'>Community package for LlamaIndexTS</td></tr><tr><td><a href='https://www.npmjs.com/package/@helicone/helicone' target='_blank' rel='noopener'><code>@helicone/helicone</code></a></td><td class='num'>6.1K</td><td class='num'>5.2K</td><td class='desc'>A Node.js wrapper for the OpenAI API that logs all requests to Helicone.</td></tr><tr><td><a href='https://www.npmjs.com/package/@agentic/stdlib' target='_blank' rel='noopener'><code>@agentic/stdlib</code></a></td><td class='num'>1.7K</td><td class='num'>18.0K</td><td class='desc'>Standard library of AI functions which work with any LLM and TypeScript AI SDK.</td></tr><tr><td><a href='https://www.npmjs.com/package/honeyhive' target='_blank' rel='noopener'><code>honeyhive</code></a></td><td class='num'>925</td><td class='num'>2</td><td class='desc'>&lt;!-- Start Summary [summary] --&gt; ## Summary</td></tr><tr><td><a href='https://www.npmjs.com/package/@literalai/client' target='_blank' rel='noopener'><code>@literalai/client</code></a></td><td class='num'>781</td><td class='num'>—</td><td class='desc'>This library provides convenient access to the Literal GraphQL API and other utilities.</td></tr><tr><td><a href='https://www.npmjs.com/package/@langtrase/typescript-sdk' target='_blank' rel='noopener'><code>@langtrase/typescript-sdk</code></a></td><td class='num'>628</td><td class='num'>—</td><td class='desc'>A typescript SDK for Langtrace</td></tr><tr><td><a href='https://www.npmjs.com/package/genaiscript-cli' target='_blank' rel='noopener'><code>genaiscript-cli</code></a></td><td class='num'>372</td><td class='num'>2.8K</td><td class='desc'>A CLI for GenAIScript, a generative AI scripting framework.</td></tr><tr><td><a href='https://www.npmjs.com/package/@llamaindex/experimental' target='_blank' rel='noopener'><code>@llamaindex/experimental</code></a></td><td class='num'>215</td><td class='num'>1.4K</td><td class='desc'>Experimental package for LlamaIndexTS</td></tr><tr><td><a href='https://www.npmjs.com/package/@llamaindex/autotool' target='_blank' rel='noopener'><code>@llamaindex/autotool</code></a></td><td class='num'>148</td><td class='num'>2.9K</td><td class='desc'>auto transpile your JS function to LLM Agent compatible</td></tr><tr><td><a href='https://www.npmjs.com/package/@samagra-x/uci-transformers' target='_blank' rel='noopener'><code>@samagra-x/uci-transformers</code></a></td><td class='num'>120</td><td class='num'>—</td><td class='desc'>Library of services, actions and gaurds used to create any custom bot using Xstate configuration.</td></tr><tr><td><a href='https://www.npmjs.com/package/mongodb-chatbot-evaluation' target='_blank' rel='noopener'><code>mongodb-chatbot-evaluation</code></a></td><td class='num'>41</td><td class='num'>196</td><td class='desc'>Evaluate responses from MongoDB chatbot server</td></tr><tr><td><a href='https://www.npmjs.com/package/llamaindex-whisper' target='_blank' rel='noopener'><code>llamaindex-whisper</code></a></td><td class='num'>33</td><td class='num'>—</td><td class='desc'>Whisper reader for llamaindex</td></tr><tr><td><a href='https://www.npmjs.com/package/arthasgpt' target='_blank' rel='noopener'><code>arthasgpt</code></a></td><td class='num'>30</td><td class='num'>—</td><td class='desc'>![311941658-6b93b041-f30f-4121-a951-a746a19c75fc](https://github.com/bennyschmidt/ArthasGPT/assets/45407493/05231ee1-9a4</td></tr><tr><td><a href='https://www.npmjs.com/package/ragdoll-core' target='_blank' rel='noopener'><code>ragdoll-core</code></a></td><td class='num'>20</td><td class='num'>—</td><td class='desc'>The library for character-driven AI experiences.</td></tr><tr><td><a href='https://www.npmjs.com/package/autotranslatedoc' target='_blank' rel='noopener'><code>autotranslatedoc</code></a></td><td class='num'>18</td><td class='num'>70</td><td class='desc'>A tool to automatically translate documentations.</td></tr><tr><td><a href='https://www.npmjs.com/package/rag-eval' target='_blank' rel='noopener'><code>rag-eval</code></a></td><td class='num'>17</td><td class='num'>—</td><td class='desc'>Perform various evaluations to input RAG data</td></tr><tr><td><a href='https://www.npmjs.com/package/korlan-flowise-components' target='_blank' rel='noopener'><code>korlan-flowise-components</code></a></td><td class='num'>14</td><td class='num'>—</td><td class='desc'>Flowiseai Components</td></tr></tbody></table></div>
+          </div>
+        </div>
+        
+    </section>
+    
+
+    <section class="card" id="card-autogen">
+      <header class="card-head">
+        <div>
+          <h2>AutoGen</h2>
+          <p class="desc">AutoGen agents and teams library</p>
+          <div class="repo-meta"><span>★ 44.4K</span><span>⑂ 6.7K forks</span><span>👁 468 watchers</span><span><a href="" target="_blank" rel="noopener"></a></span></div>
+        </div>
+        <div class="badges"><a class="badge badge-pypi" href="https://pypi.org/project/autogen-agentchat/" target="_blank" rel="noopener"><span class="badge-eco">pypi</span> autogen-agentchat</a><a class="badge badge-pypi" href="https://pypi.org/project/pyautogen/" target="_blank" rel="noopener"><span class="badge-eco">pypi</span> pyautogen</a></div>
+      </header>
+      
+        <div class="variant">
+          <div class="variant-head">
+            <h4>PYPI: <code>autogen-agentchat</code></h4>
+            <div class="links"><a href="https://pypi.org/project/autogen-agentchat/" target="_blank" rel="noopener">PyPI</a> · <a href="https://libraries.io/pypi/autogen-agentchat" target="_blank" rel="noopener">libraries.io</a> · <a href="https://packages.ecosyste.ms/registries/pypi.org/packages/autogen-agentchat" target="_blank" rel="noopener">Ecosyste.ms</a></div>
+          </div>
+          <div class="stats-grid"><div class="stat"><div class="stat-label">Downloads</div><div class="stat-value">859.6K</div><div class=stat-sub>last month</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent packages</div><div class="stat-value">0</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent repos</div><div class="stat-value">0</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent packages</div><div class="stat-value">75</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent repos</div><div class="stat-value">41</div></div>
+<div class="stat"><div class="stat-label">SourceRank (libraries.io)</div><div class="stat-value">20</div></div>
+<div class="stat"><div class="stat-label">Latest release</div><div class="stat-value">0.7.5</div><div class=stat-sub>2025-09-30</div></div>
+<div class="stat"><div class="stat-label">Total releases (libraries.io)</div><div class="stat-value">54</div></div>
+<div class="stat"><div class="stat-label">Docker images using it</div><div class="stat-value">—</div><div class=stat-sub>— pulls</div></div>
+<div class="stat"><div class="stat-label">License</div><div class="stat-value">Other</div></div></div>
+          <div class="cols">
+            <div class="col deps-col"><h5>Runtime dependencies (1)</h5><ul class='dep-list'><li><a href="https://pypi.org/project/autogen-core/" target="_blank" rel="noopener"><code>autogen-core</code></a> <span class="dep-req">==0.7.5</span></li></ul></div>
+            <div class="col dependents-col"><h5>Who depends on <code>autogen-agentchat</code></h5><p class='muted'>Ecosyste.ms hasn't indexed individual dependents for this package yet. libraries.io reports <strong>75</strong> dependent packages and <strong>41</strong> dependent repositories. See <a href='https://libraries.io/pypi/autogen-agentchat' target='_blank' rel='noopener'>libraries.io</a> for a full list.</p></div>
+          </div>
+        </div>
+        
+        <div class="variant">
+          <div class="variant-head">
+            <h4>PYPI: <code>pyautogen</code></h4>
+            <div class="links"><a href="https://pypi.org/project/pyautogen/" target="_blank" rel="noopener">PyPI</a> · <a href="https://libraries.io/pypi/pyautogen" target="_blank" rel="noopener">libraries.io</a> · <a href="https://packages.ecosyste.ms/registries/pypi.org/packages/pyautogen" target="_blank" rel="noopener">Ecosyste.ms</a></div>
+          </div>
+          <div class="stats-grid"><div class="stat"><div class="stat-label">Downloads</div><div class="stat-value">1.2M</div><div class=stat-sub>last month</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent packages</div><div class="stat-value">37</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent repos</div><div class="stat-value">3</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent packages</div><div class="stat-value">74</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent repos</div><div class="stat-value">36</div></div>
+<div class="stat"><div class="stat-label">SourceRank (libraries.io)</div><div class="stat-value">18</div></div>
+<div class="stat"><div class="stat-label">Latest release</div><div class="stat-value">0.10.0</div><div class=stat-sub>2025-07-15</div></div>
+<div class="stat"><div class="stat-label">Total releases (libraries.io)</div><div class="stat-value">117</div></div>
+<div class="stat"><div class="stat-label">Docker images using it</div><div class="stat-value">1</div><div class=stat-sub>157 pulls</div></div>
+<div class="stat"><div class="stat-label">License</div><div class="stat-value">Other</div></div></div>
+          <div class="cols">
+            <div class="col deps-col"><h5>Runtime dependencies (1)</h5><ul class='dep-list'><li><a href="https://pypi.org/project/autogen-agentchat/" target="_blank" rel="noopener"><code>autogen-agentchat</code></a> <span class="dep-req">&gt;=0.6.4</span></li></ul></div>
+            <div class="col dependents-col"><h5>Who depends on <code>pyautogen</code> (top 25 of 37 on Ecosyste.ms — sorted by monthly downloads)</h5><table class='dependents'><thead><tr><th>Package</th><th class='num'>Downloads/mo</th><th class='num'>Stars</th><th>Description</th></tr></thead><tbody><tr><td><a href='https://pypi.org/project/praisonai/' target='_blank' rel='noopener'><code>praisonai</code></a></td><td class='num'>138.1K</td><td class='num'>7.1K</td><td class='desc'>PraisonAI is an AI Agents Framework with Self Reflection. PraisonAI application combines PraisonAI Agents, AutoGen, and </td></tr><tr><td><a href='https://pypi.org/project/langflow/' target='_blank' rel='noopener'><code>langflow</code></a></td><td class='num'>108.1K</td><td class='num'>147.8K</td><td class='desc'>A Python package with a built-in web application</td></tr><tr><td><a href='https://pypi.org/project/autogenstudio/' target='_blank' rel='noopener'><code>autogenstudio</code></a></td><td class='num'>22.4K</td><td class='num'>18.5K</td><td class='desc'>AutoGen Studio</td></tr><tr><td><a href='https://pypi.org/project/spark-ai-python/' target='_blank' rel='noopener'><code>spark-ai-python</code></a></td><td class='num'>8.0K</td><td class='num'>109</td><td class='desc'>a sdk for iflytek&#x27;s spark LLM.</td></tr><tr><td><a href='https://pypi.org/project/composio-autogen/' target='_blank' rel='noopener'><code>composio-autogen</code></a></td><td class='num'>4.9K</td><td class='num'>28.2K</td><td class='desc'>Use Composio to get an array of tools with your autogen agent.</td></tr><tr><td><a href='https://pypi.org/project/autonomous-app/' target='_blank' rel='noopener'><code>autonomous-app</code></a></td><td class='num'>4.9K</td><td class='num'>1</td><td class='desc'>Containerized application framework with additional libraries and tools for rapid development of web applications.</td></tr><tr><td><a href='https://pypi.org/project/fastagency/' target='_blank' rel='noopener'><code>fastagency</code></a></td><td class='num'>1.7K</td><td class='num'>6</td><td class='desc'>The fastest way to bring multi-agent workflows to production</td></tr><tr><td><a href='https://pypi.org/project/fudstop/' target='_blank' rel='noopener'><code>fudstop</code></a></td><td class='num'>1.5K</td><td class='num'>—</td><td class='desc'></td></tr><tr><td><a href='https://pypi.org/project/pymemgpt/' target='_blank' rel='noopener'><code>pymemgpt</code></a></td><td class='num'>1.3K</td><td class='num'>10.3K</td><td class='desc'>Create LLM agents with long-term memory and custom tools</td></tr><tr><td><a href='https://pypi.org/project/pymemgpt-nightly/' target='_blank' rel='noopener'><code>pymemgpt-nightly</code></a></td><td class='num'>1.1K</td><td class='num'>16.3K</td><td class='desc'>Create LLM agents with long-term memory and custom tools</td></tr><tr><td><a href='https://pypi.org/project/finrobot/' target='_blank' rel='noopener'><code>finrobot</code></a></td><td class='num'>613</td><td class='num'>4.2K</td><td class='desc'>FinRobot: An Open-Source AI Agent Platform for Financial Applications using LLMs</td></tr><tr><td><a href='https://pypi.org/project/chatgpt-academic/' target='_blank' rel='noopener'><code>chatgpt-academic</code></a></td><td class='num'>294</td><td class='num'>16</td><td class='desc'>ChatGPT Academic</td></tr><tr><td><a href='https://pypi.org/project/agentic-fleet/' target='_blank' rel='noopener'><code>agentic-fleet</code></a></td><td class='num'>287</td><td class='num'>91</td><td class='desc'>Multi-agent orchestration system built with Microsoft Agent Framework&#x27;s Magentic Fleet pattern</td></tr><tr><td><a href='https://pypi.org/project/genius-agent/' target='_blank' rel='noopener'><code>genius-agent</code></a></td><td class='num'>255</td><td class='num'>5</td><td class='desc'>GeniusAgent Search Engine for Agentic AI!</td></tr><tr><td><a href='https://pypi.org/project/autogencap-rajan.jedi/' target='_blank' rel='noopener'><code>autogencap-rajan.jedi</code></a></td><td class='num'>222</td><td class='num'>57.9K</td><td class='desc'>CAP w/ autogen bindings</td></tr><tr><td><a href='https://pypi.org/project/kube-agent/' target='_blank' rel='noopener'><code>kube-agent</code></a></td><td class='num'>166</td><td class='num'>14</td><td class='desc'>A Kubernetes copilot agent powered by OpenAI</td></tr><tr><td><a href='https://pypi.org/project/autogenbench/' target='_blank' rel='noopener'><code>autogenbench</code></a></td><td class='num'>117</td><td class='num'>57.9K</td><td class='desc'>AutoGen Testbed Tools</td></tr><tr><td><a href='https://pypi.org/project/algorin-cli/' target='_blank' rel='noopener'><code>algorin-cli</code></a></td><td class='num'>115</td><td class='num'>0</td><td class='desc'>Acceso a GPT-3 y procesamiento de documentos desde la línea de comandos.</td></tr><tr><td><a href='https://pypi.org/project/ragstack-ai-langflow/' target='_blank' rel='noopener'><code>ragstack-ai-langflow</code></a></td><td class='num'>112</td><td class='num'>7</td><td class='desc'>RAGStack Langflow</td></tr><tr><td><a href='https://pypi.org/project/tinyra/' target='_blank' rel='noopener'><code>tinyra</code></a></td><td class='num'>72</td><td class='num'>—</td><td class='desc'>A minimalistic, terminal-based research assistant built with AutoGen.</td></tr><tr><td><a href='https://pypi.org/project/autogenra/' target='_blank' rel='noopener'><code>autogenra</code></a></td><td class='num'>69</td><td class='num'>57.9K</td><td class='desc'>Autogen Assistant UI</td></tr><tr><td><a href='https://pypi.org/project/optiguide/' target='_blank' rel='noopener'><code>optiguide</code></a></td><td class='num'>68</td><td class='num'>303</td><td class='desc'>Large Language Models for Supply Chain Optimization</td></tr><tr><td><a href='https://pypi.org/project/repo-gpt/' target='_blank' rel='noopener'><code>repo-gpt</code></a></td><td class='num'>67</td><td class='num'>9</td><td class='desc'>Search your code repository using GPT4.</td></tr><tr><td><a href='https://pypi.org/project/autobuilder/' target='_blank' rel='noopener'><code>autobuilder</code></a></td><td class='num'>63</td><td class='num'>1</td><td class='desc'>A simple auto-builder to build a group of AI assistants for task execution; built on AutoGen framework. An integrated to</td></tr><tr><td><a href='https://pypi.org/project/autotx/' target='_blank' rel='noopener'><code>autotx</code></a></td><td class='num'>60</td><td class='num'>88</td><td class='desc'></td></tr></tbody></table></div>
+          </div>
+        </div>
+        
+    </section>
+    
+
+    <section class="card" id="card-crewai">
+      <header class="card-head">
+        <div>
+          <h2>CrewAI</h2>
+          <p class="desc">Cutting-edge framework for orchestrating role-playing, autonomous AI agents. By fostering collaborative intelligence, CrewAI empowers agents to work together seamlessly, tackling complex tasks.</p>
+          <div class="repo-meta"><span>★ 41.0K</span><span>⑂ 5.5K forks</span><span>👁 329 watchers</span><span><a href="https://github.com/crewAIInc/crewAI" target="_blank" rel="noopener">crewAIInc/crewAI</a></span></div>
+        </div>
+        <div class="badges"><a class="badge badge-pypi" href="https://pypi.org/project/crewai/" target="_blank" rel="noopener"><span class="badge-eco">pypi</span> crewai</a></div>
+      </header>
+      
+        <div class="variant">
+          <div class="variant-head">
+            <h4>PYPI: <code>crewai</code></h4>
+            <div class="links"><a href="https://pypi.org/project/crewai/" target="_blank" rel="noopener">PyPI</a> · <a href="https://libraries.io/pypi/crewai" target="_blank" rel="noopener">libraries.io</a> · <a href="https://packages.ecosyste.ms/registries/pypi.org/packages/crewai" target="_blank" rel="noopener">Ecosyste.ms</a> · <a href="https://github.com/crewAIInc/crewAI" target="_blank" rel="noopener">GitHub</a> · <a href="https://crewai.com" target="_blank" rel="noopener">Homepage</a></div>
+          </div>
+          <div class="stats-grid"><div class="stat"><div class="stat-label">Downloads</div><div class="stat-value">9.2M</div><div class=stat-sub>last month</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent packages</div><div class="stat-value">9</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent repos</div><div class="stat-value">0</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent packages</div><div class="stat-value">938</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent repos</div><div class="stat-value">512</div></div>
+<div class="stat"><div class="stat-label">SourceRank (libraries.io)</div><div class="stat-value">22</div></div>
+<div class="stat"><div class="stat-label">Latest release</div><div class="stat-value">1.14.4</div><div class=stat-sub>2026-04-30</div></div>
+<div class="stat"><div class="stat-label">Total releases (libraries.io)</div><div class="stat-value">307</div></div>
+<div class="stat"><div class="stat-label">Docker images using it</div><div class="stat-value">—</div><div class=stat-sub>— pulls</div></div>
+<div class="stat"><div class="stat-label">License</div><div class="stat-value">MIT</div></div></div>
+          <div class="cols">
+            <div class="col deps-col"><h5>Runtime dependencies (30)</h5><ul class='dep-list'><li><a href="https://pypi.org/project/aiofiles/" target="_blank" rel="noopener"><code>aiofiles</code></a> <span class="dep-req">~=24.1.0</span></li><li><a href="https://pypi.org/project/aiosqlite/" target="_blank" rel="noopener"><code>aiosqlite</code></a> <span class="dep-req">~=0.21.0</span></li><li><a href="https://pypi.org/project/appdirs/" target="_blank" rel="noopener"><code>appdirs</code></a> <span class="dep-req">~=1.4.4</span></li><li><a href="https://pypi.org/project/chromadb/" target="_blank" rel="noopener"><code>chromadb</code></a> <span class="dep-req">~=1.1.0</span></li><li><a href="https://pypi.org/project/click/" target="_blank" rel="noopener"><code>click</code></a> <span class="dep-req">~=8.1.7</span></li><li><a href="https://pypi.org/project/httpx/" target="_blank" rel="noopener"><code>httpx</code></a> <span class="dep-req">~=0.28.1</span></li><li><a href="https://pypi.org/project/instructor/" target="_blank" rel="noopener"><code>instructor</code></a> <span class="dep-req">&gt;=1.3.3</span></li><li><a href="https://pypi.org/project/json-repair/" target="_blank" rel="noopener"><code>json-repair</code></a> <span class="dep-req">~=0.25.2</span></li><li><a href="https://pypi.org/project/json5/" target="_blank" rel="noopener"><code>json5</code></a> <span class="dep-req">~=0.10.0</span></li><li><a href="https://pypi.org/project/jsonref/" target="_blank" rel="noopener"><code>jsonref</code></a> <span class="dep-req">~=1.1.0</span></li><li><a href="https://pypi.org/project/lancedb/" target="_blank" rel="noopener"><code>lancedb</code></a> <span class="dep-req">&lt;0.30.1,&gt;=0.29.2</span></li><li><a href="https://pypi.org/project/mcp/" target="_blank" rel="noopener"><code>mcp</code></a> <span class="dep-req">~=1.26.0</span></li><li><a href="https://pypi.org/project/openai/" target="_blank" rel="noopener"><code>openai</code></a> <span class="dep-req">&lt;3,&gt;=2.30.0</span></li><li><a href="https://pypi.org/project/openpyxl/" target="_blank" rel="noopener"><code>openpyxl</code></a> <span class="dep-req">~=3.1.5</span></li><li><a href="https://pypi.org/project/opentelemetry-api/" target="_blank" rel="noopener"><code>opentelemetry-api</code></a> <span class="dep-req">~=1.34.0</span></li><li><a href="https://pypi.org/project/opentelemetry-exporter-otlp-proto-http/" target="_blank" rel="noopener"><code>opentelemetry-exporter-otlp-proto-http</code></a> <span class="dep-req">~=1.34.0</span></li><li><a href="https://pypi.org/project/opentelemetry-sdk/" target="_blank" rel="noopener"><code>opentelemetry-sdk</code></a> <span class="dep-req">~=1.34.0</span></li><li><a href="https://pypi.org/project/pdfplumber/" target="_blank" rel="noopener"><code>pdfplumber</code></a> <span class="dep-req">~=0.11.4</span></li><li><a href="https://pypi.org/project/portalocker/" target="_blank" rel="noopener"><code>portalocker</code></a> <span class="dep-req">~=2.7.0</span></li><li><a href="https://pypi.org/project/pydantic-settings/" target="_blank" rel="noopener"><code>pydantic-settings</code></a> <span class="dep-req">~=2.10.1</span></li><li><a href="https://pypi.org/project/pydantic/" target="_blank" rel="noopener"><code>pydantic</code></a> <span class="dep-req">&lt;2.13,&gt;=2.11.9</span></li><li><a href="https://pypi.org/project/pyjwt/" target="_blank" rel="noopener"><code>pyjwt</code></a> <span class="dep-req">&lt;3,&gt;=2.9.0</span></li><li><a href="https://pypi.org/project/python-dotenv/" target="_blank" rel="noopener"><code>python-dotenv</code></a> <span class="dep-req">&lt;2,&gt;=1.2.2</span></li><li><a href="https://pypi.org/project/pyyaml/" target="_blank" rel="noopener"><code>pyyaml</code></a> <span class="dep-req">~=6.0</span></li><li><a href="https://pypi.org/project/regex/" target="_blank" rel="noopener"><code>regex</code></a> <span class="dep-req">~=2026.1.15</span></li><li><a href="https://pypi.org/project/textual/" target="_blank" rel="noopener"><code>textual</code></a> <span class="dep-req">&gt;=7.5.0</span></li><li><a href="https://pypi.org/project/tokenizers/" target="_blank" rel="noopener"><code>tokenizers</code></a> <span class="dep-req">&lt;1,&gt;=0.21</span></li><li><a href="https://pypi.org/project/tomli-w/" target="_blank" rel="noopener"><code>tomli-w</code></a> <span class="dep-req">~=1.1.0</span></li><li><a href="https://pypi.org/project/tomli/" target="_blank" rel="noopener"><code>tomli</code></a> <span class="dep-req">~=2.0.2</span></li><li><a href="https://pypi.org/project/uv/" target="_blank" rel="noopener"><code>uv</code></a> <span class="dep-req">~=0.11.6</span></li></ul><details class='opt-details'><summary>Optional / extras: extra == &quot;a2a&quot; (4)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/a2a-sdk/" target="_blank" rel="noopener"><code>a2a-sdk</code></a> <span class="dep-req">~=0.3.10</span></li><li><a href="https://pypi.org/project/aiocache[memcached,redis]/" target="_blank" rel="noopener"><code>aiocache[memcached,redis]</code></a> <span class="dep-req">~=0.12.3</span></li><li><a href="https://pypi.org/project/httpx-auth/" target="_blank" rel="noopener"><code>httpx-auth</code></a> <span class="dep-req">~=0.23.1</span></li><li><a href="https://pypi.org/project/httpx-sse/" target="_blank" rel="noopener"><code>httpx-sse</code></a> <span class="dep-req">~=0.4.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;anthropic&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/anthropic/" target="_blank" rel="noopener"><code>anthropic</code></a> <span class="dep-req">~=0.73.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;aws&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/aiobotocore/" target="_blank" rel="noopener"><code>aiobotocore</code></a> <span class="dep-req">~=3.4.0</span></li><li><a href="https://pypi.org/project/boto3/" target="_blank" rel="noopener"><code>boto3</code></a> <span class="dep-req">~=1.42.79</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;azure-ai-inference&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/azure-ai-inference/" target="_blank" rel="noopener"><code>azure-ai-inference</code></a> <span class="dep-req">~=1.0.0b9</span></li><li><a href="https://pypi.org/project/azure-identity/" target="_blank" rel="noopener"><code>azure-identity</code></a> <span class="dep-req">&lt;2,&gt;=1.17.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;bedrock&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/boto3/" target="_blank" rel="noopener"><code>boto3</code></a> <span class="dep-req">~=1.42.79</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;docling&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/docling/" target="_blank" rel="noopener"><code>docling</code></a> <span class="dep-req">~=2.84.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;embeddings&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/tiktoken/" target="_blank" rel="noopener"><code>tiktoken</code></a> <span class="dep-req">&lt;0.13,&gt;=0.8.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;file-processing&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/crewai-files/" target="_blank" rel="noopener"><code>crewai-files</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;google-genai&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/google-genai/" target="_blank" rel="noopener"><code>google-genai</code></a> <span class="dep-req">~=1.65.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;litellm&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/litellm/" target="_blank" rel="noopener"><code>litellm</code></a> <span class="dep-req">&lt;1.84,&gt;=1.83.7</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;mem0&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/mem0ai/" target="_blank" rel="noopener"><code>mem0ai</code></a> <span class="dep-req">~=0.1.94</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;openpyxl&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/openpyxl/" target="_blank" rel="noopener"><code>openpyxl</code></a> <span class="dep-req">~=3.1.5</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;pandas&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/pandas/" target="_blank" rel="noopener"><code>pandas</code></a> <span class="dep-req">~=2.2.3</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;qdrant&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/qdrant-client[fastembed]/" target="_blank" rel="noopener"><code>qdrant-client[fastembed]</code></a> <span class="dep-req">~=1.14.3</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;qdrant-edge&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/qdrant-edge-py/" target="_blank" rel="noopener"><code>qdrant-edge-py</code></a> <span class="dep-req">&gt;=0.6.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;tools&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/crewai-tools/" target="_blank" rel="noopener"><code>crewai-tools</code></a> <span class="dep-req">==1.14.4</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;voyageai&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/voyageai/" target="_blank" rel="noopener"><code>voyageai</code></a> <span class="dep-req">~=0.3.5</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;watson&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/ibm-watsonx-ai/" target="_blank" rel="noopener"><code>ibm-watsonx-ai</code></a> <span class="dep-req">~=1.3.39</span></li></ul></details></div>
+            <div class="col dependents-col"><h5>Who depends on <code>crewai</code> (top 11 of 9 on Ecosyste.ms — sorted by monthly downloads)</h5><table class='dependents'><thead><tr><th>Package</th><th class='num'>Downloads/mo</th><th class='num'>Stars</th><th>Description</th></tr></thead><tbody><tr><td><a href='https://pypi.org/project/praisonai/' target='_blank' rel='noopener'><code>praisonai</code></a></td><td class='num'>138.1K</td><td class='num'>7.1K</td><td class='desc'>PraisonAI is an AI Agents Framework with Self Reflection. PraisonAI application combines PraisonAI Agents, AutoGen, and </td></tr><tr><td><a href='https://pypi.org/project/langflow/' target='_blank' rel='noopener'><code>langflow</code></a></td><td class='num'>108.1K</td><td class='num'>147.8K</td><td class='desc'>A Python package with a built-in web application</td></tr><tr><td><a href='https://pypi.org/project/ai-characters/' target='_blank' rel='noopener'><code>ai-characters</code></a></td><td class='num'>244</td><td class='num'>—</td><td class='desc'>Client for AI Characters</td></tr><tr><td><a href='https://pypi.org/project/bitefix/' target='_blank' rel='noopener'><code>bitefix</code></a></td><td class='num'>126</td><td class='num'>15</td><td class='desc'>Bitefix is an efficient library designed to streamline Python Runtime error debugging with AI-powered decorators.</td></tr><tr><td><a href='https://pypi.org/project/optisherpa-agents/' target='_blank' rel='noopener'><code>optisherpa-agents</code></a></td><td class='num'>78</td><td class='num'>—</td><td class='desc'>This is a python package for optisherpa, its a small collection of autonomous agents</td></tr><tr><td><a href='https://pypi.org/project/motleycrew/' target='_blank' rel='noopener'><code>motleycrew</code></a></td><td class='num'>70</td><td class='num'>390</td><td class='desc'>A lightweight agent interaction framework.</td></tr><tr><td><a href='https://pypi.org/project/guia-cli/' target='_blank' rel='noopener'><code>guia-cli</code></a></td><td class='num'>44</td><td class='num'>0</td><td class='desc'>Gu, a simple IA agent that specializes in software engineering, aiding in coding tasks and providing technical guidance.</td></tr><tr><td><a href='https://pypi.org/project/pyaitaskexecutor/' target='_blank' rel='noopener'><code>pyaitaskexecutor</code></a></td><td class='num'>30</td><td class='num'>—</td><td class='desc'></td></tr><tr><td><a href='https://pypi.org/project/crewai-logging-patch/' target='_blank' rel='noopener'><code>crewai-logging-patch</code></a></td><td class='num'>30</td><td class='num'>0</td><td class='desc'></td></tr><tr><td><a href='https://pypi.org/project/gianna/' target='_blank' rel='noopener'><code>gianna</code></a></td><td class='num'>23</td><td class='num'>2</td><td class='desc'>Generative Intelligent Artificial Neural Network Assistant</td></tr><tr><td><a href='https://pypi.org/project/crewai-logger-patch/' target='_blank' rel='noopener'><code>crewai-logger-patch</code></a></td><td class='num'>—</td><td class='num'>—</td><td class='desc'></td></tr></tbody></table></div>
+          </div>
+        </div>
+        
+    </section>
+    
+
+    <section class="card" id="card-smolagents">
+      <header class="card-head">
+        <div>
+          <h2>smolagents</h2>
+          <p class="desc">🤗 smolagents: a barebones library for agents. Agents write python code to call tools or orchestrate other agents.</p>
+          <div class="repo-meta"><span>★ 26.9K</span><span>⑂ 2.5K forks</span><span>👁 131 watchers</span><span><a href="https://github.com/huggingface/smolagents" target="_blank" rel="noopener">huggingface/smolagents</a></span></div>
+        </div>
+        <div class="badges"><a class="badge badge-pypi" href="https://pypi.org/project/smolagents/" target="_blank" rel="noopener"><span class="badge-eco">pypi</span> smolagents</a></div>
+      </header>
+      
+        <div class="variant">
+          <div class="variant-head">
+            <h4>PYPI: <code>smolagents</code></h4>
+            <div class="links"><a href="https://pypi.org/project/smolagents/" target="_blank" rel="noopener">PyPI</a> · <a href="https://libraries.io/pypi/smolagents" target="_blank" rel="noopener">libraries.io</a> · <a href="https://packages.ecosyste.ms/registries/pypi.org/packages/smolagents" target="_blank" rel="noopener">Ecosyste.ms</a> · <a href="https://github.com/huggingface/smolagents" target="_blank" rel="noopener">GitHub</a></div>
+          </div>
+          <div class="stats-grid"><div class="stat"><div class="stat-label">Downloads</div><div class="stat-value">582.8K</div><div class=stat-sub>last month</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent packages</div><div class="stat-value">0</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent repos</div><div class="stat-value">0</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent packages</div><div class="stat-value">155</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent repos</div><div class="stat-value">81</div></div>
+<div class="stat"><div class="stat-label">SourceRank (libraries.io)</div><div class="stat-value">11</div></div>
+<div class="stat"><div class="stat-label">Latest release</div><div class="stat-value">1.25.0</div><div class=stat-sub>2026-05-14</div></div>
+<div class="stat"><div class="stat-label">Total releases (libraries.io)</div><div class="stat-value">42</div></div>
+<div class="stat"><div class="stat-label">Docker images using it</div><div class="stat-value">—</div><div class=stat-sub>— pulls</div></div>
+<div class="stat"><div class="stat-label">License</div><div class="stat-value">Apache-2.0</div></div></div>
+          <div class="cols">
+            <div class="col deps-col"><h5>Runtime dependencies (6)</h5><ul class='dep-list'><li><a href="https://pypi.org/project/huggingface-hub/" target="_blank" rel="noopener"><code>huggingface-hub</code></a> <span class="dep-req">&gt;=0.31.2</span></li><li><a href="https://pypi.org/project/requests/" target="_blank" rel="noopener"><code>requests</code></a> <span class="dep-req">&gt;=2.32.3</span></li><li><a href="https://pypi.org/project/rich/" target="_blank" rel="noopener"><code>rich</code></a> <span class="dep-req">&gt;=13.9.4</span></li><li><a href="https://pypi.org/project/jinja2/" target="_blank" rel="noopener"><code>jinja2</code></a> <span class="dep-req">&gt;=3.1.4</span></li><li><a href="https://pypi.org/project/pillow/" target="_blank" rel="noopener"><code>pillow</code></a> <span class="dep-req">&gt;=10.0.1</span></li><li><a href="https://pypi.org/project/python-dotenv/" target="_blank" rel="noopener"><code>python-dotenv</code></a> <span class="dep-req">*</span></li></ul><details class='opt-details'><summary>Optional / extras: extra == &quot;all&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/smolagents[audio,bedrock,blaxel,docker,e2b,gradio,litellm,mcp,mlx-lm,modal,openai,telemetry,toolkit,transformers,vision]/" target="_blank" rel="noopener"><code>smolagents[audio,bedrock,blaxel,docker,e2b,gradio,litellm,mcp,mlx-lm,modal,openai,telemetry,toolkit,transformers,vision]</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;audio&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/soundfile/" target="_blank" rel="noopener"><code>soundfile</code></a> <span class="dep-req">*</span></li><li><a href="https://pypi.org/project/smolagents[torch]/" target="_blank" rel="noopener"><code>smolagents[torch]</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;bedrock&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/boto3/" target="_blank" rel="noopener"><code>boto3</code></a> <span class="dep-req">&gt;=1.36.18</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;blaxel&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/blaxel/" target="_blank" rel="noopener"><code>blaxel</code></a> <span class="dep-req">&gt;=0.2.19</span></li><li><a href="https://pypi.org/project/websocket-client/" target="_blank" rel="noopener"><code>websocket-client</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;dev&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/smolagents[quality,test]/" target="_blank" rel="noopener"><code>smolagents[quality,test]</code></a> <span class="dep-req">*</span></li><li><a href="https://pypi.org/project/sqlalchemy/" target="_blank" rel="noopener"><code>sqlalchemy</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;docker&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/docker/" target="_blank" rel="noopener"><code>docker</code></a> <span class="dep-req">&gt;=7.1.0</span></li><li><a href="https://pypi.org/project/websocket-client/" target="_blank" rel="noopener"><code>websocket-client</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;e2b&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/e2b-code-interpreter/" target="_blank" rel="noopener"><code>e2b-code-interpreter</code></a> <span class="dep-req">&gt;=1.0.3</span></li><li><a href="https://pypi.org/project/python-dotenv/" target="_blank" rel="noopener"><code>python-dotenv</code></a> <span class="dep-req">&gt;=1.0.1</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;gradio&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/gradio/" target="_blank" rel="noopener"><code>gradio</code></a> <span class="dep-req">&gt;=5.14.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;litellm&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/litellm/" target="_blank" rel="noopener"><code>litellm</code></a> <span class="dep-req">&gt;=1.60.2</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;mcp&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/mcpadapt/" target="_blank" rel="noopener"><code>mcpadapt</code></a> <span class="dep-req">&gt;=0.1.13</span></li><li><a href="https://pypi.org/project/mcp/" target="_blank" rel="noopener"><code>mcp</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;mlx-lm&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/mlx-lm/" target="_blank" rel="noopener"><code>mlx-lm</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;modal&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/modal/" target="_blank" rel="noopener"><code>modal</code></a> <span class="dep-req">&gt;=1.1.3</span></li><li><a href="https://pypi.org/project/websocket-client/" target="_blank" rel="noopener"><code>websocket-client</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;openai&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/openai/" target="_blank" rel="noopener"><code>openai</code></a> <span class="dep-req">&gt;=1.58.1</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;quality&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/ruff/" target="_blank" rel="noopener"><code>ruff</code></a> <span class="dep-req">&gt;=0.9.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;telemetry&quot; (4)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/arize-phoenix/" target="_blank" rel="noopener"><code>arize-phoenix</code></a> <span class="dep-req">*</span></li><li><a href="https://pypi.org/project/opentelemetry-sdk/" target="_blank" rel="noopener"><code>opentelemetry-sdk</code></a> <span class="dep-req">*</span></li><li><a href="https://pypi.org/project/opentelemetry-exporter-otlp/" target="_blank" rel="noopener"><code>opentelemetry-exporter-otlp</code></a> <span class="dep-req">*</span></li><li><a href="https://pypi.org/project/openinference-instrumentation-smolagents/" target="_blank" rel="noopener"><code>openinference-instrumentation-smolagents</code></a> <span class="dep-req">&gt;=0.1.15</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;test&quot; (10)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/ipython/" target="_blank" rel="noopener"><code>ipython</code></a> <span class="dep-req">&gt;=8.31.0</span></li><li><a href="https://pypi.org/project/pandas/" target="_blank" rel="noopener"><code>pandas</code></a> <span class="dep-req">&gt;=2.2.3</span></li><li><a href="https://pypi.org/project/pytest/" target="_blank" rel="noopener"><code>pytest</code></a> <span class="dep-req">&gt;=8.1.0</span></li><li><a href="https://pypi.org/project/pytest-datadir/" target="_blank" rel="noopener"><code>pytest-datadir</code></a> <span class="dep-req">*</span></li><li><a href="https://pypi.org/project/pytest-timeout/" target="_blank" rel="noopener"><code>pytest-timeout</code></a> <span class="dep-req">*</span></li><li><a href="https://pypi.org/project/python-dotenv/" target="_blank" rel="noopener"><code>python-dotenv</code></a> <span class="dep-req">&gt;=1.0.1</span></li><li><a href="https://pypi.org/project/smolagents[all]/" target="_blank" rel="noopener"><code>smolagents[all]</code></a> <span class="dep-req">*</span></li><li><a href="https://pypi.org/project/rank-bm25/" target="_blank" rel="noopener"><code>rank-bm25</code></a> <span class="dep-req">*</span></li><li><a href="https://pypi.org/project/Wikipedia-API/" target="_blank" rel="noopener"><code>Wikipedia-API</code></a> <span class="dep-req">&gt;=0.8.1</span></li><li><a href="https://pypi.org/project/mlx[cpu]/" target="_blank" rel="noopener"><code>mlx[cpu]</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;toolkit&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/ddgs/" target="_blank" rel="noopener"><code>ddgs</code></a> <span class="dep-req">&gt;=9.0.0</span></li><li><a href="https://pypi.org/project/markdownify/" target="_blank" rel="noopener"><code>markdownify</code></a> <span class="dep-req">&gt;=0.14.1</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;torch&quot; (3)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/torch/" target="_blank" rel="noopener"><code>torch</code></a> <span class="dep-req">*</span></li><li><a href="https://pypi.org/project/torchvision/" target="_blank" rel="noopener"><code>torchvision</code></a> <span class="dep-req">*</span></li><li><a href="https://pypi.org/project/numpy/" target="_blank" rel="noopener"><code>numpy</code></a> <span class="dep-req">&gt;=1.21.2</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;transformers&quot; (3)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/accelerate/" target="_blank" rel="noopener"><code>accelerate</code></a> <span class="dep-req">*</span></li><li><a href="https://pypi.org/project/transformers/" target="_blank" rel="noopener"><code>transformers</code></a> <span class="dep-req">&gt;=4.0.0</span></li><li><a href="https://pypi.org/project/smolagents[torch]/" target="_blank" rel="noopener"><code>smolagents[torch]</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;vision&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/helium/" target="_blank" rel="noopener"><code>helium</code></a> <span class="dep-req">*</span></li><li><a href="https://pypi.org/project/selenium/" target="_blank" rel="noopener"><code>selenium</code></a> <span class="dep-req">*</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;vllm&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/vllm/" target="_blank" rel="noopener"><code>vllm</code></a> <span class="dep-req">&gt;=0.10.2</span></li><li><a href="https://pypi.org/project/torch/" target="_blank" rel="noopener"><code>torch</code></a> <span class="dep-req">*</span></li></ul></details></div>
+            <div class="col dependents-col"><h5>Who depends on <code>smolagents</code></h5><p class='muted'>Ecosyste.ms hasn't indexed individual dependents for this package yet. libraries.io reports <strong>155</strong> dependent packages and <strong>81</strong> dependent repositories. See <a href='https://libraries.io/pypi/smolagents' target='_blank' rel='noopener'>libraries.io</a> for a full list.</p></div>
+          </div>
+        </div>
+        
+    </section>
+    
+
+    <section class="card" id="card-pydantic-ai">
+      <header class="card-head">
+        <div>
+          <h2>Pydantic AI</h2>
+          <p class="desc">Agent Framework / shim to use Pydantic with LLMs</p>
+          <div class="repo-meta"><span>★ 16.9K</span><span>⑂ 2.0K forks</span><span>👁 104 watchers</span><span><a href="https://github.com/pydantic/pydantic-ai" target="_blank" rel="noopener">pydantic/pydantic-ai</a></span></div>
+        </div>
+        <div class="badges"><a class="badge badge-pypi" href="https://pypi.org/project/pydantic-ai/" target="_blank" rel="noopener"><span class="badge-eco">pypi</span> pydantic-ai</a></div>
+      </header>
+      
+        <div class="variant">
+          <div class="variant-head">
+            <h4>PYPI: <code>pydantic-ai</code></h4>
+            <div class="links"><a href="https://pypi.org/project/pydantic-ai/" target="_blank" rel="noopener">PyPI</a> · <a href="https://libraries.io/pypi/pydantic-ai" target="_blank" rel="noopener">libraries.io</a> · <a href="https://packages.ecosyste.ms/registries/pypi.org/packages/pydantic-ai" target="_blank" rel="noopener">Ecosyste.ms</a> · <a href="https://github.com/pydantic/pydantic-ai" target="_blank" rel="noopener">GitHub</a> · <a href="https://ai.pydantic.dev" target="_blank" rel="noopener">Homepage</a></div>
+          </div>
+          <div class="stats-grid"><div class="stat"><div class="stat-label">Downloads</div><div class="stat-value">38.5M</div><div class=stat-sub>last month</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent packages</div><div class="stat-value">0</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent repos</div><div class="stat-value">0</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent packages</div><div class="stat-value">675</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent repos</div><div class="stat-value">332</div></div>
+<div class="stat"><div class="stat-label">SourceRank (libraries.io)</div><div class="stat-value">23</div></div>
+<div class="stat"><div class="stat-label">Latest release</div><div class="stat-value">1.97.0</div><div class=stat-sub>2026-05-15</div></div>
+<div class="stat"><div class="stat-label">Total releases (libraries.io)</div><div class="stat-value">258</div></div>
+<div class="stat"><div class="stat-label">Docker images using it</div><div class="stat-value">—</div><div class=stat-sub>— pulls</div></div>
+<div class="stat"><div class="stat-label">License</div><div class="stat-value">MIT</div></div></div>
+          <div class="cols">
+            <div class="col deps-col"><h5>Runtime dependencies (1)</h5><ul class='dep-list'><li><a href="https://pypi.org/project/pydantic-ai-slim[ag-ui,anthropic,bedrock,cli,cohere,evals,fastmcp,google,groq,huggingface,logfire,mcp,mistral,openai,retries,spec,temporal,ui,vertexai,xai]/" target="_blank" rel="noopener"><code>pydantic-ai-slim[ag-ui,anthropic,bedrock,cli,cohere,evals,fastmcp,google,groq,huggingface,logfire,mcp,mistral,openai,retries,spec,temporal,ui,vertexai,xai]</code></a> <span class="dep-req">==1.97.0</span></li></ul><details class='opt-details'><summary>Optional / extras: extra == &quot;a2a&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/fasta2a/" target="_blank" rel="noopener"><code>fasta2a</code></a> <span class="dep-req">&gt;=0.4.1</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;dbos&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/pydantic-ai-slim[dbos]/" target="_blank" rel="noopener"><code>pydantic-ai-slim[dbos]</code></a> <span class="dep-req">==1.97.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;examples&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/pydantic-ai-examples/" target="_blank" rel="noopener"><code>pydantic-ai-examples</code></a> <span class="dep-req">==1.97.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;outlines-llamacpp&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/pydantic-ai-slim[outlines-llamacpp]/" target="_blank" rel="noopener"><code>pydantic-ai-slim[outlines-llamacpp]</code></a> <span class="dep-req">==1.97.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;outlines-sglang&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/pydantic-ai-slim[outlines-sglang]/" target="_blank" rel="noopener"><code>pydantic-ai-slim[outlines-sglang]</code></a> <span class="dep-req">==1.97.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;outlines-transformers&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/pydantic-ai-slim[outlines-transformers]/" target="_blank" rel="noopener"><code>pydantic-ai-slim[outlines-transformers]</code></a> <span class="dep-req">==1.97.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;outlines-vllm-offline&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/pydantic-ai-slim[outlines-vllm-offline]/" target="_blank" rel="noopener"><code>pydantic-ai-slim[outlines-vllm-offline]</code></a> <span class="dep-req">==1.97.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;prefect&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/pydantic-ai-slim[prefect]/" target="_blank" rel="noopener"><code>pydantic-ai-slim[prefect]</code></a> <span class="dep-req">==1.97.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;sentence-transformers&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/pydantic-ai-slim[sentence-transformers]/" target="_blank" rel="noopener"><code>pydantic-ai-slim[sentence-transformers]</code></a> <span class="dep-req">==1.97.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;voyageai&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/pydantic-ai-slim[voyageai]/" target="_blank" rel="noopener"><code>pydantic-ai-slim[voyageai]</code></a> <span class="dep-req">==1.97.0</span></li></ul></details></div>
+            <div class="col dependents-col"><h5>Who depends on <code>pydantic-ai</code></h5><p class='muted'>Ecosyste.ms hasn't indexed individual dependents for this package yet. libraries.io reports <strong>675</strong> dependent packages and <strong>332</strong> dependent repositories. See <a href='https://libraries.io/pypi/pydantic-ai' target='_blank' rel='noopener'>libraries.io</a> for a full list.</p></div>
+          </div>
+        </div>
+        
+    </section>
+    
+
+    <section class="card" id="card-mastra">
+      <header class="card-head">
+        <div>
+          <h2>Mastra</h2>
+          <p class="desc">Mastra is a framework for building AI-powered applications and agents with a modern TypeScript stack.</p>
+          <div class="repo-meta"><span>★ 23.6K</span><span>⑂ 2.0K forks</span><span>👁 93 watchers</span><span><a href="https://github.com/mastra-ai/mastra" target="_blank" rel="noopener">mastra-ai/mastra</a></span></div>
+        </div>
+        <div class="badges"><a class="badge badge-npm" href="https://www.npmjs.com/package/@mastra/core" target="_blank" rel="noopener"><span class="badge-eco">npm</span> @mastra/core</a></div>
+      </header>
+      
+        <div class="variant">
+          <div class="variant-head">
+            <h4>NPM: <code>@mastra/core</code></h4>
+            <div class="links"><a href="https://www.npmjs.com/package/@mastra/core" target="_blank" rel="noopener">npm</a> · <a href="https://libraries.io/npm/%40mastra%2Fcore" target="_blank" rel="noopener">libraries.io</a> · <a href="https://packages.ecosyste.ms/registries/npmjs.org/packages/@mastra/core" target="_blank" rel="noopener">Ecosyste.ms</a> · <a href="https://github.com/mastra-ai/mastra" target="_blank" rel="noopener">GitHub</a> · <a href="https://mastra.ai" target="_blank" rel="noopener">Homepage</a></div>
+          </div>
+          <div class="stats-grid"><div class="stat"><div class="stat-label">Downloads</div><div class="stat-value">3.5M</div><div class=stat-sub>last month</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent packages</div><div class="stat-value">0</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent repos</div><div class="stat-value">0</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent packages</div><div class="stat-value">590</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent repos</div><div class="stat-value">102</div></div>
+<div class="stat"><div class="stat-label">SourceRank (libraries.io)</div><div class="stat-value">22</div></div>
+<div class="stat"><div class="stat-label">Latest release</div><div class="stat-value">1.33.1</div><div class=stat-sub>2026-05-13</div></div>
+<div class="stat"><div class="stat-label">Total releases (libraries.io)</div><div class="stat-value">1.2K</div></div>
+<div class="stat"><div class="stat-label">Docker images using it</div><div class="stat-value">—</div><div class=stat-sub>— pulls</div></div>
+<div class="stat"><div class="stat-label">License</div><div class="stat-value">Apache-2.0</div></div></div>
+          <div class="cols">
+            <div class="col deps-col"><h5>Runtime dependencies (30)</h5><ul class='dep-list'><li><a href="https://www.npmjs.com/package/ws" target="_blank" rel="noopener"><code>ws</code></a> <span class="dep-req">^8.20.0</span></li><li><a href="https://www.npmjs.com/package/ajv" target="_blank" rel="noopener"><code>ajv</code></a> <span class="dep-req">^8.18.0</span></li><li><a href="https://www.npmjs.com/package/chat" target="_blank" rel="noopener"><code>chat</code></a> <span class="dep-req">^4.24.0</span></li><li><a href="https://www.npmjs.com/package/hono" target="_blank" rel="noopener"><code>hono</code></a> <span class="dep-req">^4.12.8</span></li><li><a href="https://www.npmjs.com/package/execa" target="_blank" rel="noopener"><code>execa</code></a> <span class="dep-req">^9.6.1</span></li><li><a href="https://www.npmjs.com/package/fastq" target="_blank" rel="noopener"><code>fastq</code></a> <span class="dep-req">^1.19.1</span></li><li><a href="https://www.npmjs.com/package/p-map" target="_blank" rel="noopener"><code>p-map</code></a> <span class="dep-req">^7.0.4</span></li><li><a href="https://www.npmjs.com/package/croner" target="_blank" rel="noopener"><code>croner</code></a> <span class="dep-req">^10.0.1</span></li><li><a href="https://www.npmjs.com/package/dotenv" target="_blank" rel="noopener"><code>dotenv</code></a> <span class="dep-req">^17.3.1</span></li><li><a href="https://www.npmjs.com/package/ignore" target="_blank" rel="noopener"><code>ignore</code></a> <span class="dep-req">^7.0.5</span></li><li><a href="https://www.npmjs.com/package/tokenx" target="_blank" rel="noopener"><code>tokenx</code></a> <span class="dep-req">^1.3.0</span></li><li><a href="https://www.npmjs.com/package/p-retry" target="_blank" rel="noopener"><code>p-retry</code></a> <span class="dep-req">^7.1.1</span></li><li><a href="https://www.npmjs.com/package/lru-cache" target="_blank" rel="noopener"><code>lru-cache</code></a> <span class="dep-req">^11.2.7</span></li><li><a href="https://www.npmjs.com/package/picomatch" target="_blank" rel="noopener"><code>picomatch</code></a> <span class="dep-req">^4.0.3</span></li><li><a href="https://www.npmjs.com/package/@a2a-js/sdk" target="_blank" rel="noopener"><code>@a2a-js/sdk</code></a> <span class="dep-req">~0.3.13</span></li><li><a href="https://www.npmjs.com/package/gray-matter" target="_blank" rel="noopener"><code>gray-matter</code></a> <span class="dep-req">^4.0.3</span></li><li><a href="https://www.npmjs.com/package/json-schema" target="_blank" rel="noopener"><code>json-schema</code></a> <span class="dep-req">^0.4.0</span></li><li><a href="https://www.npmjs.com/package/xxhash-wasm" target="_blank" rel="noopener"><code>xxhash-wasm</code></a> <span class="dep-req">^1.1.0</span></li><li><a href="https://www.npmjs.com/package/@lukeed/uuid" target="_blank" rel="noopener"><code>@lukeed/uuid</code></a> <span class="dep-req">^2.0.1</span></li><li><a href="https://www.npmjs.com/package/hono-openapi" target="_blank" rel="noopener"><code>hono-openapi</code></a> <span class="dep-req">^1.3.0</span></li><li><a href="https://www.npmjs.com/package/@isaacs/ttlcache" target="_blank" rel="noopener"><code>@isaacs/ttlcache</code></a> <span class="dep-req">^2.1.4</span></li><li><a href="https://www.npmjs.com/package/@ai-sdk/provider-v5" target="_blank" rel="noopener"><code>@ai-sdk/provider-v5</code></a> <span class="dep-req">npm:@ai-sdk/provider@2.0.3</span></li><li><a href="https://www.npmjs.com/package/@ai-sdk/provider-v6" target="_blank" rel="noopener"><code>@ai-sdk/provider-v6</code></a> <span class="dep-req">npm:@ai-sdk/provider@3.0.10</span></li><li><a href="https://www.npmjs.com/package/@ai-sdk/ui-utils-v5" target="_blank" rel="noopener"><code>@ai-sdk/ui-utils-v5</code></a> <span class="dep-req">npm:@ai-sdk/ui-utils@1.2.11</span></li><li><a href="https://www.npmjs.com/package/@mastra/schema-compat" target="_blank" rel="noopener"><code>@mastra/schema-compat</code></a> <span class="dep-req">1.2.10</span></li><li><a href="https://www.npmjs.com/package/@sindresorhus/slugify" target="_blank" rel="noopener"><code>@sindresorhus/slugify</code></a> <span class="dep-req">^2.2.1</span></li><li><a href="https://www.npmjs.com/package/@standard-schema/spec" target="_blank" rel="noopener"><code>@standard-schema/spec</code></a> <span class="dep-req">^1.1.0</span></li><li><a href="https://www.npmjs.com/package/@ai-sdk/provider-utils-v5" target="_blank" rel="noopener"><code>@ai-sdk/provider-utils-v5</code></a> <span class="dep-req">npm:@ai-sdk/provider-utils@3.0.25</span></li><li><a href="https://www.npmjs.com/package/@ai-sdk/provider-utils-v6" target="_blank" rel="noopener"><code>@ai-sdk/provider-utils-v6</code></a> <span class="dep-req">npm:@ai-sdk/provider-utils@4.0.27</span></li><li><a href="https://www.npmjs.com/package/@modelcontextprotocol/sdk" target="_blank" rel="noopener"><code>@modelcontextprotocol/sdk</code></a> <span class="dep-req">^1.29.0</span></li></ul></div>
+            <div class="col dependents-col"><h5>Who depends on <code>@mastra/core</code></h5><p class='muted'>Ecosyste.ms hasn't indexed individual dependents for this package yet. libraries.io reports <strong>590</strong> dependent packages and <strong>102</strong> dependent repositories. See <a href='https://libraries.io/npm/%40mastra%2Fcore' target='_blank' rel='noopener'>libraries.io</a> for a full list.</p></div>
+          </div>
+        </div>
+        
+    </section>
+    
+
+    <section class="card" id="card-vercel-ai-sdk">
+      <header class="card-head">
+        <div>
+          <h2>Vercel AI SDK</h2>
+          <p class="desc">AI SDK by Vercel - build apps like ChatGPT, Claude, Gemini, and more with a single interface for any model using the Vercel AI Gateway or go direct to OpenAI, Anthropic, Google, or any other model provider.</p>
+          <div class="repo-meta"><span>★ 7.6K</span><span>⑂ 979 forks</span><span>👁 50 watchers</span><span><a href="https://github.com/vercel/ai" target="_blank" rel="noopener">vercel/ai</a></span></div>
+        </div>
+        <div class="badges"><a class="badge badge-npm" href="https://www.npmjs.com/package/ai" target="_blank" rel="noopener"><span class="badge-eco">npm</span> ai</a></div>
+      </header>
+      
+        <div class="variant">
+          <div class="variant-head">
+            <h4>NPM: <code>ai</code></h4>
+            <div class="links"><a href="https://www.npmjs.com/package/ai" target="_blank" rel="noopener">npm</a> · <a href="https://libraries.io/npm/ai" target="_blank" rel="noopener">libraries.io</a> · <a href="https://packages.ecosyste.ms/registries/npmjs.org/packages/ai" target="_blank" rel="noopener">Ecosyste.ms</a> · <a href="https://github.com/vercel/ai" target="_blank" rel="noopener">GitHub</a> · <a href="https://ai-sdk.dev/docs" target="_blank" rel="noopener">Homepage</a></div>
+          </div>
+          <div class="stats-grid"><div class="stat"><div class="stat-label">Downloads</div><div class="stat-value">45.2M</div><div class=stat-sub>last month</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent packages</div><div class="stat-value">185</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent repos</div><div class="stat-value">2.5K</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent packages</div><div class="stat-value">6.73K</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent repos</div><div class="stat-value">2.04K</div></div>
+<div class="stat"><div class="stat-label">SourceRank (libraries.io)</div><div class="stat-value">26</div></div>
+<div class="stat"><div class="stat-label">Latest release</div><div class="stat-value">6.0.164</div><div class=stat-sub>2026-04-16</div></div>
+<div class="stat"><div class="stat-label">Total releases (libraries.io)</div><div class="stat-value">1.21K</div></div>
+<div class="stat"><div class="stat-label">Docker images using it</div><div class="stat-value">11</div><div class=stat-sub>3.0K pulls</div></div>
+<div class="stat"><div class="stat-label">License</div><div class="stat-value">Apache-2.0</div></div></div>
+          <div class="cols">
+            <div class="col deps-col"><h5>Runtime dependencies (4)</h5><ul class='dep-list'><li><a href="https://www.npmjs.com/package/@ai-sdk/gateway" target="_blank" rel="noopener"><code>@ai-sdk/gateway</code></a> <span class="dep-req">3.0.101</span></li><li><a href="https://www.npmjs.com/package/@ai-sdk/provider" target="_blank" rel="noopener"><code>@ai-sdk/provider</code></a> <span class="dep-req">3.0.8</span></li><li><a href="https://www.npmjs.com/package/@opentelemetry/api" target="_blank" rel="noopener"><code>@opentelemetry/api</code></a> <span class="dep-req">1.9.0</span></li><li><a href="https://www.npmjs.com/package/@ai-sdk/provider-utils" target="_blank" rel="noopener"><code>@ai-sdk/provider-utils</code></a> <span class="dep-req">4.0.23</span></li></ul></div>
+            <div class="col dependents-col"><h5>Who depends on <code>ai</code> (top 25 of 185 on Ecosyste.ms — sorted by monthly downloads)</h5><table class='dependents'><thead><tr><th>Package</th><th class='num'>Downloads/mo</th><th class='num'>Stars</th><th>Description</th></tr></thead><tbody><tr><td><a href='https://www.npmjs.com/package/@assistant-ui/react' target='_blank' rel='noopener'><code>@assistant-ui/react</code></a></td><td class='num'>1.9M</td><td class='num'>313</td><td class='desc'>TypeScript/React library for AI Chat</td></tr><tr><td><a href='https://www.npmjs.com/package/@upstash/qstash' target='_blank' rel='noopener'><code>@upstash/qstash</code></a></td><td class='num'>1.3M</td><td class='num'>121</td><td class='desc'>Official Typescript client for QStash</td></tr><tr><td><a href='https://www.npmjs.com/package/@copilotkit/react-core' target='_blank' rel='noopener'><code>@copilotkit/react-core</code></a></td><td class='num'>923.8K</td><td class='num'>12.4K</td><td class='desc'>&lt;img src=&quot;https://github.com/user-attachments/assets/0a6b64d9-e193-4940-a3f6-60334ac34084&quot; alt=&quot;banner&quot; style=&quot;border-ra</td></tr><tr><td><a href='https://www.npmjs.com/package/novel' target='_blank' rel='noopener'><code>novel</code></a></td><td class='num'>101.4K</td><td class='num'>15.4K</td><td class='desc'>Notion-style WYSIWYG editor with AI-powered autocompletions</td></tr><tr><td><a href='https://www.npmjs.com/package/novel' target='_blank' rel='noopener'><code>novel</code></a></td><td class='num'>101.4K</td><td class='num'>15.4K</td><td class='desc'>Notion-style WYSIWYG editor with AI-powered autocompletions</td></tr><tr><td><a href='https://www.npmjs.com/package/@lobehub/chat' target='_blank' rel='noopener'><code>@lobehub/chat</code></a></td><td class='num'>61.8K</td><td class='num'>15.5K</td><td class='desc'>Lobe Chat - an open-source, high-performance chatbot framework that supports speech synthesis, multimodal, and extensibl</td></tr><tr><td><a href='https://www.npmjs.com/package/@openmeter/sdk' target='_blank' rel='noopener'><code>@openmeter/sdk</code></a></td><td class='num'>49.6K</td><td class='num'>1.1K</td><td class='desc'>Client for OpenMeter: Real-Time and Scalable Usage Metering</td></tr><tr><td><a href='https://www.npmjs.com/package/langwatch' target='_blank' rel='noopener'><code>langwatch</code></a></td><td class='num'>49.4K</td><td class='num'>3.1K</td><td class='desc'>LangWatch TypeScript/JavaScript SDK. Interact with the full LangWatch API and use the LangWatch OpenTelemetry SDK to ins</td></tr><tr><td><a href='https://www.npmjs.com/package/mtxui' target='_blank' rel='noopener'><code>mtxui</code></a></td><td class='num'>27.8K</td><td class='num'>1.5K</td><td class='desc'></td></tr><tr><td><a href='https://www.npmjs.com/package/@marimo-team/frontend' target='_blank' rel='noopener'><code>@marimo-team/frontend</code></a></td><td class='num'>21.5K</td><td class='num'>20.8K</td><td class='desc'></td></tr><tr><td><a href='https://www.npmjs.com/package/@marimo-team/islands' target='_blank' rel='noopener'><code>@marimo-team/islands</code></a></td><td class='num'>19.2K</td><td class='num'>20.8K</td><td class='desc'></td></tr><tr><td><a href='https://www.npmjs.com/package/mtxuilib' target='_blank' rel='noopener'><code>mtxuilib</code></a></td><td class='num'>17.5K</td><td class='num'>0</td><td class='desc'></td></tr><tr><td><a href='https://www.npmjs.com/package/opencommit' target='_blank' rel='noopener'><code>opencommit</code></a></td><td class='num'>11.2K</td><td class='num'>5.9K</td><td class='desc'>Auto-generate impressive commits in 1 second. Killing lame commits with AI 🤯🔫</td></tr><tr><td><a href='https://www.npmjs.com/package/@statelyai/agent' target='_blank' rel='noopener'><code>@statelyai/agent</code></a></td><td class='num'>8.2K</td><td class='num'>—</td><td class='desc'>Stateful agents that make decisions based on finite-state machine models</td></tr><tr><td><a href='https://www.npmjs.com/package/@whalecloud/ai-chat' target='_blank' rel='noopener'><code>@whalecloud/ai-chat</code></a></td><td class='num'>7.8K</td><td class='num'>—</td><td class='desc'>AI会话前端组件包</td></tr><tr><td><a href='https://www.npmjs.com/package/easy-email-pro-theme' target='_blank' rel='noopener'><code>easy-email-pro-theme</code></a></td><td class='num'>7.0K</td><td class='num'>—</td><td class='desc'></td></tr><tr><td><a href='https://www.npmjs.com/package/easy-email-pro-theme' target='_blank' rel='noopener'><code>easy-email-pro-theme</code></a></td><td class='num'>7.0K</td><td class='num'>—</td><td class='desc'></td></tr><tr><td><a href='https://www.npmjs.com/package/@ant-design/pro-chat' target='_blank' rel='noopener'><code>@ant-design/pro-chat</code></a></td><td class='num'>5.0K</td><td class='num'>869</td><td class='desc'>a solution for ai chat</td></tr><tr><td><a href='https://www.npmjs.com/package/outstatic' target='_blank' rel='noopener'><code>outstatic</code></a></td><td class='num'>3.9K</td><td class='num'>3.1K</td><td class='desc'>Static site CMS</td></tr><tr><td><a href='https://www.npmjs.com/package/llm-scraper' target='_blank' rel='noopener'><code>llm-scraper</code></a></td><td class='num'>2.6K</td><td class='num'>6.1K</td><td class='desc'>Turn any webpage intro structured data using LLMs</td></tr><tr><td><a href='https://www.npmjs.com/package/@superinterface/react' target='_blank' rel='noopener'><code>@superinterface/react</code></a></td><td class='num'>2.2K</td><td class='num'>—</td><td class='desc'></td></tr><tr><td><a href='https://www.npmjs.com/package/novels' target='_blank' rel='noopener'><code>novels</code></a></td><td class='num'>2.1K</td><td class='num'>0</td><td class='desc'>Notion-style WYSIWYG editor with AI-powered awesome features</td></tr><tr><td><a href='https://www.npmjs.com/package/easy-email-pro-plugins' target='_blank' rel='noopener'><code>easy-email-pro-plugins</code></a></td><td class='num'>1.9K</td><td class='num'>—</td><td class='desc'></td></tr><tr><td><a href='https://www.npmjs.com/package/@agentic/stdlib' target='_blank' rel='noopener'><code>@agentic/stdlib</code></a></td><td class='num'>1.7K</td><td class='num'>18.0K</td><td class='desc'>Standard library of AI functions which work with any LLM and TypeScript AI SDK.</td></tr><tr><td><a href='https://www.npmjs.com/package/chrome-ai' target='_blank' rel='noopener'><code>chrome-ai</code></a></td><td class='num'>1.7K</td><td class='num'>—</td><td class='desc'>Vercel AI provider for Chrome built-in model (Gemini Nano)</td></tr></tbody></table></div>
+          </div>
+        </div>
+        
+    </section>
+    
+
+    <section class="card" id="card-browser-use">
+      <header class="card-head">
+        <div>
+          <h2>browser-use</h2>
+          <p class="desc">Make websites accessible for AI agents</p>
+          <div class="repo-meta"><span>★ 72.5K</span><span>⑂ 8.6K forks</span><span>👁 376 watchers</span><span><a href="https://github.com/browser-use/browser-use" target="_blank" rel="noopener">browser-use/browser-use</a></span></div>
+        </div>
+        <div class="badges"><a class="badge badge-pypi" href="https://pypi.org/project/browser-use/" target="_blank" rel="noopener"><span class="badge-eco">pypi</span> browser-use</a></div>
+      </header>
+      
+        <div class="variant">
+          <div class="variant-head">
+            <h4>PYPI: <code>browser-use</code></h4>
+            <div class="links"><a href="https://pypi.org/project/browser-use/" target="_blank" rel="noopener">PyPI</a> · <a href="https://libraries.io/pypi/browser-use" target="_blank" rel="noopener">libraries.io</a> · <a href="https://packages.ecosyste.ms/registries/pypi.org/packages/browser-use" target="_blank" rel="noopener">Ecosyste.ms</a> · <a href="https://github.com/browser-use/browser-use" target="_blank" rel="noopener">GitHub</a> · <a href="https://browser-use.com" target="_blank" rel="noopener">Homepage</a></div>
+          </div>
+          <div class="stats-grid"><div class="stat"><div class="stat-label">Downloads</div><div class="stat-value">11.4M</div><div class=stat-sub>last month</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent packages</div><div class="stat-value">0</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent repos</div><div class="stat-value">0</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent packages</div><div class="stat-value">168</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent repos</div><div class="stat-value">70</div></div>
+<div class="stat"><div class="stat-label">SourceRank (libraries.io)</div><div class="stat-value">20</div></div>
+<div class="stat"><div class="stat-label">Latest release</div><div class="stat-value">0.12.6</div><div class=stat-sub>2026-04-02</div></div>
+<div class="stat"><div class="stat-label">Total releases (libraries.io)</div><div class="stat-value">129</div></div>
+<div class="stat"><div class="stat-label">Docker images using it</div><div class="stat-value">—</div><div class=stat-sub>— pulls</div></div>
+<div class="stat"><div class="stat-label">License</div><div class="stat-value">MIT</div></div></div>
+          <div class="cols">
+            <div class="col deps-col"><h5>Runtime dependencies (33)</h5><ul class='dep-list'><li><a href="https://pypi.org/project/aiohttp/" target="_blank" rel="noopener"><code>aiohttp</code></a> <span class="dep-req">==3.13.3</span></li><li><a href="https://pypi.org/project/anthropic/" target="_blank" rel="noopener"><code>anthropic</code></a> <span class="dep-req">==0.76.0</span></li><li><a href="https://pypi.org/project/anyio/" target="_blank" rel="noopener"><code>anyio</code></a> <span class="dep-req">==4.12.1</span></li><li><a href="https://pypi.org/project/browser-use-sdk/" target="_blank" rel="noopener"><code>browser-use-sdk</code></a> <span class="dep-req">==2.0.15</span></li><li><a href="https://pypi.org/project/bubus/" target="_blank" rel="noopener"><code>bubus</code></a> <span class="dep-req">==1.5.6</span></li><li><a href="https://pypi.org/project/cdp-use/" target="_blank" rel="noopener"><code>cdp-use</code></a> <span class="dep-req">==1.4.5</span></li><li><a href="https://pypi.org/project/click/" target="_blank" rel="noopener"><code>click</code></a> <span class="dep-req">==8.3.1</span></li><li><a href="https://pypi.org/project/cloudpickle/" target="_blank" rel="noopener"><code>cloudpickle</code></a> <span class="dep-req">==3.1.2</span></li><li><a href="https://pypi.org/project/google-api-core/" target="_blank" rel="noopener"><code>google-api-core</code></a> <span class="dep-req">==2.29.0</span></li><li><a href="https://pypi.org/project/google-api-python-client/" target="_blank" rel="noopener"><code>google-api-python-client</code></a> <span class="dep-req">==2.188.0</span></li><li><a href="https://pypi.org/project/google-auth-oauthlib/" target="_blank" rel="noopener"><code>google-auth-oauthlib</code></a> <span class="dep-req">==1.2.4</span></li><li><a href="https://pypi.org/project/google-auth/" target="_blank" rel="noopener"><code>google-auth</code></a> <span class="dep-req">==2.48.0</span></li><li><a href="https://pypi.org/project/google-genai/" target="_blank" rel="noopener"><code>google-genai</code></a> <span class="dep-req">==1.65.0</span></li><li><a href="https://pypi.org/project/groq/" target="_blank" rel="noopener"><code>groq</code></a> <span class="dep-req">==1.0.0</span></li><li><a href="https://pypi.org/project/httpx/" target="_blank" rel="noopener"><code>httpx</code></a> <span class="dep-req">==0.28.1</span></li><li><a href="https://pypi.org/project/inquirerpy/" target="_blank" rel="noopener"><code>inquirerpy</code></a> <span class="dep-req">==0.3.4</span></li><li><a href="https://pypi.org/project/markdownify/" target="_blank" rel="noopener"><code>markdownify</code></a> <span class="dep-req">==1.2.2</span></li><li><a href="https://pypi.org/project/mcp/" target="_blank" rel="noopener"><code>mcp</code></a> <span class="dep-req">==1.26.0</span></li><li><a href="https://pypi.org/project/ollama/" target="_blank" rel="noopener"><code>ollama</code></a> <span class="dep-req">==0.6.1</span></li><li><a href="https://pypi.org/project/openai/" target="_blank" rel="noopener"><code>openai</code></a> <span class="dep-req">==2.16.0</span></li><li><a href="https://pypi.org/project/pillow/" target="_blank" rel="noopener"><code>pillow</code></a> <span class="dep-req">==12.1.1</span></li><li><a href="https://pypi.org/project/posthog/" target="_blank" rel="noopener"><code>posthog</code></a> <span class="dep-req">==7.7.0</span></li><li><a href="https://pypi.org/project/psutil/" target="_blank" rel="noopener"><code>psutil</code></a> <span class="dep-req">==7.2.2</span></li><li><a href="https://pypi.org/project/pydantic/" target="_blank" rel="noopener"><code>pydantic</code></a> <span class="dep-req">==2.12.5</span></li><li><a href="https://pypi.org/project/pyotp/" target="_blank" rel="noopener"><code>pyotp</code></a> <span class="dep-req">==2.9.0</span></li><li><a href="https://pypi.org/project/pypdf/" target="_blank" rel="noopener"><code>pypdf</code></a> <span class="dep-req">==6.9.1</span></li><li><a href="https://pypi.org/project/python-docx/" target="_blank" rel="noopener"><code>python-docx</code></a> <span class="dep-req">==1.2.0</span></li><li><a href="https://pypi.org/project/python-dotenv/" target="_blank" rel="noopener"><code>python-dotenv</code></a> <span class="dep-req">==1.2.1</span></li><li><a href="https://pypi.org/project/reportlab/" target="_blank" rel="noopener"><code>reportlab</code></a> <span class="dep-req">==4.4.9</span></li><li><a href="https://pypi.org/project/requests/" target="_blank" rel="noopener"><code>requests</code></a> <span class="dep-req">==2.32.5</span></li><li><a href="https://pypi.org/project/rich/" target="_blank" rel="noopener"><code>rich</code></a> <span class="dep-req">==14.3.1</span></li><li><a href="https://pypi.org/project/typing-extensions/" target="_blank" rel="noopener"><code>typing-extensions</code></a> <span class="dep-req">==4.15.0</span></li><li><a href="https://pypi.org/project/uuid7/" target="_blank" rel="noopener"><code>uuid7</code></a> <span class="dep-req">==0.1.0</span></li></ul><details class='opt-details'><summary>Optional / extras: extra == &quot;all&quot; (7)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/agentmail/" target="_blank" rel="noopener"><code>agentmail</code></a> <span class="dep-req">==0.0.59</span></li><li><a href="https://pypi.org/project/boto3/" target="_blank" rel="noopener"><code>boto3</code></a> <span class="dep-req">==1.42.37</span></li><li><a href="https://pypi.org/project/botocore/" target="_blank" rel="noopener"><code>botocore</code></a> <span class="dep-req">==1.42.37</span></li><li><a href="https://pypi.org/project/imgcat/" target="_blank" rel="noopener"><code>imgcat</code></a> <span class="dep-req">==0.6.0</span></li><li><a href="https://pypi.org/project/langchain-openai/" target="_blank" rel="noopener"><code>langchain-openai</code></a> <span class="dep-req">==1.1.7</span></li><li><a href="https://pypi.org/project/oci/" target="_blank" rel="noopener"><code>oci</code></a> <span class="dep-req">==2.166.0</span></li><li><a href="https://pypi.org/project/textual/" target="_blank" rel="noopener"><code>textual</code></a> <span class="dep-req">==7.4.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;aws&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/boto3/" target="_blank" rel="noopener"><code>boto3</code></a> <span class="dep-req">==1.42.37</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;cli&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/textual/" target="_blank" rel="noopener"><code>textual</code></a> <span class="dep-req">==7.4.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;cli-oci&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/oci/" target="_blank" rel="noopener"><code>oci</code></a> <span class="dep-req">==2.166.0</span></li><li><a href="https://pypi.org/project/textual/" target="_blank" rel="noopener"><code>textual</code></a> <span class="dep-req">==7.4.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;eval&quot; (4)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/anyio/" target="_blank" rel="noopener"><code>anyio</code></a> <span class="dep-req">==4.12.1</span></li><li><a href="https://pypi.org/project/datamodel-code-generator/" target="_blank" rel="noopener"><code>datamodel-code-generator</code></a> <span class="dep-req">==0.53.0</span></li><li><a href="https://pypi.org/project/lmnr[all]/" target="_blank" rel="noopener"><code>lmnr[all]</code></a> <span class="dep-req">==0.7.42</span></li><li><a href="https://pypi.org/project/psutil/" target="_blank" rel="noopener"><code>psutil</code></a> <span class="dep-req">==7.2.2</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;examples&quot; (4)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/agentmail/" target="_blank" rel="noopener"><code>agentmail</code></a> <span class="dep-req">==0.0.59</span></li><li><a href="https://pypi.org/project/botocore/" target="_blank" rel="noopener"><code>botocore</code></a> <span class="dep-req">==1.42.37</span></li><li><a href="https://pypi.org/project/imgcat/" target="_blank" rel="noopener"><code>imgcat</code></a> <span class="dep-req">==0.6.0</span></li><li><a href="https://pypi.org/project/langchain-openai/" target="_blank" rel="noopener"><code>langchain-openai</code></a> <span class="dep-req">==1.1.7</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;oci&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/oci/" target="_blank" rel="noopener"><code>oci</code></a> <span class="dep-req">==2.166.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;video&quot; (2)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/imageio[ffmpeg]/" target="_blank" rel="noopener"><code>imageio[ffmpeg]</code></a> <span class="dep-req">==2.37.2</span></li><li><a href="https://pypi.org/project/numpy/" target="_blank" rel="noopener"><code>numpy</code></a> <span class="dep-req">==2.4.1</span></li></ul></details></div>
+            <div class="col dependents-col"><h5>Who depends on <code>browser-use</code></h5><p class='muted'>Ecosyste.ms hasn't indexed individual dependents for this package yet. libraries.io reports <strong>168</strong> dependent packages and <strong>70</strong> dependent repositories. See <a href='https://libraries.io/pypi/browser-use' target='_blank' rel='noopener'>libraries.io</a> for a full list.</p></div>
+          </div>
+        </div>
+        
+    </section>
+    
+
+    <section class="card" id="card-fast-agent">
+      <header class="card-head">
+        <div>
+          <h2>fast-agent</h2>
+          <p class="desc">Define, Prompt and Test MCP enabled Agents and Workflows</p>
+          <div class="repo-meta"><span>★ 18.7K</span><span>⑂ 2.0K forks</span><span>👁 305 watchers</span><span><a href="https://github.com/evalstate/fast-agent-mcp" target="_blank" rel="noopener">evalstate/fast-agent-mcp</a></span></div>
+        </div>
+        <div class="badges"><a class="badge badge-pypi" href="https://pypi.org/project/fast-agent-mcp/" target="_blank" rel="noopener"><span class="badge-eco">pypi</span> fast-agent-mcp</a></div>
+      </header>
+      
+        <div class="variant">
+          <div class="variant-head">
+            <h4>PYPI: <code>fast-agent-mcp</code></h4>
+            <div class="links"><a href="https://pypi.org/project/fast-agent-mcp/" target="_blank" rel="noopener">PyPI</a> · <a href="https://libraries.io/pypi/fast-agent-mcp" target="_blank" rel="noopener">libraries.io</a> · <a href="https://packages.ecosyste.ms/registries/pypi.org/packages/fast-agent-mcp" target="_blank" rel="noopener">Ecosyste.ms</a> · <a href="https://github.com/evalstate/fast-agent-mcp" target="_blank" rel="noopener">GitHub</a></div>
+          </div>
+          <div class="stats-grid"><div class="stat"><div class="stat-label">Downloads</div><div class="stat-value">90.0K</div><div class=stat-sub>last month</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent packages</div><div class="stat-value">0</div></div>
+<div class="stat"><div class="stat-label">Ecosyste.ms dependent repos</div><div class="stat-value">0</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent packages</div><div class="stat-value">16</div></div>
+<div class="stat"><div class="stat-label">libraries.io dependent repos</div><div class="stat-value">7</div></div>
+<div class="stat"><div class="stat-label">SourceRank (libraries.io)</div><div class="stat-value">8</div></div>
+<div class="stat"><div class="stat-label">Latest release</div><div class="stat-value">0.6.22</div><div class=stat-sub>2026-04-21</div></div>
+<div class="stat"><div class="stat-label">Total releases (libraries.io)</div><div class="stat-value">214</div></div>
+<div class="stat"><div class="stat-label">Docker images using it</div><div class="stat-value">—</div><div class=stat-sub>— pulls</div></div>
+<div class="stat"><div class="stat-label">License</div><div class="stat-value">Other</div></div></div>
+          <div class="cols">
+            <div class="col deps-col"><h5>Runtime dependencies (30)</h5><ul class='dep-list'><li><a href="https://pypi.org/project/watchfiles/" target="_blank" rel="noopener"><code>watchfiles</code></a> <span class="dep-req">==1.1.1</span></li><li><a href="https://pypi.org/project/a2a-sdk/" target="_blank" rel="noopener"><code>a2a-sdk</code></a> <span class="dep-req">==0.3.26</span></li><li><a href="https://pypi.org/project/agent-client-protocol/" target="_blank" rel="noopener"><code>agent-client-protocol</code></a> <span class="dep-req">==0.9.0</span></li><li><a href="https://pypi.org/project/aiohttp/" target="_blank" rel="noopener"><code>aiohttp</code></a> <span class="dep-req">==3.13.5</span></li><li><a href="https://pypi.org/project/anthropic[vertex]/" target="_blank" rel="noopener"><code>anthropic[vertex]</code></a> <span class="dep-req">==0.96.0</span></li><li><a href="https://pypi.org/project/deprecated/" target="_blank" rel="noopener"><code>deprecated</code></a> <span class="dep-req">==1.3.1</span></li><li><a href="https://pypi.org/project/email-validator/" target="_blank" rel="noopener"><code>email-validator</code></a> <span class="dep-req">==2.2.0</span></li><li><a href="https://pypi.org/project/fastapi/" target="_blank" rel="noopener"><code>fastapi</code></a> <span class="dep-req">==0.136.0</span></li><li><a href="https://pypi.org/project/fastmcp/" target="_blank" rel="noopener"><code>fastmcp</code></a> <span class="dep-req">==3.2.3</span></li><li><a href="https://pypi.org/project/google-genai/" target="_blank" rel="noopener"><code>google-genai</code></a> <span class="dep-req">==1.66.0</span></li><li><a href="https://pypi.org/project/huggingface-hub/" target="_blank" rel="noopener"><code>huggingface-hub</code></a> <span class="dep-req">==1.11.0</span></li><li><a href="https://pypi.org/project/jsonschema/" target="_blank" rel="noopener"><code>jsonschema</code></a> <span class="dep-req">==4.25.1</span></li><li><a href="https://pypi.org/project/keyring/" target="_blank" rel="noopener"><code>keyring</code></a> <span class="dep-req">==25.7.0</span></li><li><a href="https://pypi.org/project/mcp/" target="_blank" rel="noopener"><code>mcp</code></a> <span class="dep-req">==1.27.0</span></li><li><a href="https://pypi.org/project/mslex/" target="_blank" rel="noopener"><code>mslex</code></a> <span class="dep-req">==1.3.0</span></li><li><a href="https://pypi.org/project/multilspy/" target="_blank" rel="noopener"><code>multilspy</code></a> <span class="dep-req">==0.0.15</span></li><li><a href="https://pypi.org/project/openai[aiohttp]/" target="_blank" rel="noopener"><code>openai[aiohttp]</code></a> <span class="dep-req">==2.31.0</span></li><li><a href="https://pypi.org/project/opentelemetry-distro/" target="_blank" rel="noopener"><code>opentelemetry-distro</code></a> <span class="dep-req">==0.60b1</span></li><li><a href="https://pypi.org/project/opentelemetry-exporter-otlp-proto-http/" target="_blank" rel="noopener"><code>opentelemetry-exporter-otlp-proto-http</code></a> <span class="dep-req">==1.39.1</span></li><li><a href="https://pypi.org/project/opentelemetry-instrumentation-google-genai/" target="_blank" rel="noopener"><code>opentelemetry-instrumentation-google-genai</code></a> <span class="dep-req">==0.6b0</span></li><li><a href="https://pypi.org/project/prompt-toolkit/" target="_blank" rel="noopener"><code>prompt-toolkit</code></a> <span class="dep-req">==3.0.52</span></li><li><a href="https://pypi.org/project/pydantic-settings/" target="_blank" rel="noopener"><code>pydantic-settings</code></a> <span class="dep-req">==2.13.0</span></li><li><a href="https://pypi.org/project/pydantic/" target="_blank" rel="noopener"><code>pydantic</code></a> <span class="dep-req">==2.13.1</span></li><li><a href="https://pypi.org/project/pyperclip/" target="_blank" rel="noopener"><code>pyperclip</code></a> <span class="dep-req">==1.9.0</span></li><li><a href="https://pypi.org/project/python-frontmatter/" target="_blank" rel="noopener"><code>python-frontmatter</code></a> <span class="dep-req">==1.1.0</span></li><li><a href="https://pypi.org/project/pyyaml/" target="_blank" rel="noopener"><code>pyyaml</code></a> <span class="dep-req">==6.0.3</span></li><li><a href="https://pypi.org/project/rich/" target="_blank" rel="noopener"><code>rich</code></a> <span class="dep-req">==14.3.3</span></li><li><a href="https://pypi.org/project/ruamel-yaml/" target="_blank" rel="noopener"><code>ruamel-yaml</code></a> <span class="dep-req">==0.19.1</span></li><li><a href="https://pypi.org/project/tiktoken/" target="_blank" rel="noopener"><code>tiktoken</code></a> <span class="dep-req">==0.12.0</span></li><li><a href="https://pypi.org/project/typer/" target="_blank" rel="noopener"><code>typer</code></a> <span class="dep-req">==0.24.1</span></li></ul><details class='opt-details'><summary>Optional / extras: extra == &quot;all-providers&quot; (3)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/azure-identity/" target="_blank" rel="noopener"><code>azure-identity</code></a> <span class="dep-req">&gt;=1.14.0</span></li><li><a href="https://pypi.org/project/boto3/" target="_blank" rel="noopener"><code>boto3</code></a> <span class="dep-req">&gt;=1.35.0</span></li><li><a href="https://pypi.org/project/tensorzero/" target="_blank" rel="noopener"><code>tensorzero</code></a> <span class="dep-req">&gt;=2025.7.5</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;azure&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/azure-identity/" target="_blank" rel="noopener"><code>azure-identity</code></a> <span class="dep-req">&gt;=1.14.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;bedrock&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/boto3/" target="_blank" rel="noopener"><code>boto3</code></a> <span class="dep-req">&gt;=1.35.0</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;tensorzero&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/tensorzero/" target="_blank" rel="noopener"><code>tensorzero</code></a> <span class="dep-req">&gt;=2025.7.5</span></li></ul></details>
+<details class='opt-details'><summary>Optional / extras: extra == &quot;textual&quot; (1)</summary><ul class='dep-list'><li><a href="https://pypi.org/project/textual/" target="_blank" rel="noopener"><code>textual</code></a> <span class="dep-req">&gt;=6.2.1</span></li></ul></details></div>
+            <div class="col dependents-col"><h5>Who depends on <code>fast-agent-mcp</code></h5><p class='muted'>Ecosyste.ms hasn't indexed individual dependents for this package yet. libraries.io reports <strong>16</strong> dependent packages and <strong>7</strong> dependent repositories. See <a href='https://libraries.io/pypi/fast-agent-mcp' target='_blank' rel='noopener'>libraries.io</a> for a full list.</p></div>
+          </div>
+        </div>
+        
+    </section>
+    
+
+<footer class="page" id="methodology">
+<h3 class="section" style="margin-top:0">Methodology</h3>
+<p><strong>Sources.</strong>
+"Depends on" rows come from the latest published version's manifest as indexed by Ecosyste.ms (PyPI <code>install_requires</code> / npm <code>dependencies</code>). Optional/extras dependencies are grouped under their feature key (e.g. <code>extra == "anthropic"</code>).
+"Who depends on it" rows come from Ecosyste.ms's <code>dependent_packages</code> endpoint, sorted by last-month downloads. Counts in the summary table compare libraries.io's own crawl against Ecosyste.ms's.</p>
+
+<p><strong>Why the two counts disagree.</strong>
+libraries.io has been crawling registries since 2017 and counts <em>any historical</em> dependency relationship between packages — including dead, abandoned, and now-broken packages. Ecosyste.ms re-indexes more recent state and tends to under-count older relationships but over-counts where libraries.io has gone stale (it has been semi-maintained since the original maintainer left Tidelift). For packages where Ecosyste.ms reports <em>0</em> dependent packages (smolagents, pydantic-ai, @mastra/core, browser-use, fast-agent, autogen-agentchat) the package is too new or its dependents are not yet in Ecosyste.ms's reverse-dep index — libraries.io's number is more accurate for those.</p>
+
+<p><strong>Caveats.</strong>
+"Dependent repositories" counts public GitHub repos that import the package via a manifest — both services miss vendored installs, monorepo internal packages, and anything pinned outside a recognised manifest. Download counts are last-month from PyPI/npm via Ecosyste.ms. Star/fork numbers reflect the linked GitHub repo at last sync.</p>
+
+<p>Raw JSON is alongside this file: <code>ecosystems.json</code>, <code>libraries_io.json</code>.</p>
+</footer>
+
+</div>
+</body>
+</html>
