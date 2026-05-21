@@ -1,0 +1,1978 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style type="text/css">
+        .knitr .inline {
+            background-color: #F7F7F7;
+            border: solid 1px #B0B0B0;
+        }
+
+        .error {
+            font-weight: bold;
+            color: #FF0000;
+        }
+
+        .warning {
+            font-weight: bold;
+        }
+
+        .message {
+            font-style: italic;
+        }
+
+        .source,
+        .output,
+        .warning,
+        .error,
+        .message {
+            padding: 0 1em;
+            border: solid 1px #F7F7F7;
+        }
+
+        .source {
+            background-color: #F5F5F5;
+        }
+
+        .rimage .left {
+            text-align: left;
+        }
+
+        .rimage .right {
+            text-align: right;
+        }
+
+        .rimage .center {
+            text-align: center;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 16fr 1fr 2fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        #container5 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+        }
+
+        #container2 {
+            grid-row: 3;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #container3 {
+            grid-row: 4;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 4;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        #viz {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        .custom-legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(4px, 1vw, 10px);
+            padding: clamp(2px, 0.5vh, 4px) clamp(4px, 0.8vw, 8px);
+            overflow: auto;
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(8px, 1.3vw, 13px);
+            font-weight: 600;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            font-weight: 600;
+            color: #333;
+            position: relative;
+        }
+
+        .legend-item.inactive {
+            opacity: 0.35;
+        }
+
+        .legend-square {
+            width: clamp(10px, 1.2vw, 14px);
+            height: clamp(10px, 1.2vw, 14px);
+            border-radius: 4px;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset;
+        }
+
+        .legend-item:focus-visible {
+            outline: 2px solid rgba(0, 0, 0, 0.5);
+            outline-offset: 2px;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: 100%;
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .source-text a:visited {
+            color: #2756d3;
+        }
+
+        .footnote-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-style: italic;
+            color: #333;
+            text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+
+        .selector-group {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(2px, 0.5vw, 6px);
+            padding: clamp(2px, 0.4vw, 4px);
+            border-radius: 6px;
+            border: 1px solid rgba(17, 24, 39, 0.15);
+            background: #f8fafc;
+            max-width: 100%;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        .selector-button {
+            border: none;
+            background: transparent;
+            padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+            border-radius: 6px;
+            font-size: clamp(9px, 1.4vw, 13px);
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+            white-space: nowrap;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        .selector-button.active {
+            background: #2756d3;
+            color: #fff;
+        }
+
+        .selector-button:focus-visible {
+            outline: 2px solid rgba(39, 86, 211, 0.5);
+            outline-offset: 2px;
+        }
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr;
+                grid-template-columns: 1fr;
+            }
+
+            #container1 {
+                grid-row: 1;
+                grid-column: 1;
+            }
+
+            #container2,
+            #container3,
+            #container4,
+            #container5 {
+                display: none !important;
+            }
+
+            .custom-legend,
+            .source-text,
+            .logo,
+            .footnote-text {
+                display: none !important;
+            }
+        }
+    </style>
+
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1" class="container viz-container">
+            <div id="viz"></div>
+        </div>
+        <div id="container5" class="container footnote-container">
+            <div class="footnote-text" id="footnote-text">
+                This is a footnote example
+            </div>
+        </div>
+        <div id="container2" class="container legend-container">
+            <div class="selector-group" id="rank-switch" role="group" aria-label="Author rank filter">
+                <button type="button" class="selector-button" data-rank="top5" aria-pressed="false">Top 5</button>
+                <button type="button" class="selector-button" data-rank="top5to20" aria-pressed="false">Top 5&#8211;20</button>
+                <button type="button" class="selector-button active" data-rank="top20" aria-pressed="true">Top 20</button>
+            </div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-text" id="source-text">
+    Source: <a href="https://huggingface.co" target="_blank" rel="noopener">HuggingFace</a>
+  </div>
+        </div>
+        <div id="container4" class="container logo-container"><a href="https://huggingface.co" target="_blank" rel="noopener"><img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="Hugging Face logo" /></a><span style="padding: 0 4px; color: #666; font-size: 1.2em;">&times;</span><a href="https://aiworld.eu/" target="_blank" rel="noopener"><img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" /></a></div>
+    </div>
+
+    <script>
+        const SHOW_CONTAINER_2 = 1;
+        const SHOW_CONTAINER_3 = 1;
+        const SHOW_CONTAINER_4 = 1;
+        const SHOW_CONTAINER_5 = 0;
+
+        const VIZ_CONTAINER_ID = 'viz';
+        const SOURCE_CONTAINER_ID = 'source-text';
+        const LOGO_CONTAINER_ID = 'logo-link';
+        const FOOTNOTE_CONTAINER_ID = 'footnote-text';
+
+        const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
+        const sourceContainer = document.getElementById(SOURCE_CONTAINER_ID);
+        const logoContainer = document.getElementById(LOGO_CONTAINER_ID);
+        const footnoteContainer = document.getElementById(FOOTNOTE_CONTAINER_ID);
+
+        (function applyContainerVisibility() {
+            const vizGrid = document.querySelector('.viz-grid');
+            const container1 = document.getElementById('container1');
+            const container2 = document.getElementById('container2');
+            const container3 = document.getElementById('container3');
+            const container4 = document.getElementById('container4');
+            const container5 = document.getElementById('container5');
+
+            if (!SHOW_CONTAINER_2) {
+                container2.style.display = 'none';
+            }
+            if (!SHOW_CONTAINER_3) {
+                container3.style.display = 'none';
+            }
+            if (!SHOW_CONTAINER_4) {
+                container4.style.display = 'none';
+            }
+            if (!SHOW_CONTAINER_5) {
+                container5.style.display = 'none';
+            }
+
+            const row2Visible = SHOW_CONTAINER_5;
+            const row3Visible = SHOW_CONTAINER_2;
+            const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+            let gridRows = [];
+            let currentRow = 1;
+
+            const container1Height = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 2 : 0) - (row4Visible ? 1 : 0);
+            gridRows.push(`${container1Height}fr`);
+
+            if (row2Visible) {
+                gridRows.push('1fr');
+                currentRow++;
+                container5.style.gridRow = currentRow.toString();
+            }
+
+            if (row3Visible) {
+                gridRows.push('2fr');
+                currentRow++;
+                container2.style.gridRow = currentRow.toString();
+            }
+
+            if (row4Visible) {
+                gridRows.push('1fr');
+                currentRow++;
+                if (SHOW_CONTAINER_3) container3.style.gridRow = currentRow.toString();
+                if (SHOW_CONTAINER_4) container4.style.gridRow = currentRow.toString();
+            }
+
+            vizGrid.style.gridTemplateRows = gridRows.join(' ');
+            container1.style.gridRow = '1';
+
+            if (row4Visible) {
+                if (SHOW_CONTAINER_3 && !SHOW_CONTAINER_4) {
+                    container3.style.gridColumn = '1 / span 2';
+                } else if (!SHOW_CONTAINER_3 && SHOW_CONTAINER_4) {
+                    container4.style.gridColumn = '1 / span 2';
+                }
+            }
+        })();
+
+        const originalData = [
+  {
+    "id": "HuggingFaceH4/zephyr-7b-beta",
+    "value": 1843,
+    "parent": "HuggingFaceH4",
+    "color": "HuggingFaceH4",
+    "name": "HuggingFaceH4/zephyr-7b-beta"
+  },
+  {
+    "id": "HuggingFaceH4/zephyr-7b-alpha",
+    "value": 1123,
+    "parent": "HuggingFaceH4",
+    "color": "HuggingFaceH4",
+    "name": "HuggingFaceH4/zephyr-7b-alpha"
+  },
+  {
+    "id": "HuggingFaceH4/zephyr-orpo-141b-A35b-v0.1",
+    "value": 269,
+    "parent": "HuggingFaceH4",
+    "color": "HuggingFaceH4",
+    "name": "HuggingFaceH4/zephyr-orpo-141b-A35b-v0.1"
+  },
+  {
+    "id": "HuggingFaceH4/zephyr-7b-gemma-v0.1",
+    "value": 124,
+    "parent": "HuggingFaceH4",
+    "color": "HuggingFaceH4",
+    "name": "HuggingFaceH4/zephyr-7b-gemma-v0.1"
+  },
+  {
+    "id": "HuggingFaceH4/starchat2-15b-v0.1",
+    "value": 112,
+    "parent": "HuggingFaceH4",
+    "color": "HuggingFaceH4",
+    "name": "HuggingFaceH4/starchat2-15b-v0.1"
+  },
+  {
+    "id": "HuggingFaceH4/mistral-7b-grok",
+    "value": 52,
+    "parent": "HuggingFaceH4",
+    "color": "HuggingFaceH4",
+    "name": "HuggingFaceH4/mistral-7b-grok"
+  },
+  {
+    "id": "HuggingFaceH4/mistral-7b-sft-beta",
+    "value": 24,
+    "parent": "HuggingFaceH4",
+    "color": "HuggingFaceH4",
+    "name": "HuggingFaceH4/mistral-7b-sft-beta"
+  },
+  {
+    "id": "HuggingFaceH4/zephyr-7b-gemma-sft-v0.1",
+    "value": 12,
+    "parent": "HuggingFaceH4",
+    "color": "HuggingFaceH4",
+    "name": "HuggingFaceH4/zephyr-7b-gemma-sft-v0.1"
+  },
+  {
+    "id": "HuggingFaceH4/mistral-7b-anthropic",
+    "value": 9,
+    "parent": "HuggingFaceH4",
+    "color": "HuggingFaceH4",
+    "name": "HuggingFaceH4/mistral-7b-anthropic"
+  },
+  {
+    "id": "HuggingFaceH4/starchat2-15b-sft-v0.1",
+    "value": 5,
+    "parent": "HuggingFaceH4",
+    "color": "HuggingFaceH4",
+    "name": "HuggingFaceH4/starchat2-15b-sft-v0.1"
+  },
+  {
+    "id": "Others (3)",
+    "value": 3,
+    "parent": "HuggingFaceH4",
+    "color": "HuggingFaceH4",
+    "name": "Others (3)"
+  },
+  {
+    "id": "LiquidAI/LFM2.5-1.2B-Instruct",
+    "value": 586,
+    "parent": "LiquidAI",
+    "color": "LiquidAI",
+    "name": "LiquidAI/LFM2.5-1.2B-Instruct"
+  },
+  {
+    "id": "LiquidAI/LFM2.5-Audio-1.5B",
+    "value": 398,
+    "parent": "LiquidAI",
+    "color": "LiquidAI",
+    "name": "LiquidAI/LFM2.5-Audio-1.5B"
+  },
+  {
+    "id": "LiquidAI/LFM2.5-1.2B-Thinking",
+    "value": 346,
+    "parent": "LiquidAI",
+    "color": "LiquidAI",
+    "name": "LiquidAI/LFM2.5-1.2B-Thinking"
+  },
+  {
+    "id": "LiquidAI/LFM2-Audio-1.5B",
+    "value": 346,
+    "parent": "LiquidAI",
+    "color": "LiquidAI",
+    "name": "LiquidAI/LFM2-Audio-1.5B"
+  },
+  {
+    "id": "LiquidAI/LFM2-2.6B-Exp",
+    "value": 339,
+    "parent": "LiquidAI",
+    "color": "LiquidAI",
+    "name": "LiquidAI/LFM2-2.6B-Exp"
+  },
+  {
+    "id": "LiquidAI/LFM2.5-350M",
+    "value": 300,
+    "parent": "LiquidAI",
+    "color": "LiquidAI",
+    "name": "LiquidAI/LFM2.5-350M"
+  },
+  {
+    "id": "LiquidAI/LFM2.5-VL-1.6B",
+    "value": 283,
+    "parent": "LiquidAI",
+    "color": "LiquidAI",
+    "name": "LiquidAI/LFM2.5-VL-1.6B"
+  },
+  {
+    "id": "LiquidAI/LFM2.5-VL-450M",
+    "value": 171,
+    "parent": "LiquidAI",
+    "color": "LiquidAI",
+    "name": "LiquidAI/LFM2.5-VL-450M"
+  },
+  {
+    "id": "LiquidAI/LFM2-2.6B-Transcript",
+    "value": 164,
+    "parent": "LiquidAI",
+    "color": "LiquidAI",
+    "name": "LiquidAI/LFM2-2.6B-Transcript"
+  },
+  {
+    "id": "LiquidAI/LFM2.5-1.2B-JP",
+    "value": 145,
+    "parent": "LiquidAI",
+    "color": "LiquidAI",
+    "name": "LiquidAI/LFM2.5-1.2B-JP"
+  },
+  {
+    "id": "Others (13)",
+    "value": 630,
+    "parent": "LiquidAI",
+    "color": "LiquidAI",
+    "name": "Others (13)"
+  },
+  {
+    "id": "NousResearch/Hermes-2-Pro-Mistral-7B",
+    "value": 504,
+    "parent": "NousResearch",
+    "color": "NousResearch",
+    "name": "NousResearch/Hermes-2-Pro-Mistral-7B"
+  },
+  {
+    "id": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
+    "value": 453,
+    "parent": "NousResearch",
+    "color": "NousResearch",
+    "name": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO"
+  },
+  {
+    "id": "NousResearch/Hermes-2-Pro-Llama-3-8B",
+    "value": 448,
+    "parent": "NousResearch",
+    "color": "NousResearch",
+    "name": "NousResearch/Hermes-2-Pro-Llama-3-8B"
+  },
+  {
+    "id": "NousResearch/Hermes-3-Llama-3.1-8B",
+    "value": 421,
+    "parent": "NousResearch",
+    "color": "NousResearch",
+    "name": "NousResearch/Hermes-3-Llama-3.1-8B"
+  },
+  {
+    "id": "NousResearch/Genstruct-7B",
+    "value": 406,
+    "parent": "NousResearch",
+    "color": "NousResearch",
+    "name": "NousResearch/Genstruct-7B"
+  },
+  {
+    "id": "NousResearch/DeepHermes-3-Llama-3-8B-Preview",
+    "value": 360,
+    "parent": "NousResearch",
+    "color": "NousResearch",
+    "name": "NousResearch/DeepHermes-3-Llama-3-8B-Preview"
+  },
+  {
+    "id": "NousResearch/Nous-Hermes-2-Vision-Alpha",
+    "value": 305,
+    "parent": "NousResearch",
+    "color": "NousResearch",
+    "name": "NousResearch/Nous-Hermes-2-Vision-Alpha"
+  },
+  {
+    "id": "NousResearch/Hermes-3-Llama-3.1-405B",
+    "value": 269,
+    "parent": "NousResearch",
+    "color": "NousResearch",
+    "name": "NousResearch/Hermes-3-Llama-3.1-405B"
+  },
+  {
+    "id": "NousResearch/Nous-Hermes-2-Yi-34B",
+    "value": 262,
+    "parent": "NousResearch",
+    "color": "NousResearch",
+    "name": "NousResearch/Nous-Hermes-2-Yi-34B"
+  },
+  {
+    "id": "NousResearch/Nous-Hermes-2-Mistral-7B-DPO",
+    "value": 218,
+    "parent": "NousResearch",
+    "color": "NousResearch",
+    "name": "NousResearch/Nous-Hermes-2-Mistral-7B-DPO"
+  },
+  {
+    "id": "Others (22)",
+    "value": 2039,
+    "parent": "NousResearch",
+    "color": "NousResearch",
+    "name": "Others (22)"
+  },
+  {
+    "id": "Phr00t/Qwen-Image-Edit-Rapid-AIO",
+    "value": 2012,
+    "parent": "Phr00t",
+    "color": "Phr00t",
+    "name": "Phr00t/Qwen-Image-Edit-Rapid-AIO"
+  },
+  {
+    "id": "Phr00t/WAN2.2-14B-Rapid-AllInOne",
+    "value": 1562,
+    "parent": "Phr00t",
+    "color": "Phr00t",
+    "name": "Phr00t/WAN2.2-14B-Rapid-AllInOne"
+  },
+  {
+    "id": "Phr00t/LTX2-Rapid-Merges",
+    "value": 358,
+    "parent": "Phr00t",
+    "color": "Phr00t",
+    "name": "Phr00t/LTX2-Rapid-Merges"
+  },
+  {
+    "id": "Phr00t/HunyuanVideo-1.5-Rapid-AIO",
+    "value": 69,
+    "parent": "Phr00t",
+    "color": "Phr00t",
+    "name": "Phr00t/HunyuanVideo-1.5-Rapid-AIO"
+  },
+  {
+    "id": "Qwen/QwQ-32B",
+    "value": 2914,
+    "parent": "Qwen",
+    "color": "Qwen",
+    "name": "Qwen/QwQ-32B"
+  },
+  {
+    "id": "Qwen/Qwen2.5-Coder-32B-Instruct",
+    "value": 2019,
+    "parent": "Qwen",
+    "color": "Qwen",
+    "name": "Qwen/Qwen2.5-Coder-32B-Instruct"
+  },
+  {
+    "id": "Qwen/QwQ-32B-Preview",
+    "value": 1738,
+    "parent": "Qwen",
+    "color": "Qwen",
+    "name": "Qwen/QwQ-32B-Preview"
+  },
+  {
+    "id": "Qwen/Qwen3.5-9B",
+    "value": 1438,
+    "parent": "Qwen",
+    "color": "Qwen",
+    "name": "Qwen/Qwen3.5-9B"
+  },
+  {
+    "id": "Qwen/Qwen3.5-35B-A3B",
+    "value": 1424,
+    "parent": "Qwen",
+    "color": "Qwen",
+    "name": "Qwen/Qwen3.5-35B-A3B"
+  },
+  {
+    "id": "Qwen/Qwen2.5-7B-Instruct",
+    "value": 1279,
+    "parent": "Qwen",
+    "color": "Qwen",
+    "name": "Qwen/Qwen2.5-7B-Instruct"
+  },
+  {
+    "id": "Qwen/Qwen2-VL-7B-Instruct",
+    "value": 1275,
+    "parent": "Qwen",
+    "color": "Qwen",
+    "name": "Qwen/Qwen2-VL-7B-Instruct"
+  },
+  {
+    "id": "Qwen/Qwen3-0.6B",
+    "value": 1246,
+    "parent": "Qwen",
+    "color": "Qwen",
+    "name": "Qwen/Qwen3-0.6B"
+  },
+  {
+    "id": "Qwen/Qwen3-8B",
+    "value": 1089,
+    "parent": "Qwen",
+    "color": "Qwen",
+    "name": "Qwen/Qwen3-8B"
+  },
+  {
+    "id": "Qwen/Qwen-Image-Layered",
+    "value": 1076,
+    "parent": "Qwen",
+    "color": "Qwen",
+    "name": "Qwen/Qwen-Image-Layered"
+  },
+  {
+    "id": "Others (87)",
+    "value": 18097,
+    "parent": "Qwen",
+    "color": "Qwen",
+    "name": "Others (87)"
+  },
+  {
+    "id": "TheBloke/Llama-2-7B-Chat-GGML",
+    "value": 873,
+    "parent": "TheBloke",
+    "color": "TheBloke",
+    "name": "TheBloke/Llama-2-7B-Chat-GGML"
+  },
+  {
+    "id": "TheBloke/Llama-2-13B-chat-GGML",
+    "value": 695,
+    "parent": "TheBloke",
+    "color": "TheBloke",
+    "name": "TheBloke/Llama-2-13B-chat-GGML"
+  },
+  {
+    "id": "TheBloke/Llama-2-7B-GGML",
+    "value": 219,
+    "parent": "TheBloke",
+    "color": "TheBloke",
+    "name": "TheBloke/Llama-2-7B-GGML"
+  },
+  {
+    "id": "TheBloke/Llama-2-13B-GGML",
+    "value": 174,
+    "parent": "TheBloke",
+    "color": "TheBloke",
+    "name": "TheBloke/Llama-2-13B-GGML"
+  },
+  {
+    "id": "TheBloke/Llama-2-70B-Chat-GGML",
+    "value": 161,
+    "parent": "TheBloke",
+    "color": "TheBloke",
+    "name": "TheBloke/Llama-2-70B-Chat-GGML"
+  },
+  {
+    "id": "TheBloke/Luna-AI-Llama2-Uncensored-GGML",
+    "value": 137,
+    "parent": "TheBloke",
+    "color": "TheBloke",
+    "name": "TheBloke/Luna-AI-Llama2-Uncensored-GGML"
+  },
+  {
+    "id": "TheBloke/Falcon-180B-Chat-GGUF",
+    "value": 123,
+    "parent": "TheBloke",
+    "color": "TheBloke",
+    "name": "TheBloke/Falcon-180B-Chat-GGUF"
+  },
+  {
+    "id": "TheBloke/llama2_7b_chat_uncensored-GGML",
+    "value": 116,
+    "parent": "TheBloke",
+    "color": "TheBloke",
+    "name": "TheBloke/llama2_7b_chat_uncensored-GGML"
+  },
+  {
+    "id": "TheBloke/Nous-Hermes-Llama2-GGML",
+    "value": 102,
+    "parent": "TheBloke",
+    "color": "TheBloke",
+    "name": "TheBloke/Nous-Hermes-Llama2-GGML"
+  },
+  {
+    "id": "TheBloke/MythoMax-L2-13B-GGML",
+    "value": 84,
+    "parent": "TheBloke",
+    "color": "TheBloke",
+    "name": "TheBloke/MythoMax-L2-13B-GGML"
+  },
+  {
+    "id": "Others (165)",
+    "value": 1928,
+    "parent": "TheBloke",
+    "color": "TheBloke",
+    "name": "Others (165)"
+  },
+  {
+    "id": "allenai/olmOCR-7B-0225-preview",
+    "value": 708,
+    "parent": "allenai",
+    "color": "allenai",
+    "name": "allenai/olmOCR-7B-0225-preview"
+  },
+  {
+    "id": "allenai/Molmo-7B-D-0924",
+    "value": 566,
+    "parent": "allenai",
+    "color": "allenai",
+    "name": "allenai/Molmo-7B-D-0924"
+  },
+  {
+    "id": "allenai/Molmo-72B-0924",
+    "value": 298,
+    "parent": "allenai",
+    "color": "allenai",
+    "name": "allenai/Molmo-72B-0924"
+  },
+  {
+    "id": "allenai/Llama-3.1-Tulu-3-8B",
+    "value": 178,
+    "parent": "allenai",
+    "color": "allenai",
+    "name": "allenai/Llama-3.1-Tulu-3-8B"
+  },
+  {
+    "id": "allenai/Molmo2-8B",
+    "value": 178,
+    "parent": "allenai",
+    "color": "allenai",
+    "name": "allenai/Molmo2-8B"
+  },
+  {
+    "id": "allenai/Olmo-3-32B-Think",
+    "value": 171,
+    "parent": "allenai",
+    "color": "allenai",
+    "name": "allenai/Olmo-3-32B-Think"
+  },
+  {
+    "id": "allenai/Molmo-7B-O-0924",
+    "value": 163,
+    "parent": "allenai",
+    "color": "allenai",
+    "name": "allenai/Molmo-7B-O-0924"
+  },
+  {
+    "id": "allenai/tulu-2-dpo-70b",
+    "value": 157,
+    "parent": "allenai",
+    "color": "allenai",
+    "name": "allenai/tulu-2-dpo-70b"
+  },
+  {
+    "id": "allenai/MolmoE-1B-0924",
+    "value": 157,
+    "parent": "allenai",
+    "color": "allenai",
+    "name": "allenai/MolmoE-1B-0924"
+  },
+  {
+    "id": "allenai/OLMo-2-0325-32B-Instruct",
+    "value": 148,
+    "parent": "allenai",
+    "color": "allenai",
+    "name": "allenai/OLMo-2-0325-32B-Instruct"
+  },
+  {
+    "id": "Others (189)",
+    "value": 2246,
+    "parent": "allenai",
+    "color": "allenai",
+    "name": "Others (189)"
+  },
+  {
+    "id": "deepseek-ai/DeepSeek-V3.2",
+    "value": 1434,
+    "parent": "deepseek-ai",
+    "color": "deepseek-ai",
+    "name": "deepseek-ai/DeepSeek-V3.2"
+  },
+  {
+    "id": "deepseek-ai/DeepSeek-V3.2-Exp",
+    "value": 994,
+    "parent": "deepseek-ai",
+    "color": "deepseek-ai",
+    "name": "deepseek-ai/DeepSeek-V3.2-Exp"
+  },
+  {
+    "id": "deepseek-ai/DeepSeek-V3.2-Speciale",
+    "value": 703,
+    "parent": "deepseek-ai",
+    "color": "deepseek-ai",
+    "name": "deepseek-ai/DeepSeek-V3.2-Speciale"
+  },
+  {
+    "id": "deepseek-ai/DeepSeek-Coder-V2-Instruct",
+    "value": 686,
+    "parent": "deepseek-ai",
+    "color": "deepseek-ai",
+    "name": "deepseek-ai/DeepSeek-Coder-V2-Instruct"
+  },
+  {
+    "id": "deepseek-ai/DeepSeek-Coder-V2-Instruct-0724",
+    "value": 115,
+    "parent": "deepseek-ai",
+    "color": "deepseek-ai",
+    "name": "deepseek-ai/DeepSeek-Coder-V2-Instruct-0724"
+  },
+  {
+    "id": "deepseek-ai/DeepSeek-Prover-V1.5-RL",
+    "value": 65,
+    "parent": "deepseek-ai",
+    "color": "deepseek-ai",
+    "name": "deepseek-ai/DeepSeek-Prover-V1.5-RL"
+  },
+  {
+    "id": "deepseek-ai/DeepSeek-Prover-V1.5-SFT",
+    "value": 14,
+    "parent": "deepseek-ai",
+    "color": "deepseek-ai",
+    "name": "deepseek-ai/DeepSeek-Prover-V1.5-SFT"
+  },
+  {
+    "id": "dphn/Dolphin-Mistral-24B-Venice-Edition",
+    "value": 508,
+    "parent": "dphn",
+    "color": "dphn",
+    "name": "dphn/Dolphin-Mistral-24B-Venice-Edition"
+  },
+  {
+    "id": "dphn/dolphin-2.9-llama3-8b",
+    "value": 489,
+    "parent": "dphn",
+    "color": "dphn",
+    "name": "dphn/dolphin-2.9-llama3-8b"
+  },
+  {
+    "id": "dphn/Dolphin3.0-Llama3.1-8B",
+    "value": 302,
+    "parent": "dphn",
+    "color": "dphn",
+    "name": "dphn/Dolphin3.0-Llama3.1-8B"
+  },
+  {
+    "id": "dphn/dolphin-2.8-mistral-7b-v02",
+    "value": 238,
+    "parent": "dphn",
+    "color": "dphn",
+    "name": "dphn/dolphin-2.8-mistral-7b-v02"
+  },
+  {
+    "id": "dphn/Dolphin3.0-R1-Mistral-24B",
+    "value": 214,
+    "parent": "dphn",
+    "color": "dphn",
+    "name": "dphn/Dolphin3.0-R1-Mistral-24B"
+  },
+  {
+    "id": "dphn/dolphin-2.2.1-mistral-7b",
+    "value": 198,
+    "parent": "dphn",
+    "color": "dphn",
+    "name": "dphn/dolphin-2.2.1-mistral-7b"
+  },
+  {
+    "id": "dphn/dolphin-2.9.2-qwen2-72b",
+    "value": 173,
+    "parent": "dphn",
+    "color": "dphn",
+    "name": "dphn/dolphin-2.9.2-qwen2-72b"
+  },
+  {
+    "id": "dphn/dolphin-vision-72b",
+    "value": 133,
+    "parent": "dphn",
+    "color": "dphn",
+    "name": "dphn/dolphin-vision-72b"
+  },
+  {
+    "id": "dphn/dolphin-2.9.3-mistral-nemo-12b",
+    "value": 114,
+    "parent": "dphn",
+    "color": "dphn",
+    "name": "dphn/dolphin-2.9.3-mistral-nemo-12b"
+  },
+  {
+    "id": "dphn/dolphin-2.9.4-llama3.1-8b",
+    "value": 100,
+    "parent": "dphn",
+    "color": "dphn",
+    "name": "dphn/dolphin-2.9.4-llama3.1-8b"
+  },
+  {
+    "id": "Others (33)",
+    "value": 1078,
+    "parent": "dphn",
+    "color": "dphn",
+    "name": "Others (33)"
+  },
+  {
+    "id": "google/gemma-4-31B-it",
+    "value": 2644,
+    "parent": "google",
+    "color": "google",
+    "name": "google/gemma-4-31B-it"
+  },
+  {
+    "id": "google/gemma-3-27b-it",
+    "value": 1966,
+    "parent": "google",
+    "color": "google",
+    "name": "google/gemma-3-27b-it"
+  },
+  {
+    "id": "google/gemma-2-2b-it",
+    "value": 1351,
+    "parent": "google",
+    "color": "google",
+    "name": "google/gemma-2-2b-it"
+  },
+  {
+    "id": "google/gemma-3-4b-it",
+    "value": 1324,
+    "parent": "google",
+    "color": "google",
+    "name": "google/gemma-3-4b-it"
+  },
+  {
+    "id": "google/gemma-7b-it",
+    "value": 1246,
+    "parent": "google",
+    "color": "google",
+    "name": "google/gemma-7b-it"
+  },
+  {
+    "id": "google/gemma-4-E4B-it",
+    "value": 1002,
+    "parent": "google",
+    "color": "google",
+    "name": "google/gemma-4-E4B-it"
+  },
+  {
+    "id": "google/medgemma-4b-it",
+    "value": 957,
+    "parent": "google",
+    "color": "google",
+    "name": "google/medgemma-4b-it"
+  },
+  {
+    "id": "google/gemma-4-26B-A4B-it",
+    "value": 953,
+    "parent": "google",
+    "color": "google",
+    "name": "google/gemma-4-26B-A4B-it"
+  },
+  {
+    "id": "google/gemma-3-1b-it",
+    "value": 952,
+    "parent": "google",
+    "color": "google",
+    "name": "google/gemma-3-1b-it"
+  },
+  {
+    "id": "google/gemma-3n-E4B-it",
+    "value": 913,
+    "parent": "google",
+    "color": "google",
+    "name": "google/gemma-3n-E4B-it"
+  },
+  {
+    "id": "Others (57)",
+    "value": 5757,
+    "parent": "google",
+    "color": "google",
+    "name": "Others (57)"
+  },
+  {
+    "id": "hexgrad/Kokoro-82M",
+    "value": 6151,
+    "parent": "hexgrad",
+    "color": "hexgrad",
+    "name": "hexgrad/Kokoro-82M"
+  },
+  {
+    "id": "hexgrad/Kokoro-82M-v1.1-zh",
+    "value": 204,
+    "parent": "hexgrad",
+    "color": "hexgrad",
+    "name": "hexgrad/Kokoro-82M-v1.1-zh"
+  },
+  {
+    "id": "huihui-ai/Huihui-Qwen3.5-35B-A3B-abliterated",
+    "value": 317,
+    "parent": "huihui-ai",
+    "color": "huihui-ai",
+    "name": "huihui-ai/Huihui-Qwen3.5-35B-A3B-abliterated"
+  },
+  {
+    "id": "huihui-ai/DeepSeek-R1-Distill-Qwen-32B-abliterated",
+    "value": 242,
+    "parent": "huihui-ai",
+    "color": "huihui-ai",
+    "name": "huihui-ai/DeepSeek-R1-Distill-Qwen-32B-abliterated"
+  },
+  {
+    "id": "huihui-ai/Huihui-Qwen3-VL-8B-Instruct-abliterated",
+    "value": 178,
+    "parent": "huihui-ai",
+    "color": "huihui-ai",
+    "name": "huihui-ai/Huihui-Qwen3-VL-8B-Instruct-abliterated"
+  },
+  {
+    "id": "huihui-ai/DeepSeek-V3-abliterated",
+    "value": 159,
+    "parent": "huihui-ai",
+    "color": "huihui-ai",
+    "name": "huihui-ai/DeepSeek-V3-abliterated"
+  },
+  {
+    "id": "huihui-ai/DeepSeek-R1-Distill-Qwen-14B-abliterated-v2",
+    "value": 151,
+    "parent": "huihui-ai",
+    "color": "huihui-ai",
+    "name": "huihui-ai/DeepSeek-R1-Distill-Qwen-14B-abliterated-v2"
+  },
+  {
+    "id": "huihui-ai/Huihui-Qwen3.5-27B-abliterated",
+    "value": 120,
+    "parent": "huihui-ai",
+    "color": "huihui-ai",
+    "name": "huihui-ai/Huihui-Qwen3.5-27B-abliterated"
+  },
+  {
+    "id": "huihui-ai/Huihui-Qwen3.5-27B-Claude-4.6-Opus-abliterated",
+    "value": 117,
+    "parent": "huihui-ai",
+    "color": "huihui-ai",
+    "name": "huihui-ai/Huihui-Qwen3.5-27B-Claude-4.6-Opus-abliterated"
+  },
+  {
+    "id": "huihui-ai/QwQ-32B-abliterated",
+    "value": 108,
+    "parent": "huihui-ai",
+    "color": "huihui-ai",
+    "name": "huihui-ai/QwQ-32B-abliterated"
+  },
+  {
+    "id": "huihui-ai/QwQ-32B-Preview-abliterated",
+    "value": 104,
+    "parent": "huihui-ai",
+    "color": "huihui-ai",
+    "name": "huihui-ai/QwQ-32B-Preview-abliterated"
+  },
+  {
+    "id": "huihui-ai/Huihui-Qwen3.5-9B-abliterated",
+    "value": 103,
+    "parent": "huihui-ai",
+    "color": "huihui-ai",
+    "name": "huihui-ai/Huihui-Qwen3.5-9B-abliterated"
+  },
+  {
+    "id": "Others (195)",
+    "value": 3317,
+    "parent": "huihui-ai",
+    "color": "huihui-ai",
+    "name": "Others (195)"
+  },
+  {
+    "id": "ibm-granite/granite-4.0-1b-speech",
+    "value": 240,
+    "parent": "ibm-granite",
+    "color": "ibm-granite",
+    "name": "ibm-granite/granite-4.0-1b-speech"
+  },
+  {
+    "id": "ibm-granite/granite-3.0-8b-instruct",
+    "value": 206,
+    "parent": "ibm-granite",
+    "color": "ibm-granite",
+    "name": "ibm-granite/granite-3.0-8b-instruct"
+  },
+  {
+    "id": "ibm-granite/granite-4.0-tiny-preview",
+    "value": 184,
+    "parent": "ibm-granite",
+    "color": "ibm-granite",
+    "name": "ibm-granite/granite-4.0-tiny-preview"
+  },
+  {
+    "id": "ibm-granite/granite-3.1-8b-instruct",
+    "value": 168,
+    "parent": "ibm-granite",
+    "color": "ibm-granite",
+    "name": "ibm-granite/granite-3.1-8b-instruct"
+  },
+  {
+    "id": "ibm-granite/granite-speech-3.3-8b",
+    "value": 168,
+    "parent": "ibm-granite",
+    "color": "ibm-granite",
+    "name": "ibm-granite/granite-speech-3.3-8b"
+  },
+  {
+    "id": "ibm-granite/granite-3.3-8b-instruct",
+    "value": 154,
+    "parent": "ibm-granite",
+    "color": "ibm-granite",
+    "name": "ibm-granite/granite-3.3-8b-instruct"
+  },
+  {
+    "id": "ibm-granite/granite-4.0-h-1b",
+    "value": 147,
+    "parent": "ibm-granite",
+    "color": "ibm-granite",
+    "name": "ibm-granite/granite-4.0-h-1b"
+  },
+  {
+    "id": "ibm-granite/granite-vision-3.2-2b",
+    "value": 122,
+    "parent": "ibm-granite",
+    "color": "ibm-granite",
+    "name": "ibm-granite/granite-vision-3.2-2b"
+  },
+  {
+    "id": "ibm-granite/granite-8b-code-instruct-4k",
+    "value": 115,
+    "parent": "ibm-granite",
+    "color": "ibm-granite",
+    "name": "ibm-granite/granite-8b-code-instruct-4k"
+  },
+  {
+    "id": "ibm-granite/granite-vision-3.1-2b-preview",
+    "value": 113,
+    "parent": "ibm-granite",
+    "color": "ibm-granite",
+    "name": "ibm-granite/granite-vision-3.1-2b-preview"
+  },
+  {
+    "id": "Others (38)",
+    "value": 1485,
+    "parent": "ibm-granite",
+    "color": "ibm-granite",
+    "name": "Others (38)"
+  },
+  {
+    "id": "meta-llama/Llama-3.1-8B-Instruct",
+    "value": 5833,
+    "parent": "meta-llama",
+    "color": "meta-llama",
+    "name": "meta-llama/Llama-3.1-8B-Instruct"
+  },
+  {
+    "id": "meta-llama/Llama-3.3-70B-Instruct",
+    "value": 2760,
+    "parent": "meta-llama",
+    "color": "meta-llama",
+    "name": "meta-llama/Llama-3.3-70B-Instruct"
+  },
+  {
+    "id": "meta-llama/Meta-Llama-3-70B-Instruct",
+    "value": 1512,
+    "parent": "meta-llama",
+    "color": "meta-llama",
+    "name": "meta-llama/Meta-Llama-3-70B-Instruct"
+  },
+  {
+    "id": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+    "value": 1282,
+    "parent": "meta-llama",
+    "color": "meta-llama",
+    "name": "meta-llama/Llama-4-Scout-17B-16E-Instruct"
+  },
+  {
+    "id": "meta-llama/Llama-3.1-70B-Instruct",
+    "value": 914,
+    "parent": "meta-llama",
+    "color": "meta-llama",
+    "name": "meta-llama/Llama-3.1-70B-Instruct"
+  },
+  {
+    "id": "meta-llama/Llama-3.1-405B-Instruct",
+    "value": 595,
+    "parent": "meta-llama",
+    "color": "meta-llama",
+    "name": "meta-llama/Llama-3.1-405B-Instruct"
+  },
+  {
+    "id": "meta-llama/Llama-4-Maverick-17B-128E-Instruct",
+    "value": 486,
+    "parent": "meta-llama",
+    "color": "meta-llama",
+    "name": "meta-llama/Llama-4-Maverick-17B-128E-Instruct"
+  },
+  {
+    "id": "meta-llama/Llama-Guard-3-8B",
+    "value": 295,
+    "parent": "meta-llama",
+    "color": "meta-llama",
+    "name": "meta-llama/Llama-Guard-3-8B"
+  },
+  {
+    "id": "meta-llama/Llama-3.2-3B-Instruct-QLORA_INT4_EO8",
+    "value": 72,
+    "parent": "meta-llama",
+    "color": "meta-llama",
+    "name": "meta-llama/Llama-3.2-3B-Instruct-QLORA_INT4_EO8"
+  },
+  {
+    "id": "meta-llama/Llama-4-Scout-17B-16E-Instruct-Original",
+    "value": 54,
+    "parent": "meta-llama",
+    "color": "meta-llama",
+    "name": "meta-llama/Llama-4-Scout-17B-16E-Instruct-Original"
+  },
+  {
+    "id": "Others (4)",
+    "value": 163,
+    "parent": "meta-llama",
+    "color": "meta-llama",
+    "name": "Others (4)"
+  },
+  {
+    "id": "microsoft/VibeVoice-Realtime-0.5B",
+    "value": 1223,
+    "parent": "microsoft",
+    "color": "microsoft",
+    "name": "microsoft/VibeVoice-Realtime-0.5B"
+  },
+  {
+    "id": "microsoft/UserLM-8b",
+    "value": 365,
+    "parent": "microsoft",
+    "color": "microsoft",
+    "name": "microsoft/UserLM-8b"
+  },
+  {
+    "id": "microsoft/Phi-4-reasoning-plus",
+    "value": 339,
+    "parent": "microsoft",
+    "color": "microsoft",
+    "name": "microsoft/Phi-4-reasoning-plus"
+  },
+  {
+    "id": "microsoft/MAI-DS-R1",
+    "value": 293,
+    "parent": "microsoft",
+    "color": "microsoft",
+    "name": "microsoft/MAI-DS-R1"
+  },
+  {
+    "id": "microsoft/Phi-4-reasoning",
+    "value": 222,
+    "parent": "microsoft",
+    "color": "microsoft",
+    "name": "microsoft/Phi-4-reasoning"
+  },
+  {
+    "id": "microsoft/Phi-4-reasoning-vision-15B",
+    "value": 169,
+    "parent": "microsoft",
+    "color": "microsoft",
+    "name": "microsoft/Phi-4-reasoning-vision-15B"
+  },
+  {
+    "id": "microsoft/OptiMind-SFT",
+    "value": 99,
+    "parent": "microsoft",
+    "color": "microsoft",
+    "name": "microsoft/OptiMind-SFT"
+  },
+  {
+    "id": "microsoft/NextCoder-32B",
+    "value": 67,
+    "parent": "microsoft",
+    "color": "microsoft",
+    "name": "microsoft/NextCoder-32B"
+  },
+  {
+    "id": "microsoft/MediPhi-Instruct",
+    "value": 67,
+    "parent": "microsoft",
+    "color": "microsoft",
+    "name": "microsoft/MediPhi-Instruct"
+  },
+  {
+    "id": "microsoft/FrogMini-14B-2510",
+    "value": 61,
+    "parent": "microsoft",
+    "color": "microsoft",
+    "name": "microsoft/FrogMini-14B-2510"
+  },
+  {
+    "id": "Others (20)",
+    "value": 309,
+    "parent": "microsoft",
+    "color": "microsoft",
+    "name": "Others (20)"
+  },
+  {
+    "id": "mistralai/Mixtral-8x7B-Instruct-v0.1",
+    "value": 4678,
+    "parent": "mistralai",
+    "color": "mistralai",
+    "name": "mistralai/Mixtral-8x7B-Instruct-v0.1"
+  },
+  {
+    "id": "mistralai/Mistral-7B-Instruct-v0.3",
+    "value": 2575,
+    "parent": "mistralai",
+    "color": "mistralai",
+    "name": "mistralai/Mistral-7B-Instruct-v0.3"
+  },
+  {
+    "id": "mistralai/Mistral-7B-Instruct-v0.1",
+    "value": 1834,
+    "parent": "mistralai",
+    "color": "mistralai",
+    "name": "mistralai/Mistral-7B-Instruct-v0.1"
+  },
+  {
+    "id": "mistralai/Mistral-Nemo-Instruct-2407",
+    "value": 1670,
+    "parent": "mistralai",
+    "color": "mistralai",
+    "name": "mistralai/Mistral-Nemo-Instruct-2407"
+  },
+  {
+    "id": "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
+    "value": 1360,
+    "parent": "mistralai",
+    "color": "mistralai",
+    "name": "mistralai/Mistral-Small-3.1-24B-Instruct-2503"
+  },
+  {
+    "id": "mistralai/Mistral-Small-24B-Instruct-2501",
+    "value": 958,
+    "parent": "mistralai",
+    "color": "mistralai",
+    "name": "mistralai/Mistral-Small-24B-Instruct-2501"
+  },
+  {
+    "id": "mistralai/Devstral-Small-2505",
+    "value": 869,
+    "parent": "mistralai",
+    "color": "mistralai",
+    "name": "mistralai/Devstral-Small-2505"
+  },
+  {
+    "id": "mistralai/Voxtral-Mini-4B-Realtime-2602",
+    "value": 848,
+    "parent": "mistralai",
+    "color": "mistralai",
+    "name": "mistralai/Voxtral-Mini-4B-Realtime-2602"
+  },
+  {
+    "id": "mistralai/Voxtral-4B-TTS-2603",
+    "value": 802,
+    "parent": "mistralai",
+    "color": "mistralai",
+    "name": "mistralai/Voxtral-4B-TTS-2603"
+  },
+  {
+    "id": "mistralai/Mixtral-8x22B-Instruct-v0.1",
+    "value": 751,
+    "parent": "mistralai",
+    "color": "mistralai",
+    "name": "mistralai/Mixtral-8x22B-Instruct-v0.1"
+  },
+  {
+    "id": "Others (20)",
+    "value": 4050,
+    "parent": "mistralai",
+    "color": "mistralai",
+    "name": "Others (20)"
+  },
+  {
+    "id": "nvidia/personaplex-7b-v1",
+    "value": 2494,
+    "parent": "nvidia",
+    "color": "nvidia",
+    "name": "nvidia/personaplex-7b-v1"
+  },
+  {
+    "id": "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF",
+    "value": 2066,
+    "parent": "nvidia",
+    "color": "nvidia",
+    "name": "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF"
+  },
+  {
+    "id": "nvidia/Nemotron-Orchestrator-8B",
+    "value": 569,
+    "parent": "nvidia",
+    "color": "nvidia",
+    "name": "nvidia/Nemotron-Orchestrator-8B"
+  },
+  {
+    "id": "nvidia/Llama-3.1-Nemotron-70B-Instruct",
+    "value": 568,
+    "parent": "nvidia",
+    "color": "nvidia",
+    "name": "nvidia/Llama-3.1-Nemotron-70B-Instruct"
+  },
+  {
+    "id": "nvidia/NVIDIA-Nemotron-Nano-9B-v2",
+    "value": 492,
+    "parent": "nvidia",
+    "color": "nvidia",
+    "name": "nvidia/NVIDIA-Nemotron-Nano-9B-v2"
+  },
+  {
+    "id": "nvidia/canary-qwen-2.5b",
+    "value": 425,
+    "parent": "nvidia",
+    "color": "nvidia",
+    "name": "nvidia/canary-qwen-2.5b"
+  },
+  {
+    "id": "nvidia/DeepSeek-R1-NVFP4",
+    "value": 278,
+    "parent": "nvidia",
+    "color": "nvidia",
+    "name": "nvidia/DeepSeek-R1-NVFP4"
+  },
+  {
+    "id": "nvidia/Hymba-1.5B-Instruct",
+    "value": 246,
+    "parent": "nvidia",
+    "color": "nvidia",
+    "name": "nvidia/Hymba-1.5B-Instruct"
+  },
+  {
+    "id": "nvidia/Nemotron-Research-Reasoning-Qwen-1.5B",
+    "value": 241,
+    "parent": "nvidia",
+    "color": "nvidia",
+    "name": "nvidia/Nemotron-Research-Reasoning-Qwen-1.5B"
+  },
+  {
+    "id": "nvidia/Cosmos-Reason1-7B",
+    "value": 240,
+    "parent": "nvidia",
+    "color": "nvidia",
+    "name": "nvidia/Cosmos-Reason1-7B"
+  },
+  {
+    "id": "Others (152)",
+    "value": 3492,
+    "parent": "nvidia",
+    "color": "nvidia",
+    "name": "Others (152)"
+  },
+  {
+    "id": "openai/whisper-large-v3-turbo",
+    "value": 3011,
+    "parent": "openai",
+    "color": "openai",
+    "name": "openai/whisper-large-v3-turbo"
+  },
+  {
+    "id": "openai/gpt-oss-safeguard-20b",
+    "value": 222,
+    "parent": "openai",
+    "color": "openai",
+    "name": "openai/gpt-oss-safeguard-20b"
+  },
+  {
+    "id": "openai/gpt-oss-safeguard-120b",
+    "value": 96,
+    "parent": "openai",
+    "color": "openai",
+    "name": "openai/gpt-oss-safeguard-120b"
+  },
+  {
+    "id": "unsloth/DeepSeek-R1-Distill-Llama-8B",
+    "value": 109,
+    "parent": "unsloth",
+    "color": "unsloth",
+    "name": "unsloth/DeepSeek-R1-Distill-Llama-8B"
+  },
+  {
+    "id": "unsloth/Meta-Llama-3.1-8B-Instruct",
+    "value": 96,
+    "parent": "unsloth",
+    "color": "unsloth",
+    "name": "unsloth/Meta-Llama-3.1-8B-Instruct"
+  },
+  {
+    "id": "unsloth/Llama-3.2-1B-Instruct",
+    "value": 93,
+    "parent": "unsloth",
+    "color": "unsloth",
+    "name": "unsloth/Llama-3.2-1B-Instruct"
+  },
+  {
+    "id": "unsloth/phi-4",
+    "value": 91,
+    "parent": "unsloth",
+    "color": "unsloth",
+    "name": "unsloth/phi-4"
+  },
+  {
+    "id": "unsloth/Llama-3.2-3B-Instruct",
+    "value": 90,
+    "parent": "unsloth",
+    "color": "unsloth",
+    "name": "unsloth/Llama-3.2-3B-Instruct"
+  },
+  {
+    "id": "unsloth/Qwen3-Next-80B-A3B-Instruct",
+    "value": 89,
+    "parent": "unsloth",
+    "color": "unsloth",
+    "name": "unsloth/Qwen3-Next-80B-A3B-Instruct"
+  },
+  {
+    "id": "unsloth/Llama-3.2-11B-Vision-Instruct",
+    "value": 88,
+    "parent": "unsloth",
+    "color": "unsloth",
+    "name": "unsloth/Llama-3.2-11B-Vision-Instruct"
+  },
+  {
+    "id": "unsloth/Llama-3.2-1B",
+    "value": 66,
+    "parent": "unsloth",
+    "color": "unsloth",
+    "name": "unsloth/Llama-3.2-1B"
+  },
+  {
+    "id": "unsloth/Llama-4-Scout-17B-16E-Instruct",
+    "value": 55,
+    "parent": "unsloth",
+    "color": "unsloth",
+    "name": "unsloth/Llama-4-Scout-17B-16E-Instruct"
+  },
+  {
+    "id": "unsloth/DeepSeek-R1",
+    "value": 52,
+    "parent": "unsloth",
+    "color": "unsloth",
+    "name": "unsloth/DeepSeek-R1"
+  },
+  {
+    "id": "Others (357)",
+    "value": 2469,
+    "parent": "unsloth",
+    "color": "unsloth",
+    "name": "Others (357)"
+  },
+  {
+    "id": "zai-org/GLM-4.1V-9B-Thinking",
+    "value": 777,
+    "parent": "zai-org",
+    "color": "zai-org",
+    "name": "zai-org/GLM-4.1V-9B-Thinking"
+  },
+  {
+    "id": "zai-org/GLM-4.5V",
+    "value": 717,
+    "parent": "zai-org",
+    "color": "zai-org",
+    "name": "zai-org/GLM-4.5V"
+  },
+  {
+    "id": "zai-org/AutoGLM-Phone-9B",
+    "value": 438,
+    "parent": "zai-org",
+    "color": "zai-org",
+    "name": "zai-org/AutoGLM-Phone-9B"
+  },
+  {
+    "id": "zai-org/CogView4-6B",
+    "value": 251,
+    "parent": "zai-org",
+    "color": "zai-org",
+    "name": "zai-org/CogView4-6B"
+  },
+  {
+    "id": "zai-org/AutoGLM-Phone-9B-Multilingual",
+    "value": 234,
+    "parent": "zai-org",
+    "color": "zai-org",
+    "name": "zai-org/AutoGLM-Phone-9B-Multilingual"
+  },
+  {
+    "id": "zai-org/CogVideoX1.5-5B-SAT",
+    "value": 155,
+    "parent": "zai-org",
+    "color": "zai-org",
+    "name": "zai-org/CogVideoX1.5-5B-SAT"
+  },
+  {
+    "id": "zai-org/cogvlm2-llama3-caption",
+    "value": 118,
+    "parent": "zai-org",
+    "color": "zai-org",
+    "name": "zai-org/cogvlm2-llama3-caption"
+  },
+  {
+    "id": "zai-org/RealVideo",
+    "value": 105,
+    "parent": "zai-org",
+    "color": "zai-org",
+    "name": "zai-org/RealVideo"
+  },
+  {
+    "id": "zai-org/Glyph",
+    "value": 73,
+    "parent": "zai-org",
+    "color": "zai-org",
+    "name": "zai-org/Glyph"
+  },
+  {
+    "id": "zai-org/GLM-4.1V-9B-Base",
+    "value": 66,
+    "parent": "zai-org",
+    "color": "zai-org",
+    "name": "zai-org/GLM-4.1V-9B-Base"
+  },
+  {
+    "id": "Others (10)",
+    "value": 197,
+    "parent": "zai-org",
+    "color": "zai-org",
+    "name": "Others (10)"
+  }
+];
+        const baseModelMap = {"HuggingFaceH4||HuggingFaceH4/zephyr-7b-beta":"mistralai/Mistral-7B-v0.1","HuggingFaceH4||HuggingFaceH4/zephyr-7b-alpha":"mistralai/Mistral-7B-v0.1","HuggingFaceH4||HuggingFaceH4/zephyr-orpo-141b-A35b-v0.1":"mistral-community/Mixtral-8x22B-v0.1","HuggingFaceH4||HuggingFaceH4/zephyr-7b-gemma-v0.1":"HuggingFaceH4/zephyr-7b-gemma-sft-v0.1","HuggingFaceH4||HuggingFaceH4/starchat2-15b-v0.1":"HuggingFaceH4/starchat2-15b-sft-v0.1","HuggingFaceH4||HuggingFaceH4/mistral-7b-grok":"mistralai/Mistral-7B-v0.1","HuggingFaceH4||HuggingFaceH4/mistral-7b-sft-beta":"mistralai/Mistral-7B-v0.1","HuggingFaceH4||HuggingFaceH4/zephyr-7b-gemma-sft-v0.1":"google/gemma-7b","HuggingFaceH4||HuggingFaceH4/mistral-7b-anthropic":"HuggingFaceH4/mistral-7b-cai","HuggingFaceH4||HuggingFaceH4/starchat2-15b-sft-v0.1":"bigcode/starcoder2-15b","LiquidAI||LiquidAI/LFM2.5-1.2B-Instruct":"LiquidAI/LFM2.5-1.2B-Base","LiquidAI||LiquidAI/LFM2.5-Audio-1.5B":"LiquidAI/LFM2-1.2B","LiquidAI||LiquidAI/LFM2.5-1.2B-Thinking":"LiquidAI/LFM2.5-1.2B-Base","LiquidAI||LiquidAI/LFM2-Audio-1.5B":"LiquidAI/LFM2-1.2B","LiquidAI||LiquidAI/LFM2-2.6B-Exp":"LiquidAI/LFM2-2.6B-Exp","LiquidAI||LiquidAI/LFM2.5-350M":"LiquidAI/LFM2.5-350M-Base","LiquidAI||LiquidAI/LFM2.5-VL-1.6B":"LiquidAI/LFM2.5-1.2B-Base","LiquidAI||LiquidAI/LFM2.5-VL-450M":"LiquidAI/LFM2.5-350M","LiquidAI||LiquidAI/LFM2-2.6B-Transcript":"LiquidAI/LFM2-2.6B","LiquidAI||LiquidAI/LFM2.5-1.2B-JP":"LiquidAI/LFM2.5-1.2B-Base","NousResearch||NousResearch/Hermes-2-Pro-Mistral-7B":"mistralai/Mistral-7B-v0.1","NousResearch||NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO":"mistralai/Mixtral-8x7B-v0.1","NousResearch||NousResearch/Hermes-2-Pro-Llama-3-8B":"NousResearch/Meta-Llama-3-8B","NousResearch||NousResearch/Hermes-3-Llama-3.1-8B":"meta-llama/Llama-3.1-8B","NousResearch||NousResearch/Genstruct-7B":"mistralai/Mistral-7B-v0.1","NousResearch||NousResearch/DeepHermes-3-Llama-3-8B-Preview":"meta-llama/Llama-3.1-8B","NousResearch||NousResearch/Nous-Hermes-2-Vision-Alpha":"mistralai/Mistral-7B-v0.1","NousResearch||NousResearch/Hermes-3-Llama-3.1-405B":"meta-llama/Llama-3.1-405B","NousResearch||NousResearch/Nous-Hermes-2-Yi-34B":"01-ai/Yi-34B","NousResearch||NousResearch/Nous-Hermes-2-Mistral-7B-DPO":"mistralai/Mistral-7B-v0.1","Phr00t||Phr00t/Qwen-Image-Edit-Rapid-AIO":"Qwen/Qwen-Image-Edit-2511","Phr00t||Phr00t/WAN2.2-14B-Rapid-AllInOne":"Wan-AI/Wan2.2-I2V-A14B","Phr00t||Phr00t/LTX2-Rapid-Merges":"Lightricks/LTX-2","Phr00t||Phr00t/HunyuanVideo-1.5-Rapid-AIO":"tencent/HunyuanVideo-1.5","Qwen||Qwen/QwQ-32B":"Qwen/Qwen2.5-32B","Qwen||Qwen/Qwen2.5-Coder-32B-Instruct":"Qwen/Qwen2.5-Coder-32B","Qwen||Qwen/QwQ-32B-Preview":"Qwen/Qwen2.5-32B-Instruct","Qwen||Qwen/Qwen3.5-9B":"Qwen/Qwen3.5-9B-Base","Qwen||Qwen/Qwen3.5-35B-A3B":"Qwen/Qwen3.5-35B-A3B-Base","Qwen||Qwen/Qwen2.5-7B-Instruct":"Qwen/Qwen2.5-7B","Qwen||Qwen/Qwen2-VL-7B-Instruct":"Qwen/Qwen2-VL-7B","Qwen||Qwen/Qwen3-0.6B":"Qwen/Qwen3-0.6B-Base","Qwen||Qwen/Qwen3-8B":"Qwen/Qwen3-8B-Base","Qwen||Qwen/Qwen-Image-Layered":"Qwen/Qwen-Image","TheBloke||TheBloke/Llama-2-7B-Chat-GGML":"meta-llama/Llama-2-7b-chat-hf","TheBloke||TheBloke/Llama-2-13B-chat-GGML":"meta-llama/Llama-2-13b-chat-hf","TheBloke||TheBloke/Llama-2-7B-GGML":"meta-llama/Llama-2-7b-hf","TheBloke||TheBloke/Llama-2-13B-GGML":"meta-llama/Llama-2-13b-hf","TheBloke||TheBloke/Llama-2-70B-Chat-GGML":"meta-llama/Llama-2-70b-chat-hf","TheBloke||TheBloke/Luna-AI-Llama2-Uncensored-GGML":"Tap-M/Luna-AI-Llama2-Uncensored","TheBloke||TheBloke/Falcon-180B-Chat-GGUF":"tiiuae/falcon-180B-chat","TheBloke||TheBloke/llama2_7b_chat_uncensored-GGML":"georgesung/llama2_7b_chat_uncensored","TheBloke||TheBloke/Nous-Hermes-Llama2-GGML":"NousResearch/Nous-Hermes-Llama2-13b","TheBloke||TheBloke/MythoMax-L2-13B-GGML":"Gryphe/MythoMax-L2-13b","allenai||allenai/olmOCR-7B-0225-preview":"Qwen/Qwen2-VL-7B-Instruct","allenai||allenai/Molmo-7B-D-0924":"Qwen/Qwen2-7B","allenai||allenai/Molmo-72B-0924":"Qwen/Qwen2-72B","allenai||allenai/Llama-3.1-Tulu-3-8B":"allenai/Llama-3.1-Tulu-3-8B-DPO","allenai||allenai/Molmo2-8B":"Qwen/Qwen3-8B","allenai||allenai/Olmo-3-32B-Think":"allenai/Olmo-3-32B-Think-DPO","allenai||allenai/Molmo-7B-O-0924":"openai/clip-vit-large-patch14-336","allenai||allenai/tulu-2-dpo-70b":"meta-llama/Llama-2-70b-hf","allenai||allenai/MolmoE-1B-0924":"allenai/OLMoE-1B-7B-0924","allenai||allenai/OLMo-2-0325-32B-Instruct":"allenai/OLMo-2-0325-32B-DPO","deepseek-ai||deepseek-ai/DeepSeek-V3.2":"deepseek-ai/DeepSeek-V3.2-Exp-Base","deepseek-ai||deepseek-ai/DeepSeek-V3.2-Exp":"deepseek-ai/DeepSeek-V3.2-Exp-Base","deepseek-ai||deepseek-ai/DeepSeek-V3.2-Speciale":"deepseek-ai/DeepSeek-V3.2-Exp-Base","deepseek-ai||deepseek-ai/DeepSeek-Coder-V2-Instruct":"deepseek-ai/DeepSeek-Coder-V2-Base","deepseek-ai||deepseek-ai/DeepSeek-Coder-V2-Instruct-0724":"deepseek-ai/DeepSeek-Coder-V2-Base","deepseek-ai||deepseek-ai/DeepSeek-Prover-V1.5-RL":"deepseek-ai/DeepSeek-Prover-V1.5-SFT","deepseek-ai||deepseek-ai/DeepSeek-Prover-V1.5-SFT":"deepseek-ai/DeepSeek-Prover-V1.5-Base","dphn||dphn/Dolphin-Mistral-24B-Venice-Edition":"mistralai/Mistral-Small-24B-Instruct-2501","dphn||dphn/dolphin-2.9-llama3-8b":"meta-llama/Meta-Llama-3-8B","dphn||dphn/Dolphin3.0-Llama3.1-8B":"meta-llama/Llama-3.1-8B","dphn||dphn/dolphin-2.8-mistral-7b-v02":"mistral-community/Mistral-7B-v0.2","dphn||dphn/Dolphin3.0-R1-Mistral-24B":"mistralai/Mistral-Small-24B-Base-2501","dphn||dphn/dolphin-2.2.1-mistral-7b":"mistralai/Mistral-7B-v0.1","dphn||dphn/dolphin-2.9.2-qwen2-72b":"Qwen/Qwen2-72B","dphn||dphn/dolphin-vision-72b":"Qwen/Qwen2-72B","dphn||dphn/dolphin-2.9.3-mistral-nemo-12b":"mistralai/Mistral-Nemo-Base-2407","dphn||dphn/dolphin-2.9.4-llama3.1-8b":"meta-llama/Llama-3.1-8B","google||google/gemma-4-31B-it":"google/gemma-4-31B","google||google/gemma-3-27b-it":"google/gemma-3-27b-pt","google||google/gemma-2-2b-it":"google/gemma-2-2b","google||google/gemma-3-4b-it":"google/gemma-3-4b-pt","google||google/gemma-7b-it":"google/gemma-7b","google||google/gemma-4-E4B-it":"google/gemma-4-E4B","google||google/medgemma-4b-it":"google/medgemma-4b-pt","google||google/gemma-4-26B-A4B-it":"google/gemma-4-26B-A4B","google||google/gemma-3-1b-it":"google/gemma-3-1b-pt","google||google/gemma-3n-E4B-it":"google/gemma-3n-E4B","hexgrad||hexgrad/Kokoro-82M":"yl4579/StyleTTS2-LJSpeech","hexgrad||hexgrad/Kokoro-82M-v1.1-zh":"hexgrad/Kokoro-82M","huihui-ai||huihui-ai/Huihui-Qwen3.5-35B-A3B-abliterated":"Qwen/Qwen3.5-35B-A3B","huihui-ai||huihui-ai/DeepSeek-R1-Distill-Qwen-32B-abliterated":"deepseek-ai/DeepSeek-R1-Distill-Qwen-32B","huihui-ai||huihui-ai/Huihui-Qwen3-VL-8B-Instruct-abliterated":"Qwen/Qwen3-VL-8B-Instruct","huihui-ai||huihui-ai/DeepSeek-V3-abliterated":"deepseek-ai/DeepSeek-V3","huihui-ai||huihui-ai/DeepSeek-R1-Distill-Qwen-14B-abliterated-v2":"deepseek-ai/DeepSeek-R1-Distill-Qwen-14B","huihui-ai||huihui-ai/Huihui-Qwen3.5-27B-abliterated":"Qwen/Qwen3.5-27B","huihui-ai||huihui-ai/Huihui-Qwen3.5-27B-Claude-4.6-Opus-abliterated":"Jackrong/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled","huihui-ai||huihui-ai/QwQ-32B-abliterated":"Qwen/QwQ-32B","huihui-ai||huihui-ai/QwQ-32B-Preview-abliterated":"Qwen/QwQ-32B-Preview","huihui-ai||huihui-ai/Huihui-Qwen3.5-9B-abliterated":"Qwen/Qwen3.5-9B","ibm-granite||ibm-granite/granite-4.0-1b-speech":"ibm-granite/granite-4.0-1b-base","ibm-granite||ibm-granite/granite-3.0-8b-instruct":"ibm-granite/granite-3.0-8b-base","ibm-granite||ibm-granite/granite-4.0-tiny-preview":"ibm-granite/granite-4.0-tiny-base-preview","ibm-granite||ibm-granite/granite-3.1-8b-instruct":"ibm-granite/granite-3.1-8b-base","ibm-granite||ibm-granite/granite-speech-3.3-8b":"ibm-granite/granite-3.3-8b-instruct","ibm-granite||ibm-granite/granite-3.3-8b-instruct":"ibm-granite/granite-3.3-8b-base","ibm-granite||ibm-granite/granite-4.0-h-1b":"ibm-granite/granite-4.0-h-1b-base","ibm-granite||ibm-granite/granite-vision-3.2-2b":"ibm-granite/granite-3.1-2b-instruct","ibm-granite||ibm-granite/granite-8b-code-instruct-4k":"ibm-granite/granite-8b-code-base-4k","ibm-granite||ibm-granite/granite-vision-3.1-2b-preview":"ibm-granite/granite-3.1-2b-instruct","meta-llama||meta-llama/Llama-3.1-8B-Instruct":"meta-llama/Llama-3.1-8B","meta-llama||meta-llama/Llama-3.3-70B-Instruct":"meta-llama/Llama-3.1-70B","meta-llama||meta-llama/Meta-Llama-3-70B-Instruct":"meta-llama/Meta-Llama-3-70B","meta-llama||meta-llama/Llama-4-Scout-17B-16E-Instruct":"meta-llama/Llama-4-Scout-17B-16E","meta-llama||meta-llama/Llama-3.1-70B-Instruct":"meta-llama/Llama-3.1-70B","meta-llama||meta-llama/Llama-3.1-405B-Instruct":"meta-llama/Llama-3.1-405B","meta-llama||meta-llama/Llama-4-Maverick-17B-128E-Instruct":"meta-llama/Llama-4-Maverick-17B-128E","meta-llama||meta-llama/Llama-Guard-3-8B":"meta-llama/Llama-3.1-8B","meta-llama||meta-llama/Llama-3.2-3B-Instruct-QLORA_INT4_EO8":"meta-llama/Llama-3.2-3B","meta-llama||meta-llama/Llama-4-Scout-17B-16E-Instruct-Original":"meta-llama/Llama-4-Scout-17B-16E","microsoft||microsoft/VibeVoice-Realtime-0.5B":"Qwen/Qwen2.5-0.5B","microsoft||microsoft/UserLM-8b":"meta-llama/Llama-3.1-8B","microsoft||microsoft/Phi-4-reasoning-plus":"microsoft/phi-4","microsoft||microsoft/MAI-DS-R1":"deepseek-ai/DeepSeek-R1","microsoft||microsoft/Phi-4-reasoning":"microsoft/phi-4","microsoft||microsoft/Phi-4-reasoning-vision-15B":"microsoft/Phi-4-reasoning","microsoft||microsoft/OptiMind-SFT":"unsloth/gpt-oss-20b-BF16","microsoft||microsoft/NextCoder-32B":"Qwen/Qwen2.5-Coder-32B-Instruct","microsoft||microsoft/MediPhi-Instruct":"microsoft/Phi-3.5-mini-instruct","microsoft||microsoft/FrogMini-14B-2510":"Qwen/Qwen3-14B","mistralai||mistralai/Mixtral-8x7B-Instruct-v0.1":"mistralai/Mixtral-8x7B-v0.1","mistralai||mistralai/Mistral-7B-Instruct-v0.3":"mistralai/Mistral-7B-v0.3","mistralai||mistralai/Mistral-7B-Instruct-v0.1":"mistralai/Mistral-7B-v0.1","mistralai||mistralai/Mistral-Nemo-Instruct-2407":"mistralai/Mistral-Nemo-Base-2407","mistralai||mistralai/Mistral-Small-3.1-24B-Instruct-2503":"mistralai/Mistral-Small-3.1-24B-Base-2503","mistralai||mistralai/Mistral-Small-24B-Instruct-2501":"mistralai/Mistral-Small-24B-Base-2501","mistralai||mistralai/Devstral-Small-2505":"mistralai/Mistral-Small-3.1-24B-Instruct-2503","mistralai||mistralai/Voxtral-Mini-4B-Realtime-2602":"mistralai/Ministral-3-3B-Base-2512","mistralai||mistralai/Voxtral-4B-TTS-2603":"mistralai/Ministral-3-3B-Base-2512","mistralai||mistralai/Mixtral-8x22B-Instruct-v0.1":"mistralai/Mixtral-8x22B-v0.1","nvidia||nvidia/personaplex-7b-v1":"kyutai/moshiko-pytorch-bf16","nvidia||nvidia/Llama-3.1-Nemotron-70B-Instruct-HF":"meta-llama/Llama-3.1-70B-Instruct","nvidia||nvidia/Nemotron-Orchestrator-8B":"Qwen/Qwen3-8B","nvidia||nvidia/Llama-3.1-Nemotron-70B-Instruct":"meta-llama/Llama-3.1-70B-Instruct","nvidia||nvidia/NVIDIA-Nemotron-Nano-9B-v2":"nvidia/NVIDIA-Nemotron-Nano-12B-v2","nvidia||nvidia/canary-qwen-2.5b":"Qwen/Qwen3-1.7B","nvidia||nvidia/DeepSeek-R1-NVFP4":"deepseek-ai/DeepSeek-R1","nvidia||nvidia/Hymba-1.5B-Instruct":"nvidia/Hymba-1.5B-Base","nvidia||nvidia/Nemotron-Research-Reasoning-Qwen-1.5B":"deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B","nvidia||nvidia/Cosmos-Reason1-7B":"Qwen/Qwen2.5-VL-7B-Instruct","openai||openai/whisper-large-v3-turbo":"openai/whisper-large-v3","openai||openai/gpt-oss-safeguard-20b":"openai/gpt-oss-20b","openai||openai/gpt-oss-safeguard-120b":"openai/gpt-oss-120b","unsloth||unsloth/DeepSeek-R1-Distill-Llama-8B":"deepseek-ai/DeepSeek-R1-Distill-Llama-8B","unsloth||unsloth/Meta-Llama-3.1-8B-Instruct":"meta-llama/Llama-3.1-8B-Instruct","unsloth||unsloth/Llama-3.2-1B-Instruct":"meta-llama/Llama-3.2-1B-Instruct","unsloth||unsloth/phi-4":"microsoft/phi-4","unsloth||unsloth/Llama-3.2-3B-Instruct":"meta-llama/Llama-3.2-3B-Instruct","unsloth||unsloth/Qwen3-Next-80B-A3B-Instruct":"Qwen/Qwen3-Next-80B-A3B-Instruct","unsloth||unsloth/Llama-3.2-11B-Vision-Instruct":"meta-llama/Llama-3.2-11B-Vision-Instruct","unsloth||unsloth/Llama-3.2-1B":"meta-llama/Llama-3.2-1B","unsloth||unsloth/Llama-4-Scout-17B-16E-Instruct":"meta-llama/Llama-4-Scout-17B-16E-Instruct","unsloth||unsloth/DeepSeek-R1":"deepseek-ai/DeepSeek-R1","zai-org||zai-org/GLM-4.1V-9B-Thinking":"zai-org/GLM-4-9B-0414","zai-org||zai-org/GLM-4.5V":"zai-org/GLM-4.5-Air-Base","zai-org||zai-org/AutoGLM-Phone-9B":"zai-org/GLM-4.1V-9B-Base","zai-org||zai-org/CogView4-6B":"zai-org/glm-4-9b","zai-org||zai-org/AutoGLM-Phone-9B-Multilingual":"zai-org/GLM-4.1V-9B-Base","zai-org||zai-org/CogVideoX1.5-5B-SAT":"zai-org/CogVideoX-5b","zai-org||zai-org/cogvlm2-llama3-caption":"meta-llama/Llama-3.1-8B-Instruct","zai-org||zai-org/RealVideo":"Wan-AI/Wan2.2-S2V-14B","zai-org||zai-org/Glyph":"zai-org/GLM-4.1V-9B-Base","zai-org||zai-org/GLM-4.1V-9B-Base":"zai-org/GLM-4-9B-0414"};
+        const RANK_GROUPS = {"top5":["Qwen","mistralai","google","meta-llama","nvidia"],"top5to20":["hexgrad","NousResearch","allenai","huihui-ai","TheBloke","deepseek-ai","Phr00t","LiquidAI","HuggingFaceH4","dphn","openai","unsloth","microsoft","zai-org","ibm-granite"],"top20":["Qwen","mistralai","google","meta-llama","nvidia","hexgrad","NousResearch","allenai","huihui-ai","TheBloke","deepseek-ai","Phr00t","LiquidAI","HuggingFaceH4","dphn","openai","unsloth","microsoft","zai-org","ibm-granite"]};
+        const TREEMAP_BORDER_RADIUS = 6;
+        const TREEMAP_SHOW_VALUES = 0;
+        const SHOW_TOOLTIP = 1;
+        const PALETTE_MODE = "none";
+
+        function normalizeData(arr) {
+            return arr.map(function (d) {
+                var parent = d.parent || d.group || d.domain || d.category || d.type || d.class;
+                var name = d.name || d.id || d.label || d.title;
+                var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+                var color = d.color != null ? d.color : null;
+                return { parent: parent, name: name, value: value, color: color };
+            });
+        }
+
+        let treemapData = normalizeData(originalData);
+        const groups = Array.from(new Set(treemapData.map(function (d) { return d.parent; })));
+        const inferredColors = {};
+        groups.forEach(function (g) {
+            var item = originalData.find(function (x) {
+                var p = x.parent || x.group || x.domain || x.category || x.type || x.class;
+                return p === g;
+            });
+            inferredColors[g] = item && item.color ? item.color : null;
+        });
+
+        const fallbackPalette = ["#1F77B4", "#FF7F0E", "#2CA02C", "#9467BD", "#D62728", "#17BECF", "#8C564B", "#E377C2", "#7F7F7F", "#BCBD22"];
+        const groupColors = {};
+        groups.forEach(function (g, i) {
+            var baseColor;
+            if (inferredColors[g]) baseColor = inferredColors[g];
+            else if (PALETTE_MODE === "aiw") baseColor = "#2756d3";
+            else if (PALETTE_MODE === "ceps") baseColor = "#207164";
+            else baseColor = fallbackPalette[i % fallbackPalette.length];
+            groupColors[g] = baseColor;
+        });
+
+        const activeGroups = new Set(groups);
+
+        function getGroupColor(parent) {
+            var c = groupColors[parent];
+            if (!c && (PALETTE_MODE === "aiw" || PALETTE_MODE === "ceps")) {
+                return PALETTE_MODE === "aiw" ? "#2756d3" : "#207164";
+            }
+            return c || "#666666";
+        }
+
+        let legendInitialized = false;
+
+        function getLegendElement() {
+            return document.getElementById("legend");
+        }
+
+        function buildLegend() {
+            if (legendInitialized) return;
+            var legend = getLegendElement();
+            if (!legend) return;
+            legend.innerHTML = "";
+            groups.forEach(function (g) {
+                var item = document.createElement("div");
+                item.className = "legend-item active";
+                item.setAttribute("data-group", g);
+                item.setAttribute("role", "button");
+                item.setAttribute("tabindex", "0");
+                item.setAttribute("aria-pressed", "true");
+
+                var square = document.createElement("div");
+                square.className = "legend-square";
+                square.style.backgroundColor = getGroupColor(g);
+                square.style.borderRadius = TREEMAP_BORDER_RADIUS + "px";
+
+                var label = document.createElement("span");
+                label.textContent = g;
+
+                item.appendChild(square);
+                item.appendChild(label);
+
+                var toggleGroup = function () {
+                    if (activeGroups.has(g)) {
+                        activeGroups.delete(g);
+                    } else {
+                        activeGroups.add(g);
+                    }
+                    updateVisualization();
+                };
+
+                item.addEventListener("click", toggleGroup);
+                item.addEventListener("keydown", function (e) {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleGroup();
+                    }
+                });
+
+                legend.appendChild(item);
+            });
+            legendInitialized = true;
+        }
+
+        function updateLegendStyles() {
+            var legend = document.getElementById("legend");
+            if (!legend) return;
+            var items = legend.querySelectorAll(".legend-item");
+            items.forEach(function (item) {
+                var grp = item.getAttribute("data-group");
+                var isActive = activeGroups.has(grp);
+                item.classList.toggle("inactive", !isActive);
+                item.classList.toggle("active", isActive);
+                item.setAttribute("aria-pressed", isActive ? "true" : "false");
+            });
+        }
+
+        let treemapInstance = null;
+
+        function ensureTreemapInstance(width, height) {
+            if (!vizContainer) return null;
+            if (!treemapInstance) {
+                treemapInstance = new d3plus.Treemap()
+                    .select("#" + VIZ_CONTAINER_ID)
+                    .data(treemapData)
+                    .groupBy(["parent", "name"])
+                    .tooltip(!!SHOW_TOOLTIP)
+                    .tooltipConfig({
+                        title: function (d) { return d.name; },
+                        body: function (d) {
+                            var author = d.parent || d.id;
+                            var count = d.value || 0;
+                            var key = author + "||" + (d.name || d.id || "");
+                            var baseModel = baseModelMap[key];
+                            var baseLine = baseModel
+                                ? "<br><strong>Base model:</strong> " + baseModel
+                                : "";
+                            return "<strong>Author:</strong> " + author + baseLine + "<br><strong>Count:</strong> " + count;
+                        }
+                    })
+                    .sum("value")
+                    .layoutPadding(2)
+                    .legend(false)
+                    .color(function (d) {
+                        return getGroupColor(d.parent || d.id);
+                    })
+                    .shapeConfig({
+                        rx: TREEMAP_BORDER_RADIUS,
+                        ry: TREEMAP_BORDER_RADIUS,
+                        stroke: function (d) {
+                            if (d.depth === 0) return getGroupColor(d.id);
+                            return "transparent";
+                        },
+                        strokeWidth: function (d) {
+                            if (d.depth === 0) return 3;
+                            return 0;
+                        }
+                    })
+                    .config({
+                        label: function (d) {
+                            if (!TREEMAP_SHOW_VALUES) return d.name;
+                            var value = (d && typeof d.value === "number") ? d.value : (d && d.value != null ? +d.value : 0);
+                            return d.name + " (" + value + ")";
+                        }
+                    });
+            }
+
+            if (typeof treemapInstance.width === "function" && width) {
+                treemapInstance.width(width);
+            }
+            if (typeof treemapInstance.height === "function" && height) {
+                treemapInstance.height(height);
+            }
+
+            return treemapInstance;
+        }
+
+        function updateVisualization(width, height) {
+            treemapData = normalizeData(originalData).filter(function (d) {
+                return activeGroups.has(d.parent);
+            });
+
+            var instance = ensureTreemapInstance(width, height);
+            if (!instance) return;
+            instance.data(treemapData).render();
+
+            updateLegendStyles();
+        }
+
+        const renderVisualization = function (currentData, width, height) {
+            buildLegend();
+            updateVisualization(width, height);
+        };
+
+        const renderVisualizationForContainer = function () {
+            if (!vizContainer) {
+                return
+            }
+            const rect = vizContainer.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+            renderVisualization(null, width, height);
+        };
+
+        let resizeTimer;
+
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(renderVisualizationForContainer, 120);
+        });
+
+        if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+            const resizeObserver = new ResizeObserver(function () {
+                renderVisualizationForContainer();
+            });
+            resizeObserver.observe(vizContainer);
+        }
+
+        // ---- Rank switch (Top 5 / Top 5-20 / Top 20) ----
+        function applyRankFilter(rank) {
+            var allowed = new Set(RANK_GROUPS[rank] || RANK_GROUPS.top20);
+            activeGroups.clear();
+            groups.forEach(function (g) {
+                if (allowed.has(g)) activeGroups.add(g);
+            });
+            updateVisualization();
+        }
+
+        (function initRankSwitch() {
+            var sw = document.getElementById("rank-switch");
+            if (!sw) return;
+            var btns = sw.querySelectorAll("button[data-rank]");
+            btns.forEach(function (btn) {
+                btn.addEventListener("click", function () {
+                    btns.forEach(function (b) {
+                        b.classList.remove("active");
+                        b.setAttribute("aria-pressed", "false");
+                    });
+                    btn.classList.add("active");
+                    btn.setAttribute("aria-pressed", "true");
+                    applyRankFilter(btn.getAttribute("data-rank"));
+                });
+            });
+        })();
+
+        renderVisualizationForContainer();
+    </script>
+</body>
+
+</html>

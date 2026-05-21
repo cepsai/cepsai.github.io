@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>From all GitHub repos to priority AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+/* ─── BASE ────────────────────────────────────────────────────────────────── */
+
+html, body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    height: 100vh;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+    background-color: white;
+}
+
+/* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
+
+.viz-grid {
+    display: grid;
+    grid-template-rows: 16fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    padding-bottom: clamp(8px, 2vh, 18px);
+}
+
+#container1 {
+    grid-row: 1;
+    grid-column: 1 / span 2;
+    overflow: hidden;
+    min-height: 0;
+}
+
+#container2 {
+    grid-row: 2;
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+#container3 {
+    grid-row: 3;
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+#container4 {
+    grid-row: 3;
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+#container4 {
+    gap: clamp(6px, 1vw, 14px);
+}
+
+#container4 a {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.logo-collab {
+    font-size: clamp(12px, 1.6vw, 18px);
+    font-weight: 400;
+    color: #9ca3af;
+    line-height: 1;
+    user-select: none;
+}
+
+/* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
+
+#viz {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+}
+
+/* ─── LEGEND ──────────────────────────────────────────────────────────────── */
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(6px, 1vw, 14px);
+    background: rgba(255, 255, 255, 1);
+    padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+    border-radius: clamp(6px, 1vw, 12px);
+    max-width: 100%;
+    max-height: 100%;
+    font-size: clamp(0.625rem, 1.4vw, 1rem);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: clamp(4px, 1vw, 8px);
+    font-weight: 600;
+    color: #333;
+    padding: 2px 6px;
+}
+
+.legend-square {
+    width: clamp(10px, 0.9vw, 14px);
+    height: clamp(10px, 0.9vw, 14px);
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+/* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+
+.source-text {
+    font-size: clamp(10px, 1.6vw, 16px);
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.source-text a {
+    color: #2756d3;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.source-text a:visited {
+    color: #2756d3;
+}
+
+.logo {
+    height: 100%;
+    width: auto;
+    max-height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+}
+
+.logo.logo-github {
+    height: 90%;
+    max-height: 90%;
+}
+
+/* ─── BREAKDOWN CHART ─────────────────────────────────────────────────────── */
+
+.node-rect {
+    fill: #E5E7EB;
+    stroke: none;
+    rx: 6;
+    ry: 6;
+}
+
+.node-rect.focused {
+    fill: #DDE7F9;
+    stroke: #2756d3;
+    stroke-width: 2.5;
+}
+
+.node-name {
+    font-weight: 700;
+    fill: #111827;
+    pointer-events: none;
+}
+
+.node-name.muted {
+    fill: #4b5563;
+    font-weight: 600;
+}
+
+.node-value {
+    font-weight: 700;
+    font-style: normal;
+    fill: #111827;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+    pointer-events: none;
+}
+
+.node-value.muted {
+    fill: #6b7280;
+    font-weight: 600;
+}
+
+.node-value-unit {
+    font-weight: 500;
+    fill: #6b7280;
+    font-size: 0.7em;
+}
+
+.connector {
+    fill: none;
+    stroke: #B4B4B4;
+    stroke-width: 1.4;
+}
+
+.connector.focused {
+    stroke: #2756d3;
+    stroke-width: 2.5;
+}
+
+.marker-circle {
+    fill: #2756d3;
+}
+
+.marker-letter {
+    fill: #fff;
+    font-weight: 700;
+    text-anchor: middle;
+    dominant-baseline: central;
+    pointer-events: none;
+}
+
+/* ─── TOOLTIP ─────────────────────────────────────────────────────────────── */
+
+#tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: #1f2937;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+    max-width: 240px;
+    z-index: 100;
+}
+
+#tooltip b {
+    font-weight: 700;
+}
+
+/* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+
+@media (max-height: 500px) {
+    .viz-grid {
+        grid-template-rows: 1fr !important;
+        grid-template-columns: 1fr !important;
+        padding-bottom: 0;
+    }
+    #container1 { grid-row: 1 !important; grid-column: 1 !important; }
+    #container2, #container3, #container4 { display: none !important; }
+}
+  </style>
+</head>
+<body>
+  <div class="viz-grid">
+    <div id="container1" class="container viz-container">
+      <div id="viz"></div>
+    </div>
+    <div id="container3" class="container source-container">
+      <div class="source-text" id="source-text">Source: <a href="https://github.com" target="_blank" rel="noopener">GitHub</a></div>
+    </div>
+    <div id="container4" class="container logo-container">
+      <a href="https://github.com" target="_blank" rel="noopener">
+        <img src="logos/GitHub.svg" class="logo logo-github" alt="GitHub logo">
+      </a>
+      <span class="logo-collab">×</span>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+      </a>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <script>
+  // ─── Config ────────────────────────────────────────────────────────────────
+  const SHOW_CONTAINER_2 = 0;
+  const SHOW_CONTAINER_3 = 1;
+  const SHOW_CONTAINER_4 = 1;
+  const SHOW_CONTAINER_5 = 0;
+
+  const COLOR_FOCUS_STROKE = "#2756d3";
+  const COLOR_FOCUS_FILL   = "#DDE7F9";
+  const COLOR_BOX_FILL     = "#E5E7EB";
+  const COLOR_LINE         = "#B4B4B4";
+
+  // Alignment: ?align=centered (default) | left | right
+  function getAlignMode() {
+    const params = new URLSearchParams(window.location.search);
+    const m = (params.get("align") || "centered").toLowerCase();
+    return (m === "left" || m === "right") ? m : "centered";
+  }
+
+  // ─── Grid visibility IIFE ─────────────────────────────────────────────────
+  (function applyContainerVisibility() {
+    const vizGrid = document.querySelector('.viz-grid');
+    const c3 = document.getElementById('container3');
+    const c4 = document.getElementById('container4');
+
+    if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+    if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+
+    const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+    let gridRows = [`${20 - (row4Visible ? 1 : 0)}fr`];
+    let currentRow = 1;
+
+    if (row4Visible) {
+      gridRows.push('1fr'); currentRow++;
+      if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+      if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+      if (SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+      if (!SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+    }
+
+    vizGrid.style.gridTemplateRows = gridRows.join(' ');
+    document.getElementById('container1').style.gridRow = '1';
+  })();
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  function smartFormat(v) {
+    const { num, unit } = formatValueParts(v);
+    return num + (unit || "");
+  }
+
+  // Split formatted value into numeric part and unit suffix so the unit
+  // (M / K / B) can be rendered smaller alongside the bigger number.
+  function formatValueParts(v) {
+    if (!isFinite(v)) return { num: "N/A", unit: "" };
+    const abs = Math.abs(v);
+    if (abs >= 1e9) return { num: trimZeros(d3.format(".2f")(v / 1e9)), unit: "B" };
+    if (abs >= 1e6) return { num: trimZeros(d3.format(".2f")(v / 1e6)), unit: "M" };
+    if (abs >= 1e3) return { num: trimZeros(d3.format(".1f")(v / 1e3)), unit: "K" };
+    return { num: d3.format(",")(v), unit: "" };
+  }
+
+  function trimZeros(s) {
+    return s.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+  }
+
+  function pctOfRoot(v, root) {
+    if (!root) return "";
+    const p = v / root * 100;
+    if (p >= 1) return d3.format(".1f")(p) + "%";
+    if (p >= 0.01) return d3.format(".2f")(p) + "%";
+    if (p >= 0.0001) return d3.format(".4f")(p) + "%";
+    return d3.format(".6f")(p) + "%";
+  }
+
+  // ─── Build tree from JSON data ────────────────────────────────────────────
+  function buildTree(json) {
+    const g = json.github;
+    const total = g.total;
+    const aiTotal = g.ai.total;
+    const nonAi = total - aiTotal;
+    const aiPriority = g.ai.priority;
+    const aiNonPriority = g.ai.non_priority;
+
+    return {
+      name: "All GitHub",
+      value: total,
+      marker: "A",
+      focused: true,
+      children: [
+        {
+          name: "AI Repos",
+          value: aiTotal,
+          marker: "B",
+          focused: true,
+          children: [
+            {
+              name: "Priority AI",
+              value: aiPriority,
+              marker: "C",
+              focused: true,
+              description: "AI repositories with sustained activity, contributors, and visibility — the agent-takeoff frontier."
+            },
+            {
+              name: "Other AI",
+              value: aiNonPriority,
+              description: "Long tail of AI code: small projects, forks, demos."
+            }
+          ]
+        },
+        {
+          name: "Non-AI",
+          value: nonAi,
+          description: "Everything else hosted on GitHub."
+        }
+      ]
+    };
+  }
+
+  // ─── Layout: produce flat list of placed nodes + connectors ──────────────
+  function computeLayout(root, innerW, innerH) {
+    // Collect levels (depth-first along focus path)
+    const levels = [{ depth: 0, siblings: [root] }];
+    function expand(node, depth) {
+      if (!node.children || !node.focused) return;
+      levels.push({ depth: depth + 1, parent: node, siblings: node.children });
+      const fc = node.children.find(c => c.focused);
+      if (fc) expand(fc, depth + 1);
+    }
+    expand(root, 0);
+    const nLevels = levels.length;
+
+    // ─── Adaptive sizing ──────────────────────────────────────────────────
+    // Per-level sqrt scaling: within each level, the largest sibling fills
+    // the level's box envelope and others scale by sqrt(value / levelMax).
+    // This makes within-level ratios (e.g. AI vs Non-AI) visually legible,
+    // instead of dwarfing every focused box against the global root value.
+    const maxBoxW = Math.min(460, innerW * 0.36);
+    const maxBoxH = Math.min(170, maxBoxW * 0.40);
+    // Minimum keeps small boxes legible (must fit single-line title + value).
+    const minBoxW = Math.max(130, maxBoxW * 0.30);
+    const minBoxH = Math.max(78,  maxBoxH * 0.50);
+
+    // Depth decay shrinks each level's envelope so higher-up levels read
+    // as larger overall — a parent's max box stays bigger than any of its
+    // descendants', conveying the "drilling-down" magnitude across levels.
+    const depthDecay = 0.78;
+
+    const sizes = new Map();
+    levels.forEach((l, lvlIdx) => {
+      const decayFactor = Math.pow(depthDecay, lvlIdx);
+      const envW = maxBoxW * decayFactor;
+      const envH = maxBoxH * decayFactor;
+      const levelMax = d3.max(l.siblings, s => s.value);
+      l.siblings.forEach(s => {
+        const ratio = Math.sqrt(s.value / levelMax);
+        sizes.set(s, {
+          w: Math.max(minBoxW, envW * ratio),
+          h: Math.max(minBoxH, envH * ratio)
+        });
+      });
+    });
+
+    // ─── Horizontal cascade (relative coordinates) ────────────────────────
+    const cascadeShift = maxBoxW * 0.75;
+    const gapX = Math.max(20, maxBoxW * 0.16);
+
+    // Vertical layout: row centers spaced evenly, with generous gaps
+    const rowGapY = Math.max(70, maxBoxH * 1.55);
+    const totalContentH = (nLevels - 1) * rowGapY + maxBoxH;
+    const rowYStart = (innerH - totalContentH) / 2 + maxBoxH / 2;
+    const rowCenterY = (i) => rowYStart + i * rowGapY;
+
+    const mode = getAlignMode();
+    const placedNodes = [];
+
+    const pushNode = (node, x, i) => {
+      const sz = sizes.get(node);
+      placedNodes.push({
+        node,
+        x,
+        y: rowCenterY(i) - sz.h / 2,
+        w: sz.w,
+        h: sz.h,
+        depth: i,
+        marker: node.marker || null,
+        focused: !!node.focused
+      });
+    };
+
+    levels.forEach((lvl, i) => {
+      const focused = lvl.siblings.find(s => s.focused);
+      const others = lvl.siblings.filter(s => !s.focused);
+
+      if (mode === "left") {
+        // Focused leftmost; cascade left; others extend right
+        const ordered = focused ? [focused, ...others] : lvl.siblings.slice();
+        let curX = -i * cascadeShift;
+        ordered.forEach(node => {
+          pushNode(node, curX, i);
+          curX += sizes.get(node).w + gapX;
+        });
+      } else if (mode === "right") {
+        // Focused rightmost; cascade right; others extend left of focused
+        if (!focused) {
+          let curX = i * cascadeShift;
+          lvl.siblings.forEach(n => {
+            pushNode(n, curX, i);
+            curX += sizes.get(n).w + gapX;
+          });
+        } else {
+          const fSz = sizes.get(focused);
+          const focusedX = i * cascadeShift;
+          pushNode(focused, focusedX, i);
+          let curX = focusedX;
+          others.forEach(n => {
+            const sz = sizes.get(n);
+            curX -= sz.w + gapX;
+            pushNode(n, curX, i);
+          });
+        }
+      } else {
+        // Centered: focused box's center sits on the chart vertical axis
+        // (x = 0), so the focus path becomes a vertical column down the
+        // middle. Non-focused siblings alternate sides per level so the
+        // overall figure stays visually balanced (level 1 → right, level 2
+        // → left, level 3 → right, ...).
+        if (!focused) {
+          let totalW = 0;
+          lvl.siblings.forEach((n, idx) => {
+            totalW += sizes.get(n).w + (idx < lvl.siblings.length - 1 ? gapX : 0);
+          });
+          let curX = -totalW / 2;
+          lvl.siblings.forEach(n => {
+            pushNode(n, curX, i);
+            curX += sizes.get(n).w + gapX;
+          });
+        } else {
+          const fSz = sizes.get(focused);
+          const fx = -fSz.w / 2;
+          pushNode(focused, fx, i);
+          const othersGoRight = (i % 2 === 1);
+          if (othersGoRight) {
+            let curX = fx + fSz.w + gapX;
+            others.forEach(n => {
+              pushNode(n, curX, i);
+              curX += sizes.get(n).w + gapX;
+            });
+          } else {
+            let curX = fx;
+            others.forEach(n => {
+              const sz = sizes.get(n);
+              curX -= sz.w + gapX;
+              pushNode(n, curX, i);
+            });
+          }
+        }
+      }
+    });
+
+    // ─── Center horizontally ──────────────────────────────────────────────
+    const minX = d3.min(placedNodes, p => p.x);
+    const maxX = d3.max(placedNodes, p => p.x + p.w);
+    const offsetX = (innerW - (maxX - minX)) / 2 - minX;
+    placedNodes.forEach(p => { p.x += offsetX; });
+
+    // ─── Connectors ───────────────────────────────────────────────────────
+    const connectors = [];
+    for (let i = 0; i < levels.length - 1; i++) {
+      const parentNode = levels[i].siblings.find(s => s.focused);
+      if (!parentNode) continue;
+      const parentP = placedNodes.find(p => p.node === parentNode);
+      const childPs = levels[i+1].siblings
+        .map(c => placedNodes.find(p => p.node === c))
+        .filter(Boolean);
+      if (!parentP || !childPs.length) continue;
+
+      const parentBottomX = parentP.x + parentP.w / 2;
+      const parentBottomY = parentP.y + parentP.h;
+      const childTopY = d3.min(childPs, c => c.y);
+      const busY = (parentBottomY + childTopY) / 2;
+
+      connectors.push({
+        d: `M${parentBottomX},${parentBottomY} L${parentBottomX},${busY}`,
+        focused: true
+      });
+      childPs.forEach(cp => {
+        const cx = cp.x + cp.w / 2;
+        const focusedSeg = !!cp.node.focused;
+        connectors.push({ d: `M${parentBottomX},${busY} L${cx},${busY}`, focused: focusedSeg });
+        connectors.push({ d: `M${cx},${busY} L${cx},${cp.y}`, focused: focusedSeg });
+      });
+    }
+
+    return { placedNodes, connectors, maxBoxH, maxBoxW };
+  }
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+  const vizContainer = document.getElementById("viz");
+  const tooltip = document.getElementById("tooltip");
+  let DATA = null;
+
+  function render() {
+    if (!DATA) return;
+    d3.select(vizContainer).select("svg").remove();
+
+    const rect = vizContainer.getBoundingClientRect();
+    const width  = Math.max(320, rect.width);
+    const height = Math.max(220, rect.height);
+
+    const margin = { top: 28, right: 32, bottom: 24, left: 28 };
+    const innerW = Math.max(60, width - margin.left - margin.right);
+    const innerH = Math.max(60, height - margin.top - margin.bottom);
+
+    const tree = buildTree(DATA);
+    const rootValue = tree.value;
+    const { placedNodes, connectors, maxBoxH } = computeLayout(tree, innerW, innerH);
+
+    const svg = d3.select(vizContainer).append("svg")
+      .attr("width", width)
+      .attr("height", height)
+      .attr("viewBox", `0 0 ${width} ${height}`)
+      .style("width", "100%")
+      .style("height", "100%");
+
+    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+    // Marker badge size based on chart-wide max box height (consistent across levels)
+    const markerR    = Math.max(14, Math.min(28, maxBoxH * 0.22));
+    const markerFont = markerR * 1.05;
+
+    // ─── Connectors ─────────────────────────────────────────────────────────
+    const connG = g.append("g").attr("class", "connectors");
+    // Draw non-focused first, then focused on top
+    const sortedConn = connectors.slice().sort((a, b) => Number(a.focused) - Number(b.focused));
+    sortedConn.forEach((c, i) => {
+      connG.append("path")
+        .attr("d", c.d)
+        .attr("class", "connector" + (c.focused ? " focused" : ""))
+        .attr("stroke-dasharray", function() {
+          const len = this.getTotalLength();
+          return `${len} ${len}`;
+        })
+        .attr("stroke-dashoffset", function() { return this.getTotalLength(); })
+        .transition()
+        .delay(300 + i * 30)
+        .duration(450)
+        .ease(d3.easeCubicOut)
+        .attr("stroke-dashoffset", 0)
+        .on("end", function() { d3.select(this).attr("stroke-dasharray", null); });
+    });
+
+    // ─── Nodes ──────────────────────────────────────────────────────────────
+    const nodeG = g.append("g").attr("class", "nodes");
+
+    placedNodes.forEach((p, i) => {
+      const grp = nodeG.append("g")
+        .attr("transform", `translate(${p.x},${p.y})`)
+        .attr("opacity", 0)
+        .style("cursor", "default");
+
+      grp.transition()
+        .delay(i * 90)
+        .duration(420)
+        .ease(d3.easeCubicOut)
+        .attr("opacity", 1);
+
+      grp.append("rect")
+        .attr("class", "node-rect" + (p.focused ? " focused" : ""))
+        .attr("x", 0).attr("y", 0)
+        .attr("width", p.w).attr("height", p.h);
+
+      // Per-box font sizes — value is the hero, name is the label above it
+      const valueFont = Math.max(14, Math.min(40, p.h * 0.32));
+      const nameFont  = Math.max(12, Math.min(28, p.h * 0.24));
+
+      // Wrap name to fit width
+      const name = p.node.name;
+      const maxCharsPerLine = Math.max(6, Math.floor(p.w / (nameFont * 0.55)));
+      let nameLines = [name];
+      if (name.length > maxCharsPerLine) {
+        const words = name.split(" ");
+        nameLines = [];
+        let cur = "";
+        words.forEach(w => {
+          const test = cur ? cur + " " + w : w;
+          if (test.length > maxCharsPerLine && cur) { nameLines.push(cur); cur = w; }
+          else cur = test;
+        });
+        if (cur) nameLines.push(cur);
+      }
+
+      // Layout — use cap-height-aware vertical positioning so the value
+      // never spills below the box, even at the minimum size.
+      const CAP    = 0.80;            // cap-height ratio for baseline offset
+      const lineH  = nameFont * 1.10;
+      const nameBlockH = (nameLines.length - 1) * lineH + nameFont;
+      const blockGap   = nameFont * 0.30;
+      const totalTextH = nameBlockH + blockGap + valueFont;
+      const blockTop   = (p.h - totalTextH) / 2;
+      const firstNameBaselineY = blockTop + nameFont * CAP;
+
+      const nameText = grp.append("text")
+        .attr("class", "node-name" + (p.focused ? "" : " muted"))
+        .attr("x", p.w / 2)
+        .attr("text-anchor", "middle")
+        .style("font-size", nameFont + "px");
+
+      nameLines.forEach((line, li) => {
+        nameText.append("tspan")
+          .attr("x", p.w / 2)
+          .attr("y", firstNameBaselineY + li * lineH)
+          .text(line);
+      });
+
+      // Value — split number and unit for typographic emphasis
+      const { num, unit } = formatValueParts(p.node.value);
+      const valueY = blockTop + nameBlockH + blockGap + valueFont * CAP;
+      const valueText = grp.append("text")
+        .attr("class", "node-value" + (p.focused ? "" : " muted"))
+        .attr("x", p.w / 2)
+        .attr("y", valueY)
+        .attr("text-anchor", "middle")
+        .style("font-size", valueFont + "px");
+      valueText.append("tspan").text(num);
+      if (unit) {
+        valueText.append("tspan")
+          .attr("class", "node-value-unit")
+          .attr("dx", "0.05em")
+          .text(unit);
+      }
+
+      // Marker badge (top-left, overlapping)
+      if (p.marker && p.focused) {
+        grp.append("circle")
+          .attr("class", "marker-circle")
+          .attr("cx", -markerR * 0.2)
+          .attr("cy", -markerR * 0.2)
+          .attr("r", markerR);
+        grp.append("text")
+          .attr("class", "marker-letter")
+          .attr("x", -markerR * 0.2)
+          .attr("y", -markerR * 0.2)
+          .style("font-size", markerFont * 0.8 + "px")
+          .text(p.marker);
+      }
+
+      // Tooltip handlers (on the whole group, including rect)
+      grp.style("pointer-events", "all");
+      grp.on("mousemove", (ev) => {
+        const pctRoot = pctOfRoot(p.node.value, rootValue);
+        const desc = p.node.description ? `<div style="margin-top:4px;color:#d1d5db;">${p.node.description}</div>` : "";
+        tooltip.innerHTML =
+          `<b>${p.node.name}</b><br>` +
+          `${d3.format(",")(p.node.value)} repos<br>` +
+          `${pctRoot} of all GitHub` + desc;
+        tooltip.style.left = (ev.clientX + 14) + "px";
+        tooltip.style.top  = (ev.clientY - 24) + "px";
+        tooltip.style.opacity = "1";
+      });
+      grp.on("mouseleave", () => { tooltip.style.opacity = "0"; });
+    });
+  }
+
+  // ─── Load data ────────────────────────────────────────────────────────────
+  d3.json("treemap.json").then(json => {
+    DATA = json;
+    render();
+  }).catch(err => {
+    console.error("Failed to load treemap.json", err);
+    vizContainer.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#888;font-family:system-ui;">Failed to load data.</div>';
+  });
+
+  // ─── Resize ───────────────────────────────────────────────────────────────
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(render, 120);
+  });
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(() => render()).observe(vizContainer);
+  }
+  </script>
+</body>
+</html>

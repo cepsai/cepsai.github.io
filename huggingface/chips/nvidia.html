@@ -1,0 +1,859 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Which chips power top AI models?</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* ─── BASE ────────────────────────────────────────────────────────────────── */
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        /* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 16fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+            position: relative;
+        }
+
+        #title-container {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-start;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .title-text {
+            font-size: clamp(22px, 4vh, 36px);
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        #subtitle-container {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .subtitle-text {
+            font-size: clamp(17px, 2.4vw, 24px);
+            font-weight: 500;
+            color: #475569;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #container3 {
+            grid-row: 3;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+            gap: clamp(6px, 1vw, 14px);
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .logo-collab {
+            font-size: clamp(12px, 1.6vw, 18px);
+            font-weight: 400;
+            color: #9ca3af;
+            line-height: 1;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        /* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
+
+        #viz {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        /* ─── LEGEND ──────────────────────────────────────────────────────────────── */
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1vw, 14px);
+            background: rgba(255, 255, 255, 1);
+            padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+            border-radius: clamp(6px, 1vw, 12px);
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(0.7rem, 1.4vw, 1rem);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 8px);
+            font-weight: 600;
+            color: #333;
+            font-size: inherit;
+            padding: 2px 6px;
+            cursor: default;
+        }
+
+        .legend-square {
+            width: clamp(10px, 1vw, 14px);
+            height: clamp(10px, 1vw, 14px);
+            border-radius: 0;
+            flex-shrink: 0;
+        }
+
+        /* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a,
+        .source-text a:visited {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: clamp(20px, 4.5vh, 56px);
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .logo.logo-hf {
+            max-height: clamp(20px, 4.2vh, 50px);
+        }
+
+        /* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr !important;
+                grid-template-columns: 1fr !important;
+                padding-bottom: 0;
+            }
+
+            #container1 {
+                grid-row: 1 !important;
+                grid-column: 1 !important;
+            }
+
+            #title-container,
+            #subtitle-container,
+            #container2,
+            #container3,
+            #container4 {
+                display: none !important;
+            }
+
+            .source-text,
+            .logo,
+            .legend {
+                display: none !important;
+            }
+        }
+
+        /* ─── CHART-SPECIFIC ──────────────────────────────────────────────────────── */
+
+        .loading-state,
+        .empty-state,
+        .error-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(13px, 1.5vw, 16px);
+            color: #475569;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+        }
+
+        .error-state {
+            color: #b91c1c;
+        }
+
+        .chart-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 12px;
+            padding: 14px 16px;
+            box-shadow: 0 18px 28px rgba(15, 23, 42, 0.15);
+            border: 1px solid rgba(39, 86, 211, 0.15);
+            min-width: 220px;
+            max-width: 280px;
+            font-size: 12px;
+            color: #0f172a;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            z-index: 10;
+        }
+
+        .tooltip-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .tooltip-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 12px;
+            color: #0f172a;
+            padding: 2px 0;
+        }
+
+        .tooltip-row .label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #475569;
+        }
+
+        .tooltip-row .swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .tooltip-row .value {
+            font-weight: 700;
+        }
+
+        .tooltip-total {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(15, 23, 42, 0.1);
+            font-size: 12px;
+            color: #475569;
+        }
+
+        .y-grid line {
+            stroke: rgba(148, 163, 184, 0.35);
+            stroke-dasharray: 3 4;
+        }
+
+        .y-grid .domain {
+            display: none;
+        }
+
+        .x-axis text,
+        .y-axis text {
+            font-size: 14px;
+            fill: #475569;
+        }
+
+        .x-axis path,
+        .y-axis path,
+        .x-axis line,
+        .y-axis line {
+            stroke: #d0d7e8;
+        }
+
+        .focus-line {
+            stroke: rgba(15, 23, 42, 0.7);
+            stroke-width: 1;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .interaction-overlay {
+            cursor: crosshair;
+        }
+
+        .y-axis-label {
+            font-size: 18px;
+            font-weight: 600;
+            fill: #000000;
+        }
+
+        .month-axis-label {
+            font-size: 11px;
+            fill: #475569;
+        }
+
+        .year-axis-label {
+            font-size: 12px;
+            font-weight: 600;
+            fill: #0f172a;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="title-container">
+            <div class="title-text" id="title-text"></div>
+        </div>
+        <div id="subtitle-container">
+            <div class="subtitle-text" id="subtitle-text"></div>
+        </div>
+        <div id="container1" class="container viz-container">
+            <div id="viz" role="img"
+                aria-label="Monthly share of NVIDIA, other, and unknown chip providers across top Hugging Face models"></div>
+        </div>
+        <div id="container2" class="container legend-container">
+            <div class="legend" id="legend"></div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-text" id="source-text">Source: <a
+                    href="https://huggingface.co/datasets/Franri/model-chips-data" target="_blank"
+                    rel="noopener">Hugging Face</a></div>
+        </div>
+        <div id="container4" class="container logo-container">
+            <a href="https://huggingface.co/" target="_blank" rel="noopener">
+                <img src="../../aiworld/Story/HFDailyPapers/huggingface_logo-noborder.svg" class="logo logo-hf"
+                    alt="Hugging Face logo">
+            </a>
+            <span class="logo-collab">×</span>
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // ── URL params ─────────────────────────────────────────────────────
+        // ?bucket=month|quarter|year (default: quarter — best signal-to-noise
+        // for the "Other" series, which is sparse on a monthly grid).
+        const BUCKET = (() => {
+            const v = new URLSearchParams(window.location.search).get('bucket');
+            return v === 'month' || v === 'year' ? v : 'quarter';
+        })();
+
+        const SHOW_CONTAINER_2 = 1;
+        const SHOW_CONTAINER_3 = 1;
+        const SHOW_CONTAINER_4 = 1;
+
+        (function applyContainerVisibility() {
+            const vizGrid = document.querySelector('.viz-grid');
+            const c1 = document.getElementById('container1');
+            const c2 = document.getElementById('container2');
+            const c3 = document.getElementById('container3');
+            const c4 = document.getElementById('container4');
+            const title = document.getElementById('title-container');
+            const subtitle = document.getElementById('subtitle-container');
+
+            if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+            if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+            if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+
+            const row3Visible = SHOW_CONTAINER_2;
+            const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+            let gridRows = ['1.6fr', '1fr'];
+            let currentRow = 3;
+            const chartHeight = 20 - (row3Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+            gridRows.push(`${chartHeight}fr`);
+
+            if (title) title.style.gridRow = '1';
+            if (subtitle) subtitle.style.gridRow = '2';
+
+            const chartRow = 3;
+
+            if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+            if (row4Visible) {
+                gridRows.push('1fr'); currentRow++;
+                if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+                if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+                if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+                if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+            }
+
+            vizGrid.style.gridTemplateRows = gridRows.join(' ');
+            c1.style.gridRow = String(chartRow);
+            c1.style.gridColumn = '1 / span 2';
+        })();
+
+        // ── Copy ───────────────────────────────────────────────────────────
+        const CHART_TITLE = 'Which chips power top AI models?';
+        const CHART_SUBTITLE = 'Share of NVIDIA, other accelerators, and unknown across top Hugging Face models';
+
+        document.getElementById('title-text').textContent = CHART_TITLE;
+        document.getElementById('subtitle-text').textContent = CHART_SUBTITLE;
+
+        const DATA_URL = "https://huggingface.co/datasets/Franri/model-chips-data/resolve/main/results_top40.json";
+        const VIZ_CONTAINER_ID = 'viz';
+
+        // ── Stack config ───────────────────────────────────────────────────
+        const STACK_KEYS = [
+            { key: 'NVIDIA',  label: 'NVIDIA',  color: '#76b900' },
+            { key: 'Other',   label: 'Other',   color: '#2756d3' },
+            { key: 'Unknown', label: 'Unknown', color: '#94a3b8' }
+        ];
+        const COLOR_BY_KEY = Object.fromEntries(STACK_KEYS.map(s => [s.key, s.color]));
+
+        // ── Formatters ─────────────────────────────────────────────────────
+        const numberFormatter = d3.format(',');
+        const percentFormatter = d3.format('.1%');
+
+        // ── DOM refs ───────────────────────────────────────────────────────
+        const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
+        const chartContainer = document.getElementById('container1');
+
+        const tooltipElement = document.createElement('div');
+        tooltipElement.className = 'chart-tooltip';
+        chartContainer.appendChild(tooltipElement);
+
+        let preparedRows = [];
+        let axisYears = [];
+
+        function hideTooltip() {
+            tooltipElement.style.opacity = 0;
+        }
+
+        // ── Bucketing ──────────────────────────────────────────────────────
+        // Each strategy maps (year, month) → integer key, key → mid-bucket
+        // Date (used as the canonical x position), and key → x-axis label
+        // for the lower (month/sub-year) tick row.
+        const bucketStrategies = {
+            month: {
+                key:   (y, m) => y * 12 + (m - 1),
+                date:  k => new Date(Date.UTC(Math.floor(k / 12), k % 12, 15)),
+                label: d => d3.utcFormat('%b')(d),
+            },
+            quarter: {
+                key:   (y, m) => y * 4 + Math.floor((m - 1) / 3),
+                date:  k => new Date(Date.UTC(Math.floor(k / 4), (k % 4) * 3 + 1, 15)),
+                label: d => `Q${Math.floor(d.getUTCMonth() / 3) + 1}`,
+            },
+            year: {
+                key:   (y, m) => y,
+                date:  k => new Date(Date.UTC(k, 6, 1)),
+                // Year shows blank for the lower tick row — the bigger year
+                // label below handles it.
+                label: () => '',
+            },
+        };
+
+        function aggregate(raw, bucketName) {
+            const bucket = bucketStrategies[bucketName];
+            const buckets = new Map();
+            raw.forEach(d => {
+                if (d.year == null || d.month == null) return;
+                const k = bucket.key(d.year, d.month);
+                const provider = (d.conclusion && d.conclusion.chip_provider) || 'unknown';
+                let cat;
+                if (provider === 'nvidia') cat = 'NVIDIA';
+                else if (provider === 'unknown') cat = 'Unknown';
+                else cat = 'Other';
+                if (!buckets.has(k)) {
+                    buckets.set(k, { NVIDIA: 0, Other: 0, Unknown: 0, Total: 0, date: bucket.date(k) });
+                }
+                const row = buckets.get(k);
+                row[cat]++;
+                row.Total++;
+            });
+            const rows = Array.from(buckets.values()).sort((a, b) => a.date - b.date);
+            // Cache normalized shares for tooltip / stack.
+            rows.forEach(r => {
+                const den = r.Total || 1;
+                r.NVIDIA_pct  = r.NVIDIA / den;
+                r.Other_pct   = r.Other / den;
+                r.Unknown_pct = r.Unknown / den;
+            });
+            return rows;
+        }
+
+        // ── Legend ─────────────────────────────────────────────────────────
+        function buildLegend() {
+            const legend = document.getElementById('legend');
+            legend.innerHTML = '';
+            // Top-of-stack first (Unknown sits on top of the stacked area,
+            // so it leads the legend left-to-right).
+            STACK_KEYS.slice().reverse().forEach(s => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                const square = document.createElement('span');
+                square.className = 'legend-square';
+                square.style.background = s.color;
+                const label = document.createElement('span');
+                label.textContent = s.label;
+                item.append(square, label);
+                legend.appendChild(item);
+            });
+        }
+
+        // ── Render ─────────────────────────────────────────────────────────
+        function renderVisualization(data, width, height) {
+            if (!data.length || !vizContainer) return;
+
+            hideTooltip();
+            vizContainer.innerHTML = '';
+
+            const isSmallWindow = height < 500 || width < 600;
+            const margin = {
+                top: isSmallWindow ? 12 : 20,
+                right: 32,
+                bottom: isSmallWindow ? 44 : 78,
+                left: isSmallWindow ? 60 : 90
+            };
+            const innerWidth = Math.max(0, width - margin.left - margin.right);
+            const innerHeight = Math.max(0, height - margin.top - margin.bottom);
+
+            if (!innerWidth || !innerHeight) {
+                vizContainer.innerHTML = '<div class="empty-state">Not enough space to render the chart.</div>';
+                return;
+            }
+
+            const yearAxisFontSize = isSmallWindow
+                ? 12
+                : Math.max(16, Math.min(26, innerWidth * 0.03));
+
+            const svg = d3.select(vizContainer)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            const chartGroup = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            const xMin = data[0].date;
+            const xMax = data[data.length - 1].date;
+
+            const x = d3.scaleUtc()
+                .domain([xMin, xMax])
+                .range([0, innerWidth]);
+
+            const y = d3.scaleLinear()
+                .domain([0, 1])
+                .range([innerHeight, 0]);
+
+            chartGroup.append('g')
+                .attr('class', 'y-grid')
+                .call(d3.axisLeft(y).ticks(5).tickSize(-innerWidth).tickFormat(''));
+
+            const stackKeys = STACK_KEYS.map(s => `${s.key}_pct`);
+            const stack = d3.stack().keys(stackKeys);
+            const series = stack(data);
+
+            const area = d3.area()
+                .x(d => x(d.data.date))
+                .y0(d => y(d[0]))
+                .y1(d => y(d[1]))
+                .curve(d3.curveMonotoneX);
+
+            chartGroup.selectAll('path.stacked-area')
+                .data(series)
+                .join('path')
+                .attr('class', 'stacked-area')
+                .attr('fill', d => {
+                    const key = d.key.replace(/_pct$/, '');
+                    return COLOR_BY_KEY[key];
+                })
+                .attr('opacity', 0.92)
+                .attr('d', area);
+
+            // Year-boundary dashed lines
+            axisYears.forEach(year => {
+                const yearStart = new Date(Date.UTC(parseInt(year), 0, 1));
+                if (yearStart > xMin && yearStart < xMax) {
+                    chartGroup.append('line')
+                        .attr('x1', x(yearStart))
+                        .attr('x2', x(yearStart))
+                        .attr('y1', 0)
+                        .attr('y2', innerHeight)
+                        .attr('stroke', 'rgba(15, 23, 42, 0.25)')
+                        .attr('stroke-dasharray', '4 4');
+                }
+            });
+
+            // X-axis baseline (no auto ticks; custom labels below)
+            chartGroup.append('g')
+                .attr('class', 'x-axis')
+                .attr('transform', `translate(0,${innerHeight})`)
+                .call(d3.axisBottom(x).ticks(0).tickFormat(() => ''));
+
+            // Sub-year axis labels (month / quarter), with stride to avoid overlap
+            const subRowY = innerHeight + (isSmallWindow ? 14 : 18);
+            const yearRowY = innerHeight + (isSmallWindow ? 32 : 50);
+            const subLabelFn = bucketStrategies[BUCKET].label;
+
+            // Approximate label width per bucket: 22px (month names) / 18px
+            // (quarters) / N/A (year). Stride keeps labels readable when the
+            // axis is dense; for quarter and year buckets the stride is 1.
+            const minLabelGap = BUCKET === 'month' ? 26 : 22;
+            const naturalGap = innerWidth / Math.max(1, data.length - 1);
+            const subStride = Math.max(1, Math.ceil(minLabelGap / Math.max(1, naturalGap)));
+
+            if (BUCKET !== 'year') {
+                chartGroup.append('g')
+                    .attr('class', 'sub-axis-labels')
+                    .selectAll('text')
+                    .data(data.filter((_, i) => i % subStride === 0))
+                    .join('text')
+                    .attr('class', 'month-axis-label')
+                    .attr('x', d => x(d.date))
+                    .attr('y', subRowY)
+                    .attr('text-anchor', 'middle')
+                    .text(d => subLabelFn(d.date));
+            }
+
+            // Year row labels (centered between year boundaries)
+            const yearAxisLabelData = axisYears.map(year => {
+                const yearStart = new Date(Date.UTC(parseInt(year), 0, 1));
+                const yearEnd = new Date(Date.UTC(parseInt(year) + 1, 0, 1));
+                const start = yearStart < xMin ? xMin : yearStart;
+                const end = yearEnd > xMax ? xMax : yearEnd;
+                if (start >= end) return null;
+                const midTime = start.getTime() + (end.getTime() - start.getTime()) / 2;
+                return { year, x: x(new Date(midTime)) };
+            }).filter(Boolean);
+
+            chartGroup.append('g')
+                .attr('class', 'year-axis-labels')
+                .selectAll('text')
+                .data(yearAxisLabelData)
+                .join('text')
+                .attr('class', 'year-axis-label')
+                .attr('x', d => d.x)
+                .attr('y', BUCKET === 'year' ? subRowY + 2 : yearRowY)
+                .attr('text-anchor', 'middle')
+                .style('font-size', `${yearAxisFontSize}px`)
+                .text(d => d.year);
+
+            // Y axis (percent)
+            const yAxis = d3.axisLeft(y)
+                .ticks(Math.min(5, Math.max(3, Math.floor(innerHeight / 90))))
+                .tickFormat(d3.format('.0%'));
+
+            chartGroup.append('g')
+                .attr('class', 'y-axis')
+                .call(yAxis);
+
+            if (!isSmallWindow) {
+                chartGroup.append('text')
+                    .attr('class', 'y-axis-label')
+                    .attr('transform', 'rotate(-90)')
+                    .attr('x', -innerHeight / 2)
+                    .attr('y', -margin.left + 24)
+                    .attr('text-anchor', 'middle')
+                    .text('Share of models');
+            }
+
+            // Hover interaction
+            const focusLine = chartGroup.append('line')
+                .attr('class', 'focus-line')
+                .attr('y1', 0)
+                .attr('y2', innerHeight);
+
+            const bisectDate = d3.bisector(d => d.date).left;
+
+            const overlay = chartGroup.append('rect')
+                .attr('class', 'interaction-overlay')
+                .attr('width', innerWidth)
+                .attr('height', innerHeight)
+                .attr('fill', 'transparent');
+
+            const periodLabel = d => {
+                if (BUCKET === 'year') return String(d.date.getUTCFullYear());
+                if (BUCKET === 'quarter') return `${d.date.getUTCFullYear()} Q${Math.floor(d.date.getUTCMonth() / 3) + 1}`;
+                return d3.utcFormat('%b %Y')(d.date);
+            };
+
+            overlay
+                .on('mousemove', function (event) {
+                    const [mx, my] = d3.pointer(event, this);
+                    if (mx < 0 || mx > innerWidth || my < 0 || my > innerHeight) {
+                        focusLine.style('opacity', 0);
+                        hideTooltip();
+                        return;
+                    }
+                    const hoveredDate = x.invert(mx);
+                    const index = Math.min(Math.max(bisectDate(data, hoveredDate), 1), data.length - 1);
+                    const d0 = data[index - 1];
+                    const d1 = data[index];
+                    const d = hoveredDate - d0.date > d1.date - hoveredDate ? d1 : d0;
+
+                    const xPos = x(d.date);
+
+                    focusLine
+                        .attr('x1', xPos)
+                        .attr('x2', xPos)
+                        .style('opacity', 1);
+
+                    const rowsHtml = STACK_KEYS.slice().reverse().map(s => {
+                        const count = d[s.key] || 0;
+                        const share = d[`${s.key}_pct`] || 0;
+                        return `
+                            <div class="tooltip-row">
+                                <span class="label"><span class="swatch" style="background:${s.color}"></span>${s.label}</span>
+                                <span class="value">${percentFormatter(share)} <span style="color:#94a3b8;font-weight:500">(${numberFormatter(count)})</span></span>
+                            </div>`;
+                    }).join('');
+
+                    tooltipElement.innerHTML = `
+                        <div class="tooltip-title">${periodLabel(d)}</div>
+                        ${rowsHtml}
+                        <div class="tooltip-total">${numberFormatter(d.Total)} model${d.Total === 1 ? '' : 's'} in period</div>
+                    `;
+                    tooltipElement.style.opacity = 1;
+
+                    const tooltipWidth = tooltipElement.offsetWidth || 240;
+                    const tooltipHeight = tooltipElement.offsetHeight || 140;
+                    const containerWidth = vizContainer.clientWidth;
+                    const containerHeight = vizContainer.clientHeight;
+                    let left = margin.left + xPos + 16;
+                    if (left + tooltipWidth > containerWidth) {
+                        left = margin.left + xPos - tooltipWidth - 16;
+                    }
+                    left = Math.max(8, Math.min(containerWidth - tooltipWidth - 8, left));
+                    let top = margin.top + my - tooltipHeight - 12;
+                    if (top < 8) {
+                        top = margin.top + my + 12;
+                    }
+                    top = Math.max(8, Math.min(containerHeight - tooltipHeight - 8, top));
+                    tooltipElement.style.left = `${left}px`;
+                    tooltipElement.style.top = `${top}px`;
+                })
+                .on('mouseleave', function () {
+                    focusLine.style('opacity', 0);
+                    hideTooltip();
+                });
+        }
+
+        function renderVisualizationForContainer() {
+            if (!vizContainer || !preparedRows.length) return;
+            const rect = vizContainer.getBoundingClientRect();
+            renderVisualization(preparedRows, rect.width, rect.height);
+        }
+
+        // ── Load ───────────────────────────────────────────────────────────
+        function loadData() {
+            if (vizContainer) {
+                vizContainer.innerHTML = '<div class="loading-state">Loading…</div>';
+            }
+            fetch(DATA_URL)
+                .then(r => {
+                    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+                    return r.json();
+                })
+                .then(raw => {
+                    if (!Array.isArray(raw) || !raw.length) {
+                        vizContainer.innerHTML = '<div class="empty-state">No data found.</div>';
+                        return;
+                    }
+                    preparedRows = aggregate(raw, BUCKET);
+                    if (!preparedRows.length) {
+                        vizContainer.innerHTML = '<div class="empty-state">No dated records found.</div>';
+                        return;
+                    }
+                    axisYears = Array.from(new Set(preparedRows.map(d => d.date.getUTCFullYear()))).sort().map(String);
+                    buildLegend();
+                    renderVisualizationForContainer();
+                })
+                .catch(error => {
+                    console.error(error);
+                    if (vizContainer) {
+                        vizContainer.innerHTML = `<div class="error-state">Unable to load data: ${error.message}</div>`;
+                    }
+                });
+        }
+
+        let resizeTimer;
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(renderVisualizationForContainer, 220);
+        });
+
+        if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+            const resizeObserver = new ResizeObserver(renderVisualizationForContainer);
+            resizeObserver.observe(vizContainer);
+        }
+
+        loadData();
+    </script>
+</body>
+
+</html>

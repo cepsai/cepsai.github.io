@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AI Agent skills in EU job postings</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+/* ─── BASE ────────────────────────────────────────────────────────────────── */
+
+html, body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    height: 100vh;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+    background-color: white;
+}
+
+/* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
+/*
+    Standard 4-container layout:
+      container1 → main chart (spans full width, row 1)
+      container2 → center controls, e.g. selector buttons / legend (row 2)
+      container3 → bottom-left, e.g. source text (row 3)
+      container4 → bottom-right, e.g. logo (row 3)
+*/
+
+.viz-grid {
+    display: grid;
+    grid-template-rows: 16fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    padding-bottom: clamp(8px, 2vh, 18px);
+}
+
+#container1 {
+    grid-row: 1;
+    grid-column: 1 / span 2;
+    overflow: hidden;
+    min-height: 0;
+}
+
+#container1 .chart-wrapper {
+    flex: 1 1 auto;
+    display: flex;
+    min-width: 0;
+    height: 100%;
+    margin-left: 0;
+}
+
+#container1 .chart-wrapper-inner {
+    flex: 1 1 auto;
+    display: flex;
+    min-width: 0;
+    height: 100%;
+}
+
+#container2 {
+    grid-row: 2;
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+#container3 {
+    grid-row: 3;
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+#container4 {
+    grid-row: 3;
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+    gap: clamp(6px, 1vw, 14px);
+}
+
+#container4 a {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    cursor: default;
+    flex-shrink: 0;
+}
+
+/* ─── TITLE + SUBTITLE (optional rows above #container1) ──────────────────── */
+/*
+    When the chart has its own headline, add #title-container and
+    #subtitle-container as the first two rows of .viz-grid. The
+    applyContainerVisibility IIFE handles the row math.
+*/
+
+#title-container {
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: 0 clamp(12px, 2vw, 24px);
+    overflow: hidden;
+    min-height: 0;
+}
+
+.title-text {
+    font-size: clamp(22px, 4vh, 36px);
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+#subtitle-container {
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    padding: 0 clamp(12px, 2vw, 24px);
+    overflow: hidden;
+    min-height: 0;
+}
+
+.subtitle-text {
+    font-size: clamp(17px, 2.4vw, 24px);
+    font-weight: 500;
+    color: #475569;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* ─── MULTI-LOGO COLLAB (X × Y in #container4) ────────────────────────────── */
+
+.logo-collab {
+    font-size: clamp(12px, 1.6vw, 18px);
+    font-weight: 400;
+    color: #9ca3af;
+    line-height: 1;
+    user-select: none;
+    flex-shrink: 0;
+}
+
+/* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
+
+#viz {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+}
+
+#chart {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* ─── SELECTOR BUTTONS ────────────────────────────────────────────────────── */
+/*
+    Use .selector-group + .selector-button for tab-style toggles.
+    Add .active to the selected button.
+*/
+
+.selector-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(2px, 0.5vw, 6px);
+    padding: clamp(2px, 0.4vw, 4px);
+    border-radius: 6px;
+    border: 1px solid rgba(17, 24, 39, 0.15);
+    background: #f8fafc;
+    max-width: 100%;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.selector-button {
+    border: none;
+    background: transparent;
+    padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+    border-radius: 6px;
+    font-size: clamp(9px, 1.4vw, 13px);
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.selector-button.active {
+    background: #2756d3;
+    color: #fff;
+}
+
+/* ─── DROPDOWN ────────────────────────────────────────────────────────────── */
+/*
+    Use .selector-dropdown > .selector-dropdown-toggle + .selector-dropdown-menu
+    for long option lists. Menu opens upward (bottom: calc(100% + 6px)).
+    Toggle aria-expanded and .open class to show/hide.
+*/
+
+.selector-dropdown {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.selector-dropdown-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(6px, 1vw, 10px);
+    padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+    border: 1px solid rgba(17, 24, 39, 0.15);
+    border-radius: 6px;
+    background: #f8fafc;
+    font-size: clamp(9px, 1.4vw, 13px);
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.selector-dropdown-toggle:hover {
+    border-color: rgba(17, 24, 39, 0.3);
+}
+
+.selector-dropdown-toggle:focus-visible {
+    outline: 2px solid #2756d3;
+    outline-offset: 1px;
+}
+
+.selector-dropdown-toggle::after {
+    content: '';
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid #475569;
+    border-bottom: 2px solid #475569;
+    transform: rotate(45deg);
+    flex-shrink: 0;
+    margin-top: -2px;
+    transition: transform 0.2s ease;
+}
+
+.selector-dropdown-toggle[aria-expanded="true"]::after {
+    transform: rotate(-135deg);
+    margin-top: 2px;
+}
+
+.selector-dropdown-menu {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 0;
+    min-width: 100%;
+    width: max-content;
+    max-height: clamp(180px, 30vh, 320px);
+    overflow-y: auto;
+    background: #f8fafc;
+    border: 1px solid rgba(17, 24, 39, 0.15);
+    border-radius: 6px;
+    padding: clamp(2px, 0.4vw, 4px);
+    display: none;
+    z-index: 10;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.selector-dropdown-menu.open {
+    display: block;
+}
+
+.selector-dropdown-option {
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: left;
+    padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+    border-radius: 6px;
+    font-size: clamp(9px, 1.4vw, 13px);
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+}
+
+.selector-dropdown-option:hover,
+.selector-dropdown-option:focus {
+    background: rgba(39, 86, 211, 0.08);
+    outline: none;
+}
+
+.selector-dropdown-option.active {
+    background: #2756d3;
+    color: #fff;
+}
+
+/* ─── SLIDER ──────────────────────────────────────────────────────────────── */
+/*
+    Structure: #slider-container > .slider-wrapper > .slider-track-bg + input.year-slider
+    Optional: .slider-dot markers on track, .slider-tooltip above thumb.
+*/
+
+#slider-container {
+    grid-row: 4;
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-self: center;
+    gap: clamp(8px, 1vw, 16px);
+    padding: clamp(4px, 1vh, 8px) clamp(8px, 2vw, 24px);
+    overflow: visible;
+    min-height: 0;
+    max-width: 500px;
+    width: 100%;
+}
+
+.slider-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 40px;
+}
+
+.slider-track-bg {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+}
+
+.slider-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.slider-tooltip {
+    position: absolute;
+    bottom: -18px;
+    transform: translateX(-50%);
+    font-size: clamp(11px, 1.2vw, 13px);
+    font-weight: 600;
+    color: #fff;
+    background: #1e293b;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.slider-tooltip::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 5px solid #1e293b;
+}
+
+.year-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: transparent;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    position: relative;
+    z-index: 2;
+}
+
+.year-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 3px solid #fff;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+
+.year-slider::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.15);
+}
+
+.year-slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
+    cursor: pointer;
+}
+
+/* ─── LEGEND ──────────────────────────────────────────────────────────────── */
+/*
+    .legend > .legend-item > .legend-square + text
+    Use .legend-square for categorical color swatches.
+*/
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(6px, 1vw, 14px);
+    background: rgba(255, 255, 255, 1);
+    padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+    border-radius: clamp(6px, 1vw, 12px);
+    max-width: 100%;
+    max-height: 100%;
+    font-size: clamp(0.625rem, 1.4vw, 1rem);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: clamp(4px, 1vw, 8px);
+    font-weight: 600;
+    color: #333;
+    font-size: inherit;
+    padding: 2px 6px;
+    cursor: default;
+}
+
+.legend-item.interactive {
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.legend-item.dim {
+    opacity: 0.35;
+}
+
+.legend-item:focus-visible {
+    outline: 2px solid rgba(0, 0, 0, 0.5);
+    outline-offset: 2px;
+}
+
+.legend-square {
+    width: clamp(8px, 0.9vw, 12px);
+    height: clamp(8px, 0.9vw, 12px);
+    border-radius: 0;       /* bars/categorical: 0 */
+    /* border-radius: 4px; for line/scatter charts */
+    flex-shrink: 0;
+}
+
+/* ─── FOOTNOTE ────────────────────────────────────────────────────────────── */
+/*
+    Use .footnote-text inside #container5 (row between chart and legend).
+    Right-aligned by default. Same size scale as .source-text.
+*/
+
+.footnote-text {
+    font-size: clamp(10px, 1.6vw, 16px);
+    font-style: italic;
+    color: #333;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+
+.source-text {
+    font-size: clamp(10px, 1.6vw, 16px);
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    font-style: normal;
+}
+
+.source-text a {
+    color: #2756d3;
+    text-decoration: underline;
+    cursor: default;
+    font-style: normal;
+}
+
+.source-text a:visited {
+    color: #2756d3;
+}
+
+.logo {
+    height: 100%;
+    width: auto;
+    max-height: 100%;
+    max-width: 100%;
+    pointer-events: auto;
+    object-fit: contain;
+}
+
+/* ─── CHART ELEMENTS (D3) ─────────────────────────────────────────────────── */
+
+.axis path,
+.axis line {
+    stroke: #cfd2d7;
+}
+
+.tick text {
+    font-weight: 600;
+    fill: #4b5563;
+}
+
+.grid-lines line {
+    stroke: #DBDBDB;
+    stroke-dasharray: 2, 3;
+}
+
+.grid-lines path {
+    stroke: none;
+}
+
+.bar-label {
+    fill: #555;
+    font-weight: 500;
+}
+
+/* ─── LOAD / EMPTY / ERROR STATES ─────────────────────────────────────────── */
+/*
+    Inject into #viz while data loads / when filtered result is empty /
+    when a fetch fails. Always full-width, full-height, centered.
+*/
+
+.loading-state,
+.empty-state,
+.error-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(13px, 1.5vw, 16px);
+    color: #475569;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+}
+
+.error-state {
+    color: #b91c1c;
+}
+
+/* ─── CARD TOOLTIP (multi-series time-series charts) ──────────────────────── */
+/*
+    Preferred for stacked area, multi-line, and any tooltip that needs to
+    list per-series values. Append a <div class="chart-tooltip"> into
+    #container1 (which is position: relative) and position with
+    container-relative offsets. For a single-value pill, the simpler
+    #tooltip pattern (fixed position, appended to body) is still fine.
+*/
+
+.chart-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: rgba(255, 255, 255, 0.98);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: 0 18px 28px rgba(15, 23, 42, 0.15);
+    border: 1px solid rgba(39, 86, 211, 0.15);
+    min-width: 220px;
+    max-width: 280px;
+    font-size: 12px;
+    color: #0f172a;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    z-index: 10;
+}
+
+.tooltip-title {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+.tooltip-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 12px;
+    color: #0f172a;
+    padding: 2px 0;
+}
+
+.tooltip-row .label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #475569;
+}
+
+.tooltip-row .swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex-shrink: 0;
+}
+
+.tooltip-row .value {
+    font-weight: 700;
+}
+
+.tooltip-total {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(15, 23, 42, 0.1);
+    font-size: 12px;
+    color: #475569;
+}
+
+/* ─── TIME-SERIES AXIS + HOVER ELEMENTS ───────────────────────────────────── */
+/*
+    Used by area-timeseries, line-timeseries, and any chart with a time
+    x-axis. .y-grid replaces the generic .grid-lines styling with a
+    dashed slate-tinted look. Two-row x-axis uses .month-axis-label /
+    .quarter-axis-label for the sub-year row and .year-axis-label for
+    the larger year row below.
+*/
+
+.y-grid line {
+    stroke: rgba(148, 163, 184, 0.35);
+    stroke-dasharray: 3 4;
+}
+
+.y-grid .domain {
+    display: none;
+}
+
+.x-axis text,
+.y-axis text {
+    font-size: 14px;
+    fill: #475569;
+}
+
+.x-axis path,
+.y-axis path,
+.x-axis line,
+.y-axis line {
+    stroke: #d0d7e8;
+}
+
+.focus-line {
+    stroke: rgba(15, 23, 42, 0.7);
+    stroke-width: 1;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.interaction-overlay {
+    cursor: crosshair;
+}
+
+.y-axis-label {
+    font-size: 18px;
+    font-weight: 600;
+    fill: #000000;
+}
+
+.month-axis-label,
+.quarter-axis-label {
+    font-size: 11px;
+    fill: #475569;
+}
+
+.year-axis-label {
+    font-size: 12px;
+    font-weight: 600;
+    fill: #0f172a;
+}
+
+/* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+
+@media (max-height: 500px) {
+    .viz-grid {
+        grid-template-rows: 1fr !important;
+        grid-template-columns: 1fr !important;
+        padding-bottom: 0;
+    }
+
+    #container1 {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+    }
+
+    #title-container,
+    #subtitle-container,
+    #container2,
+    #container3,
+    #container4,
+    #container5 {
+        display: none !important;
+    }
+
+    .legend,
+    .source-text,
+    .logo,
+    .footnote-text,
+    .title-text,
+    .subtitle-text {
+        display: none !important;
+    }
+}
+
+    /* Local additions */
+    #container1 { position: relative; }
+    /* Override stylesheet defaults so links feel clickable */
+    .source-text a,
+    #container4 a {
+      cursor: pointer;
+    }
+    .controls-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      max-width: 1100px;
+      padding: 0 16px;
+    }
+    .preset-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .preset-row .label {
+      font-size: clamp(10px, 1.1vw, 13px);
+      color: #64748b;
+      font-weight: 600;
+    }
+    .tier-legend {
+      display: flex;
+      gap: clamp(10px, 2vw, 24px);
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+    }
+    .tier-legend .legend-item {
+      gap: 10px;
+    }
+    .tier-legend .legend-square {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+    }
+    .tier-legend .tier-label {
+      font-weight: 700;
+      font-size: clamp(11px, 1.2vw, 14px);
+      color: #0f172a;
+    }
+    /* Tooltip overrides: wider, flat (no shadow) */
+    .chart-tooltip {
+      box-shadow: none;
+      border: 1px solid rgba(15, 23, 42, 0.12);
+      min-width: 280px;
+      max-width: 340px;
+    }
+  </style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="title-container">
+    <div class="title-text" id="title-text">AI Agent skills in EU job postings</div>
+  </div>
+  <div id="subtitle-container">
+    <div class="subtitle-text" id="subtitle-text">Monthly postings tagged with agent-related Lightcast skills — 41 European countries, 2018–2026</div>
+  </div>
+  <div id="container1" class="container viz-container">
+    <div id="viz" role="img" aria-label="Stacked area chart of monthly EU postings by AI agent skill"></div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div class="tier-legend legend" id="legend"></div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text" id="source-text">Source: <a href="https://lightcast.io/" target="_blank" rel="noopener">Lightcast</a></div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+    </a>
+  </div>
+</div>
+
+<script>
+// ----- Config -----
+const SHOW_TITLES      = 1;
+const SHOW_CONTAINER_2 = 1;
+const SHOW_CONTAINER_3 = 1;
+const SHOW_CONTAINER_4 = 1;
+const SHOW_CONTAINER_5 = 0;
+
+const CURVE_TYPE = 'monotoneX';
+const SOURCE_NAME = 'Lightcast';
+
+const TIER_INFO = {
+  agent_named: {
+    label: 'Agent (named)',
+    desc: 'Terms that literally mean an agent',
+    interpolator: d3.interpolateBlues,
+    range: [0.55, 0.92],
+  },
+  dialogue_reasoning: {
+    label: 'Dialogue / reasoning',
+    desc: 'Conversational, bot and reasoning frameworks',
+    interpolator: d3.interpolateOranges,
+    range: [0.45, 0.88],
+  },
+  llm_stack: {
+    label: 'LLM stack',
+    desc: 'LLM-application proxies (broader)',
+    interpolator: d3.interpolateGreens,
+    range: [0.42, 0.85],
+  },
+};
+const TIER_ORDER = ['agent_named', 'dialogue_reasoning', 'llm_stack'];
+
+// ----- Container visibility IIFE -----
+(function applyContainerVisibility() {
+  const vizGrid = document.querySelector('.viz-grid');
+  const c1 = document.getElementById('container1');
+  const c2 = document.getElementById('container2');
+  const c3 = document.getElementById('container3');
+  const c4 = document.getElementById('container4');
+  const c5 = document.getElementById('container5');
+  const title = document.getElementById('title-container');
+  const subtitle = document.getElementById('subtitle-container');
+
+  if (!SHOW_TITLES) { if (title) title.style.display = 'none'; if (subtitle) subtitle.style.display = 'none'; }
+  if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+  if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+  if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+  if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+  const row2Visible = SHOW_CONTAINER_5;
+  const row3Visible = SHOW_CONTAINER_2;
+  const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+  // Custom row weights: legend is taller because it stacks 3 tiers
+  let gridRows = SHOW_TITLES ? ['1.6fr', '1fr'] : [];
+  let currentRow = SHOW_TITLES ? 3 : 1;
+  const chartRow = currentRow;
+
+  const footnoteRow = 1.6;
+  const legendRow = 1.1;          // single row of 3 tier chips
+  const sourceLogoRow = 1;
+  const reservedRows = (row2Visible ? footnoteRow : 0)
+                     + (row3Visible ? legendRow : 0)
+                     + (row4Visible ? sourceLogoRow : 0);
+  const chartHeight = 22 - reservedRows;
+  gridRows.push(chartHeight + 'fr');
+
+  if (SHOW_TITLES) {
+    if (title) title.style.gridRow = '1';
+    if (subtitle) subtitle.style.gridRow = '2';
+  }
+  c1.style.gridRow = String(chartRow);
+  c1.style.gridColumn = '1 / span 2';
+
+  if (row2Visible) { gridRows.push(footnoteRow + 'fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+  if (row3Visible) { gridRows.push(legendRow + 'fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+  if (row4Visible) {
+    gridRows.push(sourceLogoRow + 'fr'); currentRow++;
+    if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+    if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+  }
+
+  vizGrid.style.gridTemplateRows = gridRows.join(' ');
+})();
+
+// ----- Data: loaded from data.csv at startup -----
+const DATA_URL = 'data.csv';
+let RAW_DATA = [];   // [skill, tier, "YYYY-MM-DD", postings]
+
+// Build per-skill metadata: tier and total postings (for color ordering + totals)
+let skillTotals = new Map();
+let skillTiers = new Map();
+
+let skillsByTier = {};
+let SKILL_ORDER = [];
+let COLOR = {};
+let WIDE = [];
+let TIER_SWATCH = {};
+const ACTIVE = new Set();  // populated in prepData
+
+function prepData() {
+  // Per-skill metadata
+  skillTotals = new Map();
+  skillTiers = new Map();
+  RAW_DATA.forEach(([skill, tier, , n]) => {
+    skillTiers.set(skill, tier);
+    skillTotals.set(skill, (skillTotals.get(skill) || 0) + n);
+  });
+
+  // Order skills within each tier by total postings DESC
+  skillsByTier = {};
+  TIER_ORDER.forEach(t => { skillsByTier[t] = []; });
+  [...skillTotals.keys()].forEach(skill => {
+    skillsByTier[skillTiers.get(skill)].push(skill);
+  });
+  Object.keys(skillsByTier).forEach(t => {
+    skillsByTier[t].sort((a, b) => skillTotals.get(b) - skillTotals.get(a));
+  });
+
+  // Stack order: smaller tiers at the bottom so they remain visible
+  SKILL_ORDER = [
+    ...skillsByTier.agent_named,
+    ...skillsByTier.dialogue_reasoning,
+    ...skillsByTier.llm_stack,
+  ];
+
+  // Color per skill: tier interpolator scaled to its rank within the tier
+  COLOR = {};
+  TIER_ORDER.forEach(t => {
+    const info = TIER_INFO[t];
+    const list = skillsByTier[t];
+    const n = list.length;
+    list.forEach((skill, i) => {
+      const u = n === 1 ? (info.range[0] + info.range[1]) / 2
+                        : info.range[0] + (info.range[1] - info.range[0]) * (i / (n - 1));
+      COLOR[skill] = info.interpolator(u);
+    });
+  });
+
+  // Representative color per tier — mid-shade
+  TIER_SWATCH = {};
+  TIER_ORDER.forEach(t => {
+    const info = TIER_INFO[t];
+    TIER_SWATCH[t] = info.interpolator((info.range[0] + info.range[1]) / 2);
+  });
+
+  // Pivot to wide rows by date
+  const byDate = new Map();
+  RAW_DATA.forEach(([skill, , dateStr, n]) => {
+    if (!byDate.has(dateStr)) byDate.set(dateStr, {});
+    byDate.get(dateStr)[skill] = n;
+  });
+  const allDates = Array.from(byDate.keys()).sort();
+  WIDE = allDates.map(dateStr => {
+    const row = { date: new Date(dateStr + 'T00:00:00Z') };
+    SKILL_ORDER.forEach(s => { row[s] = byDate.get(dateStr)[s] || 0; });
+    return row;
+  });
+
+  // Default selection: everything on
+  ACTIVE.clear();
+  SKILL_ORDER.forEach(s => ACTIVE.add(s));
+}
+
+// ----- Build legend: one entry per tier (click toggles whole tier) -----
+function buildLegend() {
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '';
+  TIER_ORDER.forEach(tier => {
+    const tierSkills = skillsByTier[tier];
+    const tierActive = tierSkills.some(s => ACTIVE.has(s));
+    const item = document.createElement('div');
+    item.className = 'legend-item interactive' + (tierActive ? ' active' : ' dim');
+    item.setAttribute('role', 'button');
+    item.setAttribute('tabindex', '0');
+    item.setAttribute('aria-pressed', String(tierActive));
+
+    const sq = document.createElement('span');
+    sq.className = 'legend-square';
+    sq.style.background = TIER_SWATCH[tier];
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'tier-label';
+    labelEl.textContent = TIER_INFO[tier].label;
+    item.append(sq, labelEl);
+
+    const toggle = () => {
+      const turnOn = !tierSkills.every(s => ACTIVE.has(s));
+      tierSkills.forEach(s => { if (turnOn) ACTIVE.add(s); else ACTIVE.delete(s); });
+      buildLegend();
+      scheduleRender();
+    };
+    item.addEventListener('click', toggle);
+    item.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+    legend.appendChild(item);
+  });
+}
+
+// ----- Formatting helpers -----
+function smartFormat(v) {
+  if (!isFinite(v)) return 'N/A';
+  if (Math.abs(v) >= 1e9) return d3.format('.1f')(v / 1e9) + 'B';
+  if (Math.abs(v) >= 1e6) return d3.format('.1f')(v / 1e6) + 'M';
+  if (Math.abs(v) >= 1e4) return d3.format('.1f')(v / 1e3).replace('.0', '') + 'k';
+  if (Math.abs(v) >= 1e3 && Math.floor(v) === v) return d3.format(',')(v);
+  if (Math.floor(v) === v) return d3.format(',')(v);
+  return d3.format(',.1f')(v);
+}
+
+// ----- Render -----
+const vizContainer = document.getElementById('viz');
+const tooltipElement = document.createElement('div');
+tooltipElement.className = 'chart-tooltip';
+document.getElementById('container1').appendChild(tooltipElement);
+
+let renderTimer;
+function scheduleRender() { clearTimeout(renderTimer); renderTimer = setTimeout(render, 30); }
+
+function render() {
+  vizContainer.innerHTML = '';
+  tooltipElement.style.opacity = 0;
+
+  const rect = vizContainer.getBoundingClientRect();
+  const width  = Math.max(360, rect.width);
+  const height = Math.max(220, rect.height);
+  const isSmallWindow = height < 500 || width < 700;
+
+  if (ACTIVE.size === 0) {
+    vizContainer.innerHTML = '<div class="empty-state">No skills selected — pick at least one from the legend.</div>';
+    return;
+  }
+
+  const margin = {
+    top:    isSmallWindow ? 14 : 22,
+    right:  isSmallWindow ? 16 : 28,
+    bottom: isSmallWindow ? 44 : 70,
+    left:   isSmallWindow ? 56 : 84,
+  };
+  const innerWidth  = Math.max(40, width  - margin.left - margin.right);
+  const innerHeight = Math.max(40, height - margin.top  - margin.bottom);
+
+  const svg = d3.select(vizContainer).append('svg')
+    .attr('width', width)
+    .attr('height', height)
+    .attr('viewBox', `0 0 ${width} ${height}`)
+    .style('width', '100%')
+    .style('height', '100%');
+
+  const chartGroup = svg.append('g')
+    .attr('transform', `translate(${margin.left},${margin.top})`);
+
+  // Active stack keys, ordered (bottom-to-top): agent_named -> dialogue_reasoning -> llm_stack
+  const activeKeys = SKILL_ORDER.filter(s => ACTIVE.has(s));
+
+  // X scale
+  const x = d3.scaleUtc()
+    .domain([WIDE[0].date, WIDE[WIDE.length - 1].date])
+    .range([0, innerWidth]);
+
+  // Stack and y scale (absolute counts)
+  const stackGen = d3.stack().keys(activeKeys);
+  const series = stackGen(WIDE);
+  const yMax = d3.max(WIDE, row => activeKeys.reduce((s, k) => s + row[k], 0)) || 1;
+  const y = d3.scaleLinear()
+    .domain([0, yMax * 1.05])
+    .nice()
+    .range([innerHeight, 0]);
+
+  // Year-boundary dashed lines
+  const axisYears = Array.from(new Set(WIDE.map(d => d.date.getUTCFullYear()))).sort();
+  axisYears.forEach(year => {
+    const yearStart = new Date(Date.UTC(year, 0, 1));
+    if (yearStart > x.domain()[0] && yearStart < x.domain()[1]) {
+      chartGroup.append('line')
+        .attr('x1', x(yearStart)).attr('x2', x(yearStart))
+        .attr('y1', 0).attr('y2', innerHeight)
+        .attr('stroke', 'rgba(15, 23, 42, 0.22)')
+        .attr('stroke-dasharray', '4 4');
+    }
+  });
+
+  // Y grid
+  chartGroup.append('g')
+    .attr('class', 'y-grid')
+    .call(d3.axisLeft(y).ticks(5).tickSize(-innerWidth).tickFormat(''));
+
+  // Area paths
+  const area = d3.area()
+    .x(d => x(d.data.date))
+    .y0(d => y(d[0]))
+    .y1(d => y(d[1]))
+    .curve(d3.curveMonotoneX);
+
+  chartGroup.selectAll('path.stacked-area')
+    .data(series)
+    .join('path')
+    .attr('class', 'stacked-area')
+    .attr('fill', d => COLOR[d.key])
+    .attr('opacity', 0.94)
+    .attr('stroke', '#ffffff')
+    .attr('stroke-width', 0.4)
+    .attr('d', area);
+
+  // Y axis
+  const yAxis = d3.axisLeft(y)
+    .ticks(Math.min(6, Math.max(3, Math.floor(innerHeight / 70))))
+    .tickFormat(smartFormat);
+  chartGroup.append('g').attr('class', 'y-axis').call(yAxis);
+
+  if (!isSmallWindow) {
+    chartGroup.append('text')
+      .attr('class', 'y-axis-label')
+      .attr('transform', 'rotate(-90)')
+      .attr('x', -innerHeight / 2)
+      .attr('y', -margin.left + 22)
+      .attr('text-anchor', 'middle')
+      .text('Monthly postings');
+  }
+
+  // Two-row x-axis
+  const subRowY  = innerHeight + (isSmallWindow ? 14 : 18);
+  const yearRowY = innerHeight + (isSmallWindow ? 30 : 46);
+
+  const naturalGap = innerWidth / Math.max(1, WIDE.length - 1);
+  const subStride = Math.max(1, Math.ceil(28 / Math.max(1, naturalGap)));
+
+  chartGroup.append('g').attr('class', 'sub-axis-labels')
+    .selectAll('text')
+    .data(WIDE.filter((_, i) => i % subStride === 0))
+    .join('text')
+    .attr('class', 'month-axis-label')
+    .attr('x', d => x(d.date))
+    .attr('y', subRowY)
+    .attr('text-anchor', 'middle')
+    .text(d => d3.utcFormat('%b')(d.date));
+
+  const yearAxisLabelData = axisYears.map(year => {
+    const yearStart = new Date(Date.UTC(year, 0, 1));
+    const yearEnd   = new Date(Date.UTC(year + 1, 0, 1));
+    const start = yearStart < x.domain()[0] ? x.domain()[0] : yearStart;
+    const end   = yearEnd   > x.domain()[1] ? x.domain()[1] : yearEnd;
+    if (start >= end) return null;
+    const mid = new Date(start.getTime() + (end.getTime() - start.getTime()) / 2);
+    return { year, x: x(mid) };
+  }).filter(Boolean);
+
+  const yearFontSize = isSmallWindow ? 12 : Math.max(13, Math.min(22, innerWidth * 0.02));
+  chartGroup.append('g').attr('class', 'year-axis-labels')
+    .selectAll('text')
+    .data(yearAxisLabelData)
+    .join('text')
+    .attr('class', 'year-axis-label')
+    .attr('x', d => d.x)
+    .attr('y', yearRowY)
+    .attr('text-anchor', 'middle')
+    .style('font-size', `${yearFontSize}px`)
+    .text(d => d.year);
+
+  // X-axis baseline (no ticks)
+  chartGroup.append('g')
+    .attr('class', 'x-axis')
+    .attr('transform', `translate(0,${innerHeight})`)
+    .call(d3.axisBottom(x).ticks(0).tickFormat(() => ''));
+
+  // ----- Tooltip + focus line -----
+  const focusLine = chartGroup.append('line')
+    .attr('class', 'focus-line')
+    .attr('y1', 0).attr('y2', innerHeight);
+
+  const bisectDate = d3.bisector(d => d.date).left;
+  const monthFormatter = d3.utcFormat('%b %Y');
+
+  function positionTooltip(el, anchorX, anchorY) {
+    const tipW = el.offsetWidth || 240;
+    const tipH = el.offsetHeight || 100;
+    const containerRect = document.getElementById('container1').getBoundingClientRect();
+    let left = anchorX + 14;
+    let top  = anchorY + 14;
+    if (left + tipW > containerRect.width - 8) left = anchorX - tipW - 14;
+    if (top + tipH > containerRect.height - 8) top = anchorY - tipH - 14;
+    if (top < 4) top = 4;
+    if (left < 4) left = 4;
+    el.style.left = `${left}px`;
+    el.style.top  = `${top}px`;
+  }
+
+  chartGroup.append('rect')
+    .attr('class', 'interaction-overlay')
+    .attr('width', innerWidth).attr('height', innerHeight)
+    .attr('fill', 'transparent')
+    .on('mousemove', function(event) {
+      const [mx, my] = d3.pointer(event, this);
+      if (mx < 0 || mx > innerWidth || my < 0 || my > innerHeight) {
+        focusLine.style('opacity', 0);
+        tooltipElement.style.opacity = 0;
+        return;
+      }
+      const hoveredDate = x.invert(mx);
+      const i = Math.min(Math.max(bisectDate(WIDE, hoveredDate), 1), WIDE.length - 1);
+      const d0 = WIDE[i - 1], d1 = WIDE[i];
+      const d = (hoveredDate - d0.date) > (d1.date - hoveredDate) ? d1 : d0;
+      const xPos = x(d.date);
+      focusLine.attr('x1', xPos).attr('x2', xPos).style('opacity', 1);
+
+      const total = activeKeys.reduce((s, k) => s + d[k], 0);
+      // build rows ordered by descending value, but suppress zeros
+      const items = activeKeys
+        .map(k => ({ skill: k, value: d[k], color: COLOR[k] }))
+        .filter(it => it.value > 0)
+        .sort((a, b) => b.value - a.value);
+
+      const MAX_ROWS = 5;
+      let shown = items.slice(0, MAX_ROWS);
+      let hidden = items.slice(MAX_ROWS);
+      const hiddenSum = hidden.reduce((s, it) => s + it.value, 0);
+
+      tooltipElement.innerHTML =
+        `<div class="tooltip-title">${monthFormatter(d.date)}</div>` +
+        shown.map(it => {
+          const pct = total ? (it.value / total * 100).toFixed(0) : 0;
+          return `<div class="tooltip-row"><span class="label"><span class="swatch" style="background:${it.color}"></span>${it.skill}</span><span class="value">${d3.format(',')(it.value)} <span style="color:#94a3b8;font-weight:500">(${pct}%)</span></span></div>`;
+        }).join('') +
+        (hidden.length ? `<div class="tooltip-row" style="color:#94a3b8;"><span class="label">+ ${hidden.length} other${hidden.length === 1 ? '' : 's'}</span><span class="value">${d3.format(',')(hiddenSum)}</span></div>` : '') +
+        (items.length === 0 ? `<div class="tooltip-row" style="color:#94a3b8;">No selected skill recorded this month</div>` : '') +
+        `<div class="tooltip-total">Total: <strong>${d3.format(',')(total)}</strong> postings</div>`;
+
+      tooltipElement.style.opacity = 1;
+      positionTooltip(tooltipElement, margin.left + xPos, margin.top + my);
+    })
+    .on('mouseleave', () => {
+      focusLine.style('opacity', 0);
+      tooltipElement.style.opacity = 0;
+    });
+}
+
+// ----- Load data.csv and bootstrap -----
+vizContainer.innerHTML = '<div class="loading-state">Loading data…</div>';
+
+d3.csv(DATA_URL, row => ({
+  skill:    row.skill,
+  tier:     row.tier,
+  date:     row.date,
+  postings: +row.postings,
+})).then(rows => {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    vizContainer.innerHTML = '<div class="empty-state">data.csv is empty.</div>';
+    return;
+  }
+  RAW_DATA = rows.map(r => [r.skill, r.tier, r.date, r.postings]);
+  prepData();
+  buildLegend();
+  render();
+}).catch(err => {
+  console.error(err);
+  const msg = err && err.message ? err.message : String(err);
+  vizContainer.innerHTML =
+    `<div class="error-state">Unable to load data.csv: ${msg}<br>` +
+    `<span style="font-size:12px;color:#475569;">If you opened this file directly from disk, your browser may be blocking ` +
+    `local fetches. Serve the folder with <code>python3 -m http.server</code> and open via http://localhost:8000.</span></div>`;
+});
+
+let resizeTimer;
+function debouncedRender() {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => { if (WIDE.length) render(); }, 220);
+}
+window.addEventListener('resize', debouncedRender);
+if (typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(debouncedRender).observe(vizContainer);
+}
+</script>
+</body>
+</html>

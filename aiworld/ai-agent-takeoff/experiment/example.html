@@ -1,0 +1,1061 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>AI Agent PRs — status breakdown</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* ─── BASE ────────────────────────────────────────────────────────────────── */
+
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        /* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 16fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+            position: relative;
+        }
+
+        #title-container {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-start;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .title-text {
+            font-size: clamp(22px, 4vh, 36px);
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        #subtitle-container {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .subtitle-text {
+            font-size: clamp(17px, 2.4vw, 24px);
+            font-weight: 500;
+            color: #475569;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #container5 {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .footnote-text {
+            font-size: clamp(8px, 1.2vw, 12px);
+            font-style: italic;
+            color: #333;
+            text-align: right;
+            white-space: normal;
+            overflow-wrap: break-word;
+            line-height: 1.3;
+            max-width: 100%;
+        }
+
+        #container3 {
+            grid-row: 3;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+            gap: clamp(6px, 1vw, 14px);
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .logo-collab {
+            font-size: clamp(12px, 1.6vw, 18px);
+            font-weight: 400;
+            color: #9ca3af;
+            line-height: 1;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        /* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
+
+        #viz {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        /* ─── LEGEND (dataviz pattern) ────────────────────────────────────────────── */
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1vw, 14px);
+            background: rgba(255, 255, 255, 1);
+            padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+            border-radius: clamp(6px, 1vw, 12px);
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(0.7rem, 1.4vw, 1rem);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 8px);
+            font-weight: 600;
+            color: #333;
+            font-size: inherit;
+            padding: 2px 6px;
+            cursor: default;
+        }
+
+        .legend-square {
+            width: clamp(10px, 1vw, 14px);
+            height: clamp(10px, 1vw, 14px);
+            border-radius: 0;
+            flex-shrink: 0;
+        }
+
+        /* Vertical legend variant (legend=2): sits to the right of the chart. */
+        #container2.legend-vertical {
+            align-items: center;
+            justify-content: center;
+            padding: 0 clamp(6px, 1vw, 14px);
+        }
+
+        #container2.legend-vertical .legend {
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            flex-wrap: nowrap;
+            gap: clamp(6px, 1.4vh, 14px);
+            padding: clamp(6px, 1.4vh, 14px) clamp(8px, 1.2vw, 14px);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #container2.legend-vertical .legend-item {
+            width: 100%;
+        }
+
+        /* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a,
+        .source-text a:visited {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: clamp(20px, 4.5vh, 56px);
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .logo.logo-github {
+            max-height: clamp(18px, 4vh, 50px);
+        }
+
+        /* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr !important;
+                grid-template-columns: 1fr !important;
+                padding-bottom: 0;
+            }
+
+            #container1 {
+                grid-row: 1 !important;
+                grid-column: 1 !important;
+            }
+
+            #title-container,
+            #subtitle-container,
+            #container2,
+            #container3,
+            #container4,
+            #container5 {
+                display: none !important;
+            }
+
+            .source-text,
+            .logo,
+            .legend {
+                display: none !important;
+            }
+        }
+
+        /* ─── CHART-SPECIFIC ──────────────────────────────────────────────────────── */
+
+        .loading-state,
+        .empty-state,
+        .error-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(13px, 1.5vw, 16px);
+            color: #475569;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+        }
+
+        .chart-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 12px;
+            padding: 14px 16px;
+            box-shadow: 0 18px 28px rgba(15, 23, 42, 0.15);
+            border: 1px solid rgba(39, 86, 211, 0.15);
+            min-width: 220px;
+            max-width: 280px;
+            font-size: 12px;
+            color: #0f172a;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            z-index: 10;
+        }
+
+        .tooltip-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .tooltip-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 12px;
+            color: #0f172a;
+            padding: 2px 0;
+        }
+
+        .tooltip-row .label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #475569;
+        }
+
+        .tooltip-row .swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .tooltip-row .value {
+            font-weight: 700;
+        }
+
+        .tooltip-total {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(15, 23, 42, 0.1);
+            font-size: 12px;
+            color: #475569;
+        }
+
+        .y-grid line {
+            stroke: rgba(148, 163, 184, 0.35);
+            stroke-dasharray: 3 4;
+        }
+
+        .y-grid .domain {
+            display: none;
+        }
+
+        .x-axis text,
+        .y-axis text {
+            font-size: 14px;
+            fill: #475569;
+        }
+
+        .x-axis path,
+        .y-axis path,
+        .x-axis line,
+        .y-axis line {
+            stroke: #d0d7e8;
+        }
+
+        .focus-line {
+            stroke: rgba(15, 23, 42, 0.7);
+            stroke-width: 1;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .interaction-overlay {
+            cursor: crosshair;
+        }
+
+        .y-axis-label {
+            font-size: 18px;
+            font-weight: 600;
+            fill: #000000;
+        }
+
+        .quarter-axis-label {
+            font-size: 11px;
+            fill: #475569;
+        }
+
+        .year-axis-label {
+            font-size: 12px;
+            font-weight: 600;
+            fill: #0f172a;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="title-container">
+            <div class="title-text" id="title-text"></div>
+        </div>
+        <div id="subtitle-container">
+            <div class="subtitle-text" id="subtitle-text"></div>
+        </div>
+        <div id="container1" class="container viz-container">
+            <div id="viz" role="img" aria-label="Cumulative AI Agent pull requests stacked across the top 15 enterprises">
+            </div>
+        </div>
+        <div id="container5" class="container footnote-container">
+            <div class="footnote-text" id="footnote-text"></div>
+        </div>
+        <div id="container2" class="container legend-container">
+            <div class="legend" id="legend"></div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-text" id="source-text">Source: <a href="https://github.com/" target="_blank"
+                    rel="noopener">GitHub</a></div>
+        </div>
+        <div id="container4" class="container logo-container">
+            <a href="https://github.com" target="_blank" rel="noopener">
+                <img src="logos/GitHub.svg" class="logo logo-github" alt="GitHub logo">
+            </a>
+            <span class="logo-collab">×</span>
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="./logos/aiworld.svg" class="logo" alt="AI World logo">
+            </a>
+        </div>
+    </div>
+
+    <script>
+
+        const LEGEND_MODE = (() => {
+            const v = new URLSearchParams(window.location.search).get('legend');
+            if (v === '0') return 0;
+            if (v === '2') return 2;
+            return 1;
+        })();
+
+        const SHOW_CONTAINER_2 = LEGEND_MODE === 0 ? 0 : 1;
+        const SHOW_CONTAINER_3 = 1;
+        const SHOW_CONTAINER_4 = 1;
+        const SHOW_CONTAINER_5 = 1;
+
+        (function applyContainerVisibility() {
+            const vizGrid = document.querySelector('.viz-grid');
+            const c1 = document.getElementById('container1');
+            const c2 = document.getElementById('container2');
+            const c3 = document.getElementById('container3');
+            const c4 = document.getElementById('container4');
+            const c5 = document.getElementById('container5');
+            const title = document.getElementById('title-container');
+            const subtitle = document.getElementById('subtitle-container');
+
+            if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+            if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+            if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+            if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+            const legendInSideColumn = LEGEND_MODE === 2 && SHOW_CONTAINER_2;
+            const row2Visible = SHOW_CONTAINER_5;
+            const row3Visible = SHOW_CONTAINER_2 && !legendInSideColumn;
+            const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+            let gridRows = ['1.6fr', '1fr'];
+            let currentRow = 3;
+            const footnoteRow = 1.3;
+            const chartHeight = 20 - (row2Visible ? footnoteRow : 0) - (row3Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+            gridRows.push(`${chartHeight}fr`);
+
+            if (title) title.style.gridRow = '1';
+            if (subtitle) subtitle.style.gridRow = '2';
+
+            const chartRow = 3;
+
+            if (row2Visible) { gridRows.push(`${footnoteRow}fr`); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+            if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+            if (row4Visible) {
+                gridRows.push('1fr'); currentRow++;
+                if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+                if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+                if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+                if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+            }
+
+            vizGrid.style.gridTemplateRows = gridRows.join(' ');
+
+            if (legendInSideColumn) {
+                vizGrid.style.gridTemplateColumns = 'minmax(0, 1fr) clamp(120px, 14vw, 200px)';
+                c1.style.gridRow = String(chartRow);
+                c1.style.gridColumn = '1';
+                c2.classList.add('legend-vertical');
+                c2.style.gridRow = String(chartRow);
+                c2.style.gridColumn = '2';
+                if (c4) c4.style.overflow = 'visible';
+            } else {
+                c1.style.gridRow = String(chartRow);
+                c1.style.gridColumn = '1 / span 2';
+            }
+        })();
+
+        const DATA_PATH = 'enterprise_viz_top15_cumulative_wide.csv';
+
+        // ?mode=0 (default) → % share of cumulative total. ?mode=1 → absolute cumulative counts.
+        const MODE = new URLSearchParams(window.location.search).get('mode') === '1' ? 1 : 0;
+        const CHART_TITLE = 'Which enterprises ship the most AI Agent code?';
+        const CHART_SUBTITLE = MODE === 1
+            ? 'Cumulative AI Agent Pull Requests across the top 15 enterprises'
+            : 'Share of cumulative AI Agent Pull Requests across the top 15 enterprises';
+        const CHART_FOOTNOTE = "* Cumulative count of pull requests authored by AI coding tools (Claude Code, Codex, Jules, Devin, Cursor, Cosine, Codegen, GitHub Copilot) within repositories owned by each enterprise organisation on GitHub.";
+        document.getElementById('title-text').textContent = CHART_TITLE;
+        document.getElementById('subtitle-text').textContent = CHART_SUBTITLE;
+        document.getElementById('footnote-text').textContent = CHART_FOOTNOTE;
+
+        const VIZ_CONTAINER_ID = 'viz';
+
+        // 15 enterprises stacked from largest (Microsoft) at the bottom to smallest at the top.
+        const STACK_KEYS = [
+            { key: 'microsoft', label: 'Microsoft', color: '#00A4EF' },
+            { key: 'openai', label: 'OpenAI', color: '#10A37F' },
+            { key: 'vercel', label: 'Vercel', color: '#0f172a' },
+            { key: 'google', label: 'Google', color: '#4285F4' },
+            { key: 'huggingface', label: 'Hugging Face', color: '#FF9D00' },
+            { key: 'facebook (+research)', label: 'Meta / FAIR', color: '#1877F2' },
+            { key: 'NVIDIA', label: 'NVIDIA', color: '#76b900' },
+            { key: 'github', label: 'GitHub', color: '#6e40c9' },
+            { key: 'tensorflow', label: 'TensorFlow', color: '#FF6F00' },
+            { key: 'alibaba', label: 'Alibaba', color: '#FF6A00' },
+            { key: 'hashicorp', label: 'HashiCorp', color: '#00CA8E' },
+            { key: 'airbnb', label: 'Airbnb', color: '#FF5A5F' },
+            { key: 'Tencent', label: 'Tencent', color: '#1AAD19' },
+            { key: 'deepseek-ai', label: 'DeepSeek', color: '#4D6BFE' },
+            { key: 'codecrafters-io', label: 'CodeCrafters', color: '#F76700' }
+        ];
+        const COLOR_BY_KEY = Object.fromEntries(STACK_KEYS.map(s => [s.key, s.color]));
+
+        const KEY_MOMENTS = [
+            { date: '2025-09-15', subtitle: 'GPT-5-Codex', logo: 'logos/gpt-5-codex.svg' },
+            { date: '2025-12-01', subtitle: 'Claude Co-authored Commits', logo: 'logos/claude-coauthored.png' },
+            { date: '2026-02-25', subtitle: 'GitHub Copilot CLI', logo: 'logos/github-copilot.png' }
+        ];
+
+        const numberFormatter = d3.format(',');
+        const percentFormatter = d3.format('.1%');
+        function shortFormatter(v) {
+            if (!isFinite(v)) return '';
+            if (Math.abs(v) >= 1e9) return d3.format('.1f')(v / 1e9) + 'B';
+            if (Math.abs(v) >= 1e6) return d3.format('.1f')(v / 1e6) + 'M';
+            if (Math.abs(v) >= 1e3) return d3.format('.1f')(v / 1e3).replace(/\.0$/, '') + 'k';
+            return d3.format(',')(v);
+        }
+
+        const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
+        const chartContainer = document.getElementById('container1');
+
+        const tooltipElement = document.createElement('div');
+        tooltipElement.className = 'chart-tooltip';
+        chartContainer.appendChild(tooltipElement);
+
+        let preparedRows = [];
+        let monthYears = [];
+
+        function hideTooltip() {
+            tooltipElement.style.opacity = 0;
+        }
+
+        function parseISODate(s) {
+            let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+            if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+            m = /^(\d{4})-(\d{2})$/.exec(s);
+            if (m) return new Date(Date.UTC(+m[1], +m[2] - 1, 1));
+            return null;
+        }
+
+        function parseCSVLine(line) {
+            const out = [];
+            let cur = '', inQ = false;
+            for (let i = 0; i < line.length; i++) {
+                const c = line[i];
+                if (inQ) {
+                    if (c === '"') {
+                        if (line[i + 1] === '"') { cur += '"'; i++; }
+                        else inQ = false;
+                    } else cur += c;
+                } else {
+                    if (c === ',') { out.push(cur); cur = ''; }
+                    else if (c === '"') inQ = true;
+                    else cur += c;
+                }
+            }
+            out.push(cur);
+            return out;
+        }
+
+        function loadMonthly(csvText) {
+            const lines = csvText.trim().split(/\r?\n/);
+            const header = parseCSVLine(lines[0]);
+            const idx = Object.fromEntries(header.map((h, i) => [h, i]));
+            const rows = [];
+            for (let i = 1; i < lines.length; i++) {
+                const r = parseCSVLine(lines[i]);
+                const monthStr = r[idx.month];
+                const date = parseISODate(monthStr);
+                if (!date) continue;
+                const row = { date };
+                let total = 0;
+                for (const s of STACK_KEYS) {
+                    const v = +r[idx[s.key]] || 0;
+                    row[s.key] = v;
+                    total += v;
+                }
+                row.total = total;
+                const safeDen = total || 1;
+                for (const s of STACK_KEYS) {
+                    row[`${s.key}__share`] = row[s.key] / safeDen;
+                }
+                rows.push(row);
+            }
+            rows.sort((a, b) => a.date - b.date);
+            const years = Array.from(new Set(rows.map(d => d.date.getUTCFullYear()))).sort();
+            return { rows, years: years.map(String) };
+        }
+
+        function buildLegend() {
+            const legend = document.getElementById('legend');
+            legend.innerHTML = '';
+            STACK_KEYS.slice().reverse().forEach(s => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+
+                const square = document.createElement('span');
+                square.className = 'legend-square';
+                square.style.background = s.color;
+
+                const label = document.createElement('span');
+                label.textContent = s.label;
+
+                item.append(square, label);
+                legend.appendChild(item);
+            });
+        }
+
+        function renderVisualization(data, width, height) {
+            if (!data.length || !vizContainer) return;
+
+            hideTooltip();
+            vizContainer.innerHTML = '';
+
+            const isSmallWindow = height < 500 || width < 600;
+            const margin = {
+                top: isSmallWindow ? 12 : 20,
+                right: 32,
+                bottom: isSmallWindow ? 44 : 78,
+                left: isSmallWindow ? 60 : 90
+            };
+            const innerWidth = Math.max(0, width - margin.left - margin.right);
+            const innerHeight = Math.max(0, height - margin.top - margin.bottom);
+
+            if (!innerWidth || !innerHeight) {
+                vizContainer.innerHTML = '<div class="empty-state">Not enough space to render the chart.</div>';
+                return;
+            }
+
+            const yearAxisFontSize = isSmallWindow
+                ? 12
+                : Math.max(16, Math.min(26, innerWidth * 0.03));
+
+            const svg = d3.select(vizContainer)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            const chartGroup = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            const momentDates = (KEY_MOMENTS || [])
+                .map(m => parseISODate(m.date))
+                .filter(Boolean);
+            const xMin = new Date(Math.min(data[0].date, ...momentDates));
+            const xMax = new Date(Math.max(data[data.length - 1].date, ...momentDates));
+
+            const x = d3.scaleUtc()
+                .domain([xMin, xMax])
+                .range([0, innerWidth]);
+
+            const topValueOf = MODE === 1 ? (d => d.total) : (d => 1);
+            const yMaxData = d3.max(data, topValueOf) || (MODE === 1 ? 1 : 1);
+            let yDomainMax;
+            let applyNice = false;
+            if (MODE === 1) {
+                yDomainMax = yMaxData * 1.1;
+                applyNice = true;
+            } else {
+                yDomainMax = 1;
+            }
+            const y = d3.scaleLinear()
+                .domain([0, yDomainMax])
+                .range([innerHeight, 0]);
+            if (applyNice) y.nice();
+
+            chartGroup.append('g')
+                .attr('class', 'y-grid')
+                .call(d3.axisLeft(y).ticks(5).tickSize(-innerWidth).tickFormat(''));
+
+            const stackKeyOf = MODE === 1 ? (s => s.key) : (s => `${s.key}__share`);
+            const stack = d3.stack().keys(STACK_KEYS.map(stackKeyOf));
+            const series = stack(data);
+
+            const area = d3.area()
+                .x(d => x(d.data.date))
+                .y0(d => y(d[0]))
+                .y1(d => y(d[1]))
+                .curve(d3.curveMonotoneX);
+
+            chartGroup.selectAll('path.stacked-area')
+                .data(series)
+                .join('path')
+                .attr('class', 'stacked-area')
+                .attr('fill', d => COLOR_BY_KEY[d.key.replace(/__share$/, '')])
+                .attr('opacity', 0.92)
+                .attr('d', area);
+
+            const topLine = chartGroup.append('path')
+                .datum(data)
+                .attr('fill', 'none')
+                .attr('stroke', 'none')
+                .attr('d', d3.line()
+                    .x(d => x(d.date))
+                    .y(d => y(topValueOf(d)))
+                    .curve(d3.curveMonotoneX)
+                );
+            const topLineNode = topLine.node();
+            const topLineLength = topLineNode.getTotalLength();
+            function yOnLineAtX(targetX) {
+                let lo = 0, hi = topLineLength;
+                for (let i = 0; i < 32; i++) {
+                    const mid = (lo + hi) / 2;
+                    const pt = topLineNode.getPointAtLength(mid);
+                    if (pt.x < targetX) lo = mid; else hi = mid;
+                }
+                return topLineNode.getPointAtLength((lo + hi) / 2).y;
+            }
+
+            monthYears.forEach(year => {
+                const yearStart = new Date(Date.UTC(parseInt(year), 0, 1));
+                if (yearStart > xMin && yearStart < xMax) {
+                    chartGroup.append('line')
+                        .attr('x1', x(yearStart))
+                        .attr('x2', x(yearStart))
+                        .attr('y1', 0)
+                        .attr('y2', innerHeight)
+                        .attr('stroke', 'rgba(15, 23, 42, 0.25)')
+                        .attr('stroke-dasharray', '4 4');
+                }
+            });
+
+            const xAxis = d3.axisBottom(x).ticks(0).tickFormat(() => '');
+            chartGroup.append('g')
+                .attr('class', 'x-axis')
+                .attr('transform', `translate(0,${innerHeight})`)
+                .call(xAxis);
+
+            const yearAxisLabelData = monthYears.map(year => {
+                const yearStart = new Date(Date.UTC(parseInt(year), 0, 1));
+                const yearEnd = new Date(Date.UTC(parseInt(year) + 1, 0, 1));
+                const start = yearStart < xMin ? xMin : yearStart;
+                const end = yearEnd > xMax ? xMax : yearEnd;
+                if (start >= end) return null;
+                const midTime = start.getTime() + (end.getTime() - start.getTime()) / 2;
+                return { year, x: x(new Date(midTime)) };
+            }).filter(Boolean);
+
+            const monthRowY = innerHeight + (isSmallWindow ? 14 : 18);
+            const yearRowY = innerHeight + (isSmallWindow ? 32 : 50);
+            const monthFormatter = d3.utcFormat('%b');
+
+            chartGroup.append('g')
+                .attr('class', 'quarter-axis-labels')
+                .selectAll('text')
+                .data(data)
+                .join('text')
+                .attr('class', 'quarter-axis-label')
+                .attr('x', d => x(d.date))
+                .attr('y', monthRowY)
+                .attr('text-anchor', 'middle')
+                .text(d => monthFormatter(d.date));
+
+            chartGroup.append('g')
+                .attr('class', 'year-axis-labels')
+                .selectAll('text')
+                .data(yearAxisLabelData)
+                .join('text')
+                .attr('class', 'year-axis-label')
+                .attr('x', d => d.x)
+                .attr('y', yearRowY)
+                .attr('text-anchor', 'middle')
+                .style('font-size', `${yearAxisFontSize}px`)
+                .text(d => d.year);
+
+            const yAxis = d3.axisLeft(y)
+                .ticks(Math.min(5, Math.floor(innerHeight / 90)))
+                .tickFormat(MODE === 1 ? shortFormatter : d3.format('.1%'));
+
+            chartGroup.append('g')
+                .attr('class', 'y-axis')
+                .call(yAxis);
+
+            if (!isSmallWindow) {
+                chartGroup.append('text')
+                    .attr('class', 'y-axis-label')
+                    .attr('transform', 'rotate(-90)')
+                    .attr('x', -innerHeight / 2)
+                    .attr('y', -margin.left + 24)
+                    .attr('text-anchor', 'middle')
+                    .text(MODE === 1 ? 'Cumulative PRs' : 'Share of cumulative PRs');
+            }
+
+            const focusLine = chartGroup.append('line')
+                .attr('class', 'focus-line')
+                .attr('y1', 0)
+                .attr('y2', innerHeight);
+
+            const bisectDate = d3.bisector(d => d.date).left;
+
+            if (KEY_MOMENTS && KEY_MOMENTS.length) {
+                const momentsGroup = chartGroup.append('g').attr('class', 'key-moments');
+                const momentDateFormatter = d3.utcFormat('%b %Y');
+                const parseISO = d3.utcParse('%Y-%m-%d');
+                const logoSize = Math.max(30, Math.min(50, innerHeight * 0.06));
+                const labelLineOffset = isSmallWindow ? 3 : 5;
+                const labelSubtitleOffset = isSmallWindow ? 13 : 18;
+
+                let defs = svg.select('defs');
+                if (defs.empty()) defs = svg.append('defs');
+
+                KEY_MOMENTS.forEach((moment, mIdx) => {
+                    const mDate = parseISO(moment.date);
+                    if (!mDate) return;
+
+                    const xPos = x(mDate);
+                    const yPosData = yOnLineAtX(xPos);
+                    const logoCenterY = yPosData / 2;
+
+                    momentsGroup.append('line')
+                        .attr('x1', xPos)
+                        .attr('x2', xPos)
+                        .attr('y1', logoCenterY + logoSize / 2)
+                        .attr('y2', innerHeight)
+                        .attr('stroke', '#0f172a')
+                        .attr('stroke-width', 1)
+                        .attr('stroke-dasharray', '2 2')
+                        .attr('opacity', 0.7);
+
+                    const clipId = `moment-clip-${mIdx}`;
+                    defs.append('clipPath')
+                        .attr('id', clipId)
+                        .append('circle')
+                        .attr('cx', logoSize / 2)
+                        .attr('cy', logoSize / 2)
+                        .attr('r', logoSize / 2);
+
+                    const logoGroup = momentsGroup.append('g')
+                        .attr('transform', `translate(${xPos}, ${logoCenterY})`);
+
+                    logoGroup.append('circle')
+                        .attr('cx', 0).attr('cy', 0)
+                        .attr('r', logoSize / 2)
+                        .attr('fill', '#ffffff');
+
+                    logoGroup.append('image')
+                        .attr('href', moment.logo)
+                        .attr('x', 0).attr('y', 0)
+                        .attr('width', logoSize)
+                        .attr('height', logoSize)
+                        .attr('transform', `translate(${-logoSize / 2}, ${-logoSize / 2})`)
+                        .attr('clip-path', `url(#${clipId})`)
+                        .attr('preserveAspectRatio', 'xMidYMid slice');
+
+                    logoGroup.append('circle')
+                        .attr('cx', 0).attr('cy', 0)
+                        .attr('r', logoSize / 2)
+                        .attr('fill', 'none')
+                        .attr('stroke', '#0f172a')
+                        .attr('stroke-width', 2);
+
+                    if (!isSmallWindow) {
+                        const annotation = logoGroup.append('g')
+                            .attr('transform', `translate(${-logoSize / 2 - 10}, 0)`);
+
+                        const dateText = annotation.append('text')
+                            .attr('x', 0).attr('y', 0)
+                            .attr('text-anchor', 'end')
+                            .style('font-size', 'clamp(10px, 1.6vh, 15px)')
+                            .attr('font-weight', '700')
+                            .attr('fill', '#0f172a')
+                            .text(momentDateFormatter(mDate));
+
+                        const textWidth = dateText.node().getComputedTextLength() || 100;
+
+                        annotation.append('line')
+                            .attr('x1', 0)
+                            .attr('x2', -textWidth)
+                            .attr('y1', labelLineOffset)
+                            .attr('y2', labelLineOffset)
+                            .attr('stroke', '#0f172a')
+                            .attr('stroke-width', 2);
+
+                        annotation.append('text')
+                            .attr('x', 0)
+                            .attr('y', labelSubtitleOffset)
+                            .attr('text-anchor', 'end')
+                            .style('font-size', 'clamp(8px, 1.3vh, 11px)')
+                            .attr('fill', '#475569')
+                            .text(moment.subtitle);
+                    }
+
+                    momentsGroup.append('circle')
+                        .attr('cx', xPos)
+                        .attr('cy', yPosData)
+                        .attr('r', 6)
+                        .attr('fill', '#0f172a')
+                        .attr('stroke', '#ffffff')
+                        .attr('stroke-width', 2);
+                });
+            }
+
+            const overlay = chartGroup.append('rect')
+                .attr('class', 'interaction-overlay')
+                .attr('width', innerWidth)
+                .attr('height', innerHeight)
+                .attr('fill', 'transparent');
+
+            overlay
+                .on('mousemove', function (event) {
+                    const [mx, my] = d3.pointer(event, this);
+                    if (mx < 0 || mx > innerWidth || my < 0 || my > innerHeight) {
+                        focusLine.style('opacity', 0);
+                        hideTooltip();
+                        return;
+                    }
+                    const hoveredDate = x.invert(mx);
+                    const index = Math.min(Math.max(bisectDate(data, hoveredDate), 1), data.length - 1);
+                    const d0 = data[index - 1];
+                    const d1 = data[index];
+                    const d = hoveredDate - d0.date > d1.date - hoveredDate ? d1 : d0;
+
+                    const xPos = x(d.date);
+
+                    focusLine
+                        .attr('x1', xPos)
+                        .attr('x2', xPos)
+                        .style('opacity', 1);
+
+                    const monthLabel = d3.utcFormat('%b %Y')(d.date);
+                    const total = d.total || 0;
+                    const ranked = STACK_KEYS.slice().sort((a, b) => (d[b.key] || 0) - (d[a.key] || 0));
+                    const rowsHtml = ranked.map(s => {
+                        const count = d[s.key] || 0;
+                        const share = total > 0 ? count / total : 0;
+                        const primary = MODE === 1 ? numberFormatter(count) : percentFormatter(share);
+                        const secondary = MODE === 1 ? percentFormatter(share) : numberFormatter(count);
+                        return `
+                            <div class="tooltip-row">
+                                <span class="label"><span class="swatch" style="background:${s.color}"></span>${s.label}</span>
+                                <span class="value">${primary} <span style="color:#94a3b8;font-weight:500">(${secondary})</span></span>
+                            </div>`;
+                    }).join('');
+
+                    tooltipElement.innerHTML = `
+                        <div class="tooltip-title">${monthLabel}</div>
+                        ${rowsHtml}
+                        <div class="tooltip-total">${numberFormatter(total)} cumulative AI-agent PRs</div>
+                    `;
+                    tooltipElement.style.opacity = 1;
+
+                    const tooltipWidth = tooltipElement.offsetWidth || 240;
+                    const tooltipHeight = tooltipElement.offsetHeight || 140;
+                    const containerWidth = vizContainer.clientWidth;
+                    const containerHeight = vizContainer.clientHeight;
+                    let left = margin.left + xPos + 16;
+                    if (left + tooltipWidth > containerWidth) {
+                        left = margin.left + xPos - tooltipWidth - 16;
+                    }
+                    left = Math.max(8, Math.min(containerWidth - tooltipWidth - 8, left));
+                    let top = margin.top + my - tooltipHeight - 12;
+                    if (top < 8) {
+                        top = margin.top + my + 12;
+                    }
+                    top = Math.max(8, Math.min(containerHeight - tooltipHeight - 8, top));
+                    tooltipElement.style.left = `${left}px`;
+                    tooltipElement.style.top = `${top}px`;
+                })
+                .on('mouseleave', function () {
+                    focusLine.style('opacity', 0);
+                    hideTooltip();
+                });
+        }
+
+        function renderVisualizationForContainer() {
+            if (!vizContainer || !preparedRows.length) return;
+            const rect = vizContainer.getBoundingClientRect();
+            renderVisualization(preparedRows, rect.width, rect.height);
+        }
+
+        function loadData() {
+            if (vizContainer) {
+                vizContainer.innerHTML = '<div class="loading-state">Loading…</div>';
+            }
+            fetch(DATA_PATH)
+                .then(r => r.text())
+                .then(text => {
+                    const result = loadMonthly(text);
+                    if (!result.rows.length) {
+                        vizContainer.innerHTML = '<div class="empty-state">No monthly data found.</div>';
+                        return;
+                    }
+                    preparedRows = result.rows;
+                    monthYears = result.years;
+                    buildLegend();
+                    renderVisualizationForContainer();
+                })
+                .catch(error => {
+                    console.error(error);
+                    if (vizContainer) {
+                        vizContainer.innerHTML = `<div class="error-state">Unable to load ${DATA_PATH}.</div>`;
+                    }
+                });
+        }
+
+        let resizeTimer;
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(renderVisualizationForContainer, 220);
+        });
+
+        if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+            const resizeObserver = new ResizeObserver(renderVisualizationForContainer);
+            resizeObserver.observe(vizContainer);
+        }
+
+        loadData();
+    </script>
+</body>
+
+</html>

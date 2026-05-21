@@ -10,33 +10,225 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
-        html {
-            background: #ffffff;
+        /* ─── BASE ────────────────────────────────────────────────────────────────── */
+
+        html,
+        body {
+            height: 100%;
         }
 
         body {
             margin: 0;
             overflow: hidden;
             height: 100vh;
-            font-family: "Inter", "Segoe UI", Arial, sans-serif;
-            background: #ffffff;
-            color: #1f2933;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        /* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 16fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
         }
 
         #container1 {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            padding: clamp(12px, 2vh, 24px);
-            box-sizing: border-box;
+            grid-row: 1;
+            grid-column: 1 / span 2;
             overflow: hidden;
-            background: #ffffff;
+            min-height: 0;
+            position: relative;
         }
+
+        #title-container {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-start;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .title-text {
+            font-size: clamp(22px, 4vh, 36px);
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        #subtitle-container {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .subtitle-text {
+            font-size: clamp(17px, 2.4vw, 24px);
+            font-weight: 500;
+            color: #475569;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #container5 {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .footnote-text {
+            font-size: clamp(8px, 1.2vw, 12px);
+            font-style: italic;
+            color: #333;
+            text-align: right;
+            white-space: normal;
+            overflow-wrap: break-word;
+            line-height: 1.3;
+            max-width: 100%;
+        }
+
+        #container3 {
+            grid-row: 3;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+            gap: clamp(6px, 1vw, 14px);
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .logo-collab {
+            font-size: clamp(12px, 1.6vw, 18px);
+            font-weight: 400;
+            color: #9ca3af;
+            line-height: 1;
+            user-select: none;
+        }
+
+        /* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
 
         #viz {
             width: 100%;
             height: 100%;
+            min-height: 0;
+            min-width: 0;
         }
+
+        /* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a,
+        .source-text a:visited {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: 100%;
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .logo.logo-github {
+            height: 90%;
+            max-height: 90%;
+        }
+
+        /* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr !important;
+                grid-template-columns: 1fr !important;
+                padding-bottom: 0;
+            }
+
+            #container1 {
+                grid-row: 1 !important;
+                grid-column: 1 !important;
+            }
+
+            #title-container,
+            #subtitle-container,
+            #container2,
+            #container3,
+            #container4,
+            #container5 {
+                display: none !important;
+            }
+
+            .source-text,
+            .logo {
+                display: none !important;
+            }
+        }
+
+        /* ─── CHART-SPECIFIC ──────────────────────────────────────────────────────── */
 
         .loading-state,
         .empty-state,
@@ -159,18 +351,107 @@
 </head>
 
 <body>
-    <div id="container1">
-        <div id="viz" role="img" aria-label="Monthly share of AI Agent PRs on GitHub, colored by year"></div>
+    <div class="viz-grid">
+        <div id="title-container">
+            <div class="title-text" id="title-text"></div>
+        </div>
+        <div id="subtitle-container">
+            <div class="subtitle-text" id="subtitle-text"></div>
+        </div>
+        <div id="container1" class="container viz-container">
+            <div id="viz" role="img" aria-label="Monthly share of AI Agent PRs on GitHub, colored by year"></div>
+        </div>
+        <div id="container5" class="container footnote-container">
+            <div class="footnote-text" id="footnote-text"></div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-text" id="source-text">Source: <a href="https://github.com/" target="_blank"
+                    rel="noopener">GitHub</a></div>
+        </div>
+        <div id="container4" class="container logo-container">
+            <a href="https://github.com" target="_blank" rel="noopener">
+                <img src="logos/GitHub.svg" class="logo logo-github" alt="GitHub logo">
+            </a>
+            <span class="logo-collab">×</span>
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+            </a>
+        </div>
     </div>
 
     <script>
-        const DATA_PATH = 'github.csv';
+        const SHOW_CONTAINER_2 = 0;
+        const SHOW_CONTAINER_3 = 1;
+        const SHOW_CONTAINER_4 = 1;
+        const SHOW_CONTAINER_5 = 1;
+
+        (function applyContainerVisibility() {
+            const vizGrid = document.querySelector('.viz-grid');
+            const c2 = document.getElementById('container2');
+            const c3 = document.getElementById('container3');
+            const c4 = document.getElementById('container4');
+            const c5 = document.getElementById('container5');
+            const title = document.getElementById('title-container');
+            const subtitle = document.getElementById('subtitle-container');
+
+            if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+            if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+            if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+            if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+            const row2Visible = SHOW_CONTAINER_5;
+            const row3Visible = SHOW_CONTAINER_2;
+            const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+            let gridRows = ['1.6fr', '1fr'];
+            let currentRow = 3;
+            const footnoteRow = 1.3;
+            const chartHeight = 20 - (row2Visible ? footnoteRow : 0) - (row3Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+            gridRows.push(`${chartHeight}fr`);
+
+            if (title) title.style.gridRow = '1';
+            if (subtitle) subtitle.style.gridRow = '2';
+
+            if (row2Visible) { gridRows.push(`${footnoteRow}fr`); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+            if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+            if (row4Visible) {
+                gridRows.push('1fr'); currentRow++;
+                if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+                if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+                if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+                if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+            }
+
+            vizGrid.style.gridTemplateRows = gridRows.join(' ');
+            document.getElementById('container1').style.gridRow = '3';
+        })();
+
+        const DATA_VERSION = (() => {
+            const v = new URLSearchParams(window.location.search).get('v');
+            return v && /^\d+$/.test(v) ? parseInt(v, 10) : null;
+        })();
+        const DATA_PATH = DATA_VERSION ? `github_v${DATA_VERSION}.csv` : 'github.csv';
+        const CHART_TITLE = DATA_VERSION === 2
+            ? 'How much code is written by AI Agents?'
+            : 'How much code is written by AI Agents?';
+        const CHART_SUBTITLE = DATA_VERSION === 2
+            ? 'Share of AI Agent Pull Requests among Top GitHub Repos'
+            : 'Share of AI Agent Pull Requests among Top AI GitHub Repos';
+        const CHART_FOOTNOTE = DATA_VERSION === 2
+            ? "* AI agent written code corresponds to a pull request authored by one of eight AI coding tool repositories: Claude Code, Codex, Jules, Devin, Cursor, Cosine, Codegen, or GitHub Copilot - identified by author name or branch name. All repos correspond to the full OpenSSF's top 1 million most widely used open-source projects."
+            : "* AI Agent written code corresponds to a pull request authored by one of eight AI coding tool repositories: Claude Code, Codex, Jules, Devin, Cursor, Cosine, Codegen, or GitHub Copilot - identified by author name or branch name. AI repos correspond to AI-related projects from OpenSSF's top 1 million most widely used open-source projects.";
+        document.getElementById('title-text').textContent = CHART_TITLE;
+        document.getElementById('subtitle-text').textContent = CHART_SUBTITLE;
+        document.getElementById('footnote-text').textContent = CHART_FOOTNOTE;
+        const Y_MAX_V2 = 8;
+        const Y_MAX_DEFAULT = 9.5;
         const VIZ_CONTAINER_ID = 'viz';
-        const COLOR_PALETTE = ['#5BB5C1', '#4A94C3', '#3F75CC', '#3355CB', '#4A48D4', '#6654DB', '#8A60E0'];
+        const COLOR_PALETTE = ['#264653', '#2a9d8f', '#3F75CC', '#3355CB', '#4A48D4', '#6654DB', '#8A60E0'];
 
         const KEY_MOMENTS = [
             { date: '2025-09-15', subtitle: 'GPT-5-Codex', logo: 'logos/gpt-5-codex.svg' },
-            { date: '2025-12-01', subtitle: 'Claude Co-authored Commits', logo: 'logos/claude-coauthored.png' }
+            { date: '2025-12-01', subtitle: 'Claude Co-authored Commits', logo: 'logos/claude-coauthored.png' },
+            { date: '2026-02-25', subtitle: 'GitHub Copilot CLI', logo: 'logos/github-copilot.png' }
         ];
 
         const numberFormatter = d3.format(',');
@@ -250,7 +531,7 @@
 
             const isSmallWindow = height < 500 || width < 600;
             const margin = {
-                top: isSmallWindow ? 36 : 60,
+                top: isSmallWindow ? 12 : 20,
                 right: 32,
                 bottom: isSmallWindow ? 44 : 78,
                 left: isSmallWindow ? 60 : 90
@@ -285,15 +566,18 @@
                 .domain([xMin, xMax])
                 .range([0, innerWidth]);
 
+            const dataMax = d3.max(data, d => d.share);
+            const yDomainMax = DATA_VERSION === 2
+                ? Math.max(dataMax, Y_MAX_V2)
+                : Y_MAX_DEFAULT;
             const y = d3.scaleLinear()
-                .domain([0, d3.max(data, d => d.share)]).nice()
+                .domain([0, yDomainMax]).nice()
                 .range([innerHeight, 0]);
 
             chartGroup.append('g')
                 .attr('class', 'y-grid')
                 .call(d3.axisLeft(y).tickSize(-innerWidth).tickFormat(''));
 
-            // Year-tinted gradient: each year segment of the area uses a different palette color.
             const gradientId = 'year-gradient';
             const defs = svg.append('defs');
             const gradient = defs.append('linearGradient')
@@ -380,7 +664,6 @@
                 return { year, x: x(new Date(midTime)) };
             }).filter(Boolean);
 
-            // Two-row x-axis: quarters (Q1..Q4) on top, years below.
             const monthRowY = innerHeight + (isSmallWindow ? 14 : 18);
             const yearRowY = innerHeight + (isSmallWindow ? 32 : 50);
             const monthFormatter = d3.utcFormat('%b');
@@ -423,15 +706,8 @@
                     .attr('x', -innerHeight / 2)
                     .attr('y', -margin.left + 24)
                     .attr('text-anchor', 'middle')
-                    .text('Share (%)');
+                    .text('Share of Pull Requests');
             }
-
-            svg.append('text')
-                .attr('class', 'chart-title')
-                .attr('x', margin.left)
-                .attr('y', isSmallWindow ? 24 : 38)
-                .attr('text-anchor', 'start')
-                .text('Share of AI Agent PRs among AI-related GitHub repos');
 
             const focusLine = chartGroup.append('line')
                 .attr('class', 'focus-line')
@@ -648,7 +924,7 @@
                 .catch(error => {
                     console.error(error);
                     if (vizContainer) {
-                        vizContainer.innerHTML = '<div class="error-state">Unable to load github.csv.</div>';
+                        vizContainer.innerHTML = `<div class="error-state">Unable to load ${DATA_PATH}.</div>`;
                     }
                 });
         }
