@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Matrix · Companies × Training hardware</title>
+<link rel="stylesheet" href="shared.css" />
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  #chart svg { width: 100%; height: 620px; background: var(--panel); border: 1px solid var(--grid); border-radius: 10px; }
+  .col-label { font-size: 11px; }
+  .row-label { font-size: 12px; font-weight: 600; }
+  .cell-marker { cursor: pointer; }
+  .cell-marker:hover { stroke-width: 2.5; }
+  .row-total, .col-total { font-size: 11px; fill: var(--muted); font-weight: 600; }
+  .group-block-co { fill: var(--cn-bg); }
+  .group-block-us { fill: var(--us-bg); }
+  .group-divider { stroke: var(--grid); }
+  .group-tag {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav">
+    <a href="../" class="home">CEPS · Chips</a>
+    <span style="color:var(--muted)">/</span>
+    <a href="./">desk research</a>
+    <span class="spacer"></span>
+    <a href="sankey.html">Sankey</a>
+    <a href="network.html">Network</a>
+    <a href="matrix.html" class="active">Matrix</a>
+  </div>
+
+  <h1>Companies × Training hardware</h1>
+  <p class="sub">
+    Dense view of the same data. Rows grouped by HQ country (Chinese labs top, US labs below), columns grouped by chip-designer country.
+    Cell markers encode evidence: filled dot = confirmed, open dot = alleged / rumored, dash = historical or undisclosed. Margin counts
+    show how concentrated each row (lab) and column (chip platform) is.
+  </p>
+
+  <div id="chart"></div>
+
+  <div class="legend">
+    <div class="group">
+      <span class="group-title">Cell marker</span>
+      <span class="item">
+        <svg width="14" height="14" style="vertical-align:middle"><circle cx="7" cy="7" r="5" fill="#374151"/></svg>
+        confirmed
+      </span>
+      <span class="item">
+        <svg width="14" height="14" style="vertical-align:middle"><circle cx="7" cy="7" r="5" fill="none" stroke="#a16207" stroke-width="1.6"/></svg>
+        alleged / rumored
+      </span>
+      <span class="item">
+        <svg width="14" height="14" style="vertical-align:middle"><line x1="2" y1="7" x2="12" y2="7" stroke="#9ca3af" stroke-width="2"/></svg>
+        historical / undisclosed
+      </span>
+    </div>
+    <div class="group">
+      <span class="group-title">Backgrounds</span>
+      <span class="item"><span class="swatch" style="background:var(--cn-bg);border:1px solid var(--cn)"></span>Chinese row/col</span>
+      <span class="item"><span class="swatch" style="background:var(--us-bg);border:1px solid var(--us)"></span>US row/col</span>
+    </div>
+  </div>
+
+  <p class="source-note">Source: CEPS AI World desk research (2026). Hover a cell for the verbatim reported claim.</p>
+</div>
+
+<div class="tooltip" id="tt"></div>
+
+<script src="data.js"></script>
+<script>
+const COLOR = { US: "#2563eb", CN: "#dc2626", "?": "#9ca3af" };
+const STATUS = {
+  confirmed:   { type: "filled", color: "#1a2540" },
+  alleged:     { type: "open",   color: "#a16207" },
+  rumored:     { type: "open",   color: "#a16207" },
+  historical:  { type: "dash",   color: "#6b7280" },
+  undisclosed: { type: "dash",   color: "#9ca3af" }
+};
+
+function render() {
+  const container = d3.select("#chart");
+  container.selectAll("svg").remove();
+  const W = container.node().clientWidth;
+  const H = 620;
+  const margin = { top: 150, right: 80, bottom: 30, left: 200 };
+
+  const svg = container.append("svg").attr("viewBox", `0 0 ${W} ${H}`);
+
+  // sort: CN companies first, then US; alpha within
+  const cos = [...DATA.companies].sort((a,b) => {
+    if (a.country !== b.country) return a.country === "CN" ? -1 : 1;
+    return a.label.localeCompare(b.label);
+  });
+  // hardware: CN first then US then ?
+  const hws = [...DATA.hardware].sort((a,b) => {
+    const order = { CN: 0, US: 1, "?": 2 };
+    if (a.country !== b.country) return order[a.country] - order[b.country];
+    return a.label.localeCompare(b.label);
+  });
+
+  const innerW = W - margin.left - margin.right;
+  const innerH = H - margin.top - margin.bottom;
+  const cellW = innerW / hws.length;
+  const cellH = innerH / cos.length;
+
+  const x = i => margin.left + i * cellW + cellW/2;
+  const y = i => margin.top + i * cellH + cellH/2;
+
+  // group backgrounds
+  const cnRows = cos.filter(c => c.country === "CN").length;
+  const cnCols = hws.filter(h => h.country === "CN").length;
+  const usCols = hws.filter(h => h.country === "US").length;
+
+  // CN row band
+  svg.append("rect")
+    .attr("class","group-block-co")
+    .attr("x", margin.left).attr("y", margin.top)
+    .attr("width", innerW).attr("height", cnRows * cellH)
+    .attr("opacity", 0.5);
+  // CN column band
+  svg.append("rect")
+    .attr("class","group-block-co")
+    .attr("x", margin.left).attr("y", margin.top)
+    .attr("width", cnCols * cellW).attr("height", innerH)
+    .attr("opacity", 0.35);
+  // US row band
+  svg.append("rect")
+    .attr("class","group-block-us")
+    .attr("x", margin.left).attr("y", margin.top + cnRows * cellH)
+    .attr("width", innerW).attr("height", (cos.length - cnRows) * cellH)
+    .attr("opacity", 0.5);
+  // US column band
+  svg.append("rect")
+    .attr("class","group-block-us")
+    .attr("x", margin.left + cnCols * cellW).attr("y", margin.top)
+    .attr("width", usCols * cellW).attr("height", innerH)
+    .attr("opacity", 0.35);
+
+  // gridlines
+  for (let i = 0; i <= hws.length; i++) {
+    svg.append("line")
+      .attr("class","group-divider")
+      .attr("x1", margin.left + i*cellW).attr("x2", margin.left + i*cellW)
+      .attr("y1", margin.top).attr("y2", margin.top + innerH);
+  }
+  for (let i = 0; i <= cos.length; i++) {
+    svg.append("line")
+      .attr("class","group-divider")
+      .attr("x1", margin.left).attr("x2", margin.left + innerW)
+      .attr("y1", margin.top + i*cellH).attr("y2", margin.top + i*cellH);
+  }
+  // thicker group dividers
+  svg.append("line")
+    .attr("x1", margin.left).attr("x2", margin.left + innerW)
+    .attr("y1", margin.top + cnRows*cellH).attr("y2", margin.top + cnRows*cellH)
+    .attr("stroke","#1a2540").attr("stroke-width", 1.4);
+  svg.append("line")
+    .attr("y1", margin.top).attr("y2", margin.top + innerH)
+    .attr("x1", margin.left + cnCols*cellW).attr("x2", margin.left + cnCols*cellW)
+    .attr("stroke","#1a2540").attr("stroke-width", 1.4);
+  svg.append("line")
+    .attr("y1", margin.top).attr("y2", margin.top + innerH)
+    .attr("x1", margin.left + (cnCols + usCols)*cellW).attr("x2", margin.left + (cnCols + usCols)*cellW)
+    .attr("stroke","#1a2540").attr("stroke-width", 1.4);
+
+  // column labels (rotated)
+  svg.append("g").selectAll("text")
+    .data(hws).join("text")
+      .attr("class","col-label")
+      .attr("x", (d,i) => x(i))
+      .attr("y", margin.top - 10)
+      .attr("text-anchor","start")
+      .attr("transform", (d,i) => `rotate(-40, ${x(i)}, ${margin.top - 10})`)
+      .attr("fill", d => COLOR[d.country])
+      .style("font-weight", 600)
+      .text(d => d.label);
+
+  // row labels
+  svg.append("g").selectAll("text")
+    .data(cos).join("text")
+      .attr("class","row-label")
+      .attr("x", margin.left - 10)
+      .attr("y", (d,i) => y(i) + 4)
+      .attr("text-anchor","end")
+      .attr("fill", d => COLOR[d.country])
+      .text(d => d.label);
+
+  // group tags
+  svg.append("text")
+    .attr("class","group-tag").attr("fill", "var(--cn)")
+    .attr("x", margin.left - 10).attr("y", margin.top - 130).text("Chinese labs");
+  svg.append("text")
+    .attr("class","group-tag").attr("fill", "var(--us)")
+    .attr("x", margin.left - 10).attr("y", margin.top + cnRows*cellH + 14).text("US labs");
+
+  // cell markers
+  const cellLookup = new Map();
+  DATA.links.forEach(l => {
+    cellLookup.set(`${l.source}::${l.target}`, l);
+  });
+
+  cos.forEach((c, ci) => {
+    hws.forEach((h, hi) => {
+      const l = cellLookup.get(`${c.id}::${h.id}`);
+      if (!l) return;
+      const s = STATUS[l.status];
+      const cx = x(hi), cy = y(ci);
+      const r = Math.min(cellW, cellH) * 0.28;
+      let mark;
+      if (s.type === "filled") {
+        mark = svg.append("circle")
+          .attr("cx", cx).attr("cy", cy).attr("r", r)
+          .attr("fill", s.color);
+      } else if (s.type === "open") {
+        mark = svg.append("circle")
+          .attr("cx", cx).attr("cy", cy).attr("r", r)
+          .attr("fill", "none")
+          .attr("stroke", s.color)
+          .attr("stroke-width", 1.8);
+      } else {
+        mark = svg.append("line")
+          .attr("x1", cx - r).attr("x2", cx + r)
+          .attr("y1", cy).attr("y2", cy)
+          .attr("stroke", s.color)
+          .attr("stroke-width", 2.4);
+      }
+      mark.attr("class","cell-marker")
+        .datum({ link: l, co: c, hw: h })
+        .on("mouseenter", (event, d) => {
+          tt.style("opacity", 1).html(`
+            <strong>${d.co.label}</strong> → <strong>${d.hw.label}</strong><br>
+            <span class="pill ${d.link.status}">${d.link.status}</span>
+            <span class="row">${d.link.note}</span>
+          `);
+        })
+        .on("mousemove", event => tt.style("left", (event.pageX + 12) + "px").style("top", (event.pageY + 12) + "px"))
+        .on("mouseleave", () => tt.style("opacity", 0));
+    });
+  });
+
+  // row totals (right)
+  const rowTotals = cos.map(c => DATA.links.filter(l => l.source === c.id).length);
+  svg.append("g").selectAll("text")
+    .data(rowTotals).join("text")
+      .attr("class","row-total")
+      .attr("x", margin.left + innerW + 14)
+      .attr("y", (d,i) => y(i) + 4)
+      .text(d => d);
+  svg.append("text")
+    .attr("class","group-tag")
+    .attr("fill", "var(--muted)")
+    .attr("x", margin.left + innerW + 14)
+    .attr("y", margin.top - 10)
+    .text("# sources");
+
+  // col totals (bottom)
+  const colTotals = hws.map(h => DATA.links.filter(l => l.target === h.id).length);
+  svg.append("g").selectAll("text")
+    .data(colTotals).join("text")
+      .attr("class","col-total")
+      .attr("x", (d,i) => x(i))
+      .attr("y", margin.top + innerH + 16)
+      .attr("text-anchor","middle")
+      .text(d => d);
+  svg.append("text")
+    .attr("class","group-tag")
+    .attr("fill", "var(--muted)")
+    .attr("x", margin.left - 10)
+    .attr("y", margin.top + innerH + 16)
+    .attr("text-anchor","end")
+    .text("# users");
+
+  const tt = d3.select("#tt");
+}
+
+render();
+window.addEventListener("resize", render);
+</script>
+</body>
+</html>

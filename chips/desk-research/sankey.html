@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sankey · Who trains on whose chips?</title>
+<link rel="stylesheet" href="shared.css" />
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+<style>
+  #chart svg { width: 100%; height: 700px; background: var(--panel); border: 1px solid var(--grid); border-radius: 10px; }
+  .node-rect { stroke: rgba(0,0,0,0.15); stroke-width: 0.5; cursor: pointer; }
+  .node-label { font-size: 12px; fill: var(--ink); pointer-events: none; }
+  .node-label.country { font-size: 10px; fill: var(--muted); }
+  .link { fill: none; transition: opacity 0.15s; }
+  .link.dim { opacity: 0.08 !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav">
+    <a href="../" class="home">CEPS · Chips</a>
+    <span style="color:var(--muted)">/</span>
+    <a href="./">desk research</a>
+    <span class="spacer"></span>
+    <a href="sankey.html" class="active">Sankey</a>
+    <a href="network.html">Network</a>
+    <a href="matrix.html">Matrix</a>
+  </div>
+
+  <h1>Who trains on whose chips?</h1>
+  <p class="sub">
+    Training-hardware dependencies of the world's leading frontier AI labs. Each company on the left flows into the chip
+    platform(s) used to train its current models. Colors mark the country of the company (left) and the chip designer (right).
+    Lines that <em>cross the diagonal</em> are the geopolitically interesting ones — Chinese labs still buying NVIDIA, or US labs
+    using non-NVIDIA silicon.
+  </p>
+
+  <div id="chart"></div>
+
+  <div class="legend">
+    <div class="group">
+      <span class="group-title">Country</span>
+      <span class="item"><span class="swatch us"></span>United States</span>
+      <span class="item"><span class="swatch cn"></span>China</span>
+      <span class="item"><span class="swatch gray"></span>Undisclosed</span>
+    </div>
+    <div class="group">
+      <span class="group-title">Evidence</span>
+      <span class="item"><span class="line"></span>confirmed</span>
+      <span class="item"><span class="line dashed"></span>alleged / rumored</span>
+      <span class="item"><span class="line dotted"></span>historical / undisclosed</span>
+    </div>
+  </div>
+
+  <p class="source-note">Source: CEPS AI World desk research (2026), based on company statements and press reporting. Link opacity ≠ training compute share; line widths weight all flows equally.</p>
+</div>
+
+<div class="tooltip" id="tt"></div>
+
+<script src="data.js"></script>
+<script>
+const COLOR = {
+  US: "#2563eb",
+  CN: "#dc2626",
+  "?": "#9ca3af"
+};
+const STATUS = {
+  confirmed:   { opacity: 0.55, dash: null    },
+  alleged:     { opacity: 0.40, dash: "6 4"  },
+  rumored:     { opacity: 0.32, dash: "6 4"  },
+  historical:  { opacity: 0.25, dash: "2 4"  },
+  undisclosed: { opacity: 0.22, dash: "2 4"  }
+};
+
+function render() {
+  const container = d3.select("#chart");
+  container.selectAll("svg").remove();
+  const W = container.node().clientWidth;
+  const H = 700;
+  const margin = { top: 18, right: 220, bottom: 18, left: 160 };
+
+  const svg = container.append("svg")
+    .attr("viewBox", `0 0 ${W} ${H}`);
+
+  // nodes: prefix to avoid id collision (companies vs hardware can share names in theory)
+  const nodes = [
+    ...DATA.companies.map(c => ({ id: "c:" + c.id, name: c.name, label: c.label, country: c.country, side: "co" })),
+    ...DATA.hardware.map(h  => ({ id: "h:" + h.id, name: h.name, label: h.label, country: h.country, side: "hw" }))
+  ];
+  const idx = new Map(nodes.map((n,i) => [n.id, i]));
+
+  const links = DATA.links.map(l => ({
+    source: idx.get("c:" + l.source),
+    target: idx.get("h:" + l.target),
+    value: 1,
+    status: l.status,
+    note: l.note,
+    src: DATA.companies.find(c => c.id === l.source),
+    dst: DATA.hardware.find(h => h.id === l.target)
+  }));
+
+  const sankey = d3.sankey()
+    .nodeWidth(14)
+    .nodePadding(10)
+    .nodeAlign(d3.sankeyJustify)
+    .extent([[margin.left, margin.top], [W - margin.right, H - margin.bottom]]);
+
+  const graph = sankey({
+    nodes: nodes.map(d => Object.assign({}, d)),
+    links: links.map(d => Object.assign({}, d))
+  });
+
+  // gradient defs for blended-country links
+  const defs = svg.append("defs");
+  graph.links.forEach((l, i) => {
+    const grad = defs.append("linearGradient")
+      .attr("id", "grad-" + i)
+      .attr("gradientUnits", "userSpaceOnUse")
+      .attr("x1", l.source.x1).attr("x2", l.target.x0);
+    grad.append("stop").attr("offset", "0%").attr("stop-color", COLOR[l.source.country]);
+    grad.append("stop").attr("offset", "100%").attr("stop-color", COLOR[l.target.country]);
+  });
+
+  // links
+  const linkSel = svg.append("g")
+    .selectAll("path")
+    .data(graph.links)
+    .join("path")
+      .attr("class", "link")
+      .attr("d", d3.sankeyLinkHorizontal())
+      .attr("stroke", (d,i) => `url(#grad-${i})`)
+      .attr("stroke-width", d => Math.max(8, d.width))
+      .attr("stroke-dasharray", d => STATUS[d.status].dash)
+      .attr("opacity", d => STATUS[d.status].opacity);
+
+  // nodes
+  const nodeG = svg.append("g")
+    .selectAll("g")
+    .data(graph.nodes)
+    .join("g");
+
+  nodeG.append("rect")
+    .attr("class","node-rect")
+    .attr("x", d => d.x0)
+    .attr("y", d => d.y0)
+    .attr("width", d => d.x1 - d.x0)
+    .attr("height", d => Math.max(2, d.y1 - d.y0))
+    .attr("fill", d => COLOR[d.country]);
+
+  // company labels (left)
+  nodeG.filter(d => d.side === "co")
+    .append("text")
+      .attr("class","node-label")
+      .attr("x", d => d.x0 - 8)
+      .attr("y", d => (d.y0 + d.y1) / 2)
+      .attr("text-anchor","end")
+      .attr("dy","0.32em")
+      .text(d => d.label)
+      .attr("fill", d => COLOR[d.country])
+      .style("font-weight", 600);
+
+  // hardware labels (right) — main name on top line, kind subtitle
+  const hwLabel = nodeG.filter(d => d.side === "hw")
+    .append("text")
+      .attr("class","node-label")
+      .attr("x", d => d.x1 + 8)
+      .attr("y", d => (d.y0 + d.y1) / 2)
+      .attr("dy","-0.1em");
+  hwLabel.append("tspan")
+    .text(d => d.label)
+    .attr("fill", d => COLOR[d.country])
+    .style("font-weight", 600);
+  hwLabel.append("tspan")
+    .attr("class","country")
+    .attr("x", d => d.x1 + 8)
+    .attr("dy","1.25em")
+    .text(d => d.country === "?" ? "undisclosed" : (d.country === "US" ? "🇺🇸 " : "🇨🇳 ") + (DATA.hardware.find(h => "h:" + h.id === d.id)?.kind ?? ""));
+
+  // tooltip + hover dimming
+  const tt = d3.select("#tt");
+  linkSel
+    .on("mouseenter", (event, d) => {
+      linkSel.classed("dim", x => x !== d);
+      tt.style("opacity", 1).html(`
+        <strong>${d.src.label}</strong> → <strong>${d.dst.label}</strong><br>
+        <span class="pill ${d.status}">${d.status}</span>
+        <span class="row">${d.note}</span>
+      `);
+    })
+    .on("mousemove", event => {
+      tt.style("left", (event.pageX + 12) + "px").style("top", (event.pageY + 12) + "px");
+    })
+    .on("mouseleave", () => {
+      linkSel.classed("dim", false);
+      tt.style("opacity", 0);
+    });
+}
+
+render();
+window.addEventListener("resize", render);
+</script>
+</body>
+</html>

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Network · Training-hardware supply graph</title>
+<link rel="stylesheet" href="shared.css" />
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  #chart svg { width: 100%; height: 760px; background: var(--panel); border: 1px solid var(--grid); border-radius: 10px; }
+  .node circle { cursor: pointer; transition: r 0.15s; }
+  .node circle:hover { stroke-width: 3; }
+  .node text { font-size: 13px; pointer-events: none; font-weight: 600; }
+  .col-title {
+    font-size: 11px;
+    fill: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+  }
+  .edge { fill: none; transition: opacity 0.15s; }
+  .edge.dim { opacity: 0.08 !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav">
+    <a href="../" class="home">CEPS · Chips</a>
+    <span style="color:var(--muted)">/</span>
+    <a href="./">desk research</a>
+    <span class="spacer"></span>
+    <a href="sankey.html">Sankey</a>
+    <a href="network.html" class="active">Network</a>
+    <a href="matrix.html">Matrix</a>
+  </div>
+
+  <h1>Training-hardware supply graph</h1>
+  <p class="sub">
+    Bipartite view: every frontier lab is a labelled node on the left, every training chip platform on the right.
+    Node size encodes how many counterparties depend on (or are depended on by) it — NVIDIA blows everything else out
+    of the water. Edge style encodes evidence: solid for confirmed, dashed for alleged/rumored, dotted for historical or undisclosed.
+  </p>
+
+  <div id="chart"></div>
+
+  <div class="legend">
+    <div class="group">
+      <span class="group-title">Country</span>
+      <span class="item"><span class="swatch us"></span>United States</span>
+      <span class="item"><span class="swatch cn"></span>China</span>
+      <span class="item"><span class="swatch gray"></span>Undisclosed</span>
+    </div>
+    <div class="group">
+      <span class="group-title">Evidence</span>
+      <span class="item"><span class="line"></span>confirmed</span>
+      <span class="item"><span class="line dashed"></span>alleged / rumored</span>
+      <span class="item"><span class="line dotted"></span>historical / undisclosed</span>
+    </div>
+    <div class="group">
+      <span class="group-title">Node size</span>
+      <span class="item">∝ degree (# of training-hardware relationships)</span>
+    </div>
+  </div>
+
+  <p class="source-note">Source: CEPS AI World desk research (2026). Hover any node or edge for the specific reported relationship.</p>
+</div>
+
+<div class="tooltip" id="tt"></div>
+
+<script src="data.js"></script>
+<script>
+const COLOR = { US: "#2563eb", CN: "#dc2626", "?": "#9ca3af" };
+const STATUS = {
+  confirmed:   { opacity: 0.80, dash: null,   color: "#374151" },
+  alleged:     { opacity: 0.65, dash: "6 4", color: "#a16207" },
+  rumored:     { opacity: 0.55, dash: "6 4", color: "#a16207" },
+  historical:  { opacity: 0.45, dash: "2 4", color: "#6b7280" },
+  undisclosed: { opacity: 0.40, dash: "2 4", color: "#9ca3af" }
+};
+
+function render() {
+  const container = d3.select("#chart");
+  container.selectAll("svg").remove();
+  const W = container.node().clientWidth;
+  const H = 760;
+  const margin = { top: 50, right: 40, bottom: 28, left: 40 };
+
+  const svg = container.append("svg").attr("viewBox", `0 0 ${W} ${H}`);
+
+  // degree counts → node size
+  const deg = new Map();
+  DATA.links.forEach(l => {
+    deg.set("c:" + l.source, (deg.get("c:" + l.source) ?? 0) + 1);
+    deg.set("h:" + l.target, (deg.get("h:" + l.target) ?? 0) + 1);
+  });
+
+  // columns
+  const colCoX = margin.left + 200;
+  const colHwX = W - margin.right - 200;
+
+  // sort companies: CN first (top), then US; alphabetical within
+  const cos = [...DATA.companies].sort((a,b) => {
+    if (a.country !== b.country) return a.country === "CN" ? -1 : 1;
+    return a.label.localeCompare(b.label);
+  });
+  const hws = [...DATA.hardware].sort((a,b) => {
+    if (a.country !== b.country) return a.country === "CN" ? 1 : (a.country === "?" ? 1 : -1);
+    return a.label.localeCompare(b.label);
+  });
+
+  // Force NVIDIA to a central-ish position by sorting US-first
+  const nh = hws.length;
+  const yStartHw = margin.top + 12;
+  const yStepHw = (H - yStartHw - margin.bottom - 12) / (nh - 1);
+  const hwPos = new Map(hws.map((h,i) => [h.id, { x: colHwX, y: yStartHw + i * yStepHw }]));
+
+  const nc = cos.length;
+  const yStartCo = margin.top + 12;
+  const yStepCo = (H - yStartCo - margin.bottom - 12) / (nc - 1);
+  const coPos = new Map(cos.map((c,i) => [c.id, { x: colCoX, y: yStartCo + i * yStepCo }]));
+
+  // column headers
+  svg.append("text").attr("class","col-title").attr("x", colCoX).attr("y", 26).attr("text-anchor","middle").text("AI labs (by HQ country)");
+  svg.append("text").attr("class","col-title").attr("x", colHwX).attr("y", 26).attr("text-anchor","middle").text("Training-chip platforms");
+
+  // edges as curved Beziers
+  const edges = DATA.links.map(l => {
+    const a = coPos.get(l.source), b = hwPos.get(l.target);
+    const mx = (a.x + b.x) / 2;
+    return {
+      ...l,
+      d: `M${a.x + 30},${a.y} C${mx},${a.y} ${mx},${b.y} ${b.x - 30},${b.y}`,
+      src: DATA.companies.find(c => c.id === l.source),
+      dst: DATA.hardware.find(h => h.id === l.target)
+    };
+  });
+
+  const edgeSel = svg.append("g").selectAll("path")
+    .data(edges)
+    .join("path")
+      .attr("class","edge")
+      .attr("d", d => d.d)
+      .attr("stroke", d => STATUS[d.status].color)
+      .attr("stroke-width", 1.5)
+      .attr("stroke-dasharray", d => STATUS[d.status].dash)
+      .attr("opacity", d => STATUS[d.status].opacity);
+
+  // company nodes (left)
+  const coG = svg.append("g").selectAll("g")
+    .data(cos)
+    .join("g")
+      .attr("class","node")
+      .attr("transform", d => `translate(${coPos.get(d.id).x}, ${coPos.get(d.id).y})`);
+
+  coG.append("circle")
+    .attr("r", d => 8 + Math.sqrt(deg.get("c:" + d.id) ?? 1) * 3)
+    .attr("fill", d => COLOR[d.country])
+    .attr("opacity", 0.85)
+    .attr("stroke", "#fff")
+    .attr("stroke-width", 2);
+
+  coG.append("text")
+    .attr("x", -16)
+    .attr("y", 4)
+    .attr("text-anchor","end")
+    .attr("fill", d => COLOR[d.country])
+    .text(d => d.label);
+
+  // hardware nodes (right)
+  const hwG = svg.append("g").selectAll("g")
+    .data(hws)
+    .join("g")
+      .attr("class","node")
+      .attr("transform", d => `translate(${hwPos.get(d.id).x}, ${hwPos.get(d.id).y})`);
+
+  hwG.append("circle")
+    .attr("r", d => 8 + Math.sqrt(deg.get("h:" + d.id) ?? 1) * 3)
+    .attr("fill", d => COLOR[d.country])
+    .attr("opacity", 0.85)
+    .attr("stroke", "#fff")
+    .attr("stroke-width", 2);
+
+  hwG.append("text")
+    .attr("x", 16)
+    .attr("y", 4)
+    .attr("fill", d => COLOR[d.country])
+    .text(d => d.label);
+
+  // interactions
+  const tt = d3.select("#tt");
+  edgeSel
+    .on("mouseenter", (event, d) => {
+      edgeSel.classed("dim", x => x !== d);
+      tt.style("opacity", 1).html(`
+        <strong>${d.src.label}</strong> → <strong>${d.dst.label}</strong><br>
+        <span class="pill ${d.status}">${d.status}</span>
+        <span class="row">${d.note}</span>
+      `);
+    })
+    .on("mousemove", event => {
+      tt.style("left", (event.pageX + 12) + "px").style("top", (event.pageY + 12) + "px");
+    })
+    .on("mouseleave", () => {
+      edgeSel.classed("dim", false);
+      tt.style("opacity", 0);
+    });
+
+  // hover nodes → highlight all edges they touch
+  function hoverNode(prefix) {
+    return function(event, d) {
+      edgeSel.classed("dim", e => {
+        return prefix === "c"
+          ? e.source !== d.id
+          : e.target !== d.id;
+      });
+      const related = edges.filter(e => prefix === "c" ? e.source === d.id : e.target === d.id);
+      tt.style("opacity", 1).html(`
+        <strong>${d.label}</strong> <span class="row">(${d.country === "?" ? "undisclosed" : d.country})</span><br>
+        <span class="row">${related.length} relationship${related.length===1?"":"s"}:</span><br>
+        ${related.map(e => `<span class="pill ${e.status}">${e.status}</span> ${prefix==="c"? e.dst.label : e.src.label}`).join("<br>")}
+      `);
+    };
+  }
+  coG.on("mouseenter", hoverNode("c"))
+     .on("mousemove", event => tt.style("left", (event.pageX + 12) + "px").style("top", (event.pageY + 12) + "px"))
+     .on("mouseleave", () => { edgeSel.classed("dim", false); tt.style("opacity", 0); });
+  hwG.on("mouseenter", hoverNode("h"))
+     .on("mousemove", event => tt.style("left", (event.pageX + 12) + "px").style("top", (event.pageY + 12) + "px"))
+     .on("mouseleave", () => { edgeSel.classed("dim", false); tt.style("opacity", 0); });
+}
+
+render();
+window.addEventListener("resize", render);
+</script>
+</body>
+</html>
