@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>AI labs training-chip platforms</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* ─── BASE ────────────────────────────────────────────────────────────────── */
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        /* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 16fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+            position: relative;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #container3 {
+            grid-row: 3;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+            gap: clamp(6px, 1vw, 14px);
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: default;
+            flex-shrink: 0;
+        }
+
+        /* ─── TITLE + SUBTITLE ────────────────────────────────────────────────────── */
+
+        #title-container {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-start;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .title-text {
+            font-size: clamp(20px, 3.4vh, 30px);
+            font-weight: 700;
+            color: #0f172a;
+            line-height: 1.1;
+            max-width: 100%;
+        }
+
+        #subtitle-container {
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 0 clamp(12px, 2vw, 24px);
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        .subtitle-text {
+            font-size: clamp(13px, 1.7vw, 17px);
+            font-weight: 500;
+            color: #475569;
+            line-height: 1.25;
+            max-width: 100%;
+        }
+
+        /* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
+
+        #viz {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        #chart {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ─── BIPARTITE NODES + LINKS ─────────────────────────────────────────────── */
+
+        .col-header {
+            font-size: clamp(10px, 1.2vw, 14px);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            fill: #64748b;
+        }
+
+        .node-label {
+            font-size: clamp(10px, 1.1vw, 14px);
+            font-weight: 600;
+            pointer-events: auto;
+            cursor: default;
+        }
+
+        .node-circle {
+            stroke: #fff;
+            stroke-width: 1.5;
+            cursor: default;
+            transition: opacity 0.2s ease;
+        }
+
+        .link {
+            fill: none;
+            stroke: #1e293b;
+            stroke-opacity: 0.55;
+            stroke-dasharray: 1.4 4;
+            stroke-linecap: round;
+            transition: stroke-opacity 0.2s ease, stroke-width 0.2s ease;
+            pointer-events: stroke;
+            cursor: default;
+        }
+
+        /* highlighted edge (opacity is driven by inline style for transition compatibility) */
+        .link.highlighted {
+            stroke-opacity: 0.95;
+            stroke-width: 2.6;
+        }
+
+        /* ─── LEGEND (custom rows) ────────────────────────────────────────────────── */
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1vw, 14px);
+            background: rgba(255, 255, 255, 1);
+            padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+            border-radius: clamp(6px, 1vw, 12px);
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(0.625rem, 1.4vw, 1rem);
+            color: #334155;
+        }
+
+        .legend-block {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 8px);
+        }
+
+        .legend-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(2px, 0.6vh, 6px);
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 10px);
+            flex-wrap: wrap;
+        }
+
+        .legend-block .label-strong {
+            font-weight: 700;
+            color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-size: clamp(9px, 0.95vw, 12px);
+        }
+
+        .legend-dot {
+            width: clamp(8px, 0.9vw, 12px);
+            height: clamp(8px, 0.9vw, 12px);
+            border-radius: 0;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        .legend-line {
+            display: inline-block;
+            width: 24px;
+            height: 0;
+            border-top: 2px solid #1e293b;
+        }
+
+        .legend-line.dashed { border-top-style: dashed; }
+        .legend-line.dotted { border-top-style: dotted; }
+
+        .legend-sep {
+            width: 1px;
+            height: 32px;
+            background: #cbd5e1;
+            align-self: center;
+        }
+
+        .legend-item.filter {
+            cursor: pointer;
+            user-select: none;
+            padding: 3px 7px;
+            border-radius: 6px;
+            transition: background 0.15s ease, opacity 0.15s ease;
+        }
+        .legend-item.filter:hover { background: rgba(15,23,42,0.05); }
+        .legend-item.filter.off   { opacity: 0.32; }
+        .legend-item.filter.off .legend-dot { filter: grayscale(1); }
+
+        /* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .source-text a:visited {
+            color: #2756d3;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* ─── TOOLTIP ─────────────────────────────────────────────────────────────── */
+
+        #tooltip {
+            position: fixed;
+            pointer-events: none;
+            background: #ffffff;
+            color: #0f172a;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1.45;
+            opacity: 0;
+            transition: opacity 0.12s ease;
+            z-index: 50;
+            max-width: 280px;
+        }
+
+        #tooltip b { color: #0f172a; }
+        #tooltip .muted { color: #64748b; }
+        #tooltip .meta  { color: #94a3b8; font-size: 11px; }
+
+        /* ─── LOAD / EMPTY / ERROR STATES ─────────────────────────────────────────── */
+
+        .loading-state, .empty-state, .error-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(13px, 1.5vw, 16px);
+            color: #475569;
+            width: 100%;
+            height: 100%;
+        }
+
+        .error-state { color: #b91c1c; }
+
+        /* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr !important;
+                grid-template-columns: 1fr !important;
+                padding-bottom: 0;
+            }
+
+            #container1 { grid-row: 1 !important; grid-column: 1 !important; }
+
+            #title-container, #subtitle-container, #container2, #container3, #container4 {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1">
+            <div id="viz">
+                <svg id="chart" role="img" aria-label="Bipartite link diagram: AI labs to training-chip platforms"></svg>
+            </div>
+            <div id="tooltip"></div>
+        </div>
+
+        <div id="container2">
+            <div class="legend" id="legend"></div>
+        </div>
+
+        <div id="container3">
+            <div class="source-text">
+                Source:&nbsp;<a href="https://huggingface.co/models" target="_blank" rel="noopener">Hugging Face</a>
+                &nbsp;/&nbsp;<a href="https://aiworld.eu/" target="_blank" rel="noopener">AI World</a>
+            </div>
+        </div>
+
+        <div id="container4">
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // ─── Config ─────────────────────────────────────────────────────────────────
+        const SHOW_TITLES      = 0;
+        const SHOW_CONTAINER_2 = 1;
+        const SHOW_CONTAINER_3 = 1;
+        const SHOW_CONTAINER_4 = 1;
+
+        const DATA_URL = "bumpchart_data.json";
+
+        const COUNTRY_COLORS = {
+            'US':          '#2756d3',
+            'China':       '#E53229',
+            'EU':          '#f59e0b',
+            'Undisclosed': '#94a3b8',
+        };
+
+        const EVIDENCE_RULE = {
+            'confirmed':  { className: 'confirmed',  dash: null,     label: 'confirmed' },
+            'alleged':    { className: 'alleged',    dash: '7 5',    label: 'alleged / inferred' },
+            'historical': { className: 'historical', dash: '1 4',    label: 'historical / weak' },
+        };
+
+        // ─── Grid visibility IIFE ──────────────────────────────────────────────────
+        (function applyContainerVisibility() {
+            const vizGrid = document.querySelector('.viz-grid');
+            const c1 = document.getElementById('container1');
+            const c2 = document.getElementById('container2');
+            const c3 = document.getElementById('container3');
+            const c4 = document.getElementById('container4');
+            const title = document.getElementById('title-container');
+            const subtitle = document.getElementById('subtitle-container');
+
+            if (!SHOW_TITLES) { if (title) title.style.display = 'none'; if (subtitle) subtitle.style.display = 'none'; }
+            if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+            if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+            if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+
+            const row3Visible = SHOW_CONTAINER_2;
+            const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+            let gridRows = SHOW_TITLES ? ['1.4fr', '1fr'] : [];
+            let currentRow = SHOW_TITLES ? 3 : 1;
+            const chartRow = currentRow;
+
+            const reservedRows = (row3Visible ? 1 : 0) + (row4Visible ? 1 : 0);
+            const chartHeight = 18 - reservedRows;
+            gridRows.push(`${chartHeight}fr`);
+
+            if (SHOW_TITLES) {
+                if (title) title.style.gridRow = '1';
+                if (subtitle) subtitle.style.gridRow = '2';
+            }
+            c1.style.gridRow = String(chartRow);
+            c1.style.gridColumn = '1 / span 2';
+
+            if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+            if (row4Visible) {
+                gridRows.push('1fr'); currentRow++;
+                if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+                if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+                if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+                if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+            }
+
+            vizGrid.style.gridTemplateRows = gridRows.join(' ');
+        })();
+
+        // ─── Data load ──────────────────────────────────────────────────────────────
+        const vizContainer = document.getElementById('viz');
+        const tooltip = d3.select('#tooltip');
+        let dataset = null;
+
+        // Filter / hover state
+        const activeCountries = new Set();
+        let _hover = { type: null, value: null };
+
+        vizContainer.innerHTML = '<div class="loading-state">Loading…</div>';
+        fetch(DATA_URL)
+            .then(r => { if (!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.json(); })
+            .then(raw => {
+                if (!raw || !raw.labs || !raw.labs.length) {
+                    vizContainer.innerHTML = '<div class="empty-state">No data found.</div>';
+                    return;
+                }
+                dataset = raw;
+                // Initialise filter state: only lab countries (chips are never filtered)
+                dataset.labs.forEach(l => activeCountries.add(l.country));
+                vizContainer.innerHTML = '<svg id="chart" role="img" aria-label="Bipartite link diagram: AI labs to training-chip platforms"></svg>';
+                buildLegend();
+                render();
+            })
+            .catch(err => {
+                console.error(err);
+                vizContainer.innerHTML = `<div class="error-state">Unable to load data: ${err.message}</div>`;
+            });
+
+        // ─── Legend (country filter toggles) ────────────────────────────────────────
+        function buildLegend() {
+            const root = d3.select('#legend');
+            root.selectAll('*').remove();
+
+            const countrySection = root.append('div').attr('class', 'legend-section');
+            countrySection.append('span').attr('class', 'label-strong').text('Country');
+            const countryRow = countrySection.append('div').attr('class', 'legend-row');
+
+            // Only lab countries — chip platforms are never filtered
+            const countriesInUse = Array.from(new Set(dataset.labs.map(l => l.country)));
+            const order = ['US', 'China', 'EU', 'Undisclosed'];
+            countriesInUse.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+            const labelMap = { 'US': 'United States', 'China': 'China', 'EU': 'EU', 'Undisclosed': 'Undisclosed' };
+
+            countriesInUse.forEach(c => {
+                const item = countryRow.append('span')
+                    .attr('class', 'legend-block legend-item filter')
+                    .attr('role', 'button').attr('tabindex', 0)
+                    .attr('data-country', c)
+                    .on('click', () => toggleCountry(c))
+                    .on('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggleCountry(c); } });
+                item.append('span').attr('class', 'legend-dot').style('background', COUNTRY_COLORS[c] || '#888');
+                item.append('span').text(labelMap[c] || c);
+            });
+        }
+
+        function toggleCountry(c) {
+            if (activeCountries.has(c)) { if (activeCountries.size > 1) activeCountries.delete(c); }
+            else activeCountries.add(c);
+            syncLegendState();
+            applyDisplayState(true);
+        }
+        function syncLegendState() {
+            d3.selectAll('.legend-item.filter[data-country]').classed('off', function () {
+                return !activeCountries.has(this.getAttribute('data-country'));
+            });
+        }
+
+        // Shared link path generator (used both at draw time and during re-layout)
+        function linkPath(src, dst) {
+            const x0 = src._x, y0 = src._y, x1 = dst._x, y1 = dst._y;
+            const mx = (x0 + x1) / 2;
+            return `M${x0},${y0} C${mx},${y0} ${mx},${y1} ${x1},${y1}`;
+        }
+
+        // ─── Render ─────────────────────────────────────────────────────────────────
+        function render() {
+            const svg = d3.select('#chart');
+            svg.selectAll('*').remove();
+
+            const rect = vizContainer.getBoundingClientRect();
+            const width  = Math.max(640, rect.width);
+            const height = Math.max(360, rect.height);
+
+            svg.attr('viewBox', `0 0 ${width} ${height}`)
+               .attr('preserveAspectRatio', 'xMidYMid meet');
+
+            const labs  = dataset.labs;
+            const chips = dataset.chips;
+            const edges = dataset.edges;
+
+            // Layout: column x-positions
+            const leftLabelPad  = 16;
+            const longestLabName  = d3.max(labs,  l => l.name.length) || 12;
+            const longestChipName = d3.max(chips, c => c.name.length) || 12;
+            const labLabelWidth   = Math.min(220, longestLabName  * 7.4 + 18);
+            const chipLabelWidth  = Math.min(260, longestChipName * 8.2 + 24);
+
+            // Separate radius scales: chip nodes get a much larger max
+            // so platform weight is visually dominant.
+            const maxLabModels  = d3.max(labs,  l => l.models) || 1;
+            const maxChipModels = d3.max(chips, c => c.models) || 1;
+            const labR  = d3.scaleSqrt().domain([0, maxLabModels]).range([3.2, 16]);
+            const chipR = d3.scaleSqrt().domain([0, maxChipModels]).range([8, 57]);
+            const maxChipR = chipR(maxChipModels);
+
+            const colHeaderY = 32;
+            // Reserve room so the biggest chip circle clears the header / floor.
+            // The circle's top must be below the header text baseline + buffer:
+            //   topPad - maxChipR >= colHeaderY + 18
+            const topPad    = Math.max(colHeaderY + 34, maxChipR + colHeaderY + 18);
+            const bottomPad = Math.max(28, maxChipR + 16);
+
+            // Right column sits close to the right edge: just enough room for
+            // the largest chip circle + the chip label + a small margin.
+            const rightEdgePad = 12;
+            const leftColX  = labLabelWidth + leftLabelPad + 14;
+            const rightColX = width - chipLabelWidth - maxChipR - rightEdgePad - 4;
+
+            // Vertical positions for *currently visible* labs/chips
+            // (chips are never filtered, so they always get full layout)
+            const labVisible0  = d => activeCountries.has(d.country);
+            const initialLabs  = labs.filter(labVisible0);
+            const initialChips = chips.slice();
+            const vRange = height - topPad - bottomPad;
+            const initLabStep  = vRange / Math.max(initialLabs.length  - 1, 1);
+            const initChipStep = vRange / Math.max(initialChips.length - 1, 1);
+
+            labs.forEach(l  => { l._x = leftColX; });
+            chips.forEach(c => { c._x = rightColX; });
+            initialLabs.forEach((l, i)  => { l._y = initialLabs.length  > 1 ? topPad + i * initLabStep  : (topPad + height - bottomPad) / 2; });
+            initialChips.forEach((c, i) => { c._y = initialChips.length > 1 ? topPad + i * initChipStep : (topPad + height - bottomPad) / 2; });
+            // Hidden labs get a fallback position so transitions don't jump from undefined
+            labs.filter(l => !labVisible0(l)).forEach(l => { if (l._y == null) l._y = topPad + vRange / 2; });
+
+            // Column headers
+            svg.append('text')
+                .attr('class', 'col-header')
+                .attr('x', rightEdgePad)
+                .attr('y', colHeaderY)
+                .attr('text-anchor', 'start')
+                .text('AI LABS (BY HQ COUNTRY)');
+
+            svg.append('text')
+                .attr('class', 'col-header')
+                .attr('x', width - rightEdgePad)
+                .attr('y', colHeaderY)
+                .attr('text-anchor', 'end')
+                .text('TRAINING-CHIP PLATFORMS');
+
+            // Lookup maps
+            const labByName = new Map(labs.map(l => [l.name, l]));
+            const chipById  = new Map(chips.map(c => [c.id, c]));
+
+            // ── Links group (drawn first so nodes sit on top) ─────────────────
+            const linksG = svg.append('g').attr('class', 'links');
+
+            // Order edges so dotted/dashed render under solid for cleaner overlap
+            const evOrder = { 'historical': 0, 'alleged': 1, 'confirmed': 2 };
+            const sortedEdges = edges
+                .filter(e => labByName.has(e.lab) && chipById.has(e.chip))
+                .sort((a, b) => (evOrder[a.evidence] || 0) - (evOrder[b.evidence] || 0));
+
+            const links = linksG.selectAll('path')
+                .data(sortedEdges)
+                .enter().append('path')
+                .attr('class', d => `link ${d.evidence}`)
+                .attr('stroke', d => {
+                    const lab = labByName.get(d.lab);
+                    return COUNTRY_COLORS[lab.country] || '#1e293b';
+                })
+                .attr('stroke-width', d => {
+                    // Edge weight: log-ish on count
+                    return Math.max(0.7, Math.min(3.2, 0.6 + Math.log2(d.count + 1) * 0.6));
+                })
+                .attr('d', d => linkPath(labByName.get(d.lab), chipById.get(d.chip)))
+                .on('mouseenter', (ev, d) => {
+                    highlightEdge(d);
+                    showTooltip(ev,
+                        `<b>${d.lab}</b> &rarr; <b>${chipById.get(d.chip).name}</b><br>` +
+                        `<span style="color:#64748b">${d.count} model${d.count === 1 ? '' : 's'} · ${EVIDENCE_RULE[d.evidence].label}</span><br>` +
+                        `<span style="color:#94a3b8;font-size:11px;">avg confidence ${d.avg_confidence}</span>`
+                    );
+                })
+                .on('mousemove', moveTooltip)
+                .on('mouseleave', () => { clearHighlight(); hideTooltip(); });
+
+            // ── Node groups ───────────────────────────────────────────────────
+            const labG = svg.append('g').attr('class', 'lab-nodes')
+                .selectAll('g')
+                .data(labs)
+                .enter().append('g')
+                .attr('class', 'lab-node')
+                .attr('transform', d => `translate(${d._x},${d._y})`)
+                .on('mouseenter', (ev, d) => {
+                    highlightLab(d.name);
+                    const conn = edges.filter(e => e.lab === d.name);
+                    const lines = conn.map(e => `&nbsp;&nbsp;→ ${chipById.get(e.chip)?.name || e.chip} (${e.count})`).join('<br>');
+                    showTooltip(ev,
+                        `<b>${d.name}</b> &nbsp;<span style="color:#64748b">${d.country}</span><br>` +
+                        `<span style="color:#94a3b8;font-size:11px;">${d.models} models / ${d.degree} chip link${d.degree === 1 ? '' : 's'}</span><br>${lines}`
+                    );
+                })
+                .on('mousemove', moveTooltip)
+                .on('mouseleave', () => { clearHighlight(); hideTooltip(); });
+
+            labG.append('circle')
+                .attr('class', 'node-circle')
+                .attr('r', d => labR(d.models))
+                .attr('fill', d => COUNTRY_COLORS[d.country] || '#94a3b8');
+
+            labG.append('text')
+                .attr('class', 'node-label')
+                .attr('x', d => -(labR(d.models) + 8))
+                .attr('y', 0)
+                .attr('dy', '0.35em')
+                .attr('text-anchor', 'end')
+                .attr('fill', d => COUNTRY_COLORS[d.country] || '#0f172a')
+                .text(d => d.name);
+
+            const chipG = svg.append('g').attr('class', 'chip-nodes')
+                .selectAll('g')
+                .data(chips)
+                .enter().append('g')
+                .attr('class', 'chip-node')
+                .attr('transform', d => `translate(${d._x},${d._y})`)
+                .on('mouseenter', (ev, d) => {
+                    highlightChip(d.id);
+                    const conn = edges.filter(e => e.chip === d.id)
+                                      .sort((a,b) => b.count - a.count)
+                                      .slice(0, 8);
+                    const lines = conn.map(e => `&nbsp;&nbsp;← ${e.lab} (${e.count})`).join('<br>');
+                    const more = edges.filter(e => e.chip === d.id).length - conn.length;
+                    showTooltip(ev,
+                        `<b>${d.name}</b> &nbsp;<span style="color:#64748b">${d.country}</span><br>` +
+                        `<span style="color:#94a3b8;font-size:11px;">${d.models} models · ${d.degree} lab link${d.degree === 1 ? '' : 's'}</span><br>${lines}` +
+                        (more > 0 ? `<br><span style="color:#94a3b8;font-size:11px;">+ ${more} more</span>` : '')
+                    );
+                })
+                .on('mousemove', moveTooltip)
+                .on('mouseleave', () => { clearHighlight(); hideTooltip(); });
+
+            chipG.append('circle')
+                .attr('class', 'node-circle')
+                .attr('r', d => chipR(d.models))
+                .attr('fill', d => COUNTRY_COLORS[d.country] || '#94a3b8');
+
+            chipG.append('text')
+                .attr('class', 'node-label')
+                .attr('x', d => chipR(d.models) + 10)
+                .attr('y', 0)
+                .attr('dy', '0.35em')
+                .attr('text-anchor', 'start')
+                .attr('fill', d => COUNTRY_COLORS[d.country] || '#0f172a')
+                .text(d => d.name);
+
+            // Expose elements + layout so applyDisplayState can re-position and
+            // transition them when filters change.
+            window._chartElements = {
+                links, labG, chipG,
+                dims: { topPad, bottomPad, height, leftColX, rightColX },
+            };
+
+            // Run once to set initial opacity / pointer-events based on filter state
+            applyDisplayState(false);
+        }
+
+        // ─── Unified display state (filter + hover) ─────────────────────────────────
+        function highlightLab(name)   { _hover = { type: 'lab',  value: name }; applyDisplayState(false); }
+        function highlightChip(id)    { _hover = { type: 'chip', value: id   }; applyDisplayState(false); }
+        function highlightEdge(edge)  { _hover = { type: 'edge', value: edge }; applyDisplayState(false); }
+        function clearHighlight()     { _hover = { type: null,  value: null }; applyDisplayState(false); }
+
+        function applyDisplayState(animate) {
+            if (!window._chartElements || !dataset) return;
+            const { links, labG, chipG, dims } = window._chartElements;
+            const { topPad, bottomPad, height } = dims;
+
+            const labByName = new Map(dataset.labs.map(l => [l.name, l]));
+            const chipById  = new Map(dataset.chips.map(c => [c.id, c]));
+
+            const labVisible  = d => activeCountries.has(d.country);
+            const chipVisible = _ => true;
+            const edgeVisible = e => {
+                const lab = labByName.get(e.lab);
+                return !!lab && labVisible(lab);
+            };
+
+            // Hover-driven dim
+            const isLabDim = d => {
+                if (!labVisible(d)) return false;
+                if (_hover.type === 'lab')  return d.name !== _hover.value;
+                if (_hover.type === 'chip') return !dataset.edges.some(e => e.chip === _hover.value && e.lab === d.name);
+                if (_hover.type === 'edge') return d.name !== _hover.value.lab;
+                return false;
+            };
+            const isChipDim = d => {
+                if (!chipVisible(d)) return false;
+                if (_hover.type === 'lab')  return !dataset.edges.some(e => e.lab === _hover.value && e.chip === d.id);
+                if (_hover.type === 'chip') return d.id !== _hover.value;
+                if (_hover.type === 'edge') return d.id !== _hover.value.chip;
+                return false;
+            };
+            const isEdgeDim = e => {
+                if (!edgeVisible(e)) return false;
+                if (_hover.type === 'lab')  return e.lab !== _hover.value;
+                if (_hover.type === 'chip') return e.chip !== _hover.value;
+                if (_hover.type === 'edge') return !(e.lab === _hover.value.lab && e.chip === _hover.value.chip);
+                return false;
+            };
+            const isEdgeHL = e => {
+                if (!edgeVisible(e)) return false;
+                if (_hover.type === 'lab')  return e.lab === _hover.value;
+                if (_hover.type === 'chip') return e.chip === _hover.value;
+                if (_hover.type === 'edge') return e.lab === _hover.value.lab && e.chip === _hover.value.chip;
+                return false;
+            };
+
+            // Re-layout: visible nodes get evenly distributed; hidden keep last
+            // known _y so they fade out from where they were.
+            const visibleLabs  = dataset.labs.filter(labVisible);
+            const visibleChips = dataset.chips.filter(chipVisible);
+            const vRange = height - topPad - bottomPad;
+            const labYStep  = vRange / Math.max(visibleLabs.length  - 1, 1);
+            const chipYStep = vRange / Math.max(visibleChips.length - 1, 1);
+            visibleLabs.forEach((l, i) => {
+                l._y = visibleLabs.length  > 1 ? topPad + i * labYStep  : topPad + vRange / 2;
+            });
+            visibleChips.forEach((c, i) => {
+                c._y = visibleChips.length > 1 ? topPad + i * chipYStep : topPad + vRange / 2;
+            });
+
+            const dur = animate ? 480 : 0;
+            const ease = d3.easeCubicInOut;
+
+            labG.transition().duration(dur).ease(ease)
+                .attr('transform', d => `translate(${d._x},${d._y})`)
+                .style('opacity', d => !labVisible(d) ? 0 : (isLabDim(d) ? 0.12 : 1))
+                .style('pointer-events', d => labVisible(d) ? null : 'none');
+
+            chipG.transition().duration(dur).ease(ease)
+                .attr('transform', d => `translate(${d._x},${d._y})`)
+                .style('opacity', d => !chipVisible(d) ? 0 : (isChipDim(d) ? 0.12 : 1))
+                .style('pointer-events', d => chipVisible(d) ? null : 'none');
+
+            links.transition().duration(dur).ease(ease)
+                .attr('d', e => linkPath(labByName.get(e.lab), chipById.get(e.chip)))
+                .style('opacity', e => !edgeVisible(e) ? 0 : (isEdgeDim(e) ? 0.12 : 1))
+                .style('pointer-events', e => edgeVisible(e) ? null : 'none');
+
+            links.classed('highlighted', isEdgeHL);
+        }
+
+        // ─── Tooltip helpers ────────────────────────────────────────────────────────
+        function showTooltip(event, html) {
+            tooltip.html(html).style('opacity', 1);
+            moveTooltip(event);
+        }
+        function moveTooltip(event) {
+            const node = tooltip.node();
+            const w = node.offsetWidth  || 200;
+            const h = node.offsetHeight || 60;
+            let left = event.clientX + 14;
+            let top  = event.clientY - 8;
+            if (left + w + 8 > window.innerWidth)  left = event.clientX - w - 14;
+            if (top  + h + 8 > window.innerHeight) top  = event.clientY - h - 14;
+            tooltip.style('left', `${left}px`).style('top', `${top}px`);
+        }
+        function hideTooltip() {
+            tooltip.style('opacity', 0);
+        }
+
+        // ─── Resize ─────────────────────────────────────────────────────────────────
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => { if (dataset) render(); }, 150);
+        });
+        if (typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(() => { if (dataset) render(); }).observe(vizContainer);
+        }
+    </script>
+</body>
+
+</html>

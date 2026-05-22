@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>AI labs ↔ training-chip platforms (curated)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        /* ─── BASE ────────────────────────────────────────────────────────────────── */
+        html, body { height: 100%; }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        /* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 16fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+            position: relative;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #container3 {
+            grid-row: 3;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+            gap: clamp(6px, 1vw, 14px);
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        /* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
+        #viz {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        #chart {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* ─── BIPARTITE NODES + LINKS ─────────────────────────────────────────────── */
+        .col-header {
+            font-size: clamp(10px, 1.2vw, 14px);
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            fill: #64748b;
+        }
+
+        .node-label {
+            font-size: clamp(10px, 1.1vw, 14px);
+            font-weight: 600;
+            pointer-events: auto;
+            cursor: default;
+        }
+
+        .node-circle {
+            stroke: #fff;
+            stroke-width: 1.5;
+            cursor: default;
+            transition: opacity 0.2s ease;
+        }
+
+        .link {
+            fill: none;
+            stroke-opacity: 0.7;
+            stroke-linecap: round;
+            transition: stroke-opacity 0.2s ease, stroke-width 0.2s ease;
+            pointer-events: stroke;
+            cursor: default;
+        }
+
+        .link.alleged    { stroke-dasharray: 8 5; }
+        .link.historical { stroke-dasharray: 1.4 4; stroke-opacity: 0.55; }
+
+        .link.highlighted {
+            stroke-opacity: 1;
+            stroke-width: 3;
+        }
+
+        /* ─── LEGEND / FILTERS ────────────────────────────────────────────────────── */
+        .legend {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1vw, 14px);
+            background: rgba(255, 255, 255, 1);
+            padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+            border-radius: clamp(6px, 1vw, 12px);
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(0.625rem, 1.4vw, 1rem);
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        .legend-block {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 8px);
+        }
+
+        .legend-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: clamp(2px, 0.6vh, 6px);
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 10px);
+            flex-wrap: wrap;
+        }
+
+        .legend-block .label-strong {
+            font-weight: 700;
+            color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-size: clamp(9px, 0.95vw, 12px);
+        }
+
+        .legend-dot {
+            width: clamp(8px, 0.9vw, 12px);
+            height: clamp(8px, 0.9vw, 12px);
+            border-radius: 0;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        .legend-line {
+            display: inline-block;
+            width: 24px;
+            height: 0;
+            border-top: 2px solid #1e293b;
+        }
+
+        .legend-line.dashed { border-top-style: dashed; }
+        .legend-line.dotted { border-top-style: dotted; }
+
+        .legend-sep {
+            width: 1px;
+            height: 32px;
+            background: #cbd5e1;
+            align-self: center;
+        }
+
+        .legend-item.filter {
+            cursor: pointer;
+            user-select: none;
+            padding: 3px 7px;
+            border-radius: 6px;
+            transition: background 0.15s ease, opacity 0.15s ease;
+        }
+        .legend-item.filter:hover { background: rgba(15,23,42,0.05); }
+        .legend-item.filter.off   { opacity: 0.32; }
+        .legend-item.filter.off .legend-dot,
+        .legend-item.filter.off .legend-line { filter: grayscale(1); }
+
+        /* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .source-text a:visited {
+            color: #2756d3;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* ─── TOOLTIP ─────────────────────────────────────────────────────────────── */
+        #tooltip {
+            position: fixed;
+            pointer-events: none;
+            background: #ffffff;
+            color: #0f172a;
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1.45;
+            opacity: 0;
+            transition: opacity 0.12s ease;
+            z-index: 50;
+            max-width: 280px;
+        }
+
+        #tooltip b { color: #0f172a; }
+        #tooltip .muted { color: #64748b; }
+        #tooltip .meta  { color: #94a3b8; font-size: 11px; }
+
+        /* ─── STATES ─────────────────────────────────────────────────────────────── */
+        .loading-state, .empty-state, .error-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(13px, 1.5vw, 16px);
+            color: #475569;
+            width: 100%;
+            height: 100%;
+        }
+
+        .error-state { color: #b91c1c; }
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr !important;
+                grid-template-columns: 1fr !important;
+                padding-bottom: 0;
+            }
+            #container1 { grid-row: 1 !important; grid-column: 1 !important; }
+            #container2, #container3, #container4 { display: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1">
+            <div id="viz">
+                <svg id="chart" role="img" aria-label="Curated bipartite link diagram"></svg>
+            </div>
+            <div id="tooltip"></div>
+        </div>
+
+        <div id="container2">
+            <div class="legend" id="legend"></div>
+        </div>
+
+        <div id="container3">
+            <div class="source-text">
+                Source:&nbsp;<a href="https://huggingface.co/models" target="_blank" rel="noopener">Hugging Face</a>
+                &nbsp;/&nbsp;<a href="https://aiworld.eu/" target="_blank" rel="noopener">AI World</a>
+            </div>
+        </div>
+
+        <div id="container4">
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const DATA_URL = "original_data.json";
+
+        const COUNTRY_COLORS = {
+            'US':          '#2756d3',
+            'China':       '#E53229',
+            'Undisclosed': '#94a3b8',
+        };
+
+        const EVIDENCE_META = {
+            'confirmed':  { label: 'confirmed',         dashClass: '' },
+            'alleged':    { label: 'alleged / rumored', dashClass: 'dashed' },
+            'historical': { label: 'historical / weak', dashClass: 'dotted' },
+        };
+
+        // Filter state — all on by default (lab countries only — chips are never filtered)
+        const activeCountries = new Set(['US', 'China']);
+        const activeEvidence  = new Set(['confirmed', 'alleged', 'historical']);
+
+        const vizContainer = document.getElementById('viz');
+        const tooltip = d3.select('#tooltip');
+        let dataset = null;
+
+        vizContainer.innerHTML = '<div class="loading-state">Loading…</div>';
+        fetch(DATA_URL)
+            .then(r => { if (!r.ok) throw new Error(`${r.status} ${r.statusText}`); return r.json(); })
+            .then(raw => {
+                if (!raw || !raw.labs || !raw.labs.length) {
+                    vizContainer.innerHTML = '<div class="empty-state">No data found.</div>';
+                    return;
+                }
+                dataset = enrich(raw);
+                vizContainer.innerHTML = '<svg id="chart" role="img" aria-label="Curated bipartite link diagram"></svg>';
+                buildLegend();
+                render();
+            })
+            .catch(err => {
+                console.error(err);
+                vizContainer.innerHTML = `<div class="error-state">Unable to load data: ${err.message}</div>`;
+            });
+
+        // Compute degree per node from the edges
+        function enrich(raw) {
+            const labDeg  = new Map();
+            const chipDeg = new Map();
+            raw.edges.forEach(e => {
+                labDeg.set(e.lab,   (labDeg.get(e.lab)   || 0) + 1);
+                chipDeg.set(e.chip, (chipDeg.get(e.chip) || 0) + 1);
+            });
+            raw.labs.forEach(l  => { l.degree = labDeg.get(l.name) || 0; });
+            raw.chips.forEach(c => { c.degree = chipDeg.get(c.id)  || 0; });
+            return raw;
+        }
+
+        // ─── Legend (with filter toggles) ───────────────────────────────────────────
+        function buildLegend() {
+            const root = d3.select('#legend');
+            root.selectAll('*').remove();
+
+            // Country filters — only lab countries (chip platforms are never filtered)
+            const countrySection = root.append('div').attr('class', 'legend-section');
+            countrySection.append('span').attr('class', 'label-strong').text('Country');
+            const countryRow = countrySection.append('div').attr('class', 'legend-row');
+            const countriesInUse = Array.from(new Set(dataset.labs.map(l => l.country)));
+            const order = ['US', 'China', 'Undisclosed'];
+            countriesInUse.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+            const labelMap = { 'US': 'United States', 'China': 'China', 'Undisclosed': 'Undisclosed' };
+            countriesInUse.forEach(c => {
+                const item = countryRow.append('span')
+                    .attr('class', 'legend-block legend-item filter')
+                    .attr('role', 'button').attr('tabindex', 0)
+                    .attr('data-country', c)
+                    .on('click', () => toggleCountry(c))
+                    .on('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggleCountry(c); } });
+                item.append('span').attr('class', 'legend-dot').style('background', COUNTRY_COLORS[c] || '#888');
+                item.append('span').text(labelMap[c] || c);
+            });
+
+            root.append('div').attr('class', 'legend-sep');
+
+            // Evidence filters
+            const evSection = root.append('div').attr('class', 'legend-section');
+            evSection.append('span').attr('class', 'label-strong').text('Evidence');
+            const evRow = evSection.append('div').attr('class', 'legend-row');
+            ['confirmed', 'alleged', 'historical'].forEach(k => {
+                const meta = EVIDENCE_META[k];
+                const item = evRow.append('span')
+                    .attr('class', 'legend-block legend-item filter')
+                    .attr('role', 'button').attr('tabindex', 0)
+                    .attr('data-evidence', k)
+                    .on('click', () => toggleEvidence(k))
+                    .on('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggleEvidence(k); } });
+                item.append('span').attr('class', `legend-line ${meta.dashClass}`);
+                item.append('span').text(meta.label);
+            });
+        }
+
+        function toggleCountry(c) {
+            if (activeCountries.has(c)) { if (activeCountries.size > 1) activeCountries.delete(c); }
+            else activeCountries.add(c);
+            syncLegendState();
+            applyDisplayState(true);
+        }
+        function toggleEvidence(k) {
+            if (activeEvidence.has(k)) { if (activeEvidence.size > 1) activeEvidence.delete(k); }
+            else activeEvidence.add(k);
+            syncLegendState();
+            applyDisplayState(true);
+        }
+        function syncLegendState() {
+            d3.selectAll('.legend-item.filter[data-country]').classed('off', function () {
+                return !activeCountries.has(this.getAttribute('data-country'));
+            });
+            d3.selectAll('.legend-item.filter[data-evidence]').classed('off', function () {
+                return !activeEvidence.has(this.getAttribute('data-evidence'));
+            });
+        }
+
+        // Shared bezier link between two positioned nodes
+        function linkPath(src, dst) {
+            const x0 = src._x, y0 = src._y, x1 = dst._x, y1 = dst._y;
+            const mx = (x0 + x1) / 2;
+            return `M${x0},${y0} C${mx},${y0} ${mx},${y1} ${x1},${y1}`;
+        }
+
+        // Hover wrappers feed into applyDisplayState
+        let _hover = { type: null, value: null };
+        function highlightLab(name)  { _hover = { type: 'lab',  value: name }; applyDisplayState(false); }
+        function highlightChip(id)   { _hover = { type: 'chip', value: id   }; applyDisplayState(false); }
+        function highlightEdge(edge) { _hover = { type: 'edge', value: edge }; applyDisplayState(false); }
+        function clearHighlight()    { _hover = { type: null,  value: null }; applyDisplayState(false); }
+
+        // ─── Render ─────────────────────────────────────────────────────────────────
+        function render() {
+            const svg = d3.select('#chart');
+            svg.selectAll('*').remove();
+
+            const rect = vizContainer.getBoundingClientRect();
+            const width  = Math.max(720, rect.width);
+            const height = Math.max(420, rect.height);
+
+            svg.attr('viewBox', `0 0 ${width} ${height}`)
+               .attr('preserveAspectRatio', 'xMidYMid meet');
+
+            const labs  = dataset.labs;
+            const chips = dataset.chips;
+            const edges = dataset.edges;
+
+            const leftLabelPad   = 16;
+            const longestLabName  = d3.max(labs,  l => l.name.length) || 12;
+            const longestChipName = d3.max(chips, c => c.name.length) || 12;
+            const labLabelWidth   = Math.min(220, longestLabName  * 8.6 + 24);
+            const chipLabelWidth  = Math.min(260, longestChipName * 8.6 + 24);
+
+            const maxLabDeg  = d3.max(labs,  l => l.degree) || 1;
+            const maxChipDeg = d3.max(chips, c => c.degree) || 1;
+            const labR  = d3.scaleSqrt().domain([0, maxLabDeg]).range([7, 22]);
+            const chipR = d3.scaleSqrt().domain([0, maxChipDeg]).range([10, 46]);
+            const maxChipR = chipR(maxChipDeg);
+
+            const colHeaderY = 32;
+            const topPad    = Math.max(colHeaderY + 34, maxChipR + colHeaderY + 18);
+            const bottomPad = Math.max(28, maxChipR + 16);
+
+            const rightEdgePad = 12;
+            const leftColX  = labLabelWidth + leftLabelPad + 14;
+            const rightColX = width - chipLabelWidth - maxChipR - rightEdgePad - 4;
+
+            // Initial layout: visible labs distributed evenly; chips always shown
+            const labVisible0  = d => activeCountries.has(d.country)
+                && (!dataset.edges.some(e => e.lab === d.name) ||
+                    dataset.edges.some(e => e.lab === d.name && activeEvidence.has(e.evidence)));
+            const initialLabs  = labs.filter(labVisible0);
+            const initialChips = chips.slice();
+            const vRange = height - topPad - bottomPad;
+            const initLabStep  = vRange / Math.max(initialLabs.length  - 1, 1);
+            const initChipStep = vRange / Math.max(initialChips.length - 1, 1);
+
+            labs.forEach(l  => { l._x = leftColX;  });
+            chips.forEach(c => { c._x = rightColX; });
+            initialLabs.forEach((l, i)  => { l._y = initialLabs.length  > 1 ? topPad + i * initLabStep  : topPad + vRange / 2; });
+            initialChips.forEach((c, i) => { c._y = initialChips.length > 1 ? topPad + i * initChipStep : topPad + vRange / 2; });
+            labs.filter(l => !labVisible0(l)).forEach(l => { if (l._y == null) l._y = topPad + vRange / 2; });
+
+            svg.append('text')
+                .attr('class', 'col-header')
+                .attr('x', rightEdgePad).attr('y', colHeaderY)
+                .attr('text-anchor', 'start')
+                .text('AI LABS (BY HQ COUNTRY)');
+
+            svg.append('text')
+                .attr('class', 'col-header')
+                .attr('x', width - rightEdgePad).attr('y', colHeaderY)
+                .attr('text-anchor', 'end')
+                .text('TRAINING-CHIP PLATFORMS');
+
+            const labByName = new Map(labs.map(l => [l.name, l]));
+            const chipById  = new Map(chips.map(c => [c.id, c]));
+
+            // Render dotted → dashed → solid so confirmed sits on top
+            const evOrder = { 'historical': 0, 'alleged': 1, 'confirmed': 2 };
+            const sortedEdges = edges
+                .filter(e => labByName.has(e.lab) && chipById.has(e.chip))
+                .sort((a, b) => (evOrder[a.evidence] || 0) - (evOrder[b.evidence] || 0));
+
+            const linksG = svg.append('g').attr('class', 'links');
+
+            const links = linksG.selectAll('path')
+                .data(sortedEdges)
+                .enter().append('path')
+                .attr('class', d => `link ${d.evidence}`)
+                .attr('stroke', d => COUNTRY_COLORS[labByName.get(d.lab).country] || '#1e293b')
+                .attr('stroke-width', 1.8)
+                .attr('d', d => linkPath(labByName.get(d.lab), chipById.get(d.chip)))
+                .on('mouseenter', (ev, d) => {
+                    highlightEdge(d);
+                    showTooltip(ev,
+                        `<b>${d.lab}</b> &rarr; <b>${chipById.get(d.chip).name}</b><br>` +
+                        `<span class="muted">${EVIDENCE_META[d.evidence].label}</span>`
+                    );
+                })
+                .on('mousemove', moveTooltip)
+                .on('mouseleave', () => { clearHighlight(); hideTooltip(); });
+
+            const labG = svg.append('g').attr('class', 'lab-nodes')
+                .selectAll('g').data(labs).enter().append('g')
+                .attr('class', 'lab-node')
+                .attr('transform', d => `translate(${d._x},${d._y})`)
+                .on('mouseenter', (ev, d) => {
+                    highlightLab(d.name);
+                    const conn = edges.filter(e => e.lab === d.name);
+                    const lines = conn.map(e =>
+                        `&nbsp;&nbsp;→ ${chipById.get(e.chip)?.name || e.chip} ` +
+                        `<span class="meta">(${EVIDENCE_META[e.evidence].label})</span>`
+                    ).join('<br>');
+                    showTooltip(ev,
+                        `<b>${d.name}</b> <span class="muted">${d.country}</span><br>${lines}`
+                    );
+                })
+                .on('mousemove', moveTooltip)
+                .on('mouseleave', () => { clearHighlight(); hideTooltip(); });
+
+            labG.append('circle')
+                .attr('class', 'node-circle')
+                .attr('r', d => labR(d.degree))
+                .attr('fill', d => COUNTRY_COLORS[d.country] || '#94a3b8');
+
+            labG.append('text')
+                .attr('class', 'node-label')
+                .attr('x', d => -(labR(d.degree) + 10))
+                .attr('y', 0).attr('dy', '0.35em')
+                .attr('text-anchor', 'end')
+                .attr('fill', d => COUNTRY_COLORS[d.country] || '#0f172a')
+                .text(d => d.name);
+
+            const chipG = svg.append('g').attr('class', 'chip-nodes')
+                .selectAll('g').data(chips).enter().append('g')
+                .attr('class', 'chip-node')
+                .attr('transform', d => `translate(${d._x},${d._y})`)
+                .on('mouseenter', (ev, d) => {
+                    highlightChip(d.id);
+                    const conn = edges.filter(e => e.chip === d.id);
+                    const lines = conn.map(e =>
+                        `&nbsp;&nbsp;← ${e.lab} ` +
+                        `<span class="meta">(${EVIDENCE_META[e.evidence].label})</span>`
+                    ).join('<br>');
+                    showTooltip(ev,
+                        `<b>${d.name}</b> <span class="muted">${d.country}</span><br>${lines}`
+                    );
+                })
+                .on('mousemove', moveTooltip)
+                .on('mouseleave', () => { clearHighlight(); hideTooltip(); });
+
+            chipG.append('circle')
+                .attr('class', 'node-circle')
+                .attr('r', d => chipR(d.degree))
+                .attr('fill', d => COUNTRY_COLORS[d.country] || '#94a3b8');
+
+            chipG.append('text')
+                .attr('class', 'node-label')
+                .attr('x', d => chipR(d.degree) + 10)
+                .attr('y', 0).attr('dy', '0.35em')
+                .attr('text-anchor', 'start')
+                .attr('fill', d => COUNTRY_COLORS[d.country] || '#0f172a')
+                .text(d => d.name);
+
+            window._chartElements = {
+                links, labG, chipG,
+                dims: { topPad, bottomPad, height },
+            };
+            applyDisplayState(false);
+        }
+
+        function applyDisplayState(animate) {
+            if (!window._chartElements || !dataset) return;
+            const { links, labG, chipG, dims } = window._chartElements;
+            const { topPad, bottomPad, height } = dims;
+
+            const labByName  = new Map(dataset.labs.map(l => [l.name, l]));
+            const chipById   = new Map(dataset.chips.map(c => [c.id, c]));
+
+            // Edge passes if the lab's country is active and its evidence is active.
+            // Chip country is irrelevant — chip platforms are never filtered out.
+            const edgePasses = e =>
+                activeCountries.has(labByName.get(e.lab)?.country) &&
+                activeEvidence.has(e.evidence);
+
+            const labHasEdges = name => dataset.edges.some(e => e.lab === name);
+            const labPasses   = name => dataset.edges.some(e => e.lab === name && edgePasses(e));
+
+            const labVisible  = d => activeCountries.has(d.country) && (!labHasEdges(d.name) || labPasses(d.name));
+            const chipVisible = _ => true;
+            const edgeVisible = e => edgePasses(e);
+
+            // Hover dim/highlight
+            const isLabDim = d => {
+                if (!labVisible(d)) return false;
+                if (_hover.type === 'lab')  return d.name !== _hover.value;
+                if (_hover.type === 'chip') return !dataset.edges.some(e => e.chip === _hover.value && e.lab === d.name && edgePasses(e));
+                if (_hover.type === 'edge') return d.name !== _hover.value.lab;
+                return false;
+            };
+            const isChipDim = d => {
+                if (!chipVisible(d)) return false;
+                if (_hover.type === 'lab')  return !dataset.edges.some(e => e.lab === _hover.value && e.chip === d.id && edgePasses(e));
+                if (_hover.type === 'chip') return d.id !== _hover.value;
+                if (_hover.type === 'edge') return d.id !== _hover.value.chip;
+                return false;
+            };
+            const isEdgeDim = e => {
+                if (!edgeVisible(e)) return false;
+                if (_hover.type === 'lab')  return e.lab !== _hover.value;
+                if (_hover.type === 'chip') return e.chip !== _hover.value;
+                if (_hover.type === 'edge') return !(e.lab === _hover.value.lab && e.chip === _hover.value.chip);
+                return false;
+            };
+            const isEdgeHL = e => {
+                if (!edgeVisible(e)) return false;
+                if (_hover.type === 'lab')  return e.lab === _hover.value;
+                if (_hover.type === 'chip') return e.chip === _hover.value;
+                if (_hover.type === 'edge') return e.lab === _hover.value.lab && e.chip === _hover.value.chip;
+                return false;
+            };
+
+            // Re-layout visible nodes evenly
+            const visibleLabs  = dataset.labs.filter(labVisible);
+            const visibleChips = dataset.chips.filter(chipVisible);
+            const vRange = height - topPad - bottomPad;
+            const labYStep  = vRange / Math.max(visibleLabs.length  - 1, 1);
+            const chipYStep = vRange / Math.max(visibleChips.length - 1, 1);
+            visibleLabs.forEach((l, i)  => { l._y = visibleLabs.length  > 1 ? topPad + i * labYStep  : topPad + vRange / 2; });
+            visibleChips.forEach((c, i) => { c._y = visibleChips.length > 1 ? topPad + i * chipYStep : topPad + vRange / 2; });
+
+            const dur  = animate ? 480 : 0;
+            const ease = d3.easeCubicInOut;
+
+            labG.transition().duration(dur).ease(ease)
+                .attr('transform', d => `translate(${d._x},${d._y})`)
+                .style('opacity', d => !labVisible(d) ? 0 : (isLabDim(d) ? 0.12 : 1))
+                .style('pointer-events', d => labVisible(d) ? null : 'none');
+
+            chipG.transition().duration(dur).ease(ease)
+                .attr('transform', d => `translate(${d._x},${d._y})`)
+                .style('opacity', d => !chipVisible(d) ? 0 : (isChipDim(d) ? 0.12 : 1))
+                .style('pointer-events', d => chipVisible(d) ? null : 'none');
+
+            links.transition().duration(dur).ease(ease)
+                .attr('d', e => linkPath(labByName.get(e.lab), chipById.get(e.chip)))
+                .style('opacity', e => !edgeVisible(e) ? 0 : (isEdgeDim(e) ? 0.12 : 1))
+                .style('pointer-events', e => edgeVisible(e) ? null : 'none');
+
+            links.classed('highlighted', isEdgeHL);
+        }
+
+        // ─── Tooltip helpers ────────────────────────────────────────────────────────
+        function showTooltip(event, html) {
+            tooltip.html(html).style('opacity', 1);
+            moveTooltip(event);
+        }
+        function moveTooltip(event) {
+            const node = tooltip.node();
+            const w = node.offsetWidth  || 200;
+            const h = node.offsetHeight || 60;
+            let left = event.clientX + 14;
+            let top  = event.clientY - 8;
+            if (left + w + 8 > window.innerWidth)  left = event.clientX - w - 14;
+            if (top  + h + 8 > window.innerHeight) top  = event.clientY - h - 14;
+            tooltip.style('left', `${left}px`).style('top', `${top}px`);
+        }
+        function hideTooltip() {
+            tooltip.style('opacity', 0);
+        }
+
+        // ─── Resize ─────────────────────────────────────────────────────────────────
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => { if (dataset) render(); }, 150);
+        });
+        if (typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(() => { if (dataset) render(); }).observe(vizContainer);
+        }
+    </script>
+</body>
+
+</html>
