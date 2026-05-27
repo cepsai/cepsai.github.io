@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Hugging Face Hardware</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+  <style>
+
+    html, body {
+        height: 100%;
+    }
+
+    body {
+        margin: 0;
+        overflow: hidden;
+        height: 100vh;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+        background-color: white;
+    }
+
+
+    .viz-grid {
+        display: grid;
+        grid-template-rows: 16fr 1fr 2fr 1fr;
+        grid-template-columns: 1fr auto 1fr;
+        height: 100vh;
+        width: 100vw;
+        box-sizing: border-box;
+        padding-bottom: clamp(8px, 2vh, 18px);
+    }
+
+    #container1 {
+        grid-row: 1;
+        grid-column: 1 / span 3;
+        overflow: hidden;
+        min-height: 0;
+    }
+
+    #container2 {
+        grid-row: 2;
+        grid-column: 1 / span 3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    #container3 {
+        grid-row: 3;
+        grid-column: 1;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 0 20px;
+        overflow: hidden;
+        min-width: 0;
+    }
+
+    #container6 {
+        grid-row: 3;
+        grid-column: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        min-width: 0;
+        padding: 0 8px;
+    }
+
+    #container4 {
+        grid-row: 3;
+        grid-column: 3;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0 20px;
+        overflow: hidden;
+        min-width: 0;
+        gap: clamp(6px, 1.2vw, 14px);
+    }
+
+    #container4 a {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        min-width: 0;
+    }
+
+    #container5 {
+        grid-row: 2;
+        grid-column: 1 / span 3;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0 20px;
+        overflow: hidden;
+    }
+
+    #viz {
+        width: 100%;
+        height: 100%;
+        min-height: 0;
+        min-width: 0;
+    }
+
+    .selector-group {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(2px, 0.5vw, 6px);
+        padding: clamp(2px, 0.4vw, 4px);
+        border-radius: 6px;
+        border: 1px solid rgba(17, 24, 39, 0.15);
+        background: #f8fafc;
+        max-width: 100%;
+        flex-shrink: 0;
+    }
+
+    .selector-button {
+        border: none;
+        background: transparent;
+        padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+        border-radius: 6px;
+        font-size: clamp(9px, 1.4vw, 13px);
+        font-weight: 600;
+        color: #475569;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .selector-button.active {
+        background: #2756d3;
+        color: #fff;
+    }
+
+    .custom-legend {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(6px, 1.5vw, 14px);
+        background: rgba(255, 255, 255, 0.9);
+        padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 16px);
+        border-radius: clamp(6px, 1.2vw, 12px);
+        overflow: auto;
+        max-width: 100%;
+        max-height: 100%;
+        font-size: clamp(10px, 1.6vw, 16px);
+        font-weight: 600;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: clamp(4px, 1vw, 8px);
+        cursor: pointer;
+        transition: opacity 0.2s ease;
+        font-weight: 600;
+        color: #333;
+        font-size: inherit;
+        padding: 2px 6px;
+    }
+
+    .legend-item.inactive {
+        opacity: 0.35;
+    }
+
+    .legend-square {
+        width: clamp(10px, 1.1vw, 14px);
+        height: clamp(10px, 1.1vw, 14px);
+        border-radius: 0;
+        flex-shrink: 0;
+    }
+
+    .legend-item:focus-visible {
+        outline: 2px solid rgba(0, 0, 0, 0.5);
+        outline-offset: 2px;
+    }
+
+
+    .footnote-text {
+        font-size: clamp(10px, 1.6vw, 16px);
+        font-style: italic;
+        color: #333;
+        text-align: right;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+
+
+    .source-text {
+        font-size: clamp(10px, 1.6vw, 16px);
+        font-weight: 600;
+        color: #333;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+        font-style: normal;
+    }
+
+    .source-text a {
+        color: #2756d3;
+        text-decoration: underline;
+        cursor: pointer;
+        font-style: normal;
+    }
+
+    .source-text a:visited {
+        color: #2756d3;
+    }
+
+    .logo {
+        height: 100%;
+        width: auto;
+        max-height: 100%;
+        max-width: 100%;
+        pointer-events: auto;
+        object-fit: contain;
+    }
+
+    .logo-x {
+        font-size: clamp(12px, 1.8vw, 20px);
+        font-weight: 500;
+        color: #555;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+
+
+    .error-message {
+        font-size: clamp(12px, 1.6vw, 18px);
+        font-weight: 600;
+        color: #333;
+        text-align: center;
+        padding: clamp(12px, 2vh, 20px);
+    }
+
+    @media (max-height: 500px) {
+        .viz-grid {
+            grid-template-rows: 1fr !important;
+            grid-template-columns: 1fr !important;
+            padding-bottom: 0;
+        }
+
+        #container1 {
+            grid-row: 1 !important;
+            grid-column: 1 !important;
+        }
+
+        #container2,
+        #container3,
+        #container4,
+        #container5,
+        #container6 {
+            display: none !important;
+        }
+
+        .custom-legend,
+        .source-text,
+        .logo,
+        .footnote-text {
+            display: none !important;
+        }
+    }
+  </style>
+</head>
+<body>
+  <div class="viz-grid">
+    <div id="container1" class="container viz-container">
+      <div id="viz"></div>
+    </div>
+    <div id="container2" class="container legend-container">
+      <div class="custom-legend" id="legend"></div>
+    </div>
+    <div id="container3" class="container source-container">
+      <div class="source-text" id="source-text"></div>
+    </div>
+    <div id="container6" class="container selector-container">
+      <div class="selector-group" id="topn-selector" role="tablist" aria-label="Filter by chip count">
+        <button class="selector-button" data-topn="10" role="tab">Top 10</button>
+        <button class="selector-button" data-topn="50" role="tab">Top 50</button>
+        <button class="selector-button active" data-topn="all" role="tab" aria-selected="true">All</button>
+      </div>
+    </div>
+    <div id="container4" class="container logo-container">
+      <a href="https://huggingface.co/" target="_blank" rel="noopener">
+        <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="Hugging Face logo">
+      </a>
+      <span class="logo-x">×</span>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // ─── Container visibility flags ───────────────────────────────────────
+    const SHOW_CONTAINER_2 = 1;  // legend
+    const SHOW_CONTAINER_3 = 1;  // source
+    const SHOW_CONTAINER_4 = 1;  // logo
+    const SHOW_CONTAINER_5 = 0;  // footnote
+
+    (function applyContainerVisibility() {
+      const vizGrid = document.querySelector('.viz-grid');
+      const c2 = document.getElementById('container2');
+      const c3 = document.getElementById('container3');
+      const c4 = document.getElementById('container4');
+      const c5 = document.getElementById('container5');
+
+      if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+      if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+      if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+      if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+      const row2Visible = SHOW_CONTAINER_5;
+      const row3Visible = SHOW_CONTAINER_2;
+      const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+      let gridRows = [];
+      let currentRow = 1;
+      const container1Height = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 2 : 0) - (row4Visible ? 1 : 0);
+      gridRows.push(`${container1Height}fr`);
+
+      if (row2Visible) { gridRows.push('1fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+      if (row3Visible) { gridRows.push('2fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+      if (row4Visible) {
+        gridRows.push('1fr'); currentRow++;
+        if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+        if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+        const c6 = document.getElementById('container6');
+        if (c6) c6.style.gridRow = String(currentRow);
+      }
+
+      vizGrid.style.gridTemplateRows = gridRows.join(' ');
+      document.getElementById('container1').style.gridRow = '1';
+    })();
+
+    // ─── Config ───────────────────────────────────────────────────────────
+    const SHOW_TOOLTIP = 1;
+    const SOURCE_NAME = "Hugging Face";
+    const SOURCE_HREF = "https://huggingface.co/hardware";
+
+    const PROVIDER_COLORS = {
+      "NVIDIA":   "#76B900",  // NVIDIA green
+      "AMD":      "#ED1C24",  // AMD red
+      "Intel":    "#0071C5",  // Intel blue
+      "Apple":    "#555555",  // Apple gray
+      "Qualcomm": "#8b5cf6"   // violet
+    };
+
+    function getGroupColor(parent) {
+      return PROVIDER_COLORS[parent] || "#666666";
+    }
+
+    function normalizeData(arr) {
+      return arr.map(d => ({
+        parent:  d.parent,
+        parent2: d.parent2 || "Other",
+        name:    d.name,
+        value:   d.value != null ? +d.value : 0
+      })).filter(d => d.value > 0);
+    }
+
+    let originalData = [];
+    let providerTotals = {};
+    let providerOrder = [];
+    let activeGroups = new Set();
+    let dataLoaded = false;
+    let topNFilter = "all";
+
+    (function wireTopNSelector() {
+      const buttons = document.querySelectorAll("#topn-selector .selector-button");
+      buttons.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const value = btn.dataset.topn;
+          if (value === topNFilter) return;
+          topNFilter = value;
+          buttons.forEach(b => {
+            const active = b === btn;
+            b.classList.toggle("active", active);
+            b.setAttribute("aria-selected", String(active));
+          });
+          renderVisualizationForContainer();
+        });
+      });
+    })();
+
+    (function applySource() {
+      const el = document.getElementById("source-text");
+      if (!el) return;
+      if (SOURCE_HREF) {
+        el.innerHTML = `Source: <a href="${SOURCE_HREF}" target="_blank" rel="noopener">${SOURCE_NAME}</a>`;
+      } else {
+        el.textContent = `Source: ${SOURCE_NAME}`;
+      }
+    })();
+
+    let legendInitialized = false;
+
+    function buildLegend() {
+      if (legendInitialized) return;
+      const legend = document.getElementById("legend");
+      legend.innerHTML = "";
+      providerOrder.forEach(name => {
+        const item = document.createElement("div");
+        item.className = "legend-item active";
+        item.dataset.provider = name;
+        item.setAttribute("role", "button");
+        item.setAttribute("tabindex", "0");
+        item.setAttribute("aria-pressed", "true");
+
+        const square = document.createElement("span");
+        square.className = "legend-square";
+        square.style.background = getGroupColor(name);
+
+        const label = document.createElement("span");
+        label.textContent = name;
+
+        item.append(square, label);
+
+        const toggle = () => {
+          if (activeGroups.has(name)) {
+            if (activeGroups.size > 1) activeGroups.delete(name);
+            else return;
+          } else {
+            activeGroups.add(name);
+          }
+          updateLegendStyles();
+          renderVisualizationForContainer();
+        };
+        item.addEventListener("click", toggle);
+        item.addEventListener("keydown", e => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+        });
+        legend.appendChild(item);
+      });
+      legendInitialized = true;
+    }
+
+    function updateLegendStyles() {
+      const items = document.querySelectorAll("#legend .legend-item");
+      items.forEach(item => {
+        const name = item.dataset.provider;
+        const isActive = activeGroups.has(name);
+        item.classList.toggle("inactive", !isActive);
+        item.classList.toggle("active", isActive);
+        item.setAttribute("aria-pressed", String(isActive));
+      });
+    }
+
+    const vizContainer = document.getElementById("viz");
+    let treemapInstance = null;
+    let treemapData = originalData.slice();
+
+    function ensureTreemapInstance(width, height) {
+      if (!vizContainer) return null;
+      if (!treemapInstance) {
+        treemapInstance = new d3plus.Treemap()
+          .select("#viz")
+          .data(treemapData)
+          .groupBy(["parent", "parent2", "name"])
+          .tooltip(!!SHOW_TOOLTIP)
+          .tooltipConfig({
+            title: d => d.name,
+            body: d => {
+              const provider = d.parent || d.id;
+              const subgroup = d.parent2 || "";
+              const count = d.value || 0;
+              const subgroupLine = subgroup ? "<br><strong>Family:</strong> " + subgroup : "";
+              return "<strong>Provider:</strong> " + provider +
+                     subgroupLine +
+                     "<br><strong>Unique users:</strong> " + count.toLocaleString();
+            }
+          })
+          .sum("value")
+          .layoutPadding(2)
+          .legend(false)
+          .color(d => getGroupColor(d.parent || d.id))
+          .shapeConfig({
+            rx: 0,
+            ry: 0,
+            stroke: d => d.depth === 0 ? getGroupColor(d.id) : "transparent",
+            strokeWidth: d => d.depth === 0 ? 3 : 0
+          })
+          .config({
+            label: d => d.name
+          });
+      }
+      if (typeof treemapInstance.width === "function" && width)  treemapInstance.width(width);
+      if (typeof treemapInstance.height === "function" && height) treemapInstance.height(height);
+      return treemapInstance;
+    }
+
+    function displayNoData(message) {
+      vizContainer.innerHTML = `<div class="error-message">${message}</div>`;
+    }
+
+    function updateVisualization(width, height) {
+      let filtered = originalData.filter(d => activeGroups.has(d.parent));
+      if (topNFilter !== "all") {
+        const n = +topNFilter;
+        filtered = filtered.slice().sort((a, b) => b.value - a.value).slice(0, n);
+      }
+      treemapData = filtered;
+      if (!treemapData.length) {
+        displayNoData("No data available");
+        return;
+      }
+      const instance = ensureTreemapInstance(width, height);
+      if (!instance) return;
+      instance.data(treemapData).render();
+      updateLegendStyles();
+    }
+
+    function renderVisualizationForContainer() {
+      if (!vizContainer || !dataLoaded) return;
+      buildLegend();
+      const rect = vizContainer.getBoundingClientRect();
+      updateVisualization(rect.width, rect.height);
+    }
+
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(renderVisualizationForContainer, 120);
+    });
+
+    if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+      new ResizeObserver(() => renderVisualizationForContainer()).observe(vizContainer);
+    }
+
+    d3.csv("user_chips.csv")
+      .then(rawData => {
+        originalData = normalizeData(rawData);
+        providerTotals = {};
+        originalData.forEach(d => { providerTotals[d.parent] = (providerTotals[d.parent] || 0) + d.value; });
+        providerOrder = Object.keys(providerTotals).sort((a, b) => providerTotals[b] - providerTotals[a]);
+        activeGroups = new Set(providerOrder);
+        dataLoaded = true;
+        renderVisualizationForContainer();
+      })
+      .catch(err => {
+        console.error("Failed to load user_chips.csv:", err);
+        displayNoData("Failed to load data");
+      });
+  </script>
+</body>
+</html>
