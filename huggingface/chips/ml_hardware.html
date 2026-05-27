@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>ML hardware performance over time</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    /* ─── BASE ────────────────────────────────────────────────────────────────── */
+    html, body {
+      height: 100%;
+    }
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+      background-color: white;
+    }
+
+    /* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 16fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding-bottom: clamp(8px, 2vh, 18px);
+    }
+    #container1 {
+      grid-row: 1;
+      grid-column: 1 / span 2;
+      overflow: hidden;
+      min-height: 0;
+    }
+    #container1 .chart-wrapper {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+      margin-left: 0;
+    }
+    #container1 .chart-wrapper-inner {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+    }
+    #container2 {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    #container3 {
+      grid-row: 3;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+    #container4 {
+      grid-row: 3;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+    #container4 a {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    /* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
+    #viz {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+    }
+    #chart {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ─── LEGEND ──────────────────────────────────────────────────────────────── */
+    .custom-legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(6px, 1.5vw, 14px);
+      background: rgba(255, 255, 255, 0.9);
+      padding: clamp(6px, 1.2vh, 10px) clamp(10px, 2vw, 16px);
+      border-radius: clamp(6px, 1.2vw, 12px);
+      overflow: auto;
+      max-width: 100%;
+      max-height: 100%;
+      font-size: clamp(10px, 1.6vw, 16px);
+      font-weight: 600;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: clamp(4px, 1vw, 8px);
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+      font-weight: 600;
+      color: #333;
+      font-size: inherit;
+      padding: 2px 6px;
+    }
+    .legend-item.inactive {
+      opacity: 0.35;
+    }
+    .legend-item:focus-visible {
+      outline: 2px solid rgba(0, 0, 0, 0.5);
+      outline-offset: 2px;
+    }
+    .legend-square {
+      width: clamp(10px, 1.1vw, 14px);
+      height: clamp(10px, 1.1vw, 14px);
+      border-radius: 0;
+      flex-shrink: 0;
+    }
+
+    /* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+    .source-text {
+      font-size: clamp(10px, 1.6vw, 16px);
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      font-style: normal;
+    }
+    .source-text a {
+      color: #2756d3;
+      text-decoration: underline;
+      cursor: pointer;
+      font-style: normal;
+    }
+    .source-text a:visited {
+      color: #2756d3;
+    }
+    .logo {
+      height: 100%;
+      width: auto;
+      max-height: 100%;
+      max-width: 100%;
+      pointer-events: auto;
+      object-fit: contain;
+    }
+    .logo-x {
+      font-size: clamp(12px, 1.8vw, 20px);
+      font-weight: 500;
+      color: #555;
+      line-height: 1;
+      flex-shrink: 0;
+      margin: 0 clamp(4px, 1vw, 10px);
+    }
+
+    /* ─── CHART ELEMENTS (D3) ─────────────────────────────────────────────────── */
+    .axis path,
+    .axis line {
+      stroke: #cfd2d7;
+    }
+    .tick text {
+      font-weight: 600;
+      fill: #4b5563;
+    }
+    .grid-lines line {
+      stroke: #DBDBDB;
+      stroke-dasharray: 2, 3;
+    }
+    .grid-lines path {
+      stroke: none;
+    }
+
+    /* ─── SCATTER-SPECIFIC ───────────────────────────────────────────────────── */
+    .scatter-dot {
+      cursor: pointer;
+      transition: r 0.15s ease, stroke-width 0.15s ease;
+    }
+    .scatter-label {
+      font-size: 13px;
+      font-weight: 600;
+      pointer-events: none;
+      user-select: none;
+      opacity: 1;
+      transition: opacity 0.3s ease, font-size 0.3s ease, font-weight 0.3s ease;
+      transform-origin: center;
+    }
+    .scatter-label.collision {
+      display: none;
+    }
+    .scatter-label.hover {
+      opacity: 1 !important;
+      font-size: 16px !important;
+      font-weight: 800 !important;
+    }
+    .connector-line {
+      stroke-width: 0.9;
+      opacity: 0.45;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .connector-line.collision {
+      display: none;
+    }
+    .trendline {
+      pointer-events: none;
+      stroke-dasharray: 6 4;
+      stroke-width: 2;
+      fill: none;
+      opacity: 0.85;
+    }
+    .trendline-label {
+      font-size: clamp(10px, 1.1vw, 13px);
+      font-weight: 700;
+      pointer-events: none;
+      user-select: none;
+    }
+    .trendline-label-box {
+      fill: #fff;
+      stroke-width: 1.2;
+      pointer-events: none;
+    }
+    .axis-grid line {
+      stroke: #e5e7eb;
+      stroke-dasharray: 2 3;
+      shape-rendering: crispEdges;
+    }
+    .axis-grid path {
+      stroke: none;
+    }
+    .axis-label {
+      font-size: clamp(10px, 1.2vw, 14px);
+      font-weight: 600;
+      fill: #333;
+    }
+
+    /* ─── TOOLTIP ─────────────────────────────────────────────────────────────── */
+    #tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: #ffffff;
+      color: #0f172a;
+      padding: 6px 10px;
+      border-radius: 4px;
+      border: 1px solid #0f172a;
+      font-size: 12px;
+      line-height: 1.45;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      opacity: 0;
+      transition: opacity 0.12s ease;
+      z-index: 50;
+      max-width: 280px;
+    }
+    #tooltip b      { color: #0f172a; }
+    #tooltip .muted { color: #64748b; }
+    #tooltip .meta  { color: #94a3b8; font-size: 11px; }
+
+    /* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+    @media (max-height: 500px) {
+      .viz-grid {
+        grid-template-rows: 1fr !important;
+        grid-template-columns: 1fr !important;
+        padding-bottom: 0;
+      }
+      #container1 {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+      }
+      #container2,
+      #container3,
+      #container4,
+      #container5 {
+        display: none !important;
+      }
+      .legend,
+      .source-text,
+      .logo,
+      .footnote-text {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="viz-grid">
+    <div id="container1" class="container viz-container">
+      <div id="viz" class="chart-wrapper">
+        <div class="chart-wrapper-inner">
+          <svg id="chart"></svg>
+        </div>
+      </div>
+    </div>
+    <div id="container2" class="container legend-container">
+      <div class="custom-legend" id="legend"></div>
+    </div>
+    <div id="container3" class="container source-container">
+      <div class="source-text" id="source-text">
+        Source: <a href="https://epoch.ai/data/machine-learning-hardware" target="_blank" rel="noopener">Epoch AI</a>
+      </div>
+    </div>
+    <div id="container4" class="container logo-container">
+      <a href="https://huggingface.co/" target="_blank" rel="noopener">
+        <img src="https://huggingface.co/front/assets/huggingface_logo-noborder.svg" class="logo" alt="Hugging Face logo">
+      </a>
+      <span class="logo-x">×</span>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+      </a>
+    </div>
+  </div>
+  <div id="tooltip"></div>
+
+  <script>
+    /* ─── Config ─────────────────────────────────────────────────────────── */
+    const SHOW_CONTAINER_2 = 1;
+    const SHOW_CONTAINER_3 = 1;
+    const SHOW_CONTAINER_4 = 1;
+    const SHOW_CONTAINER_5 = 0;
+
+    const SHOW_TRENDLINES = 1;
+    const SHOW_LABELS     = 1;
+    const SHOW_TOOLTIP    = 1;
+    const TRANSITION_MS   = 400;
+
+    const CSV_PATH = "ml_hardware.csv";
+
+    const COUNTRY_COLOR = {
+      "US":    "#2756d3",
+      "China": "#E53229",
+      "Other": "#9ca3af"
+    };
+
+    const TRENDLINE_GROUPS = ["Overall", "US", "China"];
+    const TRENDLINE_COLOR = {
+      "Overall": "#1f2937",
+      "US":      "#2756d3",
+      "China":   "#E53229"
+    };
+
+    /* ─── Container visibility IIFE ──────────────────────────────────────── */
+    (function applyContainerVisibility() {
+      const vizGrid = document.querySelector('.viz-grid');
+      const c2 = document.getElementById('container2');
+      const c3 = document.getElementById('container3');
+      const c4 = document.getElementById('container4');
+      const c5 = document.getElementById('container5');
+
+      if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+      if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+      if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+      if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+      const row2Visible = SHOW_CONTAINER_5;
+      const row3Visible = SHOW_CONTAINER_2;
+      const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+      let gridRows = [];
+      let currentRow = 1;
+      const chartHeight = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+      gridRows.push(`${chartHeight}fr`);
+
+      if (row2Visible) { gridRows.push('1fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+      if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+      if (row4Visible) {
+        gridRows.push('1fr'); currentRow++;
+        if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+        if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+        if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+        if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+      }
+
+      vizGrid.style.gridTemplateRows = gridRows.join(' ');
+      document.getElementById('container1').style.gridRow = '1';
+    })();
+
+    /* ─── Helpers ────────────────────────────────────────────────────────── */
+    function parseNum(value) {
+      if (value == null || value === "") return 0;
+      const n = Number(String(value).replace(/,/g, ""));
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function smartFormat(v) {
+      if (!isFinite(v)) return "N/A";
+      if (Math.abs(v) >= 1e9) return d3.format(".1f")(v / 1e9) + "B";
+      if (Math.abs(v) >= 1e6) return d3.format(".1f")(v / 1e6) + "M";
+      if (Math.abs(v) >= 1e3) return d3.format(",.0f")(v);
+      if (Math.abs(v) >= 1)   return d3.format(",.1f")(v);
+      return d3.format(",.2f")(v);
+    }
+
+    function tflopsTickFormat(v) {
+      if (v >= 1000) return d3.format(",.0f")(v / 1000) + "k";
+      if (v >= 1)    return d3.format(",.0f")(v);
+      return d3.format(".1f")(v);
+    }
+
+    function normalizeCountry(raw) {
+      const c = (raw || "").trim();
+      if (!c) return "Other";
+      if (c === "US" || c === "USA" || c === "United States") return "US";
+      if (c === "China" || c === "CN" || c === "PRC") return "China";
+      return "Other";
+    }
+
+    /* ─── Tooltip ────────────────────────────────────────────────────────── */
+    const tooltip = d3.select("#tooltip");
+
+    function moveTooltip(event) {
+      const node = tooltip.node();
+      const w = node.offsetWidth  || 200;
+      const h = node.offsetHeight || 60;
+      let left = event.clientX + 14;
+      let top  = event.clientY - 8;
+      if (left + w + 8 > window.innerWidth)  left = event.clientX - w - 14;
+      if (top  + h + 8 > window.innerHeight) top  = event.clientY - h - 14;
+      tooltip.style('left', `${left}px`).style('top', `${top}px`);
+    }
+
+    /* ─── State & layers ─────────────────────────────────────────────────── */
+    let rawData   = null;
+    let plotData  = null;
+    let chartLayers = null;
+
+    function ensureLayers() {
+      const svg = d3.select('#chart');
+      if (chartLayers && chartLayers.svgNode === svg.node()) return chartLayers;
+      svg.selectAll('*').remove();
+      const root = svg.append('g').attr('class', 'plot-area');
+      chartLayers = {
+        svgNode:    svg.node(),
+        svg,
+        root,
+        gridY:      root.append('g').attr('class', 'axis-grid grid-y'),
+        gridX:      root.append('g').attr('class', 'axis-grid grid-x'),
+        axisX:      root.append('g').attr('class', 'axis axis-x'),
+        axisY:      root.append('g').attr('class', 'axis axis-y'),
+        trendlines:     root.append('g').attr('class', 'trendlines'),
+        trendLabelBoxes:root.append('g').attr('class', 'trendline-label-boxes'),
+        trendLabels:    root.append('g').attr('class', 'trendline-labels'),
+        labelLines: root.append('g').attr('class', 'label-lines'),
+        dots:       root.append('g').attr('class', 'dots'),
+        labels:     root.append('g').attr('class', 'labels'),
+        xLabel:     svg.append('text').attr('class', 'axis-label x-label').attr('text-anchor', 'middle'),
+        yLabel:     svg.append('text').attr('class', 'axis-label y-label').attr('text-anchor', 'middle'),
+        empty:      svg.append('text').attr('class', 'empty-state')
+                       .attr('text-anchor', 'middle').attr('fill', '#666').attr('font-size', 14)
+                       .style('opacity', 0),
+      };
+      return chartLayers;
+    }
+
+    /* ─── Legend (interactive) ───────────────────────────────────────────── */
+    const groupEnabled = { "US": true, "China": true, "Other": true };
+
+    function buildLegend() {
+      const legend = document.getElementById("legend");
+      legend.innerHTML = "";
+
+      const items = [
+        { key: "US",     label: "United States" },
+        { key: "China",  label: "China" },
+        { key: "Other",  label: "Other / Unknown" }
+      ];
+
+      items.forEach(({ key, label }) => {
+        const item = document.createElement("div");
+        item.className = "legend-item";
+        item.setAttribute("role", "button");
+        item.setAttribute("tabindex", "0");
+        item.setAttribute("aria-pressed", "true");
+
+        const square = document.createElement("span");
+        square.className = "legend-square";
+        square.style.background = COUNTRY_COLOR[key];
+
+        const text = document.createElement("span");
+        text.textContent = label;
+
+        item.append(square, text);
+
+        const toggle = () => {
+          groupEnabled[key] = !groupEnabled[key];
+          const active = groupEnabled[key];
+          item.classList.toggle("inactive", !active);
+          item.setAttribute("aria-pressed", String(active));
+          updateChart();
+        };
+        item.addEventListener("click", toggle);
+        item.addEventListener("keydown", e => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+        });
+        legend.appendChild(item);
+      });
+
+      // Trendline indicator (non-interactive, after a thin separator)
+      const sep = document.createElement("div");
+      sep.style.cssText = "width:1px;height:16px;background:#ccc;margin:0 4px;flex-shrink:0;";
+      legend.appendChild(sep);
+
+      const trendItem = document.createElement("div");
+      trendItem.className = "legend-item";
+      trendItem.style.cursor = "default";
+      const trendLine = document.createElement("span");
+      trendLine.style.cssText = "display:inline-block;width:26px;height:0;border-top:2px dashed #1f2937;flex-shrink:0;";
+      const trendLabel = document.createElement("span");
+      trendLabel.textContent = "Trendline";
+      trendItem.append(trendLine, trendLabel);
+      legend.appendChild(trendItem);
+    }
+
+    /* ─── Data load ──────────────────────────────────────────────────────── */
+    d3.csv(CSV_PATH).then(rows => {
+      rawData = rows
+        .map(r => {
+          const dateStr = (r["Release date"] || "").trim();
+          if (!dateStr) return null;
+          const date = new Date(dateStr);
+          if (isNaN(+date)) return null;
+
+          // Use "Max performance" — Epoch AI's metric that takes the max across
+          // available precisions (Tensor-FP16/BF16, FP16, FP32, ...). Older GPUs
+          // typically only have FP32 listed.
+          let perf = parseNum(r["Max performance"]);
+          if (!perf) perf = parseNum(r["Tensor-FP16/BF16 performance (FLOP/s)"]);
+          if (!perf) perf = parseNum(r["FP16 (half precision) performance (FLOP/s)"]);
+          if (!perf) perf = parseNum(r["FP32 (single precision) performance (FLOP/s)"]);
+          if (!perf) return null;
+
+          const tflops = perf / 1e12;
+          return {
+            id:      r["Hardware name"],
+            name:    r["Hardware name"],
+            date,
+            year:    date.getUTCFullYear() + (date.getUTCMonth() / 12),
+            tflops,
+            country: normalizeCountry(r["Country"]),
+            manufacturer: r["Manufacturer"]
+          };
+        })
+        .filter(d => d && d.tflops > 0);
+
+      buildLegend();
+      updateChart();
+    }).catch(err => {
+      console.error("Failed to load CSV:", err && err.stack || err);
+      const layers = ensureLayers();
+      layers.empty
+        .attr('x', document.getElementById('chart').clientWidth / 2)
+        .attr('y', document.getElementById('chart').clientHeight / 2)
+        .text('Failed to load data: ' + (err && err.message ? err.message : err))
+        .style('opacity', 1);
+    });
+
+    /* ─── Linear regression in log10(y) vs year ──────────────────────────── */
+    function logLinearRegression(points) {
+      const n = points.length;
+      if (n < 2) return null;
+      let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+      points.forEach(p => {
+        const xv = p.year;
+        const yv = Math.log10(p.tflops);
+        sumX += xv; sumY += yv; sumXY += xv * yv; sumXX += xv * xv;
+      });
+      const denom = (n * sumXX - sumX * sumX);
+      if (denom === 0) return null;
+      const slope     = (n * sumXY - sumX * sumY) / denom;
+      const intercept = (sumY - slope * sumX) / n;
+      return { slope, intercept };
+    }
+
+    /* ─── Select chips to label (top performer per year per country) ─────── */
+    function selectLabels(data) {
+      // Bucket by integer year + country, keep the max-perf chip
+      const buckets = new Map();
+      data.forEach(d => {
+        const key = `${Math.floor(d.year)}|${d.country}`;
+        const cur = buckets.get(key);
+        if (!cur || d.tflops > cur.tflops) buckets.set(key, d);
+      });
+      // Also keep the global yearly max regardless of country
+      const yearMax = new Map();
+      data.forEach(d => {
+        const yr = Math.floor(d.year);
+        const cur = yearMax.get(yr);
+        if (!cur || d.tflops > cur.tflops) yearMax.set(yr, d);
+      });
+      // And keep notable low outliers (bottom 1 chip per year if it's >1 OOM below the year max)
+      const yearMin = new Map();
+      data.forEach(d => {
+        const yr = Math.floor(d.year);
+        const cur = yearMin.get(yr);
+        if (!cur || d.tflops < cur.tflops) yearMin.set(yr, d);
+      });
+
+      const labeled = new Set();
+      buckets.forEach(d => labeled.add(d.id));
+      yearMax.forEach(d => labeled.add(d.id));
+      yearMin.forEach((d, yr) => {
+        const top = yearMax.get(yr);
+        if (top && d !== top && Math.log10(top.tflops / d.tflops) >= 1.5) {
+          labeled.add(d.id);
+        }
+      });
+      return labeled;
+    }
+
+    const LABEL_DIRECTION_OVERRIDES = {
+      // "NVIDIA H100 SXM5 80GB": 0,
+    };
+
+    function truncateText(text, maxLength = 35) {
+      if (!text || text.length <= maxLength) return text;
+      return text.substring(0, maxLength) + "…";
+    }
+
+    function rectanglesOverlap(a, b) {
+      return !(a.x + a.width  < b.x ||
+               b.x + b.width  < a.x ||
+               a.y + a.height < b.y ||
+               b.y + b.height < a.y);
+    }
+
+    function getPositionOptions(cx, cy, r, padding = 6) {
+      const card = [
+        { name: 'right',  x: cx + r + padding,        y: cy + 4,                  anchor: 'start'  },
+        { name: 'left',   x: cx - r - padding,        y: cy + 4,                  anchor: 'end'    },
+        { name: 'below',  x: cx,                      y: cy + r + padding + 9,    anchor: 'middle' },
+        { name: 'above',  x: cx,                      y: cy - r - padding,        anchor: 'middle' }
+      ];
+      const diag = (r + padding) * 0.707;
+      const extra = 3;
+      const diagonals = [
+        { name: 'top-right',    x: cx + diag + extra, y: cy - diag,           anchor: 'start' },
+        { name: 'bottom-right', x: cx + diag + extra, y: cy + diag + 5,       anchor: 'start' },
+        { name: 'bottom-left',  x: cx - diag - extra, y: cy + diag + 5,       anchor: 'end'   },
+        { name: 'top-left',     x: cx - diag - extra, y: cy - diag,           anchor: 'end'   }
+      ];
+      return [...card, ...diagonals];
+    }
+
+    function bboxColliding(bbox, obstacles, ignoreId) {
+      const pad = 1.5;
+      const padded = {
+        x: bbox.x + pad,
+        y: bbox.y + pad,
+        width:  Math.max(0, bbox.width  - pad * 2),
+        height: Math.max(0, bbox.height - pad * 2)
+      };
+      for (const obs of obstacles) {
+        if (obs.isCircle && obs.id === ignoreId) continue;
+        if (rectanglesOverlap(padded, obs)) return true;
+      }
+      return false;
+    }
+
+    function bboxOutOfBounds(bbox, bounds) {
+      if (!bounds) return false;
+      const m = 2;
+      return (bbox.x < bounds.x + m ||
+              bbox.y < bounds.y + m ||
+              bbox.x + bbox.width  > bounds.x + bounds.width  - m ||
+              bbox.y + bbox.height > bounds.y + bounds.height - m);
+    }
+
+    function findBestPosition(textEl, cx, cy, r, obstacles, fullText, bounds, ignoreId, manualDir) {
+      const positions = getPositionOptions(cx, cy, r);
+
+      // Manual override — accept whichever direction the user pinned, even
+      // if it collides.
+      if (manualDir !== undefined && manualDir !== null) {
+        const map = ['right','bottom-right','below','bottom-left','left','top-left','above','top-right'];
+        const name = map[manualDir];
+        const pos = positions.find(p => p.name === name);
+        if (pos) {
+          textEl.textContent = fullText;
+          textEl.setAttribute('x', pos.x);
+          textEl.setAttribute('y', pos.y);
+          textEl.setAttribute('text-anchor', pos.anchor);
+          const bbox = textEl.getBBox();
+          return { ...pos, text: fullText, hasCollision: bboxColliding(bbox, obstacles, ignoreId), isManual: true };
+        }
+      }
+
+      // Try full text in each position.
+      textEl.textContent = fullText;
+      for (const pos of positions) {
+        textEl.setAttribute('x', pos.x);
+        textEl.setAttribute('y', pos.y);
+        textEl.setAttribute('text-anchor', pos.anchor);
+        const bbox = textEl.getBBox();
+        if (!bboxColliding(bbox, obstacles, ignoreId) && !bboxOutOfBounds(bbox, bounds)) {
+          return { ...pos, text: fullText, hasCollision: false };
+        }
+      }
+
+      // Fall back to truncated text.
+      const truncated = truncateText(fullText, 22);
+      if (truncated !== fullText) {
+        textEl.textContent = truncated;
+        for (const pos of positions) {
+          textEl.setAttribute('x', pos.x);
+          textEl.setAttribute('y', pos.y);
+          textEl.setAttribute('text-anchor', pos.anchor);
+          const bbox = textEl.getBBox();
+          if (!bboxColliding(bbox, obstacles, ignoreId) && !bboxOutOfBounds(bbox, bounds)) {
+            return { ...pos, text: truncated, hasCollision: false };
+          }
+        }
+      }
+
+      // Nothing worked — return default-right with collision flag.
+      textEl.textContent = truncated;
+      textEl.setAttribute('x', positions[0].x);
+      textEl.setAttribute('y', positions[0].y);
+      textEl.setAttribute('text-anchor', positions[0].anchor);
+      return { ...positions[0], text: truncated, hasCollision: true };
+    }
+
+    function connectorEndpoints(name, cx, cy, r, pos) {
+      let x1, y1, x2, y2;
+      x1 = cx; y1 = cy; x2 = pos.x; y2 = pos.y;
+      if (name === 'right')         { x1 = cx + r; y1 = cy;       x2 = pos.x - 2; y2 = cy; }
+      else if (name === 'left')     { x1 = cx - r; y1 = cy;       x2 = pos.x + 2; y2 = cy; }
+      else if (name === 'above')    { x1 = cx;     y1 = cy - r;   x2 = cx;        y2 = pos.y + 2; }
+      else if (name === 'below')    { x1 = cx;     y1 = cy + r;   x2 = cx;        y2 = pos.y - 10; }
+      else if (name === 'top-right')    { x1 = cx + r * 0.7; y1 = cy - r * 0.7; x2 = pos.x - 2; y2 = pos.y - 3; }
+      else if (name === 'bottom-right') { x1 = cx + r * 0.7; y1 = cy + r * 0.7; x2 = pos.x - 2; y2 = pos.y - 4; }
+      else if (name === 'bottom-left')  { x1 = cx - r * 0.7; y1 = cy + r * 0.7; x2 = pos.x + 2; y2 = pos.y - 4; }
+      else if (name === 'top-left')     { x1 = cx - r * 0.7; y1 = cy - r * 0.7; x2 = pos.x + 2; y2 = pos.y - 3; }
+      return { x1, y1, x2, y2 };
+    }
+
+    /* Always shows every trendline label. Picks the first vertical position
+       whose padded box doesn't overlap any prior trendline label; falls
+       back to the default position when none are clear. Each label is
+       wrapped in a colored outline box, and the padded boxes are returned
+       so chip labels later avoid them. */
+    function placeTrendlineLabels(trendItems, innerW, innerH) {
+      const PAD_X = 6, PAD_Y = 3;
+      const placedPadded = [];  // for internal collision checking
+      const returned    = [];  // exposed to chip-label placement
+
+      trendItems.forEach(t => {
+        const ex = Math.min(innerW + 4, t.x2 + 6);
+        const positions = [
+          { x: ex,         y: t.y2,        anchor: 'start' },
+          { x: ex,         y: t.y2 - 14,   anchor: 'start' },
+          { x: ex,         y: t.y2 + 16,   anchor: 'start' },
+          { x: ex,         y: t.y2 - 30,   anchor: 'start' },
+          { x: ex,         y: t.y2 + 32,   anchor: 'start' },
+          { x: t.x2 - 6,   y: t.y2 - 14,   anchor: 'end'   },
+          { x: t.x2 - 6,   y: t.y2 + 22,   anchor: 'end'   }
+        ];
+
+        t.textNode.textContent = t.labelText;
+        t.textNode.classList.remove('collision');
+
+        let chosenBBox = null;
+        for (const pos of positions) {
+          t.textNode.setAttribute('x', pos.x);
+          t.textNode.setAttribute('y', pos.y);
+          t.textNode.setAttribute('text-anchor', pos.anchor);
+          const bb = t.textNode.getBBox();
+          const padded = {
+            x: bb.x - PAD_X, y: bb.y - PAD_Y,
+            width: bb.width + PAD_X * 2, height: bb.height + PAD_Y * 2
+          };
+          if (!placedPadded.some(p => rectanglesOverlap(p, padded))) {
+            chosenBBox = bb;
+            break;
+          }
+        }
+        if (!chosenBBox) {
+          // Fallback: keep the first position even if it overlaps.
+          const p0 = positions[0];
+          t.textNode.setAttribute('x', p0.x);
+          t.textNode.setAttribute('y', p0.y);
+          t.textNode.setAttribute('text-anchor', p0.anchor);
+          chosenBBox = t.textNode.getBBox();
+        }
+
+        // Outline box around the label.
+        if (t.boxNode) {
+          t.boxNode.setAttribute('x',      chosenBBox.x - PAD_X);
+          t.boxNode.setAttribute('y',      chosenBBox.y - PAD_Y);
+          t.boxNode.setAttribute('width',  chosenBBox.width  + PAD_X * 2);
+          t.boxNode.setAttribute('height', chosenBBox.height + PAD_Y * 2);
+          t.boxNode.setAttribute('rx', 3);
+        }
+
+        const padded = {
+          x: chosenBBox.x - PAD_X, y: chosenBBox.y - PAD_Y,
+          width:  chosenBBox.width  + PAD_X * 2,
+          height: chosenBBox.height + PAD_Y * 2,
+          isCircle: false
+        };
+        placedPadded.push(padded);
+        returned.push(padded);
+      });
+
+      return returned;
+    }
+
+    function placeLabels(labelObjs, x, y, dotR, innerW, innerH, initialObstacles) {
+      // Largest TFLOP/s first — flagship chips get priority on prime spots.
+      labelObjs.sort((a, b) => b.tflops - a.tflops);
+
+      const obstacles = [...(initialObstacles || [])];
+      const bounds = { x: 0, y: 0, width: innerW, height: innerH };
+
+      labelObjs.forEach(L => {
+        const cx = x(L.date);
+        const cy = y(L.tflops);
+        const dir = LABEL_DIRECTION_OVERRIDES[L.id];
+
+        const best = findBestPosition(
+          L.textNode, cx, cy, dotR, obstacles, L.name, bounds, L.id, dir
+        );
+
+        L.textNode.setAttribute('x', best.x);
+        L.textNode.setAttribute('y', best.y);
+        L.textNode.setAttribute('text-anchor', best.anchor);
+        L.textNode.textContent = best.text;
+
+        const collided = best.hasCollision && !best.isManual;
+        L.textNode.classList.toggle('collision', collided);
+
+        if (L.lineNode) {
+          const ep = connectorEndpoints(best.name, cx, cy, dotR, best);
+          L.lineNode.setAttribute('x1', ep.x1);
+          L.lineNode.setAttribute('y1', ep.y1);
+          L.lineNode.setAttribute('x2', ep.x2);
+          L.lineNode.setAttribute('y2', ep.y2);
+          L.lineNode.classList.toggle('collision', collided);
+        }
+
+        // Only add visible labels as obstacles — hidden ones don't block.
+        if (!collided) {
+          const bbox = L.textNode.getBBox();
+          obstacles.push({
+            x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height,
+            isCircle: false, id: L.id
+          });
+        }
+      });
+    }
+
+    function updateChart() {
+      if (!rawData) return;
+
+      const container = document.getElementById('viz');
+      const width  = container.clientWidth;
+      const height = container.clientHeight;
+      if (width <= 0 || height <= 0) return;
+
+      // Filter by enabled groups
+      plotData = rawData.filter(d => groupEnabled[d.country]);
+
+      const layers = ensureLayers();
+
+      const svgEl = d3.select('#chart')
+        .attr('width', width)
+        .attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`);
+
+      if (plotData.length === 0) {
+        layers.empty
+          .attr('x', width / 2).attr('y', height / 2)
+          .text('No data')
+          .transition().duration(TRANSITION_MS).style('opacity', 1);
+        layers.root.transition().duration(TRANSITION_MS).style('opacity', 0);
+        return;
+      }
+      layers.empty.transition().duration(TRANSITION_MS).style('opacity', 0);
+      layers.root.transition().duration(TRANSITION_MS).style('opacity', 1);
+
+      const margin = { top: 24, right: 140, bottom: 56, left: 72 };
+      const innerW = Math.max(50, width  - margin.left - margin.right);
+      const innerH = Math.max(50, height - margin.top  - margin.bottom);
+
+      layers.root.attr('transform', `translate(${margin.left},${margin.top})`);
+
+      // X scale — time
+      const xExtent = d3.extent(rawData, d => d.date);
+      const xPad    = Math.max(30 * 86400000, (xExtent[1] - xExtent[0]) * 0.02);
+      const xDomain = [
+        new Date(xExtent[0].getTime() - xPad),
+        new Date(xExtent[1].getTime() + xPad)
+      ];
+      const x = d3.scaleTime().domain(xDomain).range([0, innerW]);
+
+      // Y scale — log
+      const yMin = d3.min(rawData, d => d.tflops);
+      const yMax = d3.max(rawData, d => d.tflops);
+      // Round outwards for nice log domain
+      const yLo  = Math.pow(10, Math.floor(Math.log10(yMin)) - 0.3);
+      const yHi  = Math.pow(10, Math.ceil(Math.log10(yMax)) + 0.05);
+      const y    = d3.scaleLog().domain([yLo, yHi]).range([innerH, 0]);
+
+      const t = d3.transition().duration(TRANSITION_MS);
+
+      // Grid Y
+      layers.gridY
+        .transition(t)
+        .call(d3.axisLeft(y).tickValues(yTicks(yLo, yHi)).tickSize(-innerW).tickFormat(''));
+      layers.gridY.selectAll('line').attr('stroke', '#e5e7eb');
+      layers.gridY.select('.domain').attr('stroke', 'none');
+
+      // Grid X
+      layers.gridX.attr('transform', `translate(0,${innerH})`);
+      layers.gridX
+        .transition(t)
+        .call(d3.axisBottom(x).ticks(Math.max(6, Math.floor(innerW / 110))).tickSize(-innerH).tickFormat(''));
+      layers.gridX.selectAll('line').attr('stroke', '#e5e7eb');
+      layers.gridX.select('.domain').attr('stroke', 'none');
+
+      // X axis
+      layers.axisX.attr('transform', `translate(0,${innerH})`);
+      layers.axisX.transition(t).call(
+        d3.axisBottom(x)
+          .ticks(Math.max(6, Math.floor(innerW / 110)))
+          .tickFormat(d3.timeFormat('%Y'))
+      );
+      layers.axisX.selectAll('text').attr('font-size', 12).attr('fill', '#374151');
+      layers.axisX.select('.domain').attr('stroke', '#9ca3af');
+
+      // Y axis (log)
+      const yTickVals = yTicks(yLo, yHi);
+      layers.axisY.transition(t).call(
+        d3.axisLeft(y).tickValues(yTickVals).tickFormat(tflopsTickFormat)
+      );
+      layers.axisY.selectAll('text').attr('font-size', 12).attr('fill', '#374151');
+      layers.axisY.select('.domain').attr('stroke', '#9ca3af');
+
+      // Axis labels
+      layers.xLabel
+        .attr('x', margin.left + innerW / 2)
+        .attr('y', height - 14)
+        .text('Release date');
+
+      layers.yLabel
+        .attr('transform', `translate(20,${margin.top + innerH / 2}) rotate(-90)`)
+        .text('Peak ML performance (TFLOP/s)');
+
+      /* ─── Trendlines (log-linear) ──────────────────────────────────── */
+      const trendData = [];
+      if (SHOW_TRENDLINES) {
+        const groups = {
+          "Overall": plotData,
+          "US":      plotData.filter(d => d.country === "US"),
+          "China":   plotData.filter(d => d.country === "China")
+        };
+        TRENDLINE_GROUPS.forEach(key => {
+          const pts = groups[key];
+          if (!pts || pts.length < 2) return;
+          const reg = logLinearRegression(pts);
+          if (!reg) return;
+          const yrMin = d3.min(pts, p => p.year);
+          const yrMax = d3.max(pts, p => p.year);
+          const yAtMin = Math.pow(10, reg.slope * yrMin + reg.intercept);
+          const yAtMax = Math.pow(10, reg.slope * yrMax + reg.intercept);
+          const dateMin = yearToDate(yrMin);
+          const dateMax = yearToDate(yrMax);
+          const multiplier = Math.pow(10, reg.slope); // per year
+          trendData.push({
+            key,
+            color: TRENDLINE_COLOR[key],
+            x1: x(dateMin), y1: y(yAtMin),
+            x2: x(dateMax), y2: y(yAtMax),
+            multiplier,
+            labelText: key === "Overall"
+              ? `${multiplier.toFixed(2)}×/year (overall)`
+              : `${key}: ${multiplier.toFixed(2)}×/yr`
+          });
+        });
+      }
+
+      const trendSel = layers.trendlines.selectAll('line').data(trendData, d => d.key);
+      trendSel.exit().transition(t).style('opacity', 0).remove();
+      trendSel.enter().append('line')
+          .attr('class', 'trendline')
+          .attr('stroke', d => d.color)
+          .style('opacity', 0)
+        .merge(trendSel).transition(t)
+          .attr('x1', d => d.x1).attr('y1', d => d.y1)
+          .attr('x2', d => d.x2).attr('y2', d => d.y2)
+          .attr('stroke', d => d.color)
+          .style('opacity', 0.85);
+
+      // Trendline labels (text) + outline boxes — positions set synchronously below.
+      const tlabSel = layers.trendLabels.selectAll('text').data(trendData, d => d.key);
+      tlabSel.exit().remove();
+      const tlabEnter = tlabSel.enter().append('text')
+          .attr('class', 'trendline-label')
+          .attr('dy', '0.32em')
+          .style('opacity', 0);
+      const tlabAll = tlabEnter.merge(tlabSel)
+          .attr('fill', d => d.color);
+
+      const tboxSel = layers.trendLabelBoxes.selectAll('rect').data(trendData, d => d.key);
+      tboxSel.exit().remove();
+      const tboxEnter = tboxSel.enter().append('rect')
+          .attr('class', 'trendline-label-box')
+          .style('opacity', 0);
+      const tboxAll = tboxEnter.merge(tboxSel)
+          .attr('stroke', d => d.color);
+
+      const trendItems = [];
+      tlabAll.each(function(d) {
+        const boxNode = tboxAll.filter(dd => dd.key === d.key).node();
+        trendItems.push({
+          textNode: this, boxNode,
+          x2: d.x2, y2: d.y2, labelText: d.labelText
+        });
+      });
+
+      /* ─── Dots ─────────────────────────────────────────────────────── */
+      const dotR = Math.max(3.5, Math.min(6, innerW / 200));
+
+      const dotSel = layers.dots.selectAll('circle').data(plotData, d => d.id);
+      dotSel.exit().transition(t).attr('r', 0).style('opacity', 0).remove();
+      const dotEnter = dotSel.enter().append('circle')
+        .attr('class', 'scatter-dot')
+        .attr('cx', d => x(d.date))
+        .attr('cy', d => y(d.tflops))
+        .attr('r', 0)
+        .attr('fill', d => COUNTRY_COLOR[d.country])
+        .attr('stroke', '#fff')
+        .attr('stroke-width', 1.2)
+        .style('opacity', 0);
+
+      dotEnter.merge(dotSel).transition(t)
+        .attr('cx', d => x(d.date))
+        .attr('cy', d => y(d.tflops))
+        .attr('fill', d => COUNTRY_COLOR[d.country])
+        .attr('r', dotR)
+        .style('opacity', 0.85);
+
+      /* ─── Obstacle seed: every visible dot ─────────────────────────── */
+      const dotObstacles = plotData.map(d => ({
+        x: x(d.date) - dotR,
+        y: y(d.tflops) - dotR,
+        width:  dotR * 2,
+        height: dotR * 2,
+        isCircle: true,
+        id: d.id
+      }));
+
+      /* ─── Place trendline labels first (high priority, always shown) ─ */
+      const trendObstacles = placeTrendlineLabels(trendItems, innerW, innerH);
+      tlabAll.transition(t).style('opacity', 1);
+      tboxAll.transition(t).style('opacity', 1);
+
+      /* ─── Chip labels & connectors (smart 8-direction placement) ──── */
+      let labelByID = new Map();
+
+      if (SHOW_LABELS) {
+        const labeledIds = selectLabels(plotData);
+        const labelData = plotData.filter(d => labeledIds.has(d.id));
+
+        // Connector lines — one per label.
+        const llSel = layers.labelLines.selectAll('line').data(labelData, d => d.id);
+        llSel.exit().remove();
+        const llEnter = llSel.enter().append('line')
+          .attr('class', 'connector-line')
+          .attr('stroke', d => COUNTRY_COLOR[d.country]);
+        const llAll = llEnter.merge(llSel)
+          .attr('stroke', d => COUNTRY_COLOR[d.country]);
+
+        // Label texts.
+        const labelSel = layers.labels.selectAll('text').data(labelData, d => d.id);
+        labelSel.exit().remove();
+        const labelEnter = labelSel.enter().append('text')
+          .attr('class', 'scatter-label')
+          .attr('dy', '0.32em')
+          .attr('fill', d => COUNTRY_COLOR[d.country])
+          .style('opacity', 0);
+        const labelAll = labelEnter.merge(labelSel)
+          .attr('fill', d => COUNTRY_COLOR[d.country])
+          .text(d => d.name);
+
+        // Build the obj array with DOM-node refs for the placement pass.
+        const labelObjs = [];
+        labelAll.each(function(d) {
+          const lineNode = llAll.filter(dd => dd.id === d.id).node();
+          const obj = { ...d, textNode: this, lineNode };
+          labelObjs.push(obj);
+          labelByID.set(d.id, obj);
+        });
+
+        // Seed obstacles with dots + already-placed trendline labels.
+        const seed = [...dotObstacles, ...trendObstacles];
+        placeLabels(labelObjs, x, y, dotR, innerW, innerH, seed);
+
+        // Fade in once positions are settled.
+        labelAll.transition(t).style('opacity', 1);
+      } else {
+        layers.labelLines.selectAll('line').remove();
+        layers.labels.selectAll('text').remove();
+      }
+
+      /* ─── Tooltip + label hover ────────────────────────────────────── */
+      layers.dots.selectAll('circle')
+        .on('mouseover', function(event, d) {
+          d3.select(this).interrupt().attr('r', dotR + 2.5).style('opacity', 1);
+          if (SHOW_TOOLTIP) {
+            tooltip
+              .style('opacity', 1)
+              .html(`<b>${d.name}</b><br/>
+                     <span class="muted">Performance:</span> ${smartFormat(d.tflops)} TFLOP/s<br/>
+                     <span class="muted">Released:</span> ${d3.timeFormat('%b %Y')(d.date)}<br/>
+                     <span class="meta">${d.country}${d.manufacturer ? ', ' + d.manufacturer : ''}</span>`);
+            moveTooltip(event);
+          }
+          const L = labelByID.get(d.id);
+          if (L && L.textNode) {
+            L.textNode._restore = {
+              text: L.textNode.textContent,
+              wasCollision: L.textNode.classList.contains('collision')
+            };
+            L.textNode.textContent = d.name;
+            L.textNode.classList.remove('collision');
+            L.textNode.classList.add('hover');
+            // Raise to top so it renders above neighbours.
+            L.textNode.parentNode.appendChild(L.textNode);
+            if (L.lineNode) {
+              L.lineNode.classList.remove('collision');
+              L.lineNode.parentNode.appendChild(L.lineNode);
+            }
+          }
+        })
+        .on('mousemove', function(event) {
+          if (SHOW_TOOLTIP) moveTooltip(event);
+        })
+        .on('mouseout', function(event, d) {
+          d3.select(this).interrupt().attr('r', dotR).style('opacity', 0.85);
+          if (SHOW_TOOLTIP) tooltip.style('opacity', 0);
+          const L = labelByID.get(d.id);
+          if (L && L.textNode) {
+            L.textNode.classList.remove('hover');
+            if (L.textNode._restore) {
+              L.textNode.textContent = L.textNode._restore.text;
+              if (L.textNode._restore.wasCollision) {
+                L.textNode.classList.add('collision');
+                if (L.lineNode) L.lineNode.classList.add('collision');
+              }
+              delete L.textNode._restore;
+            }
+          }
+        });
+    }
+
+    /* ─── Build clean log ticks ──────────────────────────────────────────── */
+    function yTicks(lo, hi) {
+      const out = [];
+      const startE = Math.floor(Math.log10(lo));
+      const endE   = Math.ceil(Math.log10(hi));
+      for (let e = startE; e <= endE; e++) {
+        [1, 2, 5].forEach(m => {
+          const v = m * Math.pow(10, e);
+          if (v >= lo && v <= hi) out.push(v);
+        });
+      }
+      return out;
+    }
+
+    /* ─── Year (decimal) → Date ──────────────────────────────────────────── */
+    function yearToDate(year) {
+      const y = Math.floor(year);
+      const frac = year - y;
+      const ms = frac * 365.25 * 86400000;
+      return new Date(Date.UTC(y, 0, 1) + ms);
+    }
+
+    /* ─── Resize ─────────────────────────────────────────────────────────── */
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(updateChart, 100);
+    });
+
+    if (typeof ResizeObserver !== "undefined") {
+      new ResizeObserver(() => updateChart()).observe(document.getElementById('viz'));
+    }
+
+    /* ─── Snapshot: press D to download the current chart as static HTML ── */
+    document.addEventListener('keydown', e => {
+      if (e.key === 'd' || e.key === 'D') downloadSnapshot();
+    });
+
+    function downloadSnapshot() {
+      const clone = document.documentElement.cloneNode(true);
+      clone.querySelectorAll('script').forEach(s => s.remove());
+      // Restore any in-hover label to its placed state.
+      clone.querySelectorAll('.scatter-label.hover').forEach(el => {
+        el.classList.remove('hover');
+        el.style.opacity = '';
+        el.style.fontSize = '';
+        el.style.fontWeight = '';
+      });
+      const blob = new Blob(['<!doctype html>', clone.outerHTML], { type: 'text/html' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url;
+      a.download = 'ml_hardware_snapshot.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
