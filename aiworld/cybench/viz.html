@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Cybench Unguided — Model performance over time</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    /* ─── BASE ────────────────────────────────────────────────────────────────── */
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+      background-color: white;
+    }
+
+    /* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 16fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding-bottom: clamp(8px, 2vh, 18px);
+    }
+    #container1 {
+      grid-row: 1;
+      grid-column: 1 / span 2;
+      overflow: hidden;
+      min-height: 0;
+    }
+    #container1 .chart-wrapper {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+      margin-left: 0;
+    }
+    #container1 .chart-wrapper-inner {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+    }
+    #container2 {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    #container3 {
+      grid-row: 3;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+    #container4 {
+      grid-row: 3;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+    #container4 a {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    /* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
+    #viz {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+    }
+    #chart {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ─── LEGEND ──────────────────────────────────────────────────────────────── */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(6px, 1vw, 14px);
+      background: rgba(255, 255, 255, 1);
+      padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+      border-radius: clamp(6px, 1vw, 12px);
+      max-width: 100%;
+      max-height: 100%;
+      font-size: clamp(0.625rem, 1.4vw, 1rem);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: clamp(4px, 1vw, 8px);
+      font-weight: 600;
+      color: #333;
+      font-size: inherit;
+      padding: 2px 6px;
+      cursor: default;
+    }
+    .legend-item.interactive {
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+    .legend-item.dim { opacity: 0.35; }
+    .legend-item:focus-visible {
+      outline: 2px solid rgba(0, 0, 0, 0.5);
+      outline-offset: 2px;
+    }
+    .legend-square {
+      width: clamp(8px, 0.9vw, 12px);
+      height: clamp(8px, 0.9vw, 12px);
+      border-radius: 0;
+      flex-shrink: 0;
+    }
+
+    /* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+    .source-text {
+      font-size: clamp(10px, 1.6vw, 16px);
+      font-weight: 600;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      font-style: normal;
+    }
+    .source-text a {
+      color: #2756d3;
+      text-decoration: underline;
+      cursor: pointer;
+      font-style: normal;
+    }
+    .source-text a:visited { color: #2756d3; }
+    .logo {
+      height: 100%;
+      width: auto;
+      max-height: 100%;
+      max-width: 100%;
+      pointer-events: auto;
+      object-fit: contain;
+    }
+
+    /* ─── CHART ELEMENTS (D3) ─────────────────────────────────────────────────── */
+    .axis path, .axis line { stroke: #cfd2d7; }
+    .tick text { font-weight: 600; fill: #4b5563; }
+    .grid-lines line { stroke: #DBDBDB; stroke-dasharray: 2, 3; }
+    .grid-lines path { stroke: none; }
+
+    /* ─── SCATTER-SPECIFIC ────────────────────────────────────────────────────── */
+    .scatter-dot {
+      cursor: pointer;
+      transition: r 0.15s ease, stroke-width 0.15s ease;
+    }
+    .custom-label {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-size: 12px;
+      fill: #000 !important;
+      opacity: 1;
+      font-weight: 500;
+      pointer-events: none;
+      transform-origin: center;
+    }
+    .connector-line {
+      stroke: #000;
+      stroke-width: 1px;
+      opacity: 0.4;
+      pointer-events: none;
+    }
+    .axis-grid line {
+      stroke: #e5e7eb;
+      stroke-dasharray: 2 3;
+      shape-rendering: crispEdges;
+    }
+    .axis-grid path { stroke: none; }
+    .axis-label {
+      font-size: clamp(11px, 1.3vw, 15px);
+      font-weight: 700;
+      fill: #333;
+    }
+    .pareto-line {
+      fill: none;
+      stroke: #111;
+      stroke-width: 2.5px;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+      stroke-dasharray: 7 5;
+      pointer-events: none;
+    }
+    .pareto-dot {
+      fill: none;
+      stroke: #111;
+      stroke-width: 2px;
+      pointer-events: none;
+    }
+
+    /* ─── TOOLTIP ─────────────────────────────────────────────────────────────── */
+    #tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(17, 24, 39, 0.96);
+      color: #fff;
+      padding: 8px 11px;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.4;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 10;
+      max-width: 260px;
+    }
+    #tooltip strong { color: #fff; }
+    #tooltip .tt-org { font-size: 11px; opacity: 0.8; }
+    #tooltip .tt-note {
+      margin-top: 4px;
+      font-size: 11px;
+      font-style: italic;
+      opacity: 0.85;
+      border-top: 1px solid rgba(255,255,255,0.18);
+      padding-top: 4px;
+    }
+
+    /* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+    @media (max-height: 500px) {
+      .viz-grid {
+        grid-template-rows: 1fr !important;
+        grid-template-columns: 1fr !important;
+        padding-bottom: 0;
+      }
+      #container1 { grid-row: 1 !important; grid-column: 1 !important; }
+      #container2, #container3, #container4 { display: none !important; }
+      .legend, .source-text, .logo { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="viz-grid">
+    <div id="container1" class="container viz-container">
+      <div class="chart-wrapper">
+        <div class="chart-wrapper-inner">
+          <svg id="chart"></svg>
+        </div>
+      </div>
+    </div>
+
+    <div id="container2" class="container legend-container">
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div id="container3" class="container source-container">
+      <div class="source-text" id="source-text">
+        Source: <a href="https://cybench.github.io/" target="_blank" rel="noopener">Cybench</a>
+      </div>
+    </div>
+
+    <div id="container4" class="container logo-container">
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+      </a>
+    </div>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <script>
+    // ─── Config constants ─────────────────────────────────────────────────────
+    const SHOW_PARETO    = 1;
+    const SHOW_LABELS    = 1;
+    const SHOW_TOOLTIP   = 1;
+    const TRANSITION_MS  = 500;
+
+    const SHOW_CONTAINER_2 = 1;  // legend
+    const SHOW_CONTAINER_3 = 1;  // source
+    const SHOW_CONTAINER_4 = 1;  // logo
+    const SHOW_CONTAINER_5 = 0;  // footnote
+
+    // Color palette by organization (lab)
+    const LAB_COLORS = {
+      "Anthropic": "#DA7857",
+      "OpenAI":    "#11A37F",
+      "Google":    "#4185F4",
+      "Meta":      "#0568E2",
+      "xAI":       "#000000",
+      "Mistral":   "#FFAF00"
+    };
+    const DEFAULT_COLOR = "#6b7280";
+    const colorFor = lab => LAB_COLORS[lab] || DEFAULT_COLOR;
+
+    // ─── Container visibility ────────────────────────────────────────────────
+    (function applyContainerVisibility() {
+      const vizGrid = document.querySelector('.viz-grid');
+      const c2 = document.getElementById('container2');
+      const c3 = document.getElementById('container3');
+      const c4 = document.getElementById('container4');
+      const c5 = document.getElementById('container5');
+
+      if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+      if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+      if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+      if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+      const row2Visible = SHOW_CONTAINER_5;
+      const row3Visible = SHOW_CONTAINER_2;
+      const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+      let gridRows = [];
+      let currentRow = 1;
+      const chartHeight = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+      gridRows.push(`${chartHeight}fr`);
+
+      if (row2Visible) { gridRows.push('1fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+      if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+      if (row4Visible) {
+        gridRows.push('1fr'); currentRow++;
+        if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+        if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+        if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+        if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+      }
+
+      vizGrid.style.gridTemplateRows = gridRows.join(' ');
+      document.getElementById('container1').style.gridRow = '1';
+    })();
+
+    // ─── Data helpers ────────────────────────────────────────────────────────
+    function parseNum(value) {
+      if (value == null || value === "") return 0;
+      const n = Number(String(value).replace(/,/g, ""));
+      return Number.isFinite(n) ? n : 0;
+    }
+    function smartFormat(v) {
+      if (!isFinite(v)) return "N/A";
+      if (Math.floor(v) === v) return d3.format(",")(v);
+      return d3.format(",.1f")(v);
+    }
+
+    // ─── Pareto frontier ─────────────────────────────────────────────────────
+    // Walk through data sorted by date. A point belongs on the frontier
+    // when its score exceeds the max score seen up to that date.
+    function computeParetoFrontier(points) {
+      const sorted = [...points].sort((a, b) => a.date - b.date);
+      const frontier = [];
+      let maxScore = -Infinity;
+      for (const p of sorted) {
+        if (p.score > maxScore) {
+          frontier.push(p);
+          maxScore = p.score;
+        }
+      }
+      return frontier;
+    }
+
+    // ─── State ────────────────────────────────────────────────────────────────
+    let chartLayers   = null;
+    let customLabels  = [];
+    let isUpdating    = false;
+    let activeLabs    = new Set();
+    let allData       = [];
+    let labelsInitialized = false;
+
+    const tooltip = d3.select('#tooltip');
+
+    // ─── Load data ───────────────────────────────────────────────────────────
+    d3.json('data.json').then(raw => {
+      allData = raw.map((d, i) => ({
+        id:       d.model,
+        name:     d.model,
+        score:    parseNum(d.cybench_unguided),
+        date:     new Date(d.release_date),
+        lab:      d.lab,
+        note:     d.note || null,
+        color:    colorFor(d.lab),
+        labelColor: colorFor(d.lab),
+        _idx:     i
+      })).filter(d => !isNaN(d.date.getTime()));
+
+      const labs = Array.from(new Set(allData.map(d => d.lab)))
+        .sort((a, b) => {
+          const ca = allData.filter(d => d.lab === a).length;
+          const cb = allData.filter(d => d.lab === b).length;
+          return cb - ca;
+        });
+
+      labs.forEach(l => activeLabs.add(l));
+
+      buildLegend(labs);
+      updateChart();
+
+      setTimeout(() => {
+        initializeCustomLabels();
+        startPositionUpdater();
+        labelsInitialized = true;
+      }, 550);
+    });
+
+    // ─── Legend (interactive) ────────────────────────────────────────────────
+    function buildLegend(labs) {
+      const legend = document.getElementById('legend');
+      legend.innerHTML = '';
+      labs.forEach(name => {
+        const item = document.createElement('div');
+        item.className = 'legend-item interactive active';
+        item.setAttribute('role', 'button');
+        item.setAttribute('tabindex', '0');
+        item.setAttribute('aria-pressed', 'true');
+
+        const square = document.createElement('span');
+        square.className = 'legend-square';
+        square.style.background = colorFor(name);
+
+        const label = document.createElement('span');
+        label.textContent = name;
+
+        item.append(square, label);
+
+        const toggle = () => {
+          const isActive = activeLabs.has(name);
+          if (isActive) {
+            activeLabs.delete(name);
+            item.classList.add('dim');
+            item.classList.remove('active');
+            item.setAttribute('aria-pressed', 'false');
+          } else {
+            activeLabs.add(name);
+            item.classList.remove('dim');
+            item.classList.add('active');
+            item.setAttribute('aria-pressed', 'true');
+          }
+          updateChart();
+        };
+        item.addEventListener('click', toggle);
+        item.addEventListener('keydown', e => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+        });
+        legend.appendChild(item);
+      });
+    }
+
+    // ─── Ensure layers ───────────────────────────────────────────────────────
+    function ensureLayers() {
+      const svg = d3.select('#chart');
+      if (chartLayers && chartLayers.svgNode === svg.node()) return chartLayers;
+      svg.selectAll('*').remove();
+      const root = svg.append('g').attr('class', 'plot-area');
+      chartLayers = {
+        svgNode:    svg.node(),
+        svg,
+        root,
+        gridY:      root.append('g').attr('class', 'axis-grid grid-y'),
+        gridX:      root.append('g').attr('class', 'axis-grid grid-x'),
+        axisX:      root.append('g').attr('class', 'axis axis-x'),
+        axisY:      root.append('g').attr('class', 'axis axis-y'),
+        pareto:     root.append('g').attr('class', 'pareto'),
+        dots:       root.append('g').attr('class', 'dots'),
+        xLabel:     svg.append('text').attr('class', 'axis-label x-label').attr('text-anchor', 'middle'),
+        yLabel:     svg.append('text').attr('class', 'axis-label y-label').attr('text-anchor', 'middle'),
+        empty:      svg.append('text').attr('class', 'empty-state')
+                      .attr('text-anchor', 'middle').attr('fill', '#666').attr('font-size', 14)
+                      .style('opacity', 0),
+      };
+      return chartLayers;
+    }
+
+    // ─── Main render ─────────────────────────────────────────────────────────
+    function updateChart() {
+      const layers = ensureLayers();
+      const container = document.getElementById('chart');
+      const width  = container.clientWidth;
+      const height = container.clientHeight;
+      if (width <= 0 || height <= 0) return;
+
+      layers.svg
+        .attr('width', width)
+        .attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`);
+
+      const data = allData.filter(d => activeLabs.has(d.lab));
+
+      if (data.length === 0) {
+        layers.empty
+          .attr('x', width / 2).attr('y', height / 2)
+          .text('No data — toggle a legend item on');
+        layers.empty.transition().duration(TRANSITION_MS).style('opacity', 1);
+        layers.root.transition().duration(TRANSITION_MS).style('opacity', 0);
+        return;
+      }
+      layers.empty.transition().duration(TRANSITION_MS).style('opacity', 0);
+      layers.root.transition().duration(TRANSITION_MS).style('opacity', 1);
+
+      // Small-screen mode: drop axis titles and shrink margins so the plot
+      // uses most of the window (with a small border padding).
+      const isSmall = width < 600;
+      const margin = isSmall
+        ? { top: 16, right: 22, bottom: 36, left: 46 }
+        : { top: 32, right: 80, bottom: 60, left: 80 };
+      const innerW = Math.max(50, width  - margin.left - margin.right);
+      const innerH = Math.max(50, height - margin.top  - margin.bottom);
+
+      layers.root.attr('transform', `translate(${margin.left},${margin.top})`);
+
+      // X scale — time with padding (based on full dataset so axis doesn't jump on toggle)
+      const xExtent = d3.extent(allData, d => d.date);
+      const xPad    = Math.max(15 * 86400000, (xExtent[1] - xExtent[0]) * 0.05);
+      const xDomain = [
+        new Date(xExtent[0].getTime() - xPad),
+        new Date(xExtent[1].getTime() + xPad)
+      ];
+      const x = d3.scaleTime().domain(xDomain).range([0, innerW]);
+
+      // Y scale — 0 to 100 (benchmark percentage)
+      const y = d3.scaleLinear().domain([0, 100]).range([innerH, 0]);
+
+      const t = d3.transition().duration(TRANSITION_MS);
+
+      // Grid
+      layers.gridY.transition(t).call(d3.axisLeft(y).ticks(6).tickSize(-innerW).tickFormat(''));
+      layers.gridY.selectAll('line').attr('stroke', '#e5e7eb');
+      layers.gridY.select('.domain').attr('stroke', 'none');
+
+      layers.gridX.attr('transform', `translate(0,${innerH})`);
+      layers.gridX.transition(t).call(d3.axisBottom(x).tickSize(-innerH).tickFormat(''));
+      layers.gridX.selectAll('line').attr('stroke', '#e5e7eb');
+      layers.gridX.select('.domain').attr('stroke', 'none');
+
+      // Axes
+      const xTickFont    = width < 500 ? 8
+                          : width < 700 ? 9
+                          : width < 1000 ? 11
+                          : 12;
+      const xTickDivisor = isSmall ? 75 : 110;
+
+      layers.axisX.attr('transform', `translate(0,${innerH})`);
+      layers.axisX.transition(t).call(
+        d3.axisBottom(x)
+          .ticks(Math.max(4, Math.floor(innerW / xTickDivisor)))
+          .tickFormat(d3.timeFormat('%b %Y'))
+      );
+      layers.axisX.selectAll('text').attr('font-size', xTickFont).attr('fill', '#374151');
+      layers.axisX.select('.domain').attr('stroke', '#9ca3af');
+
+      // Y-axis tick font scales with width; max is 50% larger than the X axis.
+      const yTickFont = width < 500 ? 10
+                       : width < 700 ? 12
+                       : width < 1000 ? 14
+                       : 17;
+
+      layers.axisY.transition(t).call(d3.axisLeft(y).ticks(6).tickFormat(d => `${d}%`));
+      layers.axisY.selectAll('text').attr('font-size', yTickFont).attr('fill', '#374151');
+      layers.axisY.select('.domain').attr('stroke', '#9ca3af');
+
+      // Axis titles — hidden in small-screen mode so the plot uses the full window
+      const showTitles = !isSmall;
+      layers.xLabel
+        .attr('x', margin.left + innerW / 2)
+        .attr('y', height - 18)
+        .style('display', showTitles ? '' : 'none')
+        .text(showTitles ? 'Release date' : '');
+
+      layers.yLabel
+        .attr('transform', `translate(22,${margin.top + innerH / 2}) rotate(-90)`)
+        .style('display', showTitles ? '' : 'none')
+        .text(showTitles ? 'Cybench unguided score' : '');
+
+      // Pareto frontier
+      const frontier = SHOW_PARETO ? computeParetoFrontier(data) : [];
+
+      // Per-point label-direction hints (preferred-first; algorithm falls
+      // back to other directions if the preferred one collides):
+      //   - frontier points → pushed below the upward-sloping line
+      //   - right-edge points → pulled left so they don't clip
+      //   - everything else → pushed above, to use vertical space above the
+      //     dot instead of stacking in the same horizontal band as neighbors
+      const frontierIds = new Set(frontier.map(p => p.id));
+      allData.forEach(d => {
+        const px      = x(d.date);
+        const py      = y(d.score);
+        const isRight = px > innerW * 0.78;
+        const isFront = frontierIds.has(d.id);
+        const isTop   = py < innerH * 0.18;
+        if (isFront) {
+          d.labelDirection = isRight ? 3 /* bottom-left */ : 1 /* bottom-right */;
+        } else if (isRight && isTop) {
+          d.labelDirection = 3; // bottom-left
+        } else if (isRight) {
+          d.labelDirection = 4; // left
+        } else {
+          d.labelDirection = 6; // above
+        }
+      });
+
+      // Build a pointed polyline: direct diagonal segments between consecutive
+      // frontier points, plus a horizontal extension to the right edge at the
+      // current max score.
+      let frontierPath = '';
+      if (frontier.length > 0) {
+        const pts = frontier.map(p => [x(p.date), y(p.score)]);
+        pts.push([innerW, y(frontier[frontier.length - 1].score)]);
+        frontierPath = 'M' + pts.map(p => `${p[0]},${p[1]}`).join(' L');
+      }
+
+      // Dot/ring sizing — derive everything from dotR so the frontier scales
+      // down on small screens along with the data dots.
+      const dotR     = Math.max(3, Math.min(7, innerW / 180));
+      const ringR    = dotR + 2;
+      const lineW    = Math.max(1, dotR * 0.4);
+      const ringW    = Math.max(0.8, dotR * 0.3);
+      const dashLen  = Math.max(3, dotR * 1.1);
+      const gapLen   = Math.max(2, dotR * 0.75);
+
+      const paretoSel = layers.pareto.selectAll('path.pareto-line').data(frontierPath ? [frontierPath] : []);
+      paretoSel.exit().remove();
+      paretoSel.enter().append('path')
+          .attr('class', 'pareto-line')
+          .style('opacity', 0)
+        .merge(paretoSel)
+          .style('stroke-width', `${lineW}px`)
+          .style('stroke-dasharray', `${dashLen} ${gapLen}`)
+        .transition(t)
+          .attr('d', d => d)
+          .style('opacity', 0.85);
+
+      // Frontier markers — thin black ring on qualifying dots
+      const ringSel = layers.pareto.selectAll('circle.pareto-dot').data(frontier, d => d.id);
+      ringSel.exit().transition(t).attr('r', 0).style('opacity', 0).remove();
+      ringSel.enter().append('circle')
+          .attr('class', 'pareto-dot')
+          .attr('cx', d => x(d.date))
+          .attr('cy', d => y(d.score))
+          .attr('r', 0)
+          .style('opacity', 0)
+        .merge(ringSel)
+          .style('stroke-width', `${ringW}px`)
+        .transition(t)
+          .attr('cx', d => x(d.date))
+          .attr('cy', d => y(d.score))
+          .attr('r', ringR)
+          .style('opacity', 1);
+
+
+      const dotSel = layers.dots.selectAll('circle').data(data, d => d.id);
+      dotSel.exit().transition(t).attr('r', 0).style('opacity', 0).remove();
+
+      const dotEnter = dotSel.enter().append('circle')
+        .attr('class', 'scatter-dot')
+        .attr('cx', d => x(d.date))
+        .attr('cy', d => y(d.score))
+        .attr('r', 0)
+        .attr('fill', d => d.color)
+        .attr('stroke', '#fff')
+        .attr('stroke-width', 1.5)
+        .style('opacity', 0);
+
+      const dotMerge = dotEnter.merge(dotSel);
+      dotMerge.transition(t)
+        .attr('cx', d => x(d.date))
+        .attr('cy', d => y(d.score))
+        .attr('fill', d => d.color)
+        .attr('r', dotR)
+        .style('opacity', 1);
+
+      // Tooltip
+      dotMerge
+        .on('mouseover', function(event, d) {
+          d3.select(this).interrupt().attr('r', dotR + 2.5);
+          if (!SHOW_TOOLTIP) return;
+          tooltip.style('opacity', 1)
+            .html(`<strong>${d.name}</strong><br/>
+                   <span class="tt-org">${d.lab}</span><br/>
+                   Score: ${smartFormat(d.score)}%<br/>
+                   Released: ${d3.timeFormat('%b %d, %Y')(d.date)}
+                   ${d.note ? `<div class="tt-note">${d.note}</div>` : ''}`);
+        })
+        .on('mousemove', function(event) {
+          tooltip.style('left', (event.pageX + 14) + 'px')
+                 .style('top', (event.pageY - 8) + 'px');
+        })
+        .on('mouseout', function() {
+          d3.select(this).interrupt().attr('r', dotR);
+          tooltip.style('opacity', 0);
+        });
+
+      if (labelsInitialized) {
+        syncLabelsToData();
+        updateLabelPositions();
+      }
+    }
+
+    // ─── Smart labels ────────────────────────────────────────────────────────
+    function findMatchingDataPoint(circle) {
+      return circle.__data__ || d3.select(circle).datum() || null;
+    }
+
+    function initializeCustomLabels() {
+      if (!SHOW_LABELS) return;
+      const svg = document.querySelector('#chart');
+      if (!svg) { setTimeout(initializeCustomLabels, 100); return; }
+
+      const circles = svg.querySelectorAll('g.dots circle');
+      if (circles.length === 0) { setTimeout(initializeCustomLabels, 100); return; }
+
+      circles.forEach(circle => {
+        const d = findMatchingDataPoint(circle);
+        if (!d) return;
+
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('class', 'custom-label');
+        text.setAttribute('data-id', d.id);
+        text.setAttribute('text-anchor', 'start');
+        text.setAttribute('font-size', '12');
+        text.setAttribute('fill', '#000');
+        text.textContent = d.id;
+
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('class', 'connector-line');
+
+        svg.appendChild(line);
+        svg.appendChild(text);
+
+        const entry = { circle, text, line, data: d, fullText: d.id };
+        customLabels.push(entry);
+      });
+
+      updateLabelPositions();
+    }
+
+    // Re-bind labels to the current DOM circles for each data id, and hide
+    // labels whose dot is no longer present. Called on every animation frame
+    // so labels appear/disappear in sync with the D3 enter/exit transitions
+    // (which delay DOM removal by TRANSITION_MS).
+    function syncLabelsToData() {
+      const svg = document.querySelector('#chart');
+      if (!svg) return;
+
+      const currentCircles = new Map();
+      svg.querySelectorAll('g.dots circle').forEach(c => {
+        const d = c.__data__;
+        if (d && d.id) currentCircles.set(d.id, c);
+      });
+
+      customLabels.forEach(entry => {
+        const newCircle = currentCircles.get(entry.data.id);
+        if (newCircle) {
+          entry.circle = newCircle;
+          entry.text.style.display = '';
+          if (entry.line) entry.line.style.display = '';
+        } else {
+          entry.text.style.display = 'none';
+          if (entry.line) entry.line.style.display = 'none';
+        }
+      });
+    }
+
+    function startPositionUpdater() {
+      function updateLoop() {
+        updateLabelPositions();
+        requestAnimationFrame(updateLoop);
+      }
+      updateLoop();
+
+      const chartEl = document.getElementById('chart');
+      if (chartEl) {
+        chartEl.addEventListener('wheel',     updateLabelPositions, { passive: true });
+        chartEl.addEventListener('mousedown', updateLabelPositions);
+        chartEl.addEventListener('mousemove', updateLabelPositions);
+        chartEl.addEventListener('mouseup',   updateLabelPositions);
+      }
+    }
+
+    function updateLabelPositions() {
+      if (isUpdating) return;
+      isUpdating = true;
+
+      const svg = document.querySelector('#chart');
+      if (!svg) { isUpdating = false; return; }
+
+      // Keep label visibility and circle references in sync with current dots
+      syncLabelsToData();
+
+      const chartDiv = document.getElementById('chart');
+      const w = chartDiv ? chartDiv.clientWidth : window.innerWidth;
+      const fontSize = w < 500 ? 4 : w < 700 ? 6 : w < 1000 ? 8 : 11;
+      customLabels.forEach(({ text }) => {
+        text.setAttribute('font-size', fontSize);
+        text.style.fontSize = fontSize + 'px';
+      });
+
+      const svgRect = svg.getBoundingClientRect();
+      const screenCTM = svg.getScreenCTM();
+      if (!screenCTM) { isUpdating = false; return; }
+
+      const visibleLabels = customLabels.filter(({ circle }) => document.body.contains(circle));
+
+      const circlePositions = visibleLabels.map(({ circle }) => {
+        const bbox  = circle.getBoundingClientRect();
+        const pt    = svg.createSVGPoint();
+        pt.x = bbox.left + bbox.width  / 2 - svgRect.left;
+        pt.y = bbox.top  + bbox.height / 2 - svgRect.top;
+        return { circle, coords: pt.matrixTransform(screenCTM.inverse()) };
+      });
+
+      const obstacles = circlePositions.map(({ circle, coords }) => {
+        const r = parseFloat(circle.getAttribute('r')) || 7.5;
+        return { x: coords.x - r, y: coords.y - r, width: r * 2, height: r * 2, isCircle: true, ref: circle };
+      });
+
+      // Pareto-frontier rings and the line segments between them are also
+      // obstacles. Rings: bounding box of each ring. Line: a series of thin
+      // rectangles sampled along the polyline.
+      const paretoRings = svg.querySelectorAll('g.pareto circle.pareto-dot');
+      paretoRings.forEach(ring => {
+        const bbox = ring.getBoundingClientRect();
+        if (!bbox.width) return;
+        const pt = svg.createSVGPoint();
+        pt.x = bbox.left + bbox.width  / 2 - svgRect.left;
+        pt.y = bbox.top  + bbox.height / 2 - svgRect.top;
+        const c = pt.matrixTransform(screenCTM.inverse());
+        const r = parseFloat(ring.getAttribute('r')) || 9;
+        obstacles.push({ x: c.x - r, y: c.y - r, width: r * 2, height: r * 2, isCircle: false });
+      });
+
+      const paretoPath = svg.querySelector('g.pareto path.pareto-line');
+      if (paretoPath) {
+        try {
+          const total = paretoPath.getTotalLength();
+          const step  = 12;
+          const half  = 5; // thickness for collision purposes
+          const pathParent = paretoPath.ownerSVGElement;
+          const pathCTM = paretoPath.getCTM();
+          for (let s = 0; s <= total; s += step) {
+            const p = paretoPath.getPointAtLength(s);
+            // p is in path-local coords (which is root g coords). Transform to SVG coords.
+            const sp = pathParent.createSVGPoint();
+            sp.x = p.x; sp.y = p.y;
+            const t = pathCTM ? sp.matrixTransform(pathCTM) : sp;
+            obstacles.push({ x: t.x - half, y: t.y - half, width: half * 2, height: half * 2, isCircle: false });
+          }
+        } catch (e) {}
+      }
+
+      let bounds = null;
+      try {
+        const inv = screenCTM.inverse();
+        const r   = svg.getBoundingClientRect();
+        const p1  = svg.createSVGPoint(); p1.x = r.left;  p1.y = r.top;
+        const p2  = svg.createSVGPoint(); p2.x = r.right; p2.y = r.bottom;
+        const mn  = p1.matrixTransform(inv);
+        const mx  = p2.matrixTransform(inv);
+        bounds = { x: mn.x, y: mn.y, width: mx.x - mn.x, height: mx.y - mn.y };
+      } catch (e) {}
+
+      visibleLabels.forEach((labelData) => {
+        const { circle, text, line, fullText, data: d } = labelData;
+
+        const cp = circlePositions.find(p => p.circle === circle);
+        if (!cp) return;
+
+        const r    = parseFloat(circle.getAttribute('r')) || 7.5;
+        const best = findBestPosition(text, cp.coords.x, cp.coords.y, r, obstacles, fullText, bounds, circle, d?.labelDirection ?? null);
+
+        if (!best) {
+          // No collision-free position — hide the label entirely
+          text.style.display = 'none';
+          if (line) line.style.display = 'none';
+          return;
+        }
+
+        text.style.display = '';
+        if (line) line.style.display = '';
+
+        text.setAttribute('x', best.x);
+        text.setAttribute('y', best.y);
+        text.setAttribute('text-anchor', best.anchor);
+        text.textContent = best.text;
+
+        text.setAttribute('opacity', '1');
+
+        if (line) {
+          line.setAttribute('opacity', '0.4');
+          const cx = cp.coords.x, cy = cp.coords.y;
+          const lineCoords = {
+            'right':        [cx + r, cy,           best.x - 2,  cy],
+            'left':         [cx - r, cy,           best.x + 2,  cy],
+            'above':        [cx,     cy - r,       cx,          best.y + 2],
+            'below':        [cx,     cy + r,       cx,          best.y - 12],
+            'top-right':    [cx + r * 0.7, cy - r * 0.7, best.x - 2, best.y - 4],
+            'bottom-right': [cx + r * 0.7, cy + r * 0.7, best.x - 2, best.y - 5],
+            'bottom-left':  [cx - r * 0.7, cy + r * 0.7, best.x + 2, best.y - 5],
+            'top-left':     [cx - r * 0.7, cy - r * 0.7, best.x + 2, best.y - 4],
+          };
+          const [x1, y1, x2, y2] = lineCoords[best.name] || [cx, cy, best.x, best.y];
+          line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+          line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+        }
+
+        try {
+          const bbox = text.getBBox();
+          obstacles.push({ x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height, isCircle: false });
+        } catch (e) {}
+      });
+
+      isUpdating = false;
+    }
+
+    function getPositionOptions(cx, cy, r, padding = 8) {
+      const d  = padding;
+      const dg = (r + d) * 0.707;
+      const ex = 4;
+      return [
+        { name: 'right',        x: cx + r + d,      y: cy + 5,       anchor: 'start'  },
+        { name: 'left',         x: cx - r - d,      y: cy + 5,       anchor: 'end'    },
+        { name: 'below',        x: cx,              y: cy + r + d + 10, anchor: 'middle' },
+        { name: 'above',        x: cx,              y: cy - r - d,   anchor: 'middle' },
+        { name: 'top-right',    x: cx + dg + ex,    y: cy - dg,      anchor: 'start'  },
+        { name: 'bottom-right', x: cx + dg + ex,    y: cy + dg + 5,  anchor: 'start'  },
+        { name: 'bottom-left',  x: cx - dg - ex,    y: cy + dg + 5,  anchor: 'end'    },
+        { name: 'top-left',     x: cx - dg - ex,    y: cy - dg,      anchor: 'end'    },
+      ];
+    }
+
+    function findBestPosition(textEl, cx, cy, r, obstacles, fullText, bounds, currentCircle, preferredDirection) {
+      const positions    = getPositionOptions(cx, cy, r);
+      const directionMap = { 0:'right', 1:'bottom-right', 2:'below', 3:'bottom-left', 4:'left', 5:'top-left', 6:'above', 7:'top-right' };
+
+      // Order: preferred direction first (if provided), then defaults
+      let ordered = positions;
+      if (preferredDirection != null) {
+        const preferredName = directionMap[preferredDirection];
+        const preferred = positions.find(p => p.name === preferredName);
+        if (preferred) {
+          ordered = [preferred, ...positions.filter(p => p.name !== preferredName)];
+        }
+      }
+
+      textEl.textContent = fullText;
+      for (const pos of ordered) {
+        textEl.setAttribute('x', pos.x); textEl.setAttribute('y', pos.y); textEl.setAttribute('text-anchor', pos.anchor);
+        if (!hasCollision(textEl, obstacles, currentCircle) && !isOutOfBounds(textEl, bounds)) {
+          return { ...pos, text: fullText };
+        }
+      }
+
+      return null; // no collision-free position found — caller will hide the label
+    }
+
+    function rectanglesOverlap(a, b) {
+      return !(a.x + a.width < b.x || b.x + b.width < a.x || a.y + a.height < b.y || b.y + b.height < a.y);
+    }
+    function hasCollision(textEl, obstacles, ignoreCircle) {
+      try {
+        const raw = textEl.getBBox();
+        const pad = 2;
+        const tb  = { x: raw.x + pad, y: raw.y + pad, width: Math.max(0, raw.width - pad * 2), height: Math.max(0, raw.height - pad * 2) };
+        return obstacles.some(obs => {
+          if (obs.isCircle && obs.ref === ignoreCircle) return false;
+          return rectanglesOverlap(tb, obs);
+        });
+      } catch (e) { return false; }
+    }
+    function isOutOfBounds(textEl, bounds) {
+      if (!bounds) return false;
+      try {
+        const b = textEl.getBBox();
+        const m = 5;
+        return b.x < bounds.x + m || b.y < bounds.y + m ||
+               (b.x + b.width)  > (bounds.x + bounds.width  - m) ||
+               (b.y + b.height) > (bounds.y + bounds.height - m);
+      } catch (e) { return false; }
+    }
+
+    // ─── Resize ──────────────────────────────────────────────────────────────
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(updateChart, 100);
+    });
+
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => updateChart()).observe(document.getElementById('chart'));
+    }
+  </script>
+</body>
+</html>
