@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Enterprises using AI in the EU</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+      background-color: white;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 16fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding-bottom: clamp(8px, 2vh, 18px);
+    }
+    #container1 { grid-row: 1; grid-column: 1 / span 2; overflow: hidden; min-height: 0; }
+    #container2 {
+      grid-row: 2; grid-column: 1 / span 2;
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    #container3 {
+      grid-row: 3; grid-column: 1;
+      display: flex; align-items: center; justify-content: flex-start;
+      padding: 0 20px; overflow: hidden; min-width: 0;
+    }
+    #container4 {
+      grid-row: 3; grid-column: 2;
+      display: flex; align-items: center; justify-content: flex-end;
+      padding: 0 20px; overflow: hidden; min-width: 0;
+    }
+    #container4 a { height: 100%; display: flex; align-items: center; cursor: pointer; }
+
+    #viz { width: 100%; height: 100%; min-height: 0; min-width: 0; }
+
+    .legend {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+      gap: clamp(6px, 1vw, 14px);
+      background: rgba(255, 255, 255, 1);
+      padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+      border-radius: clamp(6px, 1vw, 12px);
+      max-width: 100%; max-height: 100%;
+      font-size: clamp(0.625rem, 1.4vw, 1rem);
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: clamp(4px, 1vw, 8px);
+      font-weight: 600; color: #333; font-size: inherit; padding: 2px 6px; cursor: default;
+    }
+    .legend-item.interactive { cursor: pointer; transition: opacity 0.2s ease; }
+    .legend-item.dim { opacity: 0.35; }
+    .legend-item:focus-visible { outline: 2px solid rgba(0, 0, 0, 0.5); outline-offset: 2px; }
+    .legend-line { display: flex; align-items: center; flex-shrink: 0; }
+
+    .source-text {
+      font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal;
+    }
+    .source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; font-style: normal; }
+    .source-text a:visited { color: #2756d3; }
+    .logo {
+      height: 100%; width: auto; max-height: 100%; max-width: 100%;
+      pointer-events: auto; object-fit: contain;
+    }
+
+    .axis path, .axis line { stroke: #000; }
+    .tick text { font-weight: 600; fill: #000; }
+    .grid-lines line { stroke: #DBDBDB; stroke-dasharray: 2, 3; }
+    .grid-lines path { stroke: none; }
+    .val-label { font-weight: 700; }
+
+    #tooltip {
+      position: absolute; pointer-events: none;
+      background: #fff; border: 1px solid #d9d9df; border-radius: 6px;
+      padding: 6px 9px; font-size: 12px; color: #111;
+      opacity: 0; transition: opacity .12s ease; z-index: 20;
+    }
+
+    @media (max-height: 500px) {
+      .viz-grid { grid-template-rows: 1fr !important; grid-template-columns: 1fr !important; padding-bottom: 0; }
+      #container1 { grid-row: 1 !important; grid-column: 1 !important; }
+      #container2, #container3, #container4 { display: none !important; }
+      .legend, .source-text, .logo { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="viz-grid">
+    <div id="container1" class="container viz-container">
+      <div id="viz"></div>
+    </div>
+    <div id="container2" class="container legend-container">
+      <div class="legend" id="legend"></div>
+    </div>
+    <div id="container3" class="container source-container">
+      <div class="source-text" id="source-text">Source: Eurostat</div>
+    </div>
+    <div id="container4" class="container logo-container">
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+      </a>
+    </div>
+  </div>
+
+<script>
+const LINE_CURVE       = "straight";
+const LINE_SHOW_DOTS   = 1;
+const LINE_SHOW_AREA   = 0;
+const LINE_SHOW_LABELS = "all";
+const SHOW_LEGEND      = 1;
+const SHOW_TOOLTIP     = 1;
+
+const Y_AXIS_TITLE     = "% of enterprises";
+const SOURCE_NAME      = "Eurostat";
+const SOURCE_HREF      = "https://ec.europa.eu/eurostat/web/products-statistical-reports/w/ks-01-26-009";
+
+const SHOW_CONTAINER_2 = 1;
+const SHOW_CONTAINER_3 = 1;
+const SHOW_CONTAINER_4 = 1;
+const SHOW_CONTAINER_5 = 0;
+
+const X_ORDER = ["2023", "2024", "2025"];
+const SERIES_ORDER = ["All enterprises", "Small enterprises", "Medium enterprises", "Large enterprises"];
+const COLORS = {
+  "All enterprises":    "#111111",
+  "Small enterprises":  "#2756d3",
+  "Medium enterprises": "#f59e0b",
+  "Large enterprises":  "#E53229"
+};
+const DATA = {
+  "All enterprises":    { "2023": 8.1,  "2024": 13.5, "2025": 20.0 },
+  "Small enterprises":  { "2023": 6.4,  "2024": 11.2, "2025": 17.0 },
+  "Medium enterprises": { "2023": 13.1, "2024": 21.0, "2025": 30.4 },
+  "Large enterprises":  { "2023": 30.5, "2024": 41.2, "2025": 55.0 }
+};
+
+function isSeriesDashed(name) { return name === "All enterprises"; }
+function labelBelow(name) { return name === "Small enterprises"; }
+function getSeriesColor(name) { return COLORS[name] || "#888"; }
+
+/* ─── Container visibility / dynamic grid ───────────────────────────────── */
+(function applyContainerVisibility() {
+  const vizGrid = document.querySelector('.viz-grid');
+  const c2 = document.getElementById('container2');
+  const c3 = document.getElementById('container3');
+  const c4 = document.getElementById('container4');
+  const c5 = document.getElementById('container5');
+
+  if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+  if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+  if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+  if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+  const row2Visible = SHOW_CONTAINER_5;
+  const row3Visible = SHOW_CONTAINER_2;
+  const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+  let gridRows = [];
+  let currentRow = 1;
+  const chartHeight = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+  gridRows.push(`${chartHeight}fr`);
+
+  if (row2Visible) { gridRows.push('1fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+  if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+  if (row4Visible) {
+    gridRows.push('1fr'); currentRow++;
+    if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+    if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+    if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+    if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+  }
+
+  vizGrid.style.gridTemplateRows = gridRows.join(' ');
+  document.getElementById('container1').style.gridRow = '1';
+})();
+
+/* ─── Source text ───────────────────────────────────────────────────────── */
+(function setSource() {
+  const el = document.getElementById('source-text');
+  if (!el) return;
+  if (SOURCE_HREF) {
+    el.innerHTML = 'Source: <a href="' + SOURCE_HREF + '" target="_blank" rel="noopener">' + SOURCE_NAME + '</a>';
+  } else {
+    el.textContent = 'Source: ' + SOURCE_NAME;
+  }
+})();
+
+/* ─── Helpers ───────────────────────────────────────────────────────────── */
+const valFormat = d3.format(".1f");
+function smartFormat(v) { return isFinite(v) ? valFormat(v) : "N/A"; }
+const seriesData = name => X_ORDER.map(x => ({ x: x, value: DATA[name][x] }));
+
+/* ─── State ─────────────────────────────────────────────────────────────── */
+const vizContainer = document.getElementById("viz");
+const activeSeries = new Set(SERIES_ORDER);
+let lineTooltip = null;
+let legendInitialized = false;
+
+function buildLegend() {
+  if (!SHOW_LEGEND || legendInitialized) return;
+  const legend = document.getElementById("legend");
+  legend.innerHTML = "";
+  SERIES_ORDER.forEach(name => {
+    const item = document.createElement("div");
+    item.className = "legend-item interactive active";
+    item.setAttribute("role", "button");
+    item.setAttribute("tabindex", "0");
+    item.setAttribute("aria-pressed", "true");
+    item.dataset.series = name;
+
+    const color = getSeriesColor(name);
+    const dashed = isSeriesDashed(name);
+    const indicator = document.createElement("span");
+    indicator.className = "legend-line";
+    indicator.innerHTML =
+      '<svg width="20" height="6" viewBox="0 0 20 6" style="overflow:visible;">' +
+        '<line x1="0" y1="3" x2="20" y2="3" stroke="' + color + '" stroke-width="3" stroke-linecap="round"' +
+        (dashed ? ' stroke-dasharray="0.1,5"' : '') + '/>' +
+        '<circle cx="10" cy="3" r="2.6" fill="' + color + '"/>' +
+      '</svg>';
+
+    const label = document.createElement("span");
+    label.textContent = name;
+
+    item.append(indicator, label);
+
+    const toggle = () => {
+      if (activeSeries.has(name)) activeSeries.delete(name); else activeSeries.add(name);
+      render();
+    };
+    item.addEventListener("click", toggle);
+    item.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+    });
+    legend.appendChild(item);
+  });
+  legendInitialized = true;
+}
+
+function updateLegendStyles() {
+  if (!SHOW_LEGEND) return;
+  document.querySelectorAll("#legend .legend-item").forEach(item => {
+    const on = activeSeries.has(item.dataset.series);
+    item.classList.toggle("dim", !on);
+    item.setAttribute("aria-pressed", String(on));
+  });
+}
+
+function render() {
+  buildLegend();
+  updateLegendStyles();
+
+  while (vizContainer.firstChild) vizContainer.removeChild(vizContainer.firstChild);
+
+  const rect = vizContainer.getBoundingClientRect();
+  const width  = Math.max(320, rect.width);
+  const height = Math.max(220, rect.height);
+  const compact = window.matchMedia("(max-height:500px)").matches;
+
+  const activeNames = SERIES_ORDER.filter(n => activeSeries.has(n));
+
+  const maxValue = d3.max(activeNames, n => d3.max(seriesData(n), d => d.value)) || 1;
+  const yScale = d3.scaleLinear().domain([0, maxValue * 1.05]).nice();
+  const yTickFormat = d3.format("~f");
+  const yMaxStr = yTickFormat(yScale.domain()[1]);
+
+  const yLabelWidth = Math.max(yMaxStr.length * 7.5, 28) + 16;
+  const rightMargin = Math.max(28, width * 0.05);
+  const bottomMargin = Math.max(28, height * 0.07);
+  const margin = { top: 22, right: rightMargin, bottom: bottomMargin, left: yLabelWidth + 32 };
+  const innerWidth  = Math.max(40, width  - margin.left - margin.right);
+  const innerHeight = Math.max(40, height - margin.top  - margin.bottom);
+
+  const xScale = d3.scalePoint().domain(X_ORDER).range([0, innerWidth]).padding(0.5);
+  yScale.range([innerHeight, 0]);
+
+  const axisFont = Math.max(10, Math.min(14, innerWidth / Math.max(5, X_ORDER.length) * 0.45));
+  const dotR = Math.max(3, Math.min(6, innerWidth / Math.max(6, X_ORDER.length) * 0.15));
+
+  const svg = d3.select(vizContainer).append("svg")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("viewBox", `0 0 ${width} ${height}`)
+    .style("width", "100%")
+    .style("height", "100%");
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  g.append("g")
+    .attr("class", "grid-lines")
+    .call(d3.axisLeft(yScale).ticks(compact ? 4 : 6).tickSize(-innerWidth).tickFormat(""))
+    .select(".domain").remove();
+
+  const yAxisG = g.append("g").attr("class", "axis")
+    .call(d3.axisLeft(yScale).ticks(compact ? 4 : 6).tickFormat(yTickFormat));
+  yAxisG.selectAll("text").style("font-size", `${axisFont}px`)
+    .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+
+  yAxisG.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", -margin.left + 16)
+    .attr("x", -(innerHeight / 2))
+    .attr("dy", "0.71em")
+    .attr("text-anchor", "middle")
+    .style("fill", "#000")
+    .style("font-weight", "700")
+    .style("font-size", "clamp(12px, 1.5vw, 18px)")
+    .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif")
+    .text(Y_AXIS_TITLE);
+
+  const xAxisG = g.append("g").attr("class", "axis")
+    .attr("transform", `translate(0,${innerHeight})`)
+    .call(d3.axisBottom(xScale).tickSizeOuter(0));
+  xAxisG.selectAll("text")
+    .style("font-size", `${Math.max(11, axisFont + 1)}px`)
+    .style("font-weight", "700")
+    .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+
+  const curveFn = LINE_CURVE === "straight" ? d3.curveLinear : d3.curveMonotoneX;
+  const lineGen = d3.line()
+    .x(d => xScale(d.x))
+    .y(d => yScale(d.value))
+    .curve(curveFn)
+    .defined(d => d.x != null && !isNaN(d.value));
+
+
+  const clipId = "lineClip";
+  const clipRect = svg.append("defs").append("clipPath").attr("id", clipId)
+    .append("rect")
+    .attr("x", 0).attr("y", -margin.top)
+    .attr("width", 0)
+    .attr("height", innerHeight + margin.top + margin.bottom);
+  clipRect.transition().duration(700).ease(d3.easeLinear)
+    .attr("width", innerWidth + margin.right);
+
+  const linesGroup = g.append("g").attr("class", "lines-group").attr("clip-path", `url(#${clipId})`);
+
+  activeNames.forEach(name => {
+    const sd = seriesData(name);
+    const color = getSeriesColor(name);
+    const dashed = isSeriesDashed(name);
+
+    linesGroup.append("path")
+      .datum(sd)
+      .attr("class", "line-path")
+      .attr("fill", "none")
+      .attr("stroke", color)
+      .attr("stroke-width", dashed ? 3 : 2.5)
+      .attr("stroke-linejoin", "round")
+      .attr("stroke-linecap", "round")
+      .attr("stroke-dasharray", dashed ? "0.1,7" : "none")
+      .attr("d", lineGen);
+
+    if (LINE_SHOW_DOTS) {
+      const safe = name.replace(/\W/g, "_");
+      linesGroup.selectAll(".dot-" + safe)
+        .data(sd.filter(d => !isNaN(d.value)))
+        .enter().append("circle")
+        .attr("class", "dot")
+        .attr("cx", d => xScale(d.x))
+        .attr("cy", d => yScale(d.value))
+        .attr("r", dotR)
+        .attr("fill", color)
+        .attr("stroke", "#fff")
+        .attr("stroke-width", 1.5);
+    }
+  });
+
+  if (LINE_SHOW_LABELS === "all") {
+    const labelGroup = g.append("g").attr("class", "value-labels");
+    activeNames.forEach(name => {
+      const sd = seriesData(name);
+      const color = getSeriesColor(name);
+      const below = labelBelow(name);
+      labelGroup.selectAll(".vl-" + name.replace(/\W/g, "_"))
+        .data(sd.filter(d => !isNaN(d.value)))
+        .enter().append("text")
+        .attr("class", "val-label")
+        .attr("x", d => xScale(d.x))
+        .attr("y", d => below ? yScale(d.value) + dotR + axisFont + 2 : yScale(d.value) - dotR - 5)
+        .attr("text-anchor", "middle")
+        .attr("fill", color)
+        .style("font-size", `${Math.max(10, axisFont)}px`)
+        .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif")
+        .style("opacity", 0)
+        .text(d => smartFormat(d.value))
+        .transition().delay(550).duration(300).style("opacity", 1);
+    });
+  }
+
+  if (SHOW_TOOLTIP) {
+    if (!lineTooltip) {
+      lineTooltip = document.createElement("div");
+      lineTooltip.id = "tooltip";
+      document.body.appendChild(lineTooltip);
+    }
+    const crosshair = g.append("line")
+      .attr("y1", 0).attr("y2", innerHeight)
+      .attr("stroke", "#aaa").attr("stroke-width", 1)
+      .attr("stroke-dasharray", "3,3").attr("opacity", 0)
+      .attr("pointer-events", "none");
+
+    g.append("rect")
+      .attr("width", innerWidth).attr("height", innerHeight)
+      .attr("fill", "none").attr("pointer-events", "all")
+      .on("mousemove", function (event) {
+        const mx = d3.pointer(event, this)[0];
+        const closestX = X_ORDER.reduce((best, xv) =>
+          Math.abs(xScale(xv) - mx) < Math.abs(xScale(best) - mx) ? xv : best);
+        crosshair.attr("x1", xScale(closestX)).attr("x2", xScale(closestX)).attr("opacity", 0.6);
+
+        let html = "<strong>" + closestX + "</strong>";
+        activeNames.forEach(name => {
+          html += "<br/><span style='color:" + getSeriesColor(name) + ";font-weight:600'>" +
+            name + ": " + smartFormat(DATA[name][closestX]) + "%</span>";
+        });
+        lineTooltip.innerHTML = html;
+        lineTooltip.style.left = (event.clientX + 14) + "px";
+        lineTooltip.style.top  = (event.clientY - 24) + "px";
+        lineTooltip.style.opacity = "1";
+      })
+      .on("mouseleave", function () {
+        if (lineTooltip) lineTooltip.style.opacity = "0";
+        crosshair.attr("opacity", 0);
+      });
+  }
+
+  if (!activeNames.length) {
+    const el = document.createElement("div");
+    el.style.cssText = "display:flex;align-items:center;justify-content:center;height:100%;font-family:system-ui,sans-serif;color:#666;";
+    el.textContent = "No data available";
+    vizContainer.appendChild(el);
+  }
+}
+
+/* ─── Init + resize ─────────────────────────────────────────────────────── */
+render();
+
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(render, 120);
+});
+if (typeof ResizeObserver !== "undefined" && vizContainer) {
+  new ResizeObserver(() => render()).observe(vizContainer);
+}
+</script>
+</body>
+</html>
