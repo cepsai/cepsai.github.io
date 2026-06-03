@@ -518,7 +518,7 @@
         const DATA_VERSION = (() => {
             const v = new URLSearchParams(window.location.search).get('v');
             const n = v && /^\d+$/.test(v) ? parseInt(v, 10) : 3;
-            return n === 4 ? 4 : 3;
+            return (n === 4 || n === 5) ? n : 3;
         })();
         const DATA_PATH = `github_v${DATA_VERSION}.csv`;
 
@@ -533,17 +533,21 @@
         const CHART_TITLE = SOURCE === 'humans'
             ? 'How much code is written by Humans?'
             : 'How much code is written by AI Agents?';
-        const REPO_SCOPE = DATA_VERSION === 4 ? 'Top GitHub Repos' : 'Top AI GitHub Repos';
+        const REPO_SCOPE = DATA_VERSION >= 4 ? 'Top GitHub Repos' : 'Top AI GitHub Repos';
         const CHART_SUBTITLE = MODE === 1
             ? `Count of ${SOURCE_LABEL} Pull Requests among ${REPO_SCOPE}`
             : `Share of ${SOURCE_LABEL} Pull Requests among ${REPO_SCOPE}`;
-        const CHART_FOOTNOTE = SOURCE === 'humans'
-            ? (DATA_VERSION === 4
-                ? "* Human-written code corresponds to a pull request not attributed to one of the tracked AI coding tools. All repos correspond to the full OpenSSF's top 1 million most widely used open-source projects."
-                : "* Human-written code corresponds to a pull request not attributed to one of the tracked AI coding tools. AI repos correspond to AI-related projects from OpenSSF's top 1 million most widely used open-source projects.")
-            : (DATA_VERSION === 4
-                ? "* AI agent written code corresponds to a pull request authored by one of eight AI coding tool repositories: Claude Code, Codex, Jules, Devin, Cursor, Cosine, Codegen, or GitHub Copilot - identified by author name or branch name. All repos correspond to the full OpenSSF's top 1 million most widely used open-source projects."
-                : "* AI Agent written code corresponds to a pull request authored by one of eight AI coding tool repositories: Claude Code, Codex, Jules, Devin, Cursor, Cosine, Codegen, or GitHub Copilot - identified by author name or branch name. AI repos correspond to AI-related projects from OpenSSF's top 1 million most widely used open-source projects.");
+        const CHART_FOOTNOTE = (() => {
+            const base = SOURCE === 'humans'
+                ? (DATA_VERSION >= 4
+                    ? "* Human-written code corresponds to a pull request not attributed to one of the tracked AI coding tools. All repos correspond to the full OpenSSF's top 1 million most widely used open-source projects."
+                    : "* Human-written code corresponds to a pull request not attributed to one of the tracked AI coding tools. AI repos correspond to AI-related projects from OpenSSF's top 1 million most widely used open-source projects.")
+                : (DATA_VERSION >= 4
+                    ? "* AI agent written code corresponds to a pull request authored by one of eight AI coding tool repositories: Claude Code, Codex, Jules, Devin, Cursor, Cosine, Codegen, or GitHub Copilot - identified by author name or branch name. All repos correspond to the full OpenSSF's top 1 million most widely used open-source projects."
+                    : "* AI Agent written code corresponds to a pull request authored by one of eight AI coding tool repositories: Claude Code, Codex, Jules, Devin, Cursor, Cosine, Codegen, or GitHub Copilot - identified by author name or branch name. AI repos correspond to AI-related projects from OpenSSF's top 1 million most widely used open-source projects.");
+            const imputationNote = " The last 4 days in May are imputed based on the May average for those days of the week using the average agent share in May.";
+            return DATA_VERSION === 5 ? base + imputationNote : base;
+        })();
         document.getElementById('title-text').textContent = CHART_TITLE;
         document.getElementById('subtitle-text').textContent = CHART_SUBTITLE;
         document.getElementById('footnote-text').textContent = CHART_FOOTNOTE;

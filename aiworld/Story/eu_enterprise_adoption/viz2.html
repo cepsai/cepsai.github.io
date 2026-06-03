@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Reasons for not using AI tech, EU</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+      background-color: white;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 18fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding-bottom: clamp(8px, 2vh, 18px);
+    }
+    #container1 { grid-row: 1; grid-column: 1 / span 2; overflow: hidden; min-height: 0; }
+    #container2 {
+      grid-row: 2; grid-column: 1 / span 2;
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    #container3 {
+      grid-row: 3; grid-column: 1;
+      display: flex; align-items: center; justify-content: flex-start;
+      padding: 0 20px; overflow: hidden; min-width: 0;
+    }
+    #container4 {
+      grid-row: 3; grid-column: 2;
+      display: flex; align-items: center; justify-content: flex-end;
+      padding: 0 20px; overflow: hidden; min-width: 0;
+    }
+    #container4 a { height: 100%; display: flex; align-items: center; cursor: pointer; }
+
+    #viz { width: 100%; height: 100%; min-height: 0; min-width: 0; }
+    #chart { display: block; width: 100%; height: 100%; }
+
+    .controls-wrap {
+      display: flex; align-items: center; justify-content: center;
+      gap: clamp(8px, 2vw, 22px); flex-wrap: wrap; max-width: 100%; min-width: 0;
+    }
+
+    .selector-group {
+      display: flex; align-items: center; justify-content: center;
+      gap: clamp(2px, 0.5vw, 6px); padding: clamp(2px, 0.4vw, 4px);
+      border-radius: 6px; border: 1px solid rgba(17, 24, 39, 0.15);
+      background: #f8fafc; flex-shrink: 0; min-width: 0;
+    }
+    .selector-button {
+      border: none; background: transparent;
+      padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+      border-radius: 6px; font-size: clamp(4.5px, 1.4vw, 13px); font-weight: 600;
+      color: #475569; cursor: pointer; transition: background 0.2s ease, color 0.2s ease;
+      white-space: nowrap; min-width: 0;
+    }
+    .selector-button.active { background: #2756d3; color: #fff; }
+
+    .legend {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+      gap: clamp(6px, 1vw, 14px);
+      background: rgba(255, 255, 255, 1);
+      padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+      border-radius: clamp(6px, 1vw, 12px);
+      max-width: 100%; max-height: 100%;
+      font-size: clamp(0.3125rem, 1.4vw, 1rem);
+    }
+    .legend-item {
+      display: flex; align-items: center; gap: clamp(4px, 1vw, 8px);
+      font-weight: 600; color: #333; font-size: inherit; padding: 2px 6px; cursor: default;
+    }
+    .legend-item.interactive { cursor: pointer; transition: opacity 0.2s ease; }
+    .legend-item.dim { opacity: 0.35; }
+    .legend-item:focus-visible { outline: 2px solid rgba(0, 0, 0, 0.5); outline-offset: 2px; }
+    .legend-square { width: clamp(10px, 1vw, 13px); height: clamp(10px, 1vw, 13px); border-radius: 4px; flex-shrink: 0; }
+    .legend-line { display: flex; align-items: center; flex-shrink: 0; }
+
+    .source-text {
+      font-size: clamp(5px, 1.6vw, 16px); font-weight: 600; color: #333;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal;
+    }
+    .source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; font-style: normal; }
+    .source-text a:visited { color: #2756d3; }
+    .logo {
+      height: 100%; width: auto; max-height: 100%; max-width: 100%;
+      pointer-events: auto; object-fit: contain;
+    }
+
+    .axis path, .axis line { stroke: #000; }
+    .tick text { font-weight: 600; fill: #000; }
+    .grid-lines line { stroke: #DBDBDB; stroke-dasharray: 2, 3; }
+    .grid-lines path { stroke: none; }
+    .bar-label { fill: #333; font-weight: 600; }
+
+    #tooltip {
+      position: absolute; pointer-events: none;
+      background: #fff; border: 1px solid #d9d9df; border-radius: 6px;
+      padding: 6px 9px; font-size: 12px; color: #111;
+      opacity: 0; transition: opacity .12s ease; z-index: 20;
+    }
+
+    @media (max-height: 500px) {
+      .viz-grid { grid-template-rows: 1fr !important; grid-template-columns: 1fr !important; padding-bottom: 0; }
+      #container1 { grid-row: 1 !important; grid-column: 1 !important; }
+      #container2, #container3, #container4 { display: none !important; }
+      .legend, .source-text, .logo, .controls-wrap { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="viz-grid">
+    <div id="container1" class="container viz-container">
+      <div id="viz">
+        <svg id="chart"></svg>
+      </div>
+    </div>
+    <div id="container2" class="container legend-container">
+      <div class="controls-wrap">
+        <div class="selector-group" id="year-selector" role="group" aria-label="Year">
+          <button class="selector-button" data-year="2024">2024</button>
+          <button class="selector-button active" data-year="2025">2025</button>
+        </div>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+    <div id="container3" class="container source-container">
+      <div class="source-text" id="source-text">Source: Eurostat</div>
+    </div>
+    <div id="container4" class="container logo-container">
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+      </a>
+    </div>
+  </div>
+
+<script>
+const SHOW_LEGEND   = 1;
+const SHOW_TOOLTIP  = 1;
+const X_AXIS_TITLE  = "% of enterprises that have ever considered using AI technologies";
+const SOURCE_NAME   = "Eurostat";
+const SOURCE_HREF   = "https://ec.europa.eu/eurostat/web/products-statistical-reports/w/ks-01-26-009";
+
+const SHOW_CONTAINER_2 = 1;
+const SHOW_CONTAINER_3 = 1;  // source
+const SHOW_CONTAINER_4 = 1;  // logo
+const SHOW_CONTAINER_5 = 0;
+
+const REASONS = [
+  "The costs seem too high",
+  "Lack of relevant expertise",
+  "Incompatibility with existing equipment, software or systems",
+  "Difficulties with availability or quality of the necessary data",
+  "Concerns regarding violation of data protection and privacy",
+  "Lack of clarity about the legal consequences",
+  "Ethical considerations",
+  "AI technologies are not useful for enterprise"
+];
+const SIZES = ["Small enterprises", "Medium enterprises", "Large enterprises"];
+const ALL_CAT = "All enterprises";
+const YEARS = ["2024", "2025"];
+
+const COLORS = {
+  "All enterprises":    "#111111",
+  "Small enterprises":  "#2756d3", 
+  "Medium enterprises": "#f59e0b",
+  "Large enterprises":  "#E53229"
+};
+
+const DATA = {
+  "The costs seem too high": {
+    "All enterprises":    { "2024": 33.3, "2025": 38.4 },
+    "Small enterprises":  { "2024": 33.0, "2025": 38.8 },
+    "Medium enterprises": { "2024": 34.6, "2025": 37.3 },
+    "Large enterprises":  { "2024": 31.8, "2025": 34.8 }
+  },
+  "Lack of relevant expertise": {
+    "All enterprises":    { "2024": 70.9, "2025": 70.3 },
+    "Small enterprises":  { "2024": 70.8, "2025": 70.9 },
+    "Medium enterprises": { "2024": 71.6, "2025": 69.2 },
+    "Large enterprises":  { "2024": 68.9, "2025": 65.1 }
+  },
+  "Incompatibility with existing equipment, software or systems": {
+    "All enterprises":    { "2024": 41.4, "2025": 41.6 },
+    "Small enterprises":  { "2024": 41.3, "2025": 41.7 },
+    "Medium enterprises": { "2024": 42.3, "2025": 42.0 },
+    "Large enterprises":  { "2024": 39.1, "2025": 38.0 }
+  },
+  "Difficulties with availability or quality of the necessary data": {
+    "All enterprises":    { "2024": 44.4, "2025": 43.5 },
+    "Small enterprises":  { "2024": 44.4, "2025": 43.7 },
+    "Medium enterprises": { "2024": 43.8, "2025": 42.8 },
+    "Large enterprises":  { "2024": 46.7, "2025": 43.8 }
+  },
+  "Concerns regarding violation of data protection and privacy": {
+    "All enterprises":    { "2024": 48.8, "2025": 52.7 },
+    "Small enterprises":  { "2024": 48.3, "2025": 52.5 },
+    "Medium enterprises": { "2024": 49.6, "2025": 52.3 },
+    "Large enterprises":  { "2024": 52.2, "2025": 58.8 }
+  },
+  "Lack of clarity about the legal consequences": {
+    "All enterprises":    { "2024": 52.5, "2025": 53.6 },
+    "Small enterprises":  { "2024": 52.9, "2025": 54.8 },
+    "Medium enterprises": { "2024": 51.5, "2025": 49.4 },
+    "Large enterprises":  { "2024": 51.4, "2025": 51.2 }
+  },
+  "Ethical considerations": {
+    "All enterprises":    { "2024": 23.5, "2025": 24.6 },
+    "Small enterprises":  { "2024": 24.6, "2025": 25.3 },
+    "Medium enterprises": { "2024": 21.0, "2025": 22.7 },
+    "Large enterprises":  { "2024": 20.2, "2025": 21.2 }
+  },
+  "AI technologies are not useful for enterprise": {
+    "All enterprises":    { "2024": 20.7, "2025": 17.8 },
+    "Small enterprises":  { "2024": 23.0, "2025": 19.2 },
+    "Medium enterprises": { "2024": 15.5, "2025": 13.8 },
+    "Large enterprises":  { "2024": 12.6, "2025": 9.8 }
+  }
+};
+
+function getColor(cat) { return COLORS[cat] || "#888"; }
+
+(function applyContainerVisibility() {
+  const vizGrid = document.querySelector('.viz-grid');
+  const c2 = document.getElementById('container2');
+  const c3 = document.getElementById('container3');
+  const c4 = document.getElementById('container4');
+  const c5 = document.getElementById('container5');
+
+  if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+  if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+  if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+  if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+  const row2Visible = SHOW_CONTAINER_5;
+  const row3Visible = SHOW_CONTAINER_2;
+  const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+  let gridRows = [];
+  let currentRow = 1;
+  const chartHeight = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+  gridRows.push(`${chartHeight}fr`);
+
+  if (row2Visible) { gridRows.push('1fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+  if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+  if (row4Visible) {
+    gridRows.push('1fr'); currentRow++;
+    if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+    if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+    if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+    if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+  }
+
+  vizGrid.style.gridTemplateRows = gridRows.join(' ');
+  document.getElementById('container1').style.gridRow = '1';
+})();
+
+(function setSource() {
+  const el = document.getElementById('source-text');
+  if (!el) return;
+  if (SOURCE_HREF) {
+    el.innerHTML = 'Source: <a href="' + SOURCE_HREF + '" target="_blank" rel="noopener">' + SOURCE_NAME + '</a>';
+  } else {
+    el.textContent = 'Source: ' + SOURCE_NAME;
+  }
+})();
+
+const valFormat = d3.format(".1f");
+function fmt(v) { return isFinite(v) ? valFormat(v) : "N/A"; }
+
+let currentYear = "2025";
+const activeCats = new Set([...SIZES, ALL_CAT]);
+let lineTooltip = null;
+let legendInitialized = false;
+
+const svg = d3.select("#chart");
+const vizContainer = document.getElementById("viz");
+
+const globalMax = d3.max(REASONS, r =>
+  d3.max([ALL_CAT, ...SIZES], c => d3.max(YEARS, y => DATA[r][c][y])));
+const xDomainMax = d3.scaleLinear().domain([0, globalMax]).nice().domain()[1];
+
+(function buildYearSelector() {
+  document.querySelectorAll('#year-selector .selector-button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.year === currentYear) return;
+      currentYear = btn.dataset.year;
+      document.querySelectorAll('#year-selector .selector-button')
+        .forEach(b => b.classList.toggle('active', b.dataset.year === currentYear));
+      render(true);
+    });
+  });
+})();
+
+
+function buildLegend() {
+  if (!SHOW_LEGEND || legendInitialized) return;
+  const legend = document.getElementById("legend");
+  legend.innerHTML = "";
+
+  const order = [...SIZES, ALL_CAT];
+  order.forEach(cat => {
+    const item = document.createElement("div");
+    item.className = "legend-item interactive active";
+    item.setAttribute("role", "button");
+    item.setAttribute("tabindex", "0");
+    item.setAttribute("aria-pressed", "true");
+    item.dataset.cat = cat;
+
+    let indicator;
+    if (cat === ALL_CAT) {
+      indicator = document.createElement("span");
+      indicator.className = "legend-line";
+      indicator.innerHTML =
+        '<svg width="10" height="16" viewBox="0 0 10 16" style="overflow:visible;">' +
+          '<line x1="5" y1="0" x2="5" y2="16" stroke="' + getColor(cat) + '" stroke-width="2.5" ' +
+          'stroke-linecap="round" stroke-dasharray="0.1,5"/>' +
+        '</svg>';
+    } else {
+      indicator = document.createElement("span");
+      indicator.className = "legend-square";
+      indicator.style.background = getColor(cat);
+    }
+
+    const label = document.createElement("span");
+    label.textContent = cat;
+    item.append(indicator, label);
+
+    const toggle = () => {
+      if (activeCats.has(cat)) activeCats.delete(cat); else activeCats.add(cat);
+      render();
+    };
+    item.addEventListener("click", toggle);
+    item.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+    });
+    legend.appendChild(item);
+  });
+  legendInitialized = true;
+}
+
+function updateLegendStyles() {
+  if (!SHOW_LEGEND) return;
+  document.querySelectorAll("#legend .legend-item").forEach(item => {
+    const on = activeCats.has(item.dataset.cat);
+    item.classList.toggle("dim", !on);
+    item.setAttribute("aria-pressed", String(on));
+  });
+}
+
+function splitLines(text, maxChars) {
+  const words = text.split(/\s+/);
+  const lines = [];
+  let cur = "";
+  words.forEach(w => {
+    const test = cur ? cur + " " + w : w;
+    if (test.length > maxChars && cur) { lines.push(cur); cur = w; }
+    else cur = test;
+  });
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function render(animate = false) {
+  buildLegend();
+  updateLegendStyles();
+
+  const rect = vizContainer.getBoundingClientRect();
+  const width  = Math.max(360, rect.width);
+  const height = Math.max(260, rect.height);
+  const compact = window.matchMedia("(max-height:500px)").matches;
+
+  svg.selectAll("*").remove();
+  svg.attr("width", width).attr("height", height)
+     .attr("viewBox", `0 0 ${width} ${height}`)
+     .style("width", "100%").style("height", "100%");
+
+  const activeSizes = SIZES.filter(s => activeCats.has(s));
+  const showAll = activeCats.has(ALL_CAT);
+
+  // Margins
+  const labelFont = Math.max(5, Math.min(14, height / REASONS.length * 0.16));
+  const marginLeft = Math.max(150, Math.min(width * 0.34, 360));
+  const margin = {
+    top: 18,
+    right: Math.max(40, width * 0.05),
+    bottom: Math.max(50, height * 0.13),
+    left: marginLeft
+  };
+  const innerWidth  = Math.max(40, width  - margin.left - margin.right);
+  const innerHeight = Math.max(40, height - margin.top  - margin.bottom);
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const x = d3.scaleLinear().domain([0, xDomainMax]).range([0, innerWidth]);
+  const y0 = d3.scaleBand().domain(REASONS).range([0, innerHeight])
+    .paddingInner(0.3).paddingOuter(0.12);
+  const y1 = d3.scaleBand().domain(activeSizes.length ? activeSizes : SIZES)
+    .range([0, y0.bandwidth()]).padding(0.12);
+
+  const axisFont = Math.max(6, Math.min(16, Math.min(width, height) * 0.024));
+
+  g.append("g")
+    .attr("class", "grid-lines")
+    .attr("transform", `translate(0,${innerHeight})`)
+    .call(d3.axisBottom(x).ticks(compact ? 4 : 6).tickSize(-innerHeight).tickFormat(""))
+    .select(".domain").remove();
+
+  const xAxisG = g.append("g").attr("class", "axis")
+    .attr("transform", `translate(0,${innerHeight})`)
+    .call(d3.axisBottom(x).ticks(compact ? 4 : 6).tickFormat(d => d + "%"));
+  xAxisG.selectAll("text").style("font-size", `${axisFont}px`)
+    .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+
+
+  xAxisG.append("text")
+    .attr("x", innerWidth / 2)
+    .attr("y", margin.bottom - 10)
+    .attr("text-anchor", "middle")
+    .style("fill", "#000")
+    .style("font-weight", "700")
+    .style("font-size", "clamp(5.5px, 1.3vw, 16px)")
+    .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif")
+    .text(X_AXIS_TITLE);
+
+  const yAxisG = g.append("g").attr("class", "axis");
+  yAxisG.append("line")
+    .attr("x1", 0).attr("x2", 0).attr("y1", 0).attr("y2", innerHeight)
+    .attr("stroke", "#000");
+
+  const maxChars = Math.max(8, Math.floor((margin.left - 18) / (labelFont * 0.56)));
+  const lineH = labelFont * 1.12;
+  REASONS.forEach(reason => {
+    const cy = y0(reason) + y0.bandwidth() / 2;
+    const lines = splitLines(reason, maxChars);
+    const text = yAxisG.append("text")
+      .attr("x", -10)
+      .attr("y", cy)
+      .attr("text-anchor", "end")
+      .style("fill", "#000")
+      .style("font-weight", "600")
+      .style("font-size", `${labelFont}px`)
+      .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+    const startDy = -((lines.length - 1) / 2) * lineH;
+    lines.forEach((ln, i) => {
+      text.append("tspan")
+        .attr("x", -10)
+        .attr("dy", i === 0 ? `${startDy}px` : `${lineH}px`)
+        .text(ln);
+    });
+  });
+
+  const barLabelFont = Math.max(4, Math.min(12, y1.bandwidth() * 0.62));
+
+  const barsG = g.append("g").attr("class", "bars");
+  REASONS.forEach(reason => {
+    const groupG = barsG.append("g").attr("transform", `translate(0,${y0(reason)})`);
+    activeSizes.forEach(size => {
+      const val = DATA[reason][size][currentYear];
+      const by = y1(size);
+      const bh = y1.bandwidth();
+
+      const rect = groupG.append("rect")
+        .attr("x", 0)
+        .attr("y", by)
+        .attr("height", bh)
+        .attr("fill", getColor(size))
+        .attr("width", animate ? 0 : x(val))
+        .style("cursor", SHOW_TOOLTIP ? "pointer" : "default")
+        .on("mousemove", function (event) {
+          if (!SHOW_TOOLTIP) return;
+          showTooltip(event, reason, size, val);
+        })
+        .on("mouseleave", hideTooltip);
+      if (animate) {
+        rect.transition().duration(800).ease(d3.easeCubicOut).attr("width", x(val));
+      }
+
+      const barLabel = groupG.append("text")
+        .attr("class", "bar-label")
+        .attr("x", x(val) + 4)
+        .attr("y", by + bh / 2)
+        .attr("dominant-baseline", "middle")
+        .attr("text-anchor", "start")
+        .style("font-size", `${barLabelFont}px`)
+        .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif")
+        .style("opacity", animate ? 0 : 1)
+        .text(fmt(val));
+      if (animate) {
+        barLabel.transition().delay(650).duration(280).style("opacity", 1);
+      }
+    });
+  });
+
+  if (showAll) {
+    const allG = g.append("g").attr("class", "all-markers");
+    REASONS.forEach(reason => {
+      const val = DATA[reason][ALL_CAT][currentYear];
+      const px = x(val);
+      const yTop = y0(reason);
+      const yBot = y0(reason) + y0.bandwidth();
+
+      const allLine = allG.append("line")
+        .attr("x1", px).attr("x2", px)
+        .attr("y1", yTop).attr("y2", yBot)
+        .attr("stroke", getColor(ALL_CAT))
+        .attr("stroke-width", 2.2)
+        .attr("stroke-linecap", "round")
+        .attr("stroke-dasharray", "0.1,6")
+        .style("opacity", animate ? 0 : 1)
+        .style("cursor", SHOW_TOOLTIP ? "pointer" : "default")
+        .on("mousemove", function (event) {
+          if (!SHOW_TOOLTIP) return;
+          showTooltip(event, reason, ALL_CAT, val);
+        })
+        .on("mouseleave", hideTooltip);
+      if (animate) {
+        allLine.transition().delay(550).duration(350).style("opacity", 1);
+      }
+
+      const allLabel = allG.append("text")
+        .attr("x", px)
+        .attr("y", yTop - 3)
+        .attr("text-anchor", "middle")
+        .style("fill", getColor(ALL_CAT))
+        .style("font-weight", "700")
+        .style("font-size", `${Math.max(4, barLabelFont - 1)}px`)
+        .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif")
+        .style("opacity", animate ? 0 : 1)
+        .text(fmt(val));
+      if (animate) {
+        allLabel.transition().delay(650).duration(280).style("opacity", 1);
+      }
+    });
+  }
+
+  if (!activeSizes.length && !showAll) {
+    g.append("text")
+      .attr("x", innerWidth / 2).attr("y", innerHeight / 2)
+      .attr("text-anchor", "middle").style("fill", "#666")
+      .style("font-family", "system-ui, sans-serif")
+      .text("No data available");
+  }
+}
+
+function showTooltip(event, reason, cat, val) {
+  if (!lineTooltip) {
+    lineTooltip = document.createElement("div");
+    lineTooltip.id = "tooltip";
+    document.body.appendChild(lineTooltip);
+  }
+  lineTooltip.innerHTML =
+    "<strong>" + reason + "</strong>" +
+    "<br/><span style='color:" + getColor(cat) + ";font-weight:600'>" + cat + "</span>" +
+    " &middot; " + currentYear +
+    "<br/>" + fmt(val) + "% of enterprises";
+  lineTooltip.style.left = (event.clientX + 14) + "px";
+  lineTooltip.style.top  = (event.clientY - 24) + "px";
+  lineTooltip.style.opacity = "1";
+}
+function hideTooltip() { if (lineTooltip) lineTooltip.style.opacity = "0"; }
+
+render();
+
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(render, 220);
+});
+if (typeof ResizeObserver !== "undefined" && vizContainer) {
+  new ResizeObserver(() => render()).observe(vizContainer);
+}
+</script>
+</body>
+</html>
