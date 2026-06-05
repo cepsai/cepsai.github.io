@@ -1,0 +1,1617 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Classification Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .header {
+            text-align: center;
+        }
+
+        .header select {
+            min-width: 380px;
+            vertical-align: middle;
+        }
+
+        .hf-btn {
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .combobox {
+            position: relative;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .combobox input {
+            min-width: 380px;
+            padding: 4px 28px 4px 8px;
+            font: inherit;
+            box-sizing: border-box;
+        }
+
+        .combobox-caret {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: #888;
+            font-size: 10px;
+        }
+
+        .combobox-panel {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 320px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-top: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: left;
+        }
+
+        .combobox-option {
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .combobox-option.active,
+        .combobox-option:hover {
+            background: #e3f2fd;
+        }
+
+        .combobox-option.clear {
+            color: #555;
+            font-style: italic;
+            border-bottom: 1px solid #eee;
+        }
+
+        .combobox-option.empty {
+            color: #999;
+            cursor: default;
+            font-style: italic;
+        }
+
+        .flow-analysis {
+            width: min(1120px, 100%);
+            margin: 0 auto 18px;
+        }
+
+        .flow-header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 10px;
+            margin: 2px 0 14px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .flow-title {
+            font-size: 20px;
+            line-height: 1.2;
+            font-weight: 750;
+            color: #222;
+        }
+
+        .flow-title span {
+            color: #1565c0;
+        }
+
+        .flow-result {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        .flow-result-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #fff;
+            padding: 5px 8px;
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .flow-result-pill strong {
+            font-size: 13px;
+        }
+
+        .flow-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(420px, 520px) minmax(250px, 1fr);
+            column-gap: 18px;
+            align-items: center;
+            margin-bottom: 0;
+        }
+
+        .flow-analysis .node {
+            grid-column: 2;
+            position: relative;
+            z-index: 0;
+            /* establishes a stacking context for the backing layers */
+            width: auto;
+            margin-top: 12px;
+            padding: 32px 16px 12px;
+            /* top padding clears the folder-tab strip */
+            border: none;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        /* Folder outline drawn as one clip-path shape: a grey backing layer
+           shows through as a uniform 2px border (diagonal included), with a
+           white fill inset on top. No floating pieces, no stray diagonals. */
+        .flow-analysis .node::before,
+        .flow-analysis .node::after {
+            content: "";
+            display: block;
+            position: absolute;
+            inset: 0;
+        }
+
+        .flow-analysis .node::before {
+            z-index: -2;
+            background: #b9b9b9;
+            clip-path: polygon(0 0, 240px 0, 266px 26px, 100% 26px, 100% 100%, 0 100%);
+        }
+
+        .flow-analysis .node::after {
+            z-index: -1;
+            background: #fff;
+            clip-path: polygon(2px 2px, 238px 2px, 264px 28px, calc(100% - 2px) 28px, calc(100% - 2px) calc(100% - 2px), 2px calc(100% - 2px));
+        }
+
+        .flow-analysis .node-title {
+            position: absolute;
+            left: 16px;
+            top: 7px;
+            max-width: 214px;
+            z-index: 1;
+            margin: 0;
+            border-bottom: 0;
+            padding-bottom: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .flow-analysis .node-conclusion {
+            transform: none;
+            margin: 0;
+        }
+
+        .flow-arrow-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(420px, 520px) minmax(250px, 1fr);
+            column-gap: 18px;
+            align-items: center;
+            height: 24px;
+        }
+
+        .flow-arrow {
+            grid-column: 2;
+            justify-self: center;
+            width: 18px;
+            height: 24px;
+            position: relative;
+        }
+
+        .flow-arrow::before {
+            content: "";
+            position: absolute;
+            left: 8px;
+            top: 0;
+            width: 2px;
+            height: 17px;
+            background: #b9b9b9;
+        }
+
+        .flow-arrow::after {
+            content: "";
+            position: absolute;
+            left: 3px;
+            bottom: 1px;
+            width: 10px;
+            height: 10px;
+            border-right: 2px solid #b9b9b9;
+            border-bottom: 2px solid #b9b9b9;
+            transform: rotate(45deg);
+        }
+
+        .flow-note {
+            grid-column: 3;
+            align-self: center;
+            border: 0;
+            border-left: 2px solid #bbb;
+            background: transparent;
+            padding: 0 0 0 10px;
+            min-width: 0;
+            max-width: 360px;
+        }
+
+        .flow-note-title,
+        .flow-note summary {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #777;
+            font-weight: 700;
+            margin-bottom: 5px;
+            cursor: pointer;
+            list-style: none;
+        }
+
+        .flow-note summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .flow-note summary::after {
+            content: " -";
+            color: #aaa;
+            font-weight: 500;
+            letter-spacing: 0;
+            text-transform: none;
+        }
+
+        .flow-note:not([open]) summary::after {
+            content: " +";
+        }
+
+        .flow-note-line {
+            color: #555;
+            font-size: 12px;
+            line-height: 1.35;
+            margin: 2px 0;
+        }
+
+        .flow-note-line a {
+            color: #1565c0;
+            text-decoration: none;
+        }
+
+        .flow-note-line a:hover {
+            text-decoration: underline;
+        }
+
+        .flow-note-muted {
+            color: #999;
+            font-style: italic;
+        }
+
+        .flow-note.decision {
+            border-left-color: #ffe082;
+        }
+
+        .flow-note.win {
+            border-left-color: #a5d6a7;
+        }
+
+        .flow-note.skip {
+            border-left-color: #ef9a9a;
+        }
+
+        .flow-note.llm-call {
+            border-left-color: #ce93d8;
+        }
+
+        /* Confidence bar label keeps the bar from floating bare/full-width */
+        .conf-label {
+            font-size: 11px;
+            color: #999;
+            flex: 0 0 auto;
+        }
+
+        .conf-row {
+            margin: 4px 0 2px;
+        }
+
+        .conf-track {
+            height: 6px;
+            max-width: 160px;
+        }
+
+        .flow-paper-id {
+            color: #888;
+            font-size: 11px;
+            margin-left: 4px;
+        }
+
+        @media (max-width: 860px) {
+            .flow-header,
+            .flow-row {
+                display: block;
+            }
+
+            .flow-result {
+                justify-content: center;
+                margin-top: 10px;
+            }
+
+            .flow-note {
+                margin-top: 6px;
+            }
+
+            .flow-analysis .node {
+                margin-top: 14px;
+            }
+
+            .flow-arrow-row {
+                display: flex;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <select id="sort-select" style="vertical-align: middle; margin-right: 10px; min-width: auto;">
+            <option value="desc" selected>Default Order</option>
+            <option value="asc">Alphabetical</option>
+        </select>
+        <select id="quarter-filter" style="vertical-align: middle; margin-right: 6px; min-width: auto;"
+            title="Filter by creation quarter">
+            <option value="">All quarters</option>
+        </select>
+        <select id="chip-filter" style="vertical-align: middle; margin-right: 10px; min-width: auto;"
+            title="Filter by predicted chip provider">
+            <option value="">All chips</option>
+        </select>
+        <label id="base-only-label"
+            style="vertical-align: middle; margin-right: 10px; font-size: 12px; color: #444; cursor: pointer; user-select: none;"
+            title="Hide finetunes / derivatives (keep only models with no parent on HF)">
+            <input type="checkbox" id="base-only-checkbox" style="vertical-align: middle; margin-right: 4px;">
+            Originals only
+        </label>
+        <div class="combobox" id="model-combo">
+            <input type="text" id="model-search" autocomplete="off" spellcheck="false"
+                placeholder="-- Select a model --" role="combobox" aria-expanded="false" aria-controls="model-list"
+                aria-autocomplete="list">
+            <span class="combobox-caret">▾</span>
+            <div class="combobox-panel" id="model-list" role="listbox" hidden></div>
+        </div>
+        <a id="hf-button" class="hf-btn" target="_blank">🤗</a>
+    </div>
+    <div id="data-source-info" style="font-size:11px; color:#888; padding:4px 12px; text-align:center;">Loading…</div>
+
+    <div class="diagram" id="diagram">
+        <p class="empty">Select a model</p>
+    </div>
+
+    <script>
+        let RAW_DATA = [];
+        let DATA = [];
+        let currentStatsMode = 'results';
+        let currentYearMetric = 'count';
+        // Time bucketing for the Year Mode chart: 'month' (default), 'quarter',
+        // or 'year'. Wider buckets aggregate more models per x — share-of-bucket
+        // percentages are much less noisy at quarterly / yearly granularity.
+        let currentYearBucket = 'month';
+
+        function distinctYears() {
+            const years = new Set();
+            RAW_DATA.forEach(d => { if (d.year != null) years.add(d.year); });
+            return years;
+        }
+
+        function hasYearData() {
+            return distinctYears().size >= 2;
+        }
+
+        function setYearMetric(metric) {
+            currentYearMetric = metric;
+            if (SELECTED_INDEX == null) {
+                document.getElementById('diagram').innerHTML = drawGlobalStats();
+            }
+        }
+
+        function setYearBucket(bucket) {
+            currentYearBucket = bucket;
+            if (SELECTED_INDEX == null) {
+                document.getElementById('diagram').innerHTML = drawGlobalStats();
+            }
+        }
+
+        function applySort() {
+            const sortVal = document.getElementById('sort-select').value;
+            if (sortVal === 'asc') {
+                DATA.sort((a, b) => a.id.localeCompare(b.id));
+            } else {
+                DATA.sort((a, b) => a.original_index - b.original_index);
+            }
+        }
+
+        // Quarter / chip filter state. Empty string = no filter.
+        let QUARTER_FILTER = '';
+        let CHIP_FILTER = '';
+        let NAME_FILTER = '';
+        // When true, drop models flagged as finetunes / derivatives
+        // (is_base_model === false). Models with the field missing are
+        // kept — top4k.json hasn't been enriched yet, so we don't want
+        // to silently empty the dashboard if the field is absent.
+        let BASE_ONLY = false;
+
+        function quarterOf(m) {
+            if (m.year == null || m.month == null) return null;
+            const q = Math.floor((m.month - 1) / 3) + 1;
+            return `${m.year}-Q${q}`;
+        }
+
+        function modelMatchesFilters(m) {
+            if (!modelMatchesChartFilters(m)) return false;
+            if (NAME_FILTER && !m.id.toLowerCase().includes(NAME_FILTER)) return false;
+            return true;
+        }
+
+        function modelMatchesChartFilters(m) {
+            if (QUARTER_FILTER && quarterOf(m) !== QUARTER_FILTER) return false;
+            if (CHIP_FILTER) {
+                const chip = (m.conclusion && m.conclusion.chip_provider) || 'unknown';
+                if (chip !== CHIP_FILTER) return false;
+            }
+            if (BASE_ONLY && m.is_base_model === false) return false;
+            return true;
+        }
+
+        function chartData() {
+            return RAW_DATA.filter(modelMatchesChartFilters);
+        }
+
+        function populateFilterDropdowns() {
+            const qCounts = {};
+            const cCounts = {};
+            RAW_DATA.forEach(m => {
+                const q = quarterOf(m);
+                if (q) qCounts[q] = (qCounts[q] || 0) + 1;
+                const c = (m.conclusion && m.conclusion.chip_provider) || 'unknown';
+                cCounts[c] = (cCounts[c] || 0) + 1;
+            });
+
+            const qSel = document.getElementById('quarter-filter');
+            qSel.innerHTML = `<option value="">All quarters (${RAW_DATA.length})</option>`;
+            Object.keys(qCounts)
+                .sort()  // YYYY-Qn sorts chronologically as a string
+                .forEach(q => {
+                    const opt = document.createElement('option');
+                    opt.value = q;
+                    opt.textContent = `${q} (${qCounts[q]})`;
+                    qSel.appendChild(opt);
+                });
+
+            const cSel = document.getElementById('chip-filter');
+            cSel.innerHTML = `<option value="">All chips (${RAW_DATA.length})</option>`;
+            const chipKeys = Object.keys(cCounts).sort((a, b) => {
+                if (a === 'unknown') return 1;
+                if (b === 'unknown') return -1;
+                return cCounts[b] - cCounts[a];
+            });
+            chipKeys.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = `${c} (${cCounts[c]})`;
+                cSel.appendChild(opt);
+            });
+        }
+
+        let SELECTED_INDEX = null;
+        let ACTIVE_INDEX = -1;
+        let FILTERED_VIEW = [];
+
+        function renderModelSelect() {
+            const panel = document.getElementById('model-list');
+            const filtered = DATA.filter(modelMatchesFilters);
+            FILTERED_VIEW = filtered;
+            ACTIVE_INDEX = filtered.length > 0 ? 0 : -1;
+
+            const input = document.getElementById('model-search');
+            input.placeholder = `-- Select between ${filtered.length} models --`;
+
+            panel.innerHTML = '';
+
+            const clearOpt = document.createElement('div');
+            clearOpt.className = 'combobox-option clear';
+            clearOpt.textContent = `Show overview (${filtered.length} models)`;
+            clearOpt.dataset.idx = '-1';
+            panel.appendChild(clearOpt);
+
+            if (filtered.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'combobox-option empty';
+                empty.textContent = 'No models match the current filters';
+                panel.appendChild(empty);
+            } else {
+                filtered.forEach((m, i) => {
+                    const opt = document.createElement('div');
+                    opt.className = 'combobox-option';
+                    opt.textContent = m.id;
+                    opt.dataset.idx = String(i);
+                    opt.setAttribute('role', 'option');
+                    if (i === ACTIVE_INDEX) opt.classList.add('active');
+                    panel.appendChild(opt);
+                });
+            }
+
+            const srcInfo = document.getElementById('data-source-info');
+            if (srcInfo && DATA_SOURCE_USED) {
+                const filterParts = [];
+                if (QUARTER_FILTER) filterParts.push(`quarter=${QUARTER_FILTER}`);
+                if (CHIP_FILTER) filterParts.push(`chip=${CHIP_FILTER}`);
+                if (BASE_ONLY) filterParts.push('originals only');
+                if (NAME_FILTER) filterParts.push(`name~"${NAME_FILTER}"`);
+                const tail = filterParts.length
+                    ? ` — filtered to ${filtered.length}/${RAW_DATA.length} (${filterParts.join(', ')})`
+                    : ` — ${RAW_DATA.length} models`;
+                srcInfo.textContent = `Source: ${DATA_SOURCE_USED}${tail}`;
+            }
+        }
+
+        function setActive(i) {
+            ACTIVE_INDEX = i;
+            const opts = document.querySelectorAll('#model-list .combobox-option:not(.clear):not(.empty)');
+            opts.forEach((o, k) => o.classList.toggle('active', k === i));
+            const target = opts[i];
+            if (target) target.scrollIntoView({ block: 'nearest' });
+        }
+
+        function moveActive(delta) {
+            if (FILTERED_VIEW.length === 0) return;
+            const next = (ACTIVE_INDEX + delta + FILTERED_VIEW.length) % FILTERED_VIEW.length;
+            setActive(next);
+        }
+
+        function openPanel() {
+            const panel = document.getElementById('model-list');
+            const input = document.getElementById('model-search');
+            input.value = '';
+            NAME_FILTER = '';
+            renderModelSelect();
+            panel.hidden = false;
+            input.setAttribute('aria-expanded', 'true');
+        }
+
+        function closePanel(restoreSelection = true) {
+            const panel = document.getElementById('model-list');
+            const input = document.getElementById('model-search');
+            panel.hidden = true;
+            input.setAttribute('aria-expanded', 'false');
+            if (restoreSelection) {
+                input.value = SELECTED_INDEX != null ? RAW_DATA[SELECTED_INDEX].id : '';
+                NAME_FILTER = '';
+            }
+        }
+
+        function selectModel(rawIdx) {
+            SELECTED_INDEX = rawIdx;
+            const input = document.getElementById('model-search');
+            const hfBtn = document.getElementById('hf-button');
+            input.value = rawIdx != null ? RAW_DATA[rawIdx].id : '';
+            NAME_FILTER = '';
+            closePanel(false);
+            if (rawIdx == null) {
+                document.getElementById('diagram').innerHTML = drawGlobalStats();
+                hfBtn.style.display = 'none';
+            } else {
+                const model = RAW_DATA[rawIdx];
+                hfBtn.href = 'https://huggingface.co/' + model.id;
+                hfBtn.style.display = 'inline-block';
+                render(model);
+            }
+        }
+
+        document.getElementById('sort-select').addEventListener('change', function () {
+            applySort();
+            renderModelSelect();
+        });
+
+        document.getElementById('quarter-filter').addEventListener('change', function () {
+            QUARTER_FILTER = this.value;
+            renderModelSelect();
+            if (SELECTED_INDEX == null) {
+                document.getElementById('diagram').innerHTML = drawGlobalStats();
+            }
+        });
+
+        document.getElementById('chip-filter').addEventListener('change', function () {
+            CHIP_FILTER = this.value;
+            renderModelSelect();
+            if (SELECTED_INDEX == null) {
+                document.getElementById('diagram').innerHTML = drawGlobalStats();
+            }
+        });
+
+        document.getElementById('base-only-checkbox').addEventListener('change', function () {
+            BASE_ONLY = this.checked;
+            renderModelSelect();
+            if (SELECTED_INDEX == null) {
+                document.getElementById('diagram').innerHTML = drawGlobalStats();
+            }
+        });
+
+        (function bindCombobox() {
+            const input = document.getElementById('model-search');
+            const panel = document.getElementById('model-list');
+            const combo = document.getElementById('model-combo');
+
+            input.addEventListener('focus', openPanel);
+            input.addEventListener('click', () => { if (panel.hidden) openPanel(); });
+
+            input.addEventListener('input', function () {
+                NAME_FILTER = this.value.trim().toLowerCase();
+                if (panel.hidden) panel.hidden = false;
+                input.setAttribute('aria-expanded', 'true');
+                renderModelSelect();
+            });
+
+            input.addEventListener('keydown', function (e) {
+                if (e.key === 'ArrowDown') { e.preventDefault(); if (panel.hidden) openPanel(); else moveActive(1); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); moveActive(-1); }
+                else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (FILTERED_VIEW.length > 0 && ACTIVE_INDEX >= 0) {
+                        selectModel(FILTERED_VIEW[ACTIVE_INDEX].original_index);
+                    }
+                } else if (e.key === 'Escape') {
+                    closePanel(true);
+                    input.blur();
+                }
+            });
+
+            // mousedown (not click) so we beat the input-blur race.
+            panel.addEventListener('mousedown', function (e) {
+                const opt = e.target.closest('.combobox-option');
+                if (!opt || opt.classList.contains('empty')) return;
+                e.preventDefault();
+                const idx = parseInt(opt.dataset.idx);
+                if (idx === -1) selectModel(null);
+                else selectModel(FILTERED_VIEW[idx].original_index);
+            });
+
+            document.addEventListener('mousedown', function (e) {
+                if (!panel.hidden && !combo.contains(e.target)) closePanel(true);
+            });
+        })();
+
+        function setStatsMode(mode) {
+            currentStatsMode = mode;
+            if (SELECTED_INDEX == null) {
+                document.getElementById('diagram').innerHTML = drawGlobalStats();
+            }
+        }
+
+        function hasViableEvidence(block, sourceType, finalChip) {
+            if (!block) return false;
+
+            const chipMatch = (finalChip && finalChip !== 'unknown')
+                ? block.chip_provider === finalChip
+                : (block.chip_provider && block.chip_provider !== 'unknown');
+
+            if (sourceType === 'modelcard') {
+                return !!(block.matched_sections && block.matched_sections.length) && chipMatch;
+            }
+
+            if (sourceType === 'github') {
+                return !!(block.detection_files && block.detection_files.length) && chipMatch;
+            }
+
+            if (sourceType === 'arxiv') {
+                return !!(block.detection_sections && block.detection_sections.length) && chipMatch;
+            }
+
+            return false;
+        }
+
+        function confColor(val) {
+            // Red (low) → Orange (mid) → Green (high)
+            if (val >= 0.7) return '#4caf50';
+            if (val >= 0.4) return '#ff9800';
+            return '#ef5350';
+        }
+
+        function confBarHTML(val, label = 'Confidence') {
+            const pct = Math.round((val || 0) * 100);
+            return `<div class="conf-row">
+    ${label ? `<span class="conf-label">${escapeHTML(label)}</span>` : ''}
+    <div class="conf-track"><div class="conf-fill" style="width:${pct}%;background:${confColor(val || 0)}"></div></div>
+    <span class="conf-pct">${pct}%</span>
+  </div>`;
+        }
+
+        function badgeHTML(src) {
+            return `<span class="badge badge-${src || 'unknown'}">${src || 'none'}</span>`;
+        }
+
+        function connector(labels) {
+            // labels: array of {text, cls}
+            let h = '<div class="connector"><div class="connector-line"></div>';
+            labels.forEach(l => { h += `<span class="connector-label ${l.cls || ''}">${l.text}</span>`; });
+            h += '<div class="connector-arrow">▼</div></div>';
+            return h;
+        }
+
+        function drawGlobalStats() {
+            let chartHTML = '';
+
+            // All charts share the same quarter+chip filter view as the
+            // dropdown above. The Year-Mode time series still binds to the
+            // unfiltered dataset for the QUARTER filter (filtering by a single
+            // quarter would collapse the x axis to one point); the chip filter
+            // does apply there because isolating one provider's trajectory is a
+            // valid lens.
+            const filtered = chartData();
+            const buildBanner = (parts, count) => parts.length
+                ? `<div style="font-size:11px; color:#666; margin-bottom:14px;">Filtered to <strong>${count}</strong>/${RAW_DATA.length} models — ${parts.join(', ')}</div>`
+                : '';
+            const sharedFilterParts = [];
+            if (QUARTER_FILTER) sharedFilterParts.push(`quarter=${QUARTER_FILTER}`);
+            if (CHIP_FILTER) sharedFilterParts.push(`chip=${CHIP_FILTER}`);
+            if (BASE_ONLY) sharedFilterParts.push('originals only');
+            const filterBanner = buildBanner(sharedFilterParts, filtered.length);
+
+            if (currentStatsMode === 'results') {
+                const counts = {};
+                let total = 0;
+                filtered.forEach(d => {
+                    const provider = (d.conclusion && d.conclusion.chip_provider) ? d.conclusion.chip_provider : 'unknown';
+                    counts[provider] = (counts[provider] || 0) + 1;
+                    total++;
+                });
+
+                if (total === 0) {
+                    chartHTML = `<p class="empty" style="margin-top:0;">${sharedFilterParts.length ? 'No models match the current filters.' : 'Select a model to view its classification path.'}</p>`;
+                } else {
+
+                    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+                    const colors = {
+                        'nvidia': '#4caf50',
+                        'google_tpu': '#42a5f5',
+                        'intel': '#26c6da',
+                        'amd': '#ef5350',
+                        'apple': '#9e9e9e',
+                        'aws': '#ff9800',
+                        'qualcomm': '#7e57c2',
+                        'huawei_ascend': '#e53935',
+                        'cambricon': '#ab47bc',
+                        'baidu_kunlun': '#29b6f6',
+                        'moore_threads': '#ec407a',
+                        'iluvatar': '#7e57c2',
+                        'hygon': '#26a69a',
+                        'metax': '#8e24aa',
+                        'unknown': '#d0d0d0'
+                    };
+
+                    let conicGrad = [];
+                    let currentPct = 0;
+                    let legendHTML = '';
+
+                    entries.forEach(([provider, count]) => {
+                        const pct = (count / total) * 100;
+                        const color = colors[provider] || '#999';
+                        conicGrad.push(`${color} ${currentPct}% ${currentPct + pct}%`);
+                        currentPct += pct;
+
+                        legendHTML += `<div style="display: flex; align-items: center; gap: 6px;"><span style="display:inline-block; width:14px; height:14px; background:${color}; border-radius:3px;"></span> ${provider} (${count})</div>`;
+                    });
+
+                    const conic = `conic-gradient(\n                ${conicGrad.join(',\n                ')}\n            )`;
+
+                    chartHTML = `
+                    <h3 style="margin-bottom:20px; color:#444; font-size: 16px;">Chip Provider Distribution</h3>
+                    <div style="width: 220px; height: 220px; border-radius: 50%; background: ${conic}; margin: 0 auto; border: 4px solid #fff;"></div>
+                    <div style="margin-top: 25px; display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; font-size: 13px; font-weight: 500;">
+                        ${legendHTML}
+                    </div>
+                `;
+                }
+            } else if (currentStatsMode === 'comparison') {
+                let match = 0, mismatch = 0, noEval = 0;
+                filtered.forEach(d => {
+                    const correct = d.conclusion && d.conclusion.correct;
+                    if (correct === 1) match++;
+                    else if (correct === 0) mismatch++;
+                    else noEval++;
+                });
+
+                const total = match + mismatch + noEval;
+                if (total === 0) {
+                    chartHTML = `<p class="empty" style="margin-top:0;">${sharedFilterParts.length ? 'No models match the current filters.' : 'Select a model to view its classification path.'}</p>`;
+                } else {
+
+                    const evaluated = match + mismatch;
+                    const matchPct = (match / total) * 100;
+                    const mismatchPct = (mismatch / total) * 100;
+                    const accuracyPct = evaluated > 0 ? Math.round(match / evaluated * 100) : null;
+
+                    const conic = `conic-gradient(
+                    #4caf50 0% ${matchPct}%,
+                    #ef5350 ${matchPct}% ${matchPct + mismatchPct}%,
+                    #e0e0e0 ${matchPct + mismatchPct}% 100%
+                )`;
+
+                    chartHTML = `
+                    <h3 style="margin-bottom:6px; color:#444; font-size: 16px;">Evaluation Accuracy</h3>
+                    ${accuracyPct !== null ? `<div style="font-size:28px; font-weight:700; color:${accuracyPct >= 70 ? '#2e7d32' : accuracyPct >= 50 ? '#e65100' : '#c62828'}; margin-bottom:16px;">${accuracyPct}%</div>` : ''}
+                    <div style="width: 220px; height: 220px; border-radius: 50%; background: ${conic}; margin: 0 auto; border: 4px solid #fff;"></div>
+                    <div style="margin-top: 25px; display: flex; justify-content: center; gap: 20px; font-size: 13px; font-weight: 500;">
+                        <div style="display: flex; align-items: center; gap: 6px;"><span style="display:inline-block; width:14px; height:14px; background:#4caf50; border-radius:3px;"></span> Correct (${match})</div>
+                        <div style="display: flex; align-items: center; gap: 6px;"><span style="display:inline-block; width:14px; height:14px; background:#ef5350; border-radius:3px;"></span> Incorrect (${mismatch})</div>
+                        ${noEval > 0 ? `<div style="display: flex; align-items: center; gap: 6px;"><span style="display:inline-block; width:14px; height:14px; background:#e0e0e0; border-radius:3px;"></span> Not evaluated (${noEval})</div>` : ''}
+                    </div>
+                `;
+                }
+            } else if (currentStatsMode === 'year') {
+                const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+                // Year Mode shares the chip filter and the originals-only
+                // toggle, but ignores the quarter filter — pinning the data
+                // to a single quarter would reduce the time series to one
+                // bucket. Show the user that distinction.
+                const yearFiltered = RAW_DATA.filter(d => {
+                    if (CHIP_FILTER && ((d.conclusion && d.conclusion.chip_provider) || 'unknown') !== CHIP_FILTER) return false;
+                    if (BASE_ONLY && d.is_base_model === false) return false;
+                    return true;
+                });
+
+                // Bucket strategy. Each strategy maps a (year, month) pair into
+                // an integer key, exposes the year for cross-bucket totals, and
+                // formats a tick label. Keeping these as a single object keeps
+                // the rest of the chart code (sort, label stride, year-start tick
+                // highlight, totals) generic across granularities.
+                const bucketStrategies = {
+                    month: {
+                        key: (y, m) => y * 100 + m,
+                        yearOf: k => Math.floor(k / 100),
+                        isYearStart: k => (k % 100) === 1,
+                        label: k => `${MONTH_NAMES[(k % 100) - 1]} '${String(Math.floor(k / 100)).slice(-2)}`,
+                        unit: 'month',
+                    },
+                    quarter: {
+                        key: (y, m) => y * 10 + Math.floor((m - 1) / 3) + 1,
+                        yearOf: k => Math.floor(k / 10),
+                        isYearStart: k => (k % 10) === 1,
+                        label: k => `${Math.floor(k / 10)} Q${k % 10}`,
+                        unit: 'quarter',
+                    },
+                    year: {
+                        key: (y, m) => y,
+                        yearOf: k => k,
+                        isYearStart: () => true,
+                        label: k => String(k),
+                        unit: 'year',
+                    },
+                };
+                const bucket = bucketStrategies[currentYearBucket] || bucketStrategies.month;
+
+                const byBucket = {};
+                yearFiltered.forEach(d => {
+                    if (d.year == null || d.month == null) return;
+                    const key = bucket.key(d.year, d.month);
+                    const provider = (d.conclusion && d.conclusion.chip_provider) ? d.conclusion.chip_provider : 'unknown';
+                    if (!byBucket[key]) byBucket[key] = {};
+                    byBucket[key][provider] = (byBucket[key][provider] || 0) + 1;
+                });
+
+                const bucketKeys = Object.keys(byBucket).map(Number).sort((a, b) => a - b);
+                const years = Array.from(new Set(bucketKeys.map(bucket.yearOf))).sort((a, b) => a - b);
+
+                if (bucketKeys.length < 2) {
+                    chartHTML = `<p class="empty" style="margin-top:0;">Year Mode needs at least 2 ${bucket.unit}s of data with a <code>year</code> and <code>month</code> field.</p>`;
+                } else {
+                    const colors = {
+                        'nvidia': '#4caf50',
+                        'google_tpu': '#42a5f5',
+                        'intel': '#26c6da',
+                        'amd': '#ef5350',
+                        'apple': '#9e9e9e',
+                        'aws': '#ff9800',
+                        'qualcomm': '#7e57c2',
+                        'huawei_ascend': '#e53935',
+                        'cambricon': '#ab47bc',
+                        'unknown': '#d0d0d0'
+                    };
+
+                    const providers = new Set();
+                    bucketKeys.forEach(k => Object.keys(byBucket[k]).forEach(p => providers.add(p)));
+                    const providerList = Array.from(providers).sort((a, b) => {
+                        if (a === 'unknown') return 1;
+                        if (b === 'unknown') return -1;
+                        return a.localeCompare(b);
+                    });
+
+                    const metric = currentYearMetric;
+
+                    const series = {};
+                    providerList.forEach(p => {
+                        series[p] = bucketKeys.map(k => {
+                            const bucketData = byBucket[k];
+                            const count = bucketData[p] || 0;
+                            if (metric === 'percent') {
+                                const t = Object.values(bucketData).reduce((a, b) => a + b, 0);
+                                return t > 0 ? count / t * 100 : 0;
+                            }
+                            return count;
+                        });
+                    });
+
+                    let yMax = 0;
+                    providerList.forEach(p => series[p].forEach(v => { if (v > yMax) yMax = v; }));
+                    if (yMax === 0) yMax = 1;
+                    const niceMax = metric === 'percent'
+                        ? 100
+                        : (() => {
+                            const pow = Math.pow(10, Math.floor(Math.log10(yMax)));
+                            return Math.ceil(yMax / pow) * pow;
+                        })();
+
+                    const W = 720, H = 380;
+                    const padL = 55, padR = 30, padT = 20, padB = 50;
+                    const plotW = W - padL - padR;
+                    const plotH = H - padT - padB;
+
+                    const xFor = (i) => padL + (bucketKeys.length === 1 ? plotW / 2 : i / (bucketKeys.length - 1) * plotW);
+                    const yFor = (v) => padT + plotH - (v / niceMax * plotH);
+
+                    const gridTicks = 5;
+                    let grid = '';
+                    for (let i = 0; i <= gridTicks; i++) {
+                        const v = niceMax * i / gridTicks;
+                        const y = yFor(v);
+                        grid += `<line x1="${padL}" x2="${padL + plotW}" y1="${y}" y2="${y}" stroke="#eee" stroke-width="1"/>`;
+                        const label = metric === 'percent' ? v.toFixed(0) + '%' : v.toFixed(0);
+                        grid += `<text x="${padL - 8}" y="${y + 4}" text-anchor="end" font-size="11" fill="#888">${label}</text>`;
+                    }
+
+                    // Cap visible tick labels at ~12 regardless of bucket
+                    // granularity (12 monthly labels ≈ 1 yr; 12 quarters ≈ 3 yr;
+                    // 12 yearly labels ≈ a decade — all comfortable to read).
+                    const labelStride = Math.max(1, Math.ceil(bucketKeys.length / 12));
+                    let xLabels = '';
+                    bucketKeys.forEach((k, i) => {
+                        const x = xFor(i);
+                        const isYearStart = bucket.isYearStart(k);
+                        const tickLen = isYearStart ? 6 : 3;
+                        const tickColor = isYearStart ? '#888' : '#bbb';
+                        xLabels += `<line x1="${x}" x2="${x}" y1="${padT + plotH}" y2="${padT + plotH + tickLen}" stroke="${tickColor}" stroke-width="1"/>`;
+                        if (i % labelStride === 0 || i === bucketKeys.length - 1) {
+                            xLabels += `<text x="${x}" y="${padT + plotH + 22}" text-anchor="middle" font-size="11" fill="#555">${bucket.label(k)}</text>`;
+                        }
+                    });
+
+                    const axes = `
+                        <line x1="${padL}" x2="${padL + plotW}" y1="${padT + plotH}" y2="${padT + plotH}" stroke="#888" stroke-width="1.5"/>
+                        <line x1="${padL}" x2="${padL}" y1="${padT}" y2="${padT + plotH}" stroke="#888" stroke-width="1.5"/>
+                    `;
+
+                    let lines = '';
+                    let legendHTML = '';
+                    const pointRadius = bucketKeys.length > 24 ? 2.5 : 3.5;
+
+                    // Stack ordering for the area chart: largest provider at the
+                    // bottom (most stable visual band), 'unknown' at the top so
+                    // it doesn't dominate the eye.
+                    const totalsByProvider = {};
+                    providerList.forEach(p => {
+                        totalsByProvider[p] = series[p].reduce((a, b) => a + b, 0);
+                    });
+                    const stackOrder = [...providerList].sort((a, b) => {
+                        if (a === 'unknown') return 1;
+                        if (b === 'unknown') return -1;
+                        return totalsByProvider[b] - totalsByProvider[a];
+                    });
+
+                    if (metric === 'percent') {
+                        // Stacked 100% area chart: each provider's slice is
+                        // share-of-bucket. Bands sum to 100% per x.
+                        // y0[i] is the cumulative bottom for provider p at x=i.
+                        const y0 = new Array(bucketKeys.length).fill(0);
+                        stackOrder.forEach(p => {
+                            const color = colors[p] || '#999';
+                            const top = series[p].map((v, i) => y0[i] + v);
+                            // SVG path: forward along the top edge, then back
+                            // along the bottom edge to close the polygon.
+                            const fwd = top.map((v, i) => `${xFor(i).toFixed(2)},${yFor(v).toFixed(2)}`).join(' ');
+                            const back = y0
+                                .map((v, i) => `${xFor(i).toFixed(2)},${yFor(v).toFixed(2)}`)
+                                .reverse()
+                                .join(' ');
+                            lines += `<polygon points="${fwd} ${back}" fill="${color}" fill-opacity="0.85" stroke="${color}" stroke-width="0.5"/>`;
+                            // Hover tooltips at each x: show this provider's share at the band's top.
+                            top.forEach((v, i) => {
+                                const k = bucketKeys[i];
+                                const share = series[p][i].toFixed(1);
+                                lines += `<circle cx="${xFor(i)}" cy="${yFor(v)}" r="${pointRadius + 1.5}" fill="${color}" fill-opacity="0" stroke="none"><title>${p} ${bucket.label(k)}: ${share}%</title></circle>`;
+                            });
+                            for (let i = 0; i < bucketKeys.length; i++) y0[i] = top[i];
+                        });
+                        // Legend in stack order so the top of the stack is the top of the legend.
+                        stackOrder.forEach(p => {
+                            const color = colors[p] || '#999';
+                            legendHTML += `<div style="display:flex; align-items:center; gap:6px;"><span style="display:inline-block; width:14px; height:14px; background:${color}; border-radius:3px;"></span> ${p}</div>`;
+                        });
+                    } else {
+                        // Count mode keeps the lines+points form (per-bucket
+                        // absolute counts don't add to a meaningful total, so
+                        // stacking is misleading).
+                        providerList.forEach(p => {
+                            const color = colors[p] || '#999';
+                            const points = series[p].map((v, i) => `${xFor(i)},${yFor(v)}`).join(' ');
+                            lines += `<polyline points="${points}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+                            series[p].forEach((v, i) => {
+                                const k = bucketKeys[i];
+                                lines += `<circle cx="${xFor(i)}" cy="${yFor(v)}" r="${pointRadius}" fill="${color}" stroke="#fff" stroke-width="1"><title>${p} ${bucket.label(k)}: ${v}</title></circle>`;
+                            });
+                            legendHTML += `<div style="display:flex; align-items:center; gap:6px;"><span style="display:inline-block; width:14px; height:14px; background:${color}; border-radius:3px;"></span> ${p}</div>`;
+                        });
+                    }
+
+                    let totalsHTML = '<div style="margin-top:18px; display:flex; justify-content:center; gap:18px; font-size:11px; color:#888;">';
+                    years.forEach(y => {
+                        const t = bucketKeys
+                            .filter(k => bucket.yearOf(k) === y)
+                            .reduce((acc, k) => acc + Object.values(byBucket[k]).reduce((a, b) => a + b, 0), 0);
+                        totalsHTML += `<div>${y}: <strong style="color:#444">${t}</strong> models</div>`;
+                    });
+                    totalsHTML += '</div>';
+
+                    const bucketBtn = (b, label) => `<button onclick="setYearBucket('${b}')" style="padding:4px 12px; border-radius:16px; border:1px solid #ccc; background:${currentYearBucket === b ? '#e0e0e0' : '#fff'}; cursor:pointer; font-size:11px; font-weight:${currentYearBucket === b ? '600' : '400'};">${label}</button>`;
+                    const metricBtn = (m, label) => `<button onclick="setYearMetric('${m}')" style="padding:4px 12px; border-radius:16px; border:1px solid #ccc; background:${metric === m ? '#e0e0e0' : '#fff'}; cursor:pointer; font-size:11px; font-weight:${metric === m ? '600' : '400'};">${label}</button>`;
+                    const tabsRow = `<div style="display:flex; justify-content:center; align-items:center; gap:18px; margin-bottom:16px; flex-wrap:wrap;">`
+                        + `<div style="display:flex; gap:6px; align-items:center;">`
+                        + `<span style="font-size:10px; text-transform:uppercase; letter-spacing:0.4px; color:#888; margin-right:2px;">Bucket</span>`
+                        + `${bucketBtn('month', 'Month')}${bucketBtn('quarter', 'Quarter')}${bucketBtn('year', 'Year')}`
+                        + `</div>`
+                        + `<div style="display:flex; gap:6px; align-items:center;">`
+                        + `<span style="font-size:10px; text-transform:uppercase; letter-spacing:0.4px; color:#888; margin-right:2px;">Metric</span>`
+                        + `${metricBtn('count', 'Count')}${metricBtn('percent', 'Share %')}`
+                        + `</div>`
+                        + `</div>`;
+                    const metricTabsHTML = tabsRow;
+
+                    chartHTML = `
+                        <h3 style="margin-bottom:8px; color:#444; font-size: 16px;">Chip Provider Over Time</h3>
+                        ${metricTabsHTML}
+                        <svg width="${W}" height="${H}" style="display:block; margin:0 auto; background:#fff; border:1px solid #eee; border-radius:6px;">
+                            ${grid}
+                            ${axes}
+                            ${xLabels}
+                            ${lines}
+                        </svg>
+                        <div style="margin-top: 20px; display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; font-size: 13px; font-weight: 500;">
+                            ${legendHTML}
+                        </div>
+                        ${totalsHTML}
+                    `;
+                }
+            } else {
+                const total = filtered.length;
+                if (total === 0) {
+                    chartHTML = `<p class="empty" style="margin-top:0;">${sharedFilterParts.length ? 'No models match the current filters.' : 'Select a model to view its classification path.'}</p>`;
+                } else {
+
+                    let modelcardCount = 0, githubCount = 0, arxivCount = 0;
+                    const combos = {};
+
+                    filtered.forEach(d => {
+                        const m = hasViableEvidence(d.modelcard_analysis, 'modelcard', d.chip_provider);
+                        const g = hasViableEvidence(d.github_code_analysis, 'github', d.chip_provider);
+                        const a = hasViableEvidence(d.arxiv_paper_analysis, 'arxiv', d.chip_provider);
+
+                        if (m) modelcardCount++;
+                        if (g) githubCount++;
+                        if (a) arxivCount++;
+
+                        const key = `m=${m ? 1 : 0} g=${g ? 1 : 0} a=${a ? 1 : 0}`;
+                        combos[key] = (combos[key] || 0) + 1;
+                    });
+
+                    const iconCell = (present, label, color) => `
+                    <td style="padding:10px 8px; text-align:center;" aria-label="${label}: ${present ? 'yes' : 'no'}">
+                        <span style="
+                            display:inline-flex;
+                            align-items:center;
+                            justify-content:center;
+                            width:22px;
+                            height:22px;
+                            border-radius:999px;
+                            border:1px solid ${present ? color : '#d6d6d6'};
+                            background:${present ? color : '#f5f5f5'};
+                            color:${present ? '#fff' : '#9a9a9a'};
+                            font-size:12px;
+                            font-weight:700;
+                        ">${present ? '✓' : '–'}</span>
+                    </td>
+                `;
+
+                    const comboEntries = Object.entries(combos)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([label, count]) => {
+                            const match = label.match(/m=(\d) g=(\d) a=(\d)/);
+                            const modelcard = match && match[1] === '1';
+                            const github = match && match[2] === '1';
+                            const arxiv = match && match[3] === '1';
+                            return `
+                            <tr>
+                                ${iconCell(modelcard, 'Model card', '#f9a825')}
+                                ${iconCell(github, 'GitHub', '#1e88e5')}
+                                ${iconCell(arxiv, 'arXiv', '#f4511e')}
+                                <td style="padding:10px 12px; text-align:right; white-space:nowrap; font-weight:600; color:#222;">${count}</td>
+                                <td style="padding:10px 12px; text-align:right; white-space:nowrap; color:#666;">${Math.round(count / total * 100)}%</td>
+                            </tr>
+                        `;
+                        }).join('');
+
+                    const noEvidence = combos['m=0 g=0 a=0'] || 0;
+                    const sourceCard = (title, count, color) => `
+                    <div style="flex:1; min-width:180px; background:#fff; border:1px solid #ddd; border-radius:8px; padding:16px;">
+                        <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.4px; color:#777; margin-bottom:6px;">${title}</div>
+                        <div style="font-size:28px; font-weight:700; color:${color}; margin-bottom:6px;">${count}</div>
+                        <div style="font-size:12px; color:#666;">${Math.round(count / total * 100)}% of models</div>
+                    </div>
+                `;
+
+                    chartHTML = `
+                    <div style="font-size:12px; color:#666; margin-bottom:22px;">* Viable evidence means source produced at least one non-unknown chip signal with supporting matched sections/files.</div>
+                    <div style="display:flex; justify-content:center; flex-wrap:wrap; gap:14px; margin:0 auto 24px; max-width:900px;">
+                        ${sourceCard('Model card signal', modelcardCount, '#f9a825')}
+                        ${sourceCard('GitHub signal', githubCount, '#1e88e5')}
+                        ${sourceCard('arXiv signal', arxivCount, '#f4511e')}
+                        ${sourceCard('No signal anywhere', noEvidence, '#9e9e9e')}
+                    </div>
+                    <div style="max-width:760px; margin:0 auto; background:#fff; border:1px solid #ddd; border-radius:8px; padding:18px 22px; text-align:left;">
+                        <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.4px; color:#777; margin-bottom:10px;">Source overlap</div>
+                        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                            <thead>
+                                <tr style="border-bottom:1px solid #e5e5e5;">
+                                    <th style="padding:0 8px 10px; text-align:center; color:#777; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px;">Model card</th>
+                                    <th style="padding:0 8px 10px; text-align:center; color:#777; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px;">GitHub</th>
+                                    <th style="padding:0 8px 10px; text-align:center; color:#777; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px;">arXiv</th>
+                                    <th style="padding:0 12px 10px; text-align:right; color:#777; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px;">Models</th>
+                                    <th style="padding:0 12px 10px; text-align:right; color:#777; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px;">Share</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${comboEntries}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                }
+            }
+
+            const yearTabHTML = hasYearData()
+                ? `<button onclick="setStatsMode('year')" style="padding: 6px 16px; border-radius: 20px; border: 1px solid #ccc; background: ${currentStatsMode === 'year' ? '#e0e0e0' : '#fff'}; cursor: pointer; font-size: 12px; font-weight: ${currentStatsMode === 'year' ? '600' : '400'}; transition: all 0.2s;">Year Mode</button>`
+                : '';
+
+            const tabsHTML = `
+                <div style="display:flex; justify-content:center; gap: 10px; margin-bottom: 30px;">
+                    <button onclick="setStatsMode('results')" style="padding: 6px 16px; border-radius: 20px; border: 1px solid #ccc; background: ${currentStatsMode === 'results' ? '#e0e0e0' : '#fff'}; cursor: pointer; font-size: 12px; font-weight: ${currentStatsMode === 'results' ? '600' : '400'}; transition: all 0.2s;">Results Mode</button>
+                    <button onclick="setStatsMode('comparison')" style="padding: 6px 16px; border-radius: 20px; border: 1px solid #ccc; background: ${currentStatsMode === 'comparison' ? '#e0e0e0' : '#fff'}; cursor: pointer; font-size: 12px; font-weight: ${currentStatsMode === 'comparison' ? '600' : '400'}; transition: all 0.2s;">Comparison Mode</button>
+                    <button onclick="setStatsMode('coverage')" style="padding: 6px 16px; border-radius: 20px; border: 1px solid #ccc; background: ${currentStatsMode === 'coverage' ? '#e0e0e0' : '#fff'}; cursor: pointer; font-size: 12px; font-weight: ${currentStatsMode === 'coverage' ? '600' : '400'}; transition: all 0.2s;">Coverage Mode</button>
+                    ${yearTabHTML}
+                </div>
+            `;
+
+            // Year-Mode banner reflects only the chip filter, since the
+            // quarter filter doesn't apply to that chart (would shrink the
+            // x-axis to one bucket). All other modes use the shared banner.
+            let bannerHTML = filterBanner;
+            if (currentStatsMode === 'year') {
+                const yearParts = [];
+                if (CHIP_FILTER) yearParts.push(`chip=${CHIP_FILTER}`);
+                if (BASE_ONLY) yearParts.push('originals only');
+                const yearCount = RAW_DATA.filter(d => {
+                    if (CHIP_FILTER && ((d.conclusion && d.conclusion.chip_provider) || 'unknown') !== CHIP_FILTER) return false;
+                    if (BASE_ONLY && d.is_base_model === false) return false;
+                    return true;
+                }).length;
+                bannerHTML = buildBanner(yearParts, yearCount);
+                if (QUARTER_FILTER) {
+                    bannerHTML += `<div style="font-size:10px; color:#999; font-style:italic; margin-top:-8px; margin-bottom:14px;">(Quarter filter <code>${QUARTER_FILTER}</code> ignored in Year Mode — pinning a single quarter would collapse the time axis.)</div>`;
+                }
+            }
+
+            return `
+            <div style="text-align:center; margin-top: 40px; width: 100%;">
+                ${tabsHTML}
+                ${bannerHTML}
+                ${chartHTML}
+                <p class="empty" style="margin-top:40px;">Select a model to view its classification path.</p>
+            </div>
+            `;
+        }
+
+        const DATA_SOURCES = (() => {
+            const params = new URLSearchParams(window.location.search);
+            const explicit = params.get('src');
+            const fileParam = params.get('file');
+            const fileName = fileParam === '1' ? 'results_top4k.json' : 'results_top40.json';
+            const candidates = [];
+            if (explicit) candidates.push(explicit);
+            //candidates.push('../database/results.json');
+            //candidates.push('database/results.json');
+            candidates.push('https://huggingface.co/datasets/Franri/model-chips-data/resolve/main/' + fileName);
+            return candidates;
+        })();
+
+        function loadFromSources(sources, idx = 0) {
+            if (idx >= sources.length) {
+                document.getElementById('diagram').innerHTML =
+                    '<p class="empty">Failed to load results.json from any source. ' +
+                    'Drop a file into this page, or run `python -m http.server` ' +
+                    'from the repo root and open <code>/ui/dashboard.html</code>.</p>';
+                return;
+            }
+            const src = sources[idx];
+            fetch(src)
+                .then(r => { if (!r.ok) throw new Error(r.status + ' ' + r.statusText); return r.json(); })
+                .then(data => {
+                    DATA_SOURCE_USED = src;
+                    initData(data);
+                })
+                .catch(_ => loadFromSources(sources, idx + 1));
+        }
+
+        function initData(data) {
+            RAW_DATA = data;
+            RAW_DATA.forEach((d, i) => d.original_index = i);
+            DATA = [...RAW_DATA];
+            applySort();
+            populateFilterDropdowns();
+            // is_base_model is only present in the enriched dataset
+            // (currently results_top40.json). When absent, disable the
+            // toggle rather than letting it silently do nothing.
+            const hasBaseFlag = RAW_DATA.some(d => typeof d.is_base_model === 'boolean');
+            const cb = document.getElementById('base-only-checkbox');
+            const label = document.getElementById('base-only-label');
+            cb.disabled = !hasBaseFlag;
+            label.style.opacity = hasBaseFlag ? '1' : '0.4';
+            label.title = hasBaseFlag
+                ? 'Hide finetunes / derivatives (keep only models with no parent on HF)'
+                : 'Dataset does not include the is_base_model field';
+            if (!hasBaseFlag) {
+                cb.checked = false;
+                BASE_ONLY = false;
+            }
+            renderModelSelect();
+            document.getElementById('diagram').innerHTML = drawGlobalStats();
+        }
+
+        // Drag-and-drop: drop a results.json onto the page to load it.
+        ['dragover', 'drop'].forEach(ev => document.addEventListener(ev, e => e.preventDefault()));
+        document.addEventListener('drop', e => {
+            const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+            if (!f) return;
+            f.text().then(t => {
+                try {
+                    DATA_SOURCE_USED = `(dropped: ${f.name})`;
+                    initData(JSON.parse(t));
+                } catch (err) {
+                    alert('Failed to parse JSON: ' + err.message);
+                }
+            });
+        });
+
+        let DATA_SOURCE_USED = '';
+        loadFromSources(DATA_SOURCES);
+
+
+        function escapeHTML(value) {
+            return String(value == null ? '' : value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function arxivId(link) {
+            if (!link) return '';
+            return String(link)
+                .replace(/^https?:\/\/arxiv\.org\/abs\//, '')
+                .replace(/^https?:\/\/arxiv\.org\/pdf\//, '')
+                .replace(/\.pdf$/i, '');
+        }
+
+        function paperLinkHTML(ar, ap, link) {
+            const id = arxivId(link);
+            const label = id ? `arXiv:${id}` : 'unknown paper';
+            return `<a class="flow-paper-id" href="${escapeHTML(link)}" target="_blank">${escapeHTML(label)}</a>`;
+        }
+
+        function flowNoteHTML(title, lines, tone = '') {
+            const body = lines.map(line => `<div class="flow-note-line">${line}</div>`).join('');
+            return `<details class="flow-note ${tone}" open>
+                <summary>${escapeHTML(title)}</summary>
+                ${body}
+            </details>`;
+        }
+
+        function flowRowHTML(nodeHTML, noteTitle, noteLines, tone = '', showArrow = true) {
+            const arrow = showArrow ? '<div class="flow-arrow-row"><div class="flow-arrow"></div></div>' : '';
+            return `<div class="flow-row">${nodeHTML}${flowNoteHTML(noteTitle, noteLines, tone)}</div>${arrow}`;
+        }
+
+        function render(m) {
+            const mc = m.modelcard_analysis || {};
+            const gr = m.github_resolution || {};
+            const gc = m.github_code_analysis || {};
+            const ar = m.arxiv_resolution || {};
+            const ap = m.arxiv_paper_analysis || {};
+            const co = m.conclusion || {};
+            const hasGithub = gr.selected_link != null;
+            const hasArxiv = ar.selected_link != null;
+            const chipWin = co.chip_provider_source;
+            const numGhCandidates = (gr.candidate_links || []).length;
+            const numAxCandidates = (ar.candidate_links || []).length;
+            const usedLlm = chipWin === 'llm_chip';
+
+            const nodeHTML = (title, body, cls = '') => `
+                <div class="node ${cls}">
+                    <div class="node-title">${escapeHTML(title)}</div>
+                    ${body}
+                </div>`;
+
+            const resultPill = (label, value, source, confidence) => `
+                <div class="flow-result-pill">
+                    <span class="k">${escapeHTML(label)}</span>
+                    <strong class="val-${value || 'unknown'}">${escapeHTML(value || 'unknown')}</strong>
+                    ${badgeHTML(source)}
+                    <span class="conf-pct">${Math.round((confidence || 0) * 100)}%</span>
+                </div>`;
+
+            const chipMetricHTML = (chip, chipConf) => `
+                <div>
+                    <div class="kv"><span class="k">Chip</span><span class="v val-${chip || 'unknown'}">${escapeHTML(chip || 'unknown')}</span></div>
+                    ${confBarHTML(chipConf)}
+                </div>`;
+
+            const sectionPillsHTML = (label, sections) => {
+                if (!sections || !sections.length) return '';
+                return `<div style="margin-top:5px"><span class="k" style="font-size:11px">${escapeHTML(label)}: </span><span class="pills">${sections.map(s => `<span class="pill">${escapeHTML(s)}</span>`).join('')}</span></div>`;
+            };
+
+            const selectedRepoHTML = hasGithub
+                ? `<a href="${escapeHTML(gr.selected_link)}" target="_blank">${escapeHTML(gr.selected_link.replace('https://github.com/', ''))}</a>`
+                : '<span class="flow-note-muted">none</span>';
+
+            let h = '';
+            h += `<div class="flow-analysis">
+                <div class="flow-header">
+                    <div class="flow-title">Flow analysis for <span>${escapeHTML(m.id)}</span></div>
+                    <div class="flow-result">
+                        ${resultPill('Chip', co.chip_provider, chipWin, co.chip_provider_confidence)}
+                    </div>
+                </div>`;
+
+            // ── Step 1: Model Card Analysis ──
+            const mcBody = chipMetricHTML(mc.chip_provider, mc.chip_provider_confidence)
+                + sectionPillsHTML('Sections', mc.matched_sections);
+            const mcNotes = [
+                (mc.matched_sections && mc.matched_sections.length)
+                    ? `Evidence came from ${mc.matched_sections.length} model-card section${mc.matched_sections.length > 1 ? 's' : ''}.`
+                    : '<span class="flow-note-muted">No matched model-card sections.</span>',
+                numGhCandidates > 0
+                    ? `${numGhCandidates} GitHub link${numGhCandidates > 1 ? 's' : ''} found for repository resolution.`
+                    : '<span class="flow-note-muted">No GitHub links found in the model card.</span>'
+            ];
+            h += flowRowHTML(nodeHTML('1. Model Card Analysis', mcBody), 'Evidence read', mcNotes, numGhCandidates ? '' : 'skip');
+
+            // ── Step 2: GitHub Resolution ──
+            let ghSelectBody = '';
+            if (numGhCandidates === 0) {
+                ghSelectBody += '<div style="color:#aaa;font-style:italic">Skipped - no candidate links</div>';
+            } else if (numGhCandidates === 1) {
+                const link = gr.candidate_links[0] || '';
+                const short = link.replace('https://github.com/', '');
+                const isSel = link === gr.selected_link;
+                ghSelectBody += `<div class="kv"><span class="k">Only candidate</span><span class="v" style="font-size:11px"><a href="${escapeHTML(link)}" target="_blank" style="color:${isSel ? '#1565c0' : '#aaa'};text-decoration:none">${escapeHTML(short)}</a>${isSel ? '' : ' (rejected)'}</span></div>`;
+                ghSelectBody += confBarHTML(gr.heuristic_confidence);
+            } else {
+                ghSelectBody += `<button class="toggle-links-btn" onclick="toggleLinks(this)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    Show ${numGhCandidates} links
+                </button>`;
+                ghSelectBody += '<div class="link-list" style="display:none;">';
+                (gr.candidate_links || []).forEach(link => {
+                    if (!link) return;
+                    const isSel = link === gr.selected_link;
+                    const short = link.replace('https://github.com/', '');
+                    ghSelectBody += `<div class="link-item${isSel ? ' selected' : ' rejected'}">${isSel ? '&rarr; ' : '&nbsp;&nbsp;'}<a href="${escapeHTML(link)}" target="_blank">${escapeHTML(short)}</a></div>`;
+                });
+                ghSelectBody += '</div>';
+                ghSelectBody += `<div class="kv" style="margin-top:4px"><span class="k">Selected by</span>${badgeHTML(gr.source)}</div>`;
+                ghSelectBody += confBarHTML(gr.heuristic_confidence);
+                if (gr.source === 'llm') {
+                    ghSelectBody += '<div style="font-size:11px;color:#6a1b9a;margin-top:3px">Heuristic confidence too low - LLM chose the link</div>';
+                }
+            }
+            const ghSelectNotes = hasGithub
+                ? [
+                    `Selected repository: ${selectedRepoHTML}.`,
+                    gr.source === 'llm'
+                        ? 'The heuristic was low-confidence, so the LLM selected the repo.'
+                        : `Selection source: ${badgeHTML(gr.source)} with ${Math.round((gr.heuristic_confidence || 0) * 100)}% confidence.`
+                ]
+                : ['<span class="flow-note-muted">No repository was selected, so code analysis is skipped.</span>'];
+            h += flowRowHTML(
+                nodeHTML('2. GitHub Link Selection', ghSelectBody, !hasGithub && numGhCandidates === 0 ? 'dimmed' : ''),
+                'Repo choice',
+                ghSelectNotes,
+                hasGithub ? (gr.source === 'llm' ? 'llm-call' : 'decision') : 'skip'
+            );
+
+            // ── Step 3: GitHub Code Analysis ──
+            let ghCodeBody = '';
+            if (hasGithub) {
+                ghCodeBody += chipMetricHTML(gc.chip_provider, gc.chip_provider_confidence);
+                if (gc.detection_files && gc.detection_files.length) {
+                    const shownFiles = gc.detection_files.slice(0, 2);
+                    const extraFiles = gc.detection_files.length - shownFiles.length;
+                    ghCodeBody += '<div class="det-files" style="margin-top:4px"><span class="k" style="font-size:11px">Scanned: </span>';
+                    ghCodeBody += shownFiles.map(f => `<code>${escapeHTML(f)}</code>`).join(' ');
+                    if (extraFiles > 0) {
+                        ghCodeBody += ` <span class="k" style="font-size:11px">+${extraFiles} other${extraFiles > 1 ? 's' : ''}</span>`;
+                    }
+                    ghCodeBody += '</div>';
+                }
+            } else {
+                ghCodeBody += '<div style="color:#aaa;font-style:italic">Skipped - no repo</div>';
+            }
+            const ghCodeNotes = hasGithub
+                ? [
+                    (gc.detection_files && gc.detection_files.length)
+                        ? `${gc.detection_files.length} file${gc.detection_files.length > 1 ? 's' : ''} carried chip signals.`
+                        : '<span class="flow-note-muted">No chip signals found in code files.</span>',
+                    numAxCandidates > 0
+                        ? `${numAxCandidates} arXiv paper${numAxCandidates > 1 ? 's' : ''} found for paper analysis.`
+                        : '<span class="flow-note-muted">No arXiv papers found in the model card.</span>'
+                ]
+                : ['<span class="flow-note-muted">No repo to analyze.</span>'];
+            h += flowRowHTML(nodeHTML('3. GitHub Code Analysis', ghCodeBody, !hasGithub ? 'dimmed' : ''), 'Code scan', ghCodeNotes, hasGithub ? '' : 'skip');
+
+            // ── Step 4: ArXiv Paper Analysis ──
+            let arxivBody = '';
+            if (numAxCandidates === 0) {
+                arxivBody += '<div style="color:#aaa;font-style:italic">Skipped - no arXiv papers found</div>';
+            } else {
+                if (hasArxiv) {
+                    arxivBody += `<div class="kv" style="margin-top:2px"><span class="k">Selected by</span>${badgeHTML(ar.source)}</div>`;
+                    arxivBody += confBarHTML(ar.heuristic_confidence);
+                    if (numAxCandidates > 1) {
+                        arxivBody += `<button class="toggle-links-btn" onclick="toggleLinks(this)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                            Show all ${numAxCandidates} papers
+                        </button>`;
+                        arxivBody += '<div class="link-list" style="display:none;">';
+                        (ar.candidate_links || []).forEach(link => {
+                            if (!link) return;
+                            const isSel = link === ar.selected_link;
+                            arxivBody += `<div class="link-item${isSel ? ' selected' : ' rejected'}">${isSel ? '&rarr; ' : '&nbsp;&nbsp;'}${paperLinkHTML(ar, ap, link)}</div>`;
+                        });
+                        arxivBody += '</div>';
+                    }
+
+                    // Show chip analysis
+                    if (ap.chip_provider && ap.chip_provider !== 'unknown') {
+                        arxivBody += '<div style="margin-top:6px">';
+                        arxivBody += chipMetricHTML(ap.chip_provider, ap.chip_provider_confidence);
+                        arxivBody += '</div>';
+                    } else {
+                        arxivBody += '<div style="color:#aaa;font-style:italic;margin-top:4px">No chip signals found in paper</div>';
+                    }
+
+                    arxivBody += sectionPillsHTML('Sections', ap.detection_sections);
+                } else {
+                    arxivBody += '<div style="color:#aaa;font-style:italic">Papers found but none selected as primary</div>';
+                }
+            }
+            const arxivNotes = numAxCandidates === 0
+                ? ['<span class="flow-note-muted">Paper analysis skipped because the model card did not expose arXiv links.</span>']
+                : hasArxiv
+                    ? [
+                        `Selected paper: ${paperLinkHTML(ar, ap, ar.selected_link)}.`,
+                        `Selection source: ${badgeHTML(ar.source)} with ${Math.round((ar.heuristic_confidence || 0) * 100)}% confidence.`
+                    ]
+                    : ['<span class="flow-note-muted">Papers were found, but none was selected as primary.</span>'];
+            h += flowRowHTML(
+                nodeHTML('4. ArXiv Paper Analysis', arxivBody, !hasArxiv && numAxCandidates === 0 ? 'dimmed' : ''),
+                'Paper choice',
+                arxivNotes,
+                hasArxiv ? 'decision' : 'skip'
+            );
+
+            // ── Step 5: LLM Verification ──
+            let llmBody = '';
+            if (usedLlm) {
+                llmBody += `<div class="kv"><span class="k">LLM Output</span><span class="v val-${co.chip_provider || 'unknown'}">${escapeHTML(co.chip_provider || 'unknown')}</span></div>`;
+                llmBody += confBarHTML(co.chip_provider_confidence);
+            } else {
+                llmBody += '<div style="color:#aaa;font-style:italic">Skipped - no ambiguity detected</div>';
+            }
+            h += flowRowHTML(
+                nodeHTML('5. AI Chip Verification', llmBody, !usedLlm ? 'dimmed' : ''),
+                'Fallback rule',
+                usedLlm
+                    ? ['Heuristics conflicted or were too low-confidence, so AI verification supplied the chip provider.']
+                    : ['<span class="flow-note-muted">Source heuristics were sufficiently confident, so AI verification was not needed.</span>'],
+                usedLlm ? 'llm-call' : 'skip'
+            );
+
+            const decLines = [];
+            // Chip decision
+            if (chipWin === 'llm_chip') {
+                decLines.push(`Chip: AI verified as <strong>${escapeHTML(co.chip_provider || 'unknown')}</strong>.`);
+            } else if (chipWin === 'arxiv_paper') {
+                decLines.push(`Chip: arXiv paper wins at ${Math.round((ap.chip_provider_confidence || 0) * 100)}% confidence because it has highest priority.`);
+            } else if (chipWin === 'github_code') {
+                decLines.push(`Chip: GitHub code (${Math.round((gc.chip_provider_confidence || 0) * 100)}%) beat model card (${Math.round((mc.chip_provider_confidence || 0) * 100)}%).`);
+            } else if (chipWin === 'modelcard') {
+                const reason = !hasGithub ? 'no GitHub data' :
+                    (gc.chip_provider_confidence || 0) < 0.3 ? 'GitHub below 30% threshold' :
+                        `model card (${Math.round((mc.chip_provider_confidence || 0) * 100)}%) ≥ GitHub (${Math.round((gc.chip_provider_confidence || 0) * 100)}%)`;
+                decLines.push(`Chip: model card wins because ${escapeHTML(reason)}.`);
+            } else if (chipWin === 'base_model') {
+                decLines.push('Chip: inherited from base model.');
+            } else {
+                decLines.push('<span class="flow-note-muted">Chip: all sources unknown.</span>');
+            }
+            // ── Step 6: Conclusion ──
+            let conclusionBody = '<div>';
+            conclusionBody += `<div class="conclusion-dim src-${chipWin || ''}">`;
+            conclusionBody += `<div class="conclusion-val val-${co.chip_provider || 'unknown'}">${escapeHTML(co.chip_provider || 'unknown')}</div>`;
+            conclusionBody += `<div class="kv"><span class="k">Chip Provider</span>${badgeHTML(chipWin)}</div>`;
+            conclusionBody += confBarHTML(co.chip_provider_confidence);
+            conclusionBody += '</div>';
+            conclusionBody += '</div>';
+
+            if (co.correct === 1) {
+                conclusionBody += `<div style="margin-top:12px; padding:8px 12px; background:#e8f5e9; border:1px solid #a5d6a7; color:#2e7d32; border-radius:4px; font-weight:600; font-size:12px;">`;
+                conclusionBody += `Correct - matches ground truth`;
+                if (co.expected_provider) conclusionBody += ` (expected: ${escapeHTML(co.expected_provider)})`;
+                conclusionBody += `</div>`;
+            } else if (co.correct === 0) {
+                conclusionBody += `<div style="margin-top:12px; padding:8px 12px; background:#ffebee; border:1px solid #ef9a9a; color:#b71c1c; border-radius:4px; font-weight:600; font-size:12px;">`;
+                conclusionBody += `Incorrect`;
+                if (co.expected_provider) conclusionBody += ` - expected <strong>${escapeHTML(co.expected_provider)}</strong>, got <strong>${escapeHTML(co.chip_provider || 'unknown')}</strong>`;
+                conclusionBody += `</div>`;
+            }
+            h += flowRowHTML(nodeHTML('6. Conclusion', conclusionBody, 'node-conclusion'), 'Final choice', decLines, 'win', false);
+            h += '</div>';
+
+            document.getElementById('diagram').innerHTML = h;
+        }
+
+        function toggleLinks(btn) {
+            btn.classList.toggle('expanded');
+            const list = btn.nextElementSibling;
+            if (list.style.display === 'none') {
+                list.style.display = 'block';
+            } else {
+                list.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+
+</html>
