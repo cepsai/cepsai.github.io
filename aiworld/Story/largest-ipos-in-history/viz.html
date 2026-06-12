@@ -498,9 +498,13 @@ const Y_AXIS_TITLE  = "Amount raised at IPO (US$ billions)";
 const SPACEX_LABEL  = "SpaceX";
 const SPACEX_SUFFIX = " ?";
 const COLORS = {
-  base:    "#94a3b8",
-  baseHi:  "#475569",
-  spacex:  "#2756d3"
+  baseHi:  "#475569"
+};
+const REGION_COLORS = {
+  "US":          "#f59e0b",
+  "Europe":      "#2756d3",
+  "Asia":        "#E53229",
+  "Middle East": "#0d9488"
 };
 const INK  = "#0f172a";
 
@@ -661,16 +665,16 @@ function spacexEase(p) {
 
 /* Inline data (amount raised at offering in US$ bn, excl. greenshoe; DealRoom / SEC) */
 const INLINE_DATA = [
-  { company: "NTT DoCoMo",     year: 1998, amount: 18.4, isSpacex: false },
-  { company: "ENEL",           year: 1999, amount: 16.6, isSpacex: false },
-  { company: "Visa",           year: 2008, amount: 17.9, isSpacex: false },
-  { company: "AIA Group",      year: 2010, amount: 17.8, isSpacex: false },
-  { company: "General Motors", year: 2010, amount: 15.8, isSpacex: false },
-  { company: "Facebook",       year: 2012, amount: 16.0, isSpacex: false },
-  { company: "Alibaba",        year: 2014, amount: 21.7, isSpacex: false },
-  { company: "SoftBank Corp",  year: 2018, amount: 21.3, isSpacex: false },
-  { company: "Saudi Aramco",   year: 2019, amount: 25.6, isSpacex: false },
-  { company: "SpaceX",         year: 2026, amount: 75.0, isSpacex: true  }
+  { company: "NTT DoCoMo",     year: 1998, amount: 18.4, isSpacex: false, region: "Asia" },
+  { company: "ENEL",           year: 1999, amount: 16.6, isSpacex: false, region: "Europe" },
+  { company: "Visa",           year: 2008, amount: 17.9, isSpacex: false, region: "US" },
+  { company: "AIA Group",      year: 2010, amount: 17.8, isSpacex: false, region: "Asia" },
+  { company: "General Motors", year: 2010, amount: 15.8, isSpacex: false, region: "US" },
+  { company: "Facebook",       year: 2012, amount: 16.0, isSpacex: false, region: "US" },
+  { company: "Alibaba",        year: 2014, amount: 21.7, isSpacex: false, region: "Asia" },
+  { company: "SoftBank Corp",  year: 2018, amount: 21.3, isSpacex: false, region: "Asia" },
+  { company: "Saudi Aramco",   year: 2019, amount: 25.6, isSpacex: false, region: "Middle East" },
+  { company: "SpaceX",         year: 2026, amount: 75.0, isSpacex: true,  region: "US" }
 ];
 
 let DATA = null;          // chronological array of entrants
@@ -786,7 +790,7 @@ function computeLayout() {
     : Math.max(28, height * 0.07);
 
   const margin = {
-    top: Math.max(24, valueFs * 2),
+    top: Math.max(24, valueFs * 2) + (compact ? 0 : 24),
     right: Math.max(16, width * 0.02),
     bottom: compact ? Math.min(bottomMargin, height * 0.3) : bottomMargin,
     left: yLabelWidth + 32
@@ -849,6 +853,24 @@ function render(hard) {
       .attr("x1", 0).attr("x2", L.iw)
       .attr("y1", L.ih).attr("y2", L.ih)
       .attr("stroke", "#cfd2d7");
+    if (!L.compact) {
+      const lg = svg.append("g").attr("class", "legend")
+        .attr("transform", `translate(${L.margin.left}, 18)`);
+      const mctx = document.createElement("canvas").getContext("2d");
+      mctx.font = `600 ${L.nameFs}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
+      let lx = 0;
+      for (const [name, col] of Object.entries(REGION_COLORS)) {
+        const item = lg.append("g").attr("transform", `translate(${lx},0)`);
+        item.append("rect")
+          .attr("y", -10).attr("width", 12).attr("height", 12).attr("rx", 2)
+          .attr("fill", col);
+        item.append("text")
+          .attr("x", 17).attr("fill", INK)
+          .attr("font-size", L.nameFs).attr("font-weight", 600)
+          .text(name);
+        lx += 17 + mctx.measureText(name).width + 22;
+      }
+    }
   }
   const g = svg.select("g.root");
   const entered = state ? state.entered : [];
@@ -885,14 +907,14 @@ function render(hard) {
   const bars = g.select("g.bars").selectAll("g.bar").data(entered, keyOf);
   const barsEnter = bars.enter().append("g").attr("class", "bar");
   barsEnter.append("rect")
-    .attr("fill", d => d.isSpacex ? COLORS.spacex : COLORS.base);
+    .attr("fill", d => REGION_COLORS[d.region]);
   barsEnter.append("text").attr("class", "name")
     .attr("fill", INK).attr("font-weight", 600)
     .attr("font-size", L.nameFs)
     .text(d => labelOf(d));
   barsEnter.append("text").attr("class", "value")
     .attr("text-anchor", "middle")
-    .attr("fill", d => d.isSpacex ? COLORS.spacex : COLORS.baseHi)
+    .attr("fill", d => d.isSpacex ? REGION_COLORS[d.region] : COLORS.baseHi)
     .attr("font-weight", 700).attr("font-size", L.valueFs);
   barsEnter.append("text").attr("class", "in-bar-year")
     .attr("text-anchor", "middle")
@@ -936,7 +958,8 @@ function init(rows) {
       company: r.company,
       year: parseNum(r.year),
       amount: parseNum(r.amount_raised_bn),
-      isSpacex: parseNum(r.is_spacex) === 1
+      isSpacex: parseNum(r.is_spacex) === 1,
+      region: r.region
     }))
     .filter(d => d.company && d.amount > 0)
     .sort((a, b) => a.year - b.year || b.amount - a.amount);
@@ -945,7 +968,7 @@ function init(rows) {
 }
 
 init(INLINE_DATA.map(d => ({
-  company: d.company, year: d.year, amount_raised_bn: d.amount, is_spacex: d.isSpacex ? 1 : 0
+  company: d.company, year: d.year, amount_raised_bn: d.amount, is_spacex: d.isSpacex ? 1 : 0, region: d.region
 })));
 
 document.getElementById("btn-race").addEventListener("click", () => {
