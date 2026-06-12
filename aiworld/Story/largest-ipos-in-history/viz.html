@@ -406,14 +406,6 @@ body {
     flex: 0 0 auto;
 }
 
-.country-legend-item.spacex {
-    color: #2756d3;
-}
-
-.country-legend-item.spacex .country-legend-swatch {
-    box-shadow: 0 0 0 2px rgba(39, 86, 211, 0.25);
-}
-
 #container3 {
     grid-column: 1;
 }
@@ -551,25 +543,19 @@ const COLORS = {
   spacex:  "#2756d3"
 };
 const INK  = "#0f172a";
-
-// Color-by-country palette (countries per DealRoom's IPO list)
-const COUNTRY_COLORS = {
-  "Japan":        "#f28e2b",
-  "Italy":        "#59a14f",
-  "USA":          "#e15759",
-  "Hong Kong":    "#76b7b2",
-  "China":        "#b07aa1",
-  "Saudi Arabia": "#edc948"
+const REGION_COLORS = {
+  "North America": "#EE7678",
+  "Europe":        "#F7AE6A",
+  "Asia":          "#4D72B4",
+  "Middle East":   "#edc948"
 };
-// Countries whose fill is light enough to need dark in-bar text
-const LIGHT_COUNTRIES = new Set(["Saudi Arabia"]);
+const LIGHT_REGIONS = new Set(["Middle East"]);
 
 function colorOf(d) {
-  if (d.isSpacex) return COLORS.spacex;
-  return COUNTRY_COLORS[d.country] || COLORS.base;
+  return REGION_COLORS[d.region] || COLORS.base;
 }
 function inBarInk(d) {
-  return (!d.isSpacex && LIGHT_COUNTRIES.has(d.country)) ? "#1f2937" : "#ffffff";
+  return LIGHT_REGIONS.has(d.region) ? "#1f2937" : "#ffffff";
 }
 
 const GROW_MS        = 2600;   // growth duration per historical bar
@@ -610,13 +596,13 @@ const BREAKPOINT_COMPACT = 500;
 
   let gridRows = [];
   let currentRow = 1;
-  const chartHeight = 20 - (rowTimelineVisible ? 1.6 : 0) - (rowLegendVisible ? 1.2 : 0) - (rowBottomVisible ? 1.8 : 0);
+  const chartHeight = 20 - (rowTimelineVisible ? 1.6 : 0) - (rowLegendVisible ? 1.2 : 0) - (rowBottomVisible ? 1 : 0);
   gridRows.push(`${chartHeight}fr`);
 
   if (rowTimelineVisible) { gridRows.push('1.6fr'); currentRow++; if (tl) tl.style.gridRow = String(currentRow); }
   if (rowLegendVisible) { gridRows.push('1.2fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
   if (rowBottomVisible) {
-    gridRows.push('1.8fr'); currentRow++;
+    gridRows.push('1fr'); currentRow++;
     if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
     if (SHOW_CONTAINER_2 && c2) c2.style.gridRow = String(currentRow);
     if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
@@ -734,16 +720,16 @@ function spacexEase(p) {
 
 /* Inline data (amount raised at offering in US$ bn, excl. greenshoe; DealRoom / SEC) */
 const INLINE_DATA = [
-  { company: "NTT DoCoMo",     year: 1998, amount: 18.4, country: "Japan",        isSpacex: false },
-  { company: "ENEL",           year: 1999, amount: 16.6, country: "Italy",        isSpacex: false },
-  { company: "Visa",           year: 2008, amount: 17.9, country: "USA",          isSpacex: false },
-  { company: "AIA Group",      year: 2010, amount: 17.8, country: "Hong Kong",    isSpacex: false },
-  { company: "General Motors", year: 2010, amount: 15.8, country: "USA",          isSpacex: false },
-  { company: "Facebook",       year: 2012, amount: 16.0, country: "USA",          isSpacex: false },
-  { company: "Alibaba",        year: 2014, amount: 21.7, country: "China",        isSpacex: false },
-  { company: "SoftBank Corp",  year: 2018, amount: 21.3, country: "Japan",        isSpacex: false },
-  { company: "Saudi Aramco",   year: 2019, amount: 25.6, country: "Saudi Arabia", isSpacex: false },
-  { company: "SpaceX",         year: 2026, amount: 75.0, country: "USA",          isSpacex: true  }
+  { company: "NTT DoCoMo",     year: 1998, amount: 18.4, region: "Asia",          isSpacex: false },
+  { company: "ENEL",           year: 1999, amount: 16.6, region: "Europe",        isSpacex: false },
+  { company: "Visa",           year: 2008, amount: 17.9, region: "North America", isSpacex: false },
+  { company: "AIA Group",      year: 2010, amount: 17.8, region: "Asia",          isSpacex: false },
+  { company: "General Motors", year: 2010, amount: 15.8, region: "North America", isSpacex: false },
+  { company: "Facebook",       year: 2012, amount: 16.0, region: "North America", isSpacex: false },
+  { company: "Alibaba",        year: 2014, amount: 21.7, region: "Asia",          isSpacex: false },
+  { company: "SoftBank Corp",  year: 2018, amount: 21.3, region: "Asia",          isSpacex: false },
+  { company: "Saudi Aramco",   year: 2019, amount: 25.6, region: "Middle East",   isSpacex: false },
+  { company: "SpaceX",         year: 2026, amount: 75.0, region: "North America", isSpacex: true  }
 ];
 
 let DATA = null;          // chronological array of entrants
@@ -763,6 +749,7 @@ function buildState(skipToEnd) {
     entered: [],
     skip: !!skipToEnd,
     done: false,
+    finalT: 0,        // 0→1 eased progress of the final "settle" beat
     currentYear: null
   };
 }
@@ -777,6 +764,7 @@ function startRace(skipToEnd = false) {
   if (skipToEnd) {
     state.entered = DATA.map(d => ({ ...d, current: d.amount, xPos: null, w: null }));
     state.done = true;
+    state.finalT = 1;
     state.currentYear = DATA[DATA.length - 1].year;
     updateRaceButton();
     render(true);
@@ -803,6 +791,8 @@ function startRace(skipToEnd = false) {
   state.currentYear = pts[0].y;
 
   const ease = d3.easeCubicOut;
+  const SETTLE_MS = 650;   // extra beat after growth, so layout glides (not snaps) into place
+  let settleStart = null;
   render(true);
   timer = d3.timer(elapsed => {
     state.currentYear = yearAt(elapsed);
@@ -817,12 +807,18 @@ function startRace(skipToEnd = false) {
       s.entrant.current = s.d.amount * (s.d.isSpacex ? spacexEase(p) : ease(p));
       if (p < 1) allDone = false;
     }
-    if (allDone) {
-      timer.stop(); timer = null;
+    if (allDone && settleStart == null) {
+      settleStart = elapsed;
       state.done = true;
       updateRaceButton();
     }
+    if (settleStart != null) {
+      state.finalT = d3.easeCubicOut(Math.min(1, (elapsed - settleStart) / SETTLE_MS));
+    }
     render(false);
+    if (settleStart != null && elapsed - settleStart >= SETTLE_MS) {
+      timer.stop(); timer = null;
+    }
   });
 }
 
@@ -942,7 +938,6 @@ function render(hard) {
   if (!render.yMax || hard) render.yMax = target;
   const yk = 1 - Math.pow(1 - Y_DOMAIN_LERP, dt);
   render.yMax += (target - render.yMax) * yk;
-  if (done) render.yMax = target;
   const y = d3.scaleLinear().domain([0, render.yMax]).range([L.ih, 0]);
   drawYAxis(y, hard || done);
 
@@ -956,7 +951,6 @@ function render(hard) {
     const tw = Math.min(xBand.bandwidth(), L.maxBarW);
     const tx = xBand(keyOf(d)) + (xBand.bandwidth() - tw) / 2;
     if (d.xPos == null) { d.xPos = tx; d.w = tw; }
-    else if (done) { d.xPos = tx; d.w = tw; }
     else { d.xPos += (tx - d.xPos) * xk; d.w += (tw - d.w) * xk; }
   }
 
@@ -998,7 +992,10 @@ function render(hard) {
   all.select("text.value")
     .attr("x", d => d.w / 2)
     .attr("y", d => y(d.current) - Math.max(6, L.valueFs * 0.5))
-    .attr("font-size", d => d.isSpacex && done ? L.valueFs * 1.25 : L.valueFs)
+    .attr("font-size", d => {
+      const ft = state ? state.finalT : 0;
+      return d.isSpacex && done ? L.valueFs * (1 + 0.25 * ft) : L.valueFs;
+    })
     .text(d => {
       const v = `$${d.current.toFixed(d.current >= 30 ? 0 : 1)}B`;
       return d.isSpacex && done ? v + SPACEX_SUFFIX : v;
@@ -1017,7 +1014,7 @@ function init(rows) {
       company: r.company,
       year: parseNum(r.year),
       amount: parseNum(r.amount_raised_bn),
-      country: r.country,
+      region: r.region,
       isSpacex: parseNum(r.is_spacex) === 1
     }))
     .filter(d => d.company && d.amount > 0)
@@ -1033,19 +1030,18 @@ function buildLegend() {
   const seen = new Set();
   const items = [];
   for (const d of DATA) {
-    if (d.isSpacex || !d.country || seen.has(d.country)) continue;
-    seen.add(d.country);
-    items.push({ label: d.country, color: colorOf(d), spacex: false });
+    if (!d.region || seen.has(d.region)) continue;
+    seen.add(d.region);
+    items.push({ label: d.region, color: REGION_COLORS[d.region] || COLORS.base });
   }
-  items.push({ label: SPACEX_LABEL + " (projected)", color: COLORS.spacex, spacex: true });
   el.innerHTML = items.map(it =>
-    `<span class="country-legend-item${it.spacex ? " spacex" : ""}">` +
+    `<span class="country-legend-item">` +
       `<span class="country-legend-swatch" style="background:${it.color}"></span>${it.label}` +
     `</span>`).join("");
 }
 
 init(INLINE_DATA.map(d => ({
-  company: d.company, year: d.year, amount_raised_bn: d.amount, country: d.country, is_spacex: d.isSpacex ? 1 : 0
+  company: d.company, year: d.year, amount_raised_bn: d.amount, region: d.region, is_spacex: d.isSpacex ? 1 : 0
 })));
 
 document.getElementById("btn-race").addEventListener("click", () => {
