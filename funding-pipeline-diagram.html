@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Funding Tracker Pipeline</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --ink: #1d2433;
+    --muted: #5b6472;
+    --line: #c4ccd8;
+    --wire: #9aa4b2;
+    --search: #2f6fed;
+    --integrate: #7c3aed;
+    --clean: #d97706;
+    --db: #0f9d6e;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--ink);
+    padding: 28px 24px 60px;
+  }
+  h1 { font-size: 21px; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+
+  /* tabs */
+  .tabs { max-width: 1280px; margin: 0 auto 22px; display: flex; gap: 8px; }
+  .tab-btn {
+    border: 1.5px solid var(--line); background: var(--card); color: var(--muted);
+    border-radius: 99px; padding: 6px 18px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .tab-btn.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .tab-btn:hover:not(.on) { border-color: var(--wire); color: var(--ink); }
+  .view { display: none; }
+  .view.on { display: block; }
+
+  /* interactive pipeline */
+  .scroller { max-width: 1280px; margin: 0 auto; overflow-x: auto; }
+  .pipeline { position: relative; display: flex; align-items: stretch; min-width: 1080px; }
+  .stage { display: flex; flex-direction: column; justify-content: center; gap: 10px; flex: 1; min-width: 0; position: relative; z-index: 1; }
+  .stage-label {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin-bottom: 2px; text-align: center;
+  }
+  .spacer { width: 80px; flex-shrink: 0; }
+  .block {
+    background: var(--card); border: 1.5px solid var(--line); border-left-width: 5px;
+    border-radius: var(--radius); padding: 13px 14px; cursor: pointer;
+    transition: box-shadow .15s, transform .15s; user-select: none;
+  }
+  .block:hover { box-shadow: 0 3px 12px rgba(0,0,0,.12); transform: translateY(-1px); }
+  .block.active { box-shadow: 0 0 0 2.5px currentColor; }
+  .block h3 { font-size: 14px; color: var(--ink); font-weight: 650; }
+  .b-search { border-left-color: var(--search); color: var(--search); }
+  .b-integrate { border-left-color: var(--integrate); color: var(--integrate); }
+  .b-clean { border-left-color: var(--clean); color: var(--clean); }
+  .b-db { border-left-color: var(--db); color: var(--db); }
+  #wires { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+
+  /* detail panel */
+  #detail {
+    max-width: 1280px; margin: 30px auto 0; background: var(--card);
+    border: 1.5px solid var(--line); border-radius: var(--radius);
+    padding: 18px 22px; min-height: 120px;
+  }
+  #detail h2 { font-size: 16px; margin-bottom: 2px; }
+  #detail .meta { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  #detail ol { margin-left: 20px; font-size: 13.5px; line-height: 1.65; }
+  #detail ol li::marker { color: var(--muted); }
+  #detail .hint { color: var(--muted); font-size: 13.5px; padding-top: 30px; text-align: center; }
+  code {
+    background: #eef1f5; border-radius: 4px; padding: 1px 5px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 11.5px;
+  }
+  .tag {
+    display: inline-block; font-size: 10.5px; font-weight: 700; border-radius: 99px;
+    padding: 2px 9px; color: #fff; margin-right: 6px; vertical-align: 2px;
+  }
+
+  /* svg tab */
+  .svg-wrap { max-width: 1280px; margin: 0 auto; }
+  .svg-toolbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+  .dl-btn {
+    border: none; background: var(--ink); color: #fff; border-radius: 8px;
+    padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+  .dl-btn:hover { background: #333d52; }
+  .svg-frame { background: var(--card); border: 1.5px solid var(--line); border-radius: var(--radius); padding: 8px; overflow-x: auto; }
+  .svg-frame svg { display: block; width: 100%; height: auto; min-width: 900px; }
+</style>
+</head>
+<body>
+
+<h1>Unified Funding Tracker, daily pipeline</h1>
+<div class="sub">Six independent search tasks &rarr; aggregation &rarr; clean &amp; check &rarr; central database &amp; outputs. Click any block in the interactive view for its steps.</div>
+
+<div class="tabs">
+  <button class="tab-btn on" data-view="interactive">Interactive</button>
+  <button class="tab-btn" data-view="svg">SVG (download)</button>
+</div>
+
+<!-- ============ INTERACTIVE VIEW ============ -->
+<div class="view on" id="view-interactive">
+<div class="scroller">
+<div class="pipeline" id="pipeline">
+  <svg id="wires"></svg>
+
+  <div class="stage" style="max-width:280px">
+    <div class="stage-label">1 · Funding search calls (6&times;)</div>
+    <div class="block b-search" data-key="ai-work"><h3>AI &amp; Work</h3></div>
+    <div class="block b-search" data-key="ai-agents"><h3>AI Agents</h3></div>
+    <div class="block b-search" data-key="ai-eval"><h3>AI Evaluation</h3></div>
+    <div class="block b-search" data-key="eidas-agents"><h3>eIDAS Agents</h3></div>
+    <div class="block b-search" data-key="finance-levers"><h3>Finance Levers</h3></div>
+    <div class="block b-search" data-key="global-dev"><h3>Global Development</h3></div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div class="stage">
+    <div class="stage-label">2 · Integrate</div>
+    <div class="block b-integrate" data-key="integrate">
+      <h3>Aggregator merges &amp; normalizes data</h3>
+    </div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div class="stage">
+    <div class="stage-label">3 · Clean &amp; check</div>
+    <div class="block b-clean" data-key="clean">
+      <h3>Cleanup &amp; quality checks</h3>
+    </div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div class="stage">
+    <div class="stage-label">4 · Central database &amp; outputs</div>
+    <div class="block b-db" data-key="db">
+      <h3>Write to database</h3>
+    </div>
+    <div class="block b-db" data-key="summary">
+      <h3>Daily summary</h3>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<div id="detail"><div class="hint">Click a block above to see its detailed steps.</div></div>
+</div>
+
+<!-- ============ SVG VIEW ============ -->
+<div class="view" id="view-svg">
+  <div class="svg-wrap">
+    <div class="svg-toolbar"><button class="dl-btn" id="dlSvg">&#8595; Download SVG</button></div>
+    <div class="svg-frame">
+<svg id="staticSvg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1360 530" font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#9aa4b2"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1360" height="530" fill="#f6f7f9"/>
+
+  <!-- stage labels -->
+  <text x="160" y="48" text-anchor="middle" font-size="12.5" font-weight="700" letter-spacing="1" fill="#5b6472">1 · FUNDING SEARCH CALLS (6×)</text>
+  <text x="565" y="240" text-anchor="middle" font-size="12.5" font-weight="700" letter-spacing="1" fill="#5b6472">2 · INTEGRATE</text>
+  <text x="910" y="240" text-anchor="middle" font-size="12.5" font-weight="700" letter-spacing="1" fill="#5b6472">3 · CLEAN &amp; CHECK</text>
+  <text x="1205" y="216" text-anchor="middle" font-size="12.5" font-weight="700" letter-spacing="1" fill="#5b6472">4 · CENTRAL DATABASE &amp; OUTPUTS</text>
+
+  <!-- wires: fan-in from search blocks to aggregator -->
+  <g fill="none" stroke="#9aa4b2" stroke-width="2">
+    <path d="M280 96  C 352 96,  348 286, 410 286" marker-end="url(#arr)"/>
+    <path d="M280 172 C 352 172, 348 286, 410 286"/>
+    <path d="M280 248 C 352 248, 348 286, 410 286"/>
+    <path d="M280 324 C 352 324, 348 286, 410 286"/>
+    <path d="M280 400 C 352 400, 348 286, 410 286"/>
+    <path d="M280 476 C 352 476, 348 286, 410 286"/>
+    <path d="M710 286 L 780 286" marker-end="url(#arr)"/>
+    <path d="M1030 286 C 1062 286, 1056 256, 1080 256" marker-end="url(#arr)"/>
+    <path d="M1030 286 C 1062 286, 1056 328, 1080 328" marker-end="url(#arr)"/>
+  </g>
+
+  <!-- stage 1 blocks -->
+  <g>
+    <rect x="40" y="70"  width="240" height="52" rx="10" fill="#ffffff" stroke="#c4ccd8" stroke-width="1.5"/>
+    <line x1="43.5" y1="79"  x2="43.5" y2="113" stroke="#2f6fed" stroke-width="5" stroke-linecap="round"/>
+    <text x="64" y="101" font-size="15" font-weight="600" fill="#1d2433">AI &amp; Work</text>
+
+    <rect x="40" y="146" width="240" height="52" rx="10" fill="#ffffff" stroke="#c4ccd8" stroke-width="1.5"/>
+    <line x1="43.5" y1="155" x2="43.5" y2="189" stroke="#2f6fed" stroke-width="5" stroke-linecap="round"/>
+    <text x="64" y="177" font-size="15" font-weight="600" fill="#1d2433">AI Agents</text>
+
+    <rect x="40" y="222" width="240" height="52" rx="10" fill="#ffffff" stroke="#c4ccd8" stroke-width="1.5"/>
+    <line x1="43.5" y1="231" x2="43.5" y2="265" stroke="#2f6fed" stroke-width="5" stroke-linecap="round"/>
+    <text x="64" y="253" font-size="15" font-weight="600" fill="#1d2433">AI Evaluation</text>
+
+    <rect x="40" y="298" width="240" height="52" rx="10" fill="#ffffff" stroke="#c4ccd8" stroke-width="1.5"/>
+    <line x1="43.5" y1="307" x2="43.5" y2="341" stroke="#2f6fed" stroke-width="5" stroke-linecap="round"/>
+    <text x="64" y="329" font-size="15" font-weight="600" fill="#1d2433">eIDAS Agents</text>
+
+    <rect x="40" y="374" width="240" height="52" rx="10" fill="#ffffff" stroke="#c4ccd8" stroke-width="1.5"/>
+    <line x1="43.5" y1="383" x2="43.5" y2="417" stroke="#2f6fed" stroke-width="5" stroke-linecap="round"/>
+    <text x="64" y="405" font-size="15" font-weight="600" fill="#1d2433">Finance Levers</text>
+
+    <rect x="40" y="450" width="240" height="52" rx="10" fill="#ffffff" stroke="#c4ccd8" stroke-width="1.5"/>
+    <line x1="43.5" y1="459" x2="43.5" y2="493" stroke="#2f6fed" stroke-width="5" stroke-linecap="round"/>
+    <text x="64" y="481" font-size="15" font-weight="600" fill="#1d2433">Global Development</text>
+  </g>
+
+  <!-- stage 2: aggregator -->
+  <rect x="420" y="254" width="290" height="64" rx="10" fill="#ffffff" stroke="#c4ccd8" stroke-width="1.5"/>
+  <line x1="423.5" y1="264" x2="423.5" y2="308" stroke="#7c3aed" stroke-width="5" stroke-linecap="round"/>
+  <text x="444" y="281" font-size="14" font-weight="600" fill="#1d2433">Aggregator merges &amp;</text>
+  <text x="444" y="300" font-size="14" font-weight="600" fill="#1d2433">normalizes data</text>
+
+  <!-- stage 3: clean -->
+  <rect x="790" y="254" width="240" height="64" rx="10" fill="#ffffff" stroke="#c4ccd8" stroke-width="1.5"/>
+  <line x1="793.5" y1="264" x2="793.5" y2="308" stroke="#d97706" stroke-width="5" stroke-linecap="round"/>
+  <text x="814" y="291" font-size="14.5" font-weight="600" fill="#1d2433">Cleanup &amp; quality checks</text>
+
+  <!-- stage 4: outputs -->
+  <rect x="1090" y="230" width="230" height="52" rx="10" fill="#ffffff" stroke="#c4ccd8" stroke-width="1.5"/>
+  <line x1="1093.5" y1="239" x2="1093.5" y2="273" stroke="#0f9d6e" stroke-width="5" stroke-linecap="round"/>
+  <text x="1114" y="261" font-size="14.5" font-weight="600" fill="#1d2433">Write to database</text>
+
+  <rect x="1090" y="302" width="230" height="52" rx="10" fill="#ffffff" stroke="#c4ccd8" stroke-width="1.5"/>
+  <line x1="1093.5" y1="311" x2="1093.5" y2="345" stroke="#0f9d6e" stroke-width="5" stroke-linecap="round"/>
+  <text x="1114" y="333" font-size="14.5" font-weight="600" fill="#1d2433">Daily summary</text>
+</svg>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- detail data ---------- */
+const SEARCH_STEPS = (topic, file) => ({
+  steps: [
+    `Read <code>sources/${file}/latest.json</code> (start with <code>[]</code> if missing); note existing IDs and URLs for dedup.`,
+    `Run WebSearch with current-year queries focused on: ${topic}.`,
+    `Filter each result: real funding opportunity, on-topic, passes exclusions, <code>thematic_fit &ge; 3</code>; fetch pages for dates / budget / eligibility.`,
+    `Skip duplicates (URL or id already present). Build new entries with <code>status="new"</code> and <code>date_added=today</code>.`,
+    `Append only — never modify existing entries. Write back to <code>sources/${file}/latest.json</code>.`,
+    `Print run stats: number new, total entries, path written.`
+  ]
+});
+
+const DATA = {
+  "ai-work":        { title: "AI & Work (funding-search-ai-work)", tag: "SEARCH", tagColor: "var(--search)",
+                      meta: "Scheduled task · grants, fellowships, RFPs on AI's impact on labour markets, workforce, skills, automation",
+                      ...SEARCH_STEPS("AI &amp; future of work, workforce research, labour-market grants", "ai-work") },
+  "ai-agents":      { title: "AI Agents (funding-search-ai-agents)", tag: "SEARCH", tagColor: "var(--search)",
+                      meta: "Scheduled task · AI-agents research funding, think-tank-eligible",
+                      ...SEARCH_STEPS("AI-agents research funding (think-tank-eligible)", "ai-agents") },
+  "ai-eval":        { title: "AI Evaluation (funding-search-ai-eval)", tag: "SEARCH", tagColor: "var(--search)",
+                      meta: "Scheduled task · AI evaluation / benchmark funding, EU non-profit eligible",
+                      ...SEARCH_STEPS("AI evaluation &amp; benchmarking funding (EU non-profit eligible)", "ai-eval") },
+  "eidas-agents":   { title: "eIDAS Agents (funding-search-eidas-agents)", tag: "SEARCH", tagColor: "var(--search)",
+                      meta: "Scheduled task · eIDAS / AI-agent identity funding",
+                      ...SEARCH_STEPS("eIDAS and AI-agent identity funding", "eidas-agents") },
+  "finance-levers": { title: "Finance Levers (funding-search-finance-levers)", tag: "SEARCH", tagColor: "var(--search)",
+                      meta: "Scheduled task · EU finance / VC / pension-fund research funding",
+                      ...SEARCH_STEPS("EU finance, VC and pension-fund research funding", "finance-levers") },
+  "global-dev":     { title: "Global Development (funding-search-global-dev)", tag: "SEARCH", tagColor: "var(--search)",
+                      meta: "Scheduled task · data-science / AI funding for global development, health, foreign aid",
+                      ...SEARCH_STEPS("data science / AI for global development, health, foreign aid", "global-dev") },
+
+  "integrate": {
+    title: "Aggregator: scripts/aggregate.py (funding-aggregator task)", tag: "INTEGRATE", tagColor: "var(--integrate)",
+    meta: "Merges the six tracker JSONs into one normalized dataset",
+    steps: [
+      `Verify project layout: <code>sources/&lt;tracker&gt;/latest.json</code> for all six trackers, <code>central/</code>, <code>scripts/</code>. Stop and report if anything is missing.`,
+      `Read each <code>sources/&lt;tracker&gt;/latest.json</code>.`,
+      `Normalize via field-name synonyms onto the shared schema: id, title, funder, category, amount, deadline, rolling, status, url, description, thematic_fit.`,
+      `Read hand edits from <code>central/archived.json</code> (never overwritten).`,
+      `Treat source JSONs as read-only — they're owned by the search tasks.`
+    ]
+  },
+
+  "clean": {
+    title: "Cleanup & quality checks: funding-clean task + aggregator enrichment", tag: "CLEAN", tagColor: "var(--clean)",
+    meta: "Quality gate before data lands in the central database. (In the daily schedule, funding-clean runs on the source JSONs before aggregation; the aggregator adds its own checks.)",
+    steps: [
+      `<b>Status transitions:</b> promote <code>new &rarr; active</code>; archive entries whose deadline passed and aren't rolling; never demote <code>archived</code>; preserve hand-edited statuses.`,
+      `<b>Broken-URL flag:</b> HEAD request (10s timeout, GET fallback) on every active URL; set <code>broken_url</code>; stamp <code>last_checked</code>; skip links checked within 7 days. Flag only — never delete.`,
+      `<b>Junk filter:</b> drop rows missing url, title, or funder, or with a description &lt; 20 chars; log every drop with the reason.`,
+      `<b>Aggregator enrichment:</b> auto-close past-deadline non-rolling rows; keyword-classify eligibility (academia / nonprofit / commercial / open / unclear) with 0&ndash;1 confidence.`,
+      `<b>Health checks:</b> flag tracker files older than 36h as STALE; verify the CSV header matches the expected 19-column schema (schema-drift check).`
+    ]
+  },
+
+  "db": {
+    title: "Write to database: central/funding.sqlite + funding.xlsx", tag: "OUTPUT", tagColor: "var(--db)",
+    meta: "Source of truth for the unified tracker, plus the Excel deliverable",
+    steps: [
+      `Upsert every normalized row into <code>central/funding.sqlite</code>, keyed on <code>(source_tracker, source_id)</code> — idempotent, safe to re-run.`,
+      `Write <code>central/funding.csv</code> (full 19-column export) and <code>docs/data.json</code> as local artifacts.`,
+      `Build the Excel snapshot with <code>build_funding_xlsx.py</code>: dedup by URL (fallback funder + title), apply the Horizon-Europe exclusion filter, sort by deadline ascending with rolling calls last.`,
+      `Write the formatted workbook (Funding + README sheets) to <code>OneDrive-CEPS/Funding Tracker/funding.xlsx</code> — overwritten on every run.`,
+      `No git commit / push — central artifacts are local caches.`
+    ]
+  },
+
+  "summary": {
+    title: "Daily summary", tag: "OUTPUT", tagColor: "var(--db)",
+    meta: "Printed at the end of every aggregator run",
+    steps: [
+      `Per-tracker: <code>read=N new=N updated=N</code>, with STALE flags where applicable.`,
+      `Excel snapshot counts: raw / dedup / visible (or FAILED).`,
+      `Total rows in DB and cumulative closed count.`,
+      `Eligibility breakdown: academia / nonprofit / commercial / open / unclear.`,
+      `Issues list: stale trackers, schema drift, zero-row trackers, xlsx failures.`
+    ]
+  }
+};
+
+/* ---------- detail panel ---------- */
+const detail = document.getElementById('detail');
+const blocks = document.querySelectorAll('.block');
+blocks.forEach(b => b.addEventListener('click', () => {
+  blocks.forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  const d = DATA[b.dataset.key];
+  detail.innerHTML =
+    `<h2><span class="tag" style="background:${d.tagColor}">${d.tag}</span>${d.title}</h2>` +
+    `<div class="meta">${d.meta}</div>` +
+    `<ol>${d.steps.map(s => `<li>${s}</li>`).join('')}</ol>`;
+}));
+
+/* ---------- dynamic wires (always aligned with blocks) ---------- */
+const NS = "http://www.w3.org/2000/svg";
+const pipeline = document.getElementById('pipeline');
+const wires = document.getElementById('wires');
+
+function rel(el) {
+  const p = pipeline.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  return { x1: r.left - p.left, x2: r.right - p.left, yc: (r.top + r.bottom) / 2 - p.top };
+}
+function mkPath(d, arrow) {
+  const path = document.createElementNS(NS, 'path');
+  path.setAttribute('d', d);
+  path.setAttribute('fill', 'none');
+  path.setAttribute('stroke', '#9aa4b2');
+  path.setAttribute('stroke-width', '2');
+  if (arrow) path.setAttribute('marker-end', 'url(#warr)');
+  wires.appendChild(path);
+}
+function drawWires() {
+  wires.innerHTML =
+    '<defs><marker id="warr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">' +
+    '<path d="M0 0 L10 5 L0 10 z" fill="#9aa4b2"/></marker></defs>';
+  wires.setAttribute('width', pipeline.offsetWidth);
+  wires.setAttribute('height', pipeline.offsetHeight);
+
+  const agg   = rel(document.querySelector('[data-key="integrate"]'));
+  const clean = rel(document.querySelector('[data-key="clean"]'));
+  const db    = rel(document.querySelector('[data-key="db"]'));
+  const summ  = rel(document.querySelector('[data-key="summary"]'));
+  const searches = ['ai-work','ai-agents','ai-eval','eidas-agents','finance-levers','global-dev']
+    .map(k => rel(document.querySelector(`[data-key="${k}"]`)));
+
+  // fan-in: searches -> aggregator
+  searches.forEach((s, i) => {
+    const mx = s.x2 + (agg.x1 - s.x2) * 0.5;
+    mkPath(`M${s.x2} ${s.yc} C ${mx} ${s.yc}, ${mx} ${agg.yc}, ${agg.x1 - 4} ${agg.yc}`, i === 0);
+  });
+  // aggregator -> clean
+  mkPath(`M${agg.x2} ${agg.yc} L ${clean.x1 - 4} ${clean.yc}`, true);
+  // clean -> outputs (fan-out)
+  [db, summ].forEach(t => {
+    const mx = clean.x2 + (t.x1 - clean.x2) * 0.5;
+    mkPath(`M${clean.x2} ${clean.yc} C ${mx} ${clean.yc}, ${mx} ${t.yc}, ${t.x1 - 4} ${t.yc}`, true);
+  });
+}
+window.addEventListener('resize', drawWires);
+window.addEventListener('load', drawWires);
+drawWires();
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('on'));
+  document.getElementById('view-' + btn.dataset.view).classList.add('on');
+  if (btn.dataset.view === 'interactive') drawWires();
+}));
+
+/* ---------- svg download ---------- */
+document.getElementById('dlSvg').addEventListener('click', () => {
+  const svg = document.getElementById('staticSvg').outerHTML;
+  const blob = new Blob(['<?xml version="1.0" encoding="UTF-8"?>\n' + svg], { type: 'image/svg+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'funding-pipeline.svg';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+});
+</script>
+</body>
+</html>
