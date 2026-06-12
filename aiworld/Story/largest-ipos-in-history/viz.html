@@ -361,13 +361,57 @@ body {
 }
 
 #container1,
-#slider-container {
+#slider-container,
+#container5 {
     grid-column: 1 / -1;
+}
+
+#container5 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    min-height: 0;
+    padding: 0 clamp(8px, 2vw, 24px);
 }
 
 #container2 {
     grid-column: 2;
     padding: 0 clamp(8px, 1.5vw, 20px);
+}
+
+.country-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(5px, 0.9vw, 12px);
+    min-width: 0;
+}
+
+.country-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--fs-legend);
+    font-weight: 600;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.country-legend-swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 0;
+    flex: 0 0 auto;
+}
+
+.country-legend-item.spacex {
+    color: #2756d3;
+}
+
+.country-legend-item.spacex .country-legend-swatch {
+    box-shadow: 0 0 0 2px rgba(39, 86, 211, 0.25);
 }
 
 #container3 {
@@ -473,6 +517,9 @@ body {
     </div>
     <span class="timeline-end-label end"></span>
   </div>
+  <div id="container5" class="container legend-row">
+    <div class="country-legend" id="country-legend"></div>
+  </div>
   <div id="container3" class="container source-container">
     <div class="source-text" id="source-text"></div>
   </div>
@@ -493,6 +540,7 @@ const SHOW_CONTAINER_2 = 1;
 const SHOW_CONTAINER_3 = 1;
 const SHOW_CONTAINER_4 = 1;
 const SHOW_TIMELINE    = 1;
+const SHOW_LEGEND      = 1;
 
 const Y_AXIS_TITLE  = "Amount raised at IPO (US$ billions)";
 const SPACEX_LABEL  = "SpaceX";
@@ -503,6 +551,26 @@ const COLORS = {
   spacex:  "#2756d3"
 };
 const INK  = "#0f172a";
+
+// Color-by-country palette (countries per DealRoom's IPO list)
+const COUNTRY_COLORS = {
+  "Japan":        "#f28e2b",
+  "Italy":        "#59a14f",
+  "USA":          "#e15759",
+  "Hong Kong":    "#76b7b2",
+  "China":        "#b07aa1",
+  "Saudi Arabia": "#edc948"
+};
+// Countries whose fill is light enough to need dark in-bar text
+const LIGHT_COUNTRIES = new Set(["Saudi Arabia"]);
+
+function colorOf(d) {
+  if (d.isSpacex) return COLORS.spacex;
+  return COUNTRY_COLORS[d.country] || COLORS.base;
+}
+function inBarInk(d) {
+  return (!d.isSpacex && LIGHT_COUNTRIES.has(d.country)) ? "#1f2937" : "#ffffff";
+}
 
 const GROW_MS        = 2600;   // growth duration per historical bar
 const GROW_MS_SPACEX = 6000;   // slower, for drama
@@ -526,6 +594,7 @@ const BREAKPOINT_COMPACT = 500;
   const c2 = document.getElementById('container2');
   const c3 = document.getElementById('container3');
   const c4 = document.getElementById('container4');
+  const c5 = document.getElementById('container5');
   const tl = document.getElementById('slider-container');
 
   if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
@@ -534,16 +603,20 @@ const BREAKPOINT_COMPACT = 500;
   if (tl && !SHOW_TIMELINE) tl.style.display = 'none';
 
   const rowTimelineVisible = SHOW_TIMELINE;
+  const rowLegendVisible = SHOW_LEGEND;
   const rowBottomVisible = SHOW_CONTAINER_2 || SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+  if (c5 && !rowLegendVisible) c5.style.display = 'none';
 
   let gridRows = [];
   let currentRow = 1;
-  const chartHeight = 20 - (rowTimelineVisible ? 1.6 : 0) - (rowBottomVisible ? 1 : 0);
+  const chartHeight = 20 - (rowTimelineVisible ? 1.6 : 0) - (rowLegendVisible ? 1.2 : 0) - (rowBottomVisible ? 1.8 : 0);
   gridRows.push(`${chartHeight}fr`);
 
   if (rowTimelineVisible) { gridRows.push('1.6fr'); currentRow++; if (tl) tl.style.gridRow = String(currentRow); }
+  if (rowLegendVisible) { gridRows.push('1.2fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
   if (rowBottomVisible) {
-    gridRows.push('1fr'); currentRow++;
+    gridRows.push('1.8fr'); currentRow++;
     if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
     if (SHOW_CONTAINER_2 && c2) c2.style.gridRow = String(currentRow);
     if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
@@ -661,16 +734,16 @@ function spacexEase(p) {
 
 /* Inline data (amount raised at offering in US$ bn, excl. greenshoe; DealRoom / SEC) */
 const INLINE_DATA = [
-  { company: "NTT DoCoMo",     year: 1998, amount: 18.4, isSpacex: false },
-  { company: "ENEL",           year: 1999, amount: 16.6, isSpacex: false },
-  { company: "Visa",           year: 2008, amount: 17.9, isSpacex: false },
-  { company: "AIA Group",      year: 2010, amount: 17.8, isSpacex: false },
-  { company: "General Motors", year: 2010, amount: 15.8, isSpacex: false },
-  { company: "Facebook",       year: 2012, amount: 16.0, isSpacex: false },
-  { company: "Alibaba",        year: 2014, amount: 21.7, isSpacex: false },
-  { company: "SoftBank Corp",  year: 2018, amount: 21.3, isSpacex: false },
-  { company: "Saudi Aramco",   year: 2019, amount: 25.6, isSpacex: false },
-  { company: "SpaceX",         year: 2026, amount: 75.0, isSpacex: true  }
+  { company: "NTT DoCoMo",     year: 1998, amount: 18.4, country: "Japan",        isSpacex: false },
+  { company: "ENEL",           year: 1999, amount: 16.6, country: "Italy",        isSpacex: false },
+  { company: "Visa",           year: 2008, amount: 17.9, country: "USA",          isSpacex: false },
+  { company: "AIA Group",      year: 2010, amount: 17.8, country: "Hong Kong",    isSpacex: false },
+  { company: "General Motors", year: 2010, amount: 15.8, country: "USA",          isSpacex: false },
+  { company: "Facebook",       year: 2012, amount: 16.0, country: "USA",          isSpacex: false },
+  { company: "Alibaba",        year: 2014, amount: 21.7, country: "China",        isSpacex: false },
+  { company: "SoftBank Corp",  year: 2018, amount: 21.3, country: "Japan",        isSpacex: false },
+  { company: "Saudi Aramco",   year: 2019, amount: 25.6, country: "Saudi Arabia", isSpacex: false },
+  { company: "SpaceX",         year: 2026, amount: 75.0, country: "USA",          isSpacex: true  }
 ];
 
 let DATA = null;          // chronological array of entrants
@@ -828,6 +901,13 @@ function render(hard) {
     computeLayout();
     lastT = null;
     render.yMax = null;
+    const defs = svg.append("defs");
+    const glow = defs.append("filter").attr("id", "spacex-glow")
+      .attr("x", "-60%").attr("y", "-60%").attr("width", "220%").attr("height", "220%");
+    glow.append("feDropShadow")
+      .attr("dx", 0).attr("dy", 0).attr("stdDeviation", 5)
+      .attr("flood-color", COLORS.spacex).attr("flood-opacity", 0.55);
+
     const g = svg.append("g").attr("class", "root")
       .attr("transform", `translate(${L.margin.left},${L.margin.top})`);
     g.append("g").attr("class", "grid-lines");
@@ -885,7 +965,8 @@ function render(hard) {
   const bars = g.select("g.bars").selectAll("g.bar").data(entered, keyOf);
   const barsEnter = bars.enter().append("g").attr("class", "bar");
   barsEnter.append("rect")
-    .attr("fill", d => d.isSpacex ? COLORS.spacex : COLORS.base);
+    .attr("fill", d => colorOf(d))
+    .attr("filter", d => d.isSpacex ? "url(#spacex-glow)" : null);
   barsEnter.append("text").attr("class", "name")
     .attr("fill", INK).attr("font-weight", 600)
     .attr("font-size", L.nameFs)
@@ -896,7 +977,7 @@ function render(hard) {
     .attr("font-weight", 700).attr("font-size", L.valueFs);
   barsEnter.append("text").attr("class", "in-bar-year")
     .attr("text-anchor", "middle")
-    .attr("fill", "#ffffff").attr("font-weight", 700)
+    .attr("fill", d => inBarInk(d)).attr("font-weight", 700)
     .attr("opacity", 0)
     .text(d => d.year);
 
@@ -936,16 +1017,35 @@ function init(rows) {
       company: r.company,
       year: parseNum(r.year),
       amount: parseNum(r.amount_raised_bn),
+      country: r.country,
       isSpacex: parseNum(r.is_spacex) === 1
     }))
     .filter(d => d.company && d.amount > 0)
     .sort((a, b) => a.year - b.year || b.amount - a.amount);
   buildTimeline();
+  buildLegend();
   startRace(false);
 }
 
+function buildLegend() {
+  const el = document.getElementById("country-legend");
+  if (!el) return;
+  const seen = new Set();
+  const items = [];
+  for (const d of DATA) {
+    if (d.isSpacex || !d.country || seen.has(d.country)) continue;
+    seen.add(d.country);
+    items.push({ label: d.country, color: colorOf(d), spacex: false });
+  }
+  items.push({ label: SPACEX_LABEL + " (projected)", color: COLORS.spacex, spacex: true });
+  el.innerHTML = items.map(it =>
+    `<span class="country-legend-item${it.spacex ? " spacex" : ""}">` +
+      `<span class="country-legend-swatch" style="background:${it.color}"></span>${it.label}` +
+    `</span>`).join("");
+}
+
 init(INLINE_DATA.map(d => ({
-  company: d.company, year: d.year, amount_raised_bn: d.amount, is_spacex: d.isSpacex ? 1 : 0
+  company: d.company, year: d.year, amount_raised_bn: d.amount, country: d.country, is_spacex: d.isSpacex ? 1 : 0
 })));
 
 document.getElementById("btn-race").addEventListener("click", () => {
