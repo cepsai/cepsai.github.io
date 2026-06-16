@@ -1,0 +1,245 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>European AI data centre projects by country, 2026–2031</title>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+<style>
+  :root { --breakpoint-compact: 500px; }
+  html,body { margin:0; height:100vh; width:100vw; overflow:hidden; color:#0f172a;
+    font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Helvetica,Arial,sans-serif; }
+  .viz-grid { display:grid; height:100vh; grid-template-rows:20fr 1.5fr 1.6fr 0.9fr; grid-template-columns:1fr 1fr; }
+  #container1 { grid-column:1 / -1; } #viz { width:100%; height:100%; }
+  #container5 { grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:clamp(10px,2.5vw,30px); flex-wrap:wrap; }
+  #container2 { grid-column:1 / -1; }
+  #container3 { font-size:clamp(10px,1.6vh,13px); display:flex; align-items:center; padding-left:14px; }
+  #container4 { display:flex; justify-content:flex-end; align-items:center; padding-right:14px; }
+  #container4 img { height:75%; object-fit:contain; }
+  #tooltip { position:fixed; pointer-events:none; display:none; background:#fff;
+    border:1px solid #DBDBDB; padding:6px 8px; font-size:12px; border-radius:4px; }
+  #card { position:fixed; display:none; z-index:50; background:#fff; border:1px solid #DBDBDB;
+    border-radius:4px; box-shadow:0 4px 14px rgba(15,23,42,0.15); padding:8px 10px; max-width:240px; }
+  #card .card-title { font-weight:700; font-size:12.5px; color:#0f172a; line-height:1.25; padding-right:14px; }
+  #card .card-country { font-size:11px; font-weight:600; margin-top:1px; }
+  #card .card-chart { margin-top:5px; }
+  #card .card-close { position:absolute; top:3px; right:5px; display:none; border:none; background:transparent;
+    font-size:16px; line-height:1; cursor:pointer; color:#94a3b8; padding:2px 4px; }
+  #card .card-close:hover { color:#0f172a; }
+  #legend { display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
+    gap:clamp(3px,0.7vw,9px); padding:0 10px; font-size:clamp(9px,1.4vh,12px); }
+  #legend .item { display:flex; align-items:center; gap:5px; white-space:nowrap; }
+  #legend .sw { width:12px; height:12px; border-radius:2px; flex:0 0 auto; }
+  .ctrl { display:flex; align-items:center; gap:8px; }
+  .ctrl > span.lab { font-size:clamp(9px,1.4vw,12px); font-weight:700; color:#475569; }
+  .selector-group { display:flex; align-items:center; justify-content:center;
+    gap:clamp(2px,0.5vw,6px); padding:clamp(2px,0.4vw,4px);
+    border-radius:6px; border:1px solid rgba(17,24,39,0.15); background:#f8fafc; }
+  .selector-button { border:none; background:transparent; border-radius:6px;
+    padding:clamp(4px,0.8vh,8px) clamp(8px,1.5vw,14px);
+    font-size:clamp(9px,1.4vw,13px); font-weight:600; color:#475569;
+    cursor:pointer; white-space:nowrap; transition:background .2s ease,color .2s ease; }
+  .selector-button.active { background:#2756d3; color:#fff; }
+  .playBtn { border:1px solid rgba(17,24,39,0.15); background:#2756d3; color:#fff;
+    border-radius:6px; padding:clamp(3px,0.7vh,7px) clamp(8px,1.3vw,13px);
+    font-size:clamp(10px,1.5vw,14px); font-weight:700; cursor:pointer; line-height:1; }
+  #yearSlider { width:clamp(120px,26vw,300px); accent-color:#2756d3; }
+  #yearOut { font-weight:800; color:#0f172a; font-size:clamp(13px,2.2vw,18px); min-width:3.2em; }
+  @media (max-height:500px) { .viz-grid { grid-template-rows:1fr !important; grid-template-columns:1fr !important; } }
+</style></head><body>
+<div class="viz-grid">
+  <div id="container1"><div id="viz"></div></div>
+  <div id="container5">
+    <div class="ctrl"><span class="lab">Show</span><div id="modeSel" class="selector-group"></div></div>
+    <div class="ctrl"><button id="playBtn" class="playBtn">▶</button>
+      <input id="yearSlider" type="range" min="2026" max="2031" step="1" value="2031">
+      <span id="yearOut">2031</span></div>
+  </div>
+  <div id="container2"><div id="legend"></div></div>
+  <div id="container3"><span id="source-text"></span></div>
+  <div id="container4"><a href="https://aiworld.eu/"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></div>
+</div>
+<div id="tooltip"></div>
+<div id="card">
+  <button class="card-close" aria-label="Close">&times;</button>
+  <div class="card-title"></div>
+  <div class="card-country"></div>
+  <div class="card-chart"></div>
+</div>
+<script>
+// ---- CONFIG ----
+const SHOW_CONTAINER_2 = 1, SHOW_CONTAINER_3 = 1, SHOW_CONTAINER_4 = 1, SHOW_CONTAINER_5 = 1;
+const YEARS = [2026,2027,2028,2029,2030,2031];
+const STEP_MS = 1100;
+const TOP_N = 10;                                    // "Top 10 projects" — by individual project, not country
+const SOURCE_NAME = "europe2031.ai";
+const SOURCE_HREF = "https://europe2031.ai/compute-forecast/";
+// Region-aware palette, shared with the bump chart (Nordics blue, France purple, …)
+const COLORS = {
+  "Sweden":"#06b6d4","Norway":"#3b82f6","Finland":"#1e3a8a","Denmark":"#38bdf8","Iceland":"#155e75",
+  "France":"#7c3aed","Germany":"#dc2626","Netherlands":"#f97316","Portugal":"#16a34a",
+  "Ireland":"#10b981","Italy":"#65a30d","Spain":"#f43f5e","Poland":"#fb7185",
+  "Switzerland":"#b91c1c","Austria":"#9f1239","Romania":"#eab308","UK":"#c026d3",
+  "Czech Republic":"#a855f7","EU (TBD)":"#94a3b8"
+};
+// One object per project: c=country, n=short name, v=[MW 2026..2031]
+const FAC = [{"c":"France","n":"Softbank Hauts-de-France","v":[0.0,0.0,0.0,0.0,0.0,3100.0]},{"c":"France","n":"MGX-Mistral Paris Campus","v":[0.0,0.0,1400.0,1400.0,1400.0,1400.0]},{"c":"Portugal","n":"Start Campus Sines (SIN01-SIN06)","v":[36.3,256.3,256.3,256.3,1312.3,1312.3]},{"c":"France","n":"Sesterce Grand Est A+B","v":[0.0,0.0,600.0,600.0,1200.0,1200.0]},{"c":"Netherlands","n":"Volt AI Gigafactory Rotterdam","v":[0.0,0.0,0.0,0.0,0.0,800.0]},{"c":"Romania","n":"AIC/Cluster Power Mischii & Fauresti Cluster","v":[80.0,224.0,224.0,812.0,812.0,812.0]},{"c":"Germany","n":"Microsoft Bergheim/Bedburg/Elsdorf","v":[0.0,0.0,0.0,0.0,520.0,520.0]},{"c":"France","n":"Vantage/Altarea Bordeaux","v":[0.0,0.0,0.0,0.0,400.0,400.0]},{"c":"UK","n":"QTS Northumberland","v":[0.0,0.0,0.0,79.2,79.2,79.2]},{"c":"France","n":"Brookfield-Data4 Cambrai","v":[0.0,0.0,0.0,0.0,300.0,300.0]},{"c":"Spain","n":"Nostrum Evergreen","v":[0.0,0.0,150.0,300.0,490.0,490.0]},{"c":"Sweden","n":"EcoDataCenter Borlänge","v":[0.0,250.0,250.0,250.0,250.0,250.0]},{"c":"Norway","n":"Stargate Norway (Narvik)","v":[230.0,230.0,520.0,520.0,520.0,520.0]},{"c":"Italy","n":"Eni-Khazna Ferrera Erbognone","v":[0.0,0.0,500.0,500.0,500.0,500.0]},{"c":"Finland","n":"atNorth FIN04 Myllykoski","v":[60.0,430.0,430.0,430.0,430.0,430.0]},{"c":"Norway","n":"Bulk N01 Kristiansand","v":[60.0,60.0,660.0,660.0,660.0,660.0]},{"c":"France","n":"Data4 Marcoussis-Nozay (PAR1+PAR03)","v":[0.0,250.0,250.0,250.0,250.0,250.0]},{"c":"Finland","n":"Nebius Lappeenranta","v":[0.0,0.0,310.0,310.0,310.0,310.0]},{"c":"Sweden","n":"Brookfield Strängnäs","v":[0.0,300.0,300.0,300.0,300.0,300.0]},{"c":"Sweden","n":"atNorth SWE04 Sollefteå","v":[0.0,0.0,300.0,300.0,300.0,300.0]},{"c":"France","n":"Sesterce Southern France (PACA)","v":[0.0,0.0,0.0,0.0,250.0,250.0]},{"c":"Denmark","n":"atNorth DEN02 Varde (Ølgod)","v":[0.0,0.0,120.0,120.0,500.0,500.0]},{"c":"Spain","n":"Sierra DC SPO1","v":[0.0,27.5,27.5,77.0,77.0,77.0]},{"c":"Italy","n":"Virtus Milan","v":[0.0,0.0,46.2,46.2,46.2,46.2]},{"c":"Germany","n":"Virtus Marienpark","v":[0.0,63.36,63.36,63.36,63.36,63.36]},{"c":"Germany","n":"Virtus Wustermark","v":[0.0,0.0,224.4,224.4,224.4,224.4]},{"c":"France","n":"Nebius Béthune","v":[120.0,240.0,240.0,240.0,240.0,240.0]},{"c":"Germany","n":"Schwarz Digits Lübbenau","v":[0.0,200.0,200.0,200.0,200.0,200.0]},{"c":"Germany","n":"Data4 Campus Hanau","v":[0.0,180.0,180.0,180.0,180.0,180.0]},{"c":"Portugal","n":"MERLIN-Edged Castanheira AI Campus","v":[0.0,0.0,180.0,180.0,180.0,180.0]},{"c":"Norway","n":"Lefdal Mine","v":[80.0,160.0,160.0,160.0,160.0,160.0]},{"c":"Norway","n":"Bitdeer Tydal","v":[180.0,180.0,180.0,180.0,180.0,180.0]},{"c":"Iceland","n":"Verne Iceland Keflavík","v":[10.0,10.0,10.0,10.0,10.0,10.0]},{"c":"EU (TBD)","n":"EU AI Gigafactory #1","v":[0.0,0.0,156.0,156.0,156.0,156.0]},{"c":"EU (TBD)","n":"EU AI Gigafactory #2","v":[0.0,0.0,156.0,156.0,156.0,156.0]},{"c":"EU (TBD)","n":"EU AI Gigafactory #3","v":[0.0,0.0,156.0,156.0,156.0,156.0]},{"c":"EU (TBD)","n":"EU AI Gigafactory #4","v":[0.0,0.0,156.0,156.0,156.0,156.0]},{"c":"EU (TBD)","n":"EU AI Gigafactory #5","v":[0.0,0.0,156.0,156.0,156.0,156.0]},{"c":"Germany","n":"Mainqubes BER02","v":[0.0,0.0,181.5,181.5,181.5,181.5]},{"c":"Germany","n":"Mainqubes FRA04","v":[0.0,0.0,0.0,44.0,44.0,44.0]},{"c":"Germany","n":"Mainqubes FRA03","v":[17.6,17.6,17.6,17.6,17.6,17.6]},{"c":"Poland","n":"Beyond.pl Poznań","v":[53.0,53.0,150.0,150.0,150.0,150.0]},{"c":"Iceland","n":"atNorth ICE02 Keflavík","v":[83.0,83.0,83.0,83.0,83.0,83.0]},{"c":"Germany","n":"Polarise Munich + Amberg","v":[0.0,30.0,30.0,30.0,120.0,120.0]},{"c":"Ireland","n":"Pure DC Dublin (AVK microgrid)","v":[60.0,110.0,110.0,110.0,110.0,110.0]},{"c":"France","n":"Eclairion Bruyères-le-Châtel","v":[40.0,40.0,40.0,40.0,40.0,40.0]},{"c":"France","n":"Sesterce Valence (Rovaltain)","v":[50.0,50.0,50.0,50.0,50.0,50.0]},{"c":"UK","n":"Nscale Loughton","v":[0.0,50.0,90.0,90.0,90.0,90.0]},{"c":"Finland","n":"Nebius Mäntsälä","v":[75.0,75.0,75.0,75.0,75.0,75.0]},{"c":"Sweden","n":"EcoDataCenter Falun","v":[80.0,80.0,80.0,80.0,80.0,80.0]},{"c":"UK","n":"NTT London 1","v":[70.4,70.4,70.4,70.4,70.4,70.4]},{"c":"France","n":"NTT Paris 1","v":[0.0,36.0,84.0,84.0,84.0,84.0]},{"c":"Germany","n":"NTT Frankfurt 4","v":[34.0,70.0,70.0,70.0,70.0,70.0]},{"c":"Iceland","n":"atNorth ICE03 Akureyri","v":[50.0,50.0,50.0,50.0,50.0,50.0]},{"c":"Finland","n":"atNorth FIN02 Helsinki","v":[40.0,40.0,40.0,40.0,40.0,40.0]},{"c":"Sweden","n":"atNorth SWE02 Stockholm","v":[0.0,30.0,30.0,30.0,30.0,30.0]},{"c":"Iceland","n":"Borealis Blönduós","v":[50.0,50.0,50.0,50.0,50.0,50.0]},{"c":"Finland","n":"Borealis Kajaani","v":[10.0,10.0,10.0,10.0,10.0,10.0]},{"c":"Iceland","n":"Borealis Fitjar","v":[10.0,10.0,10.0,10.0,10.0,10.0]},{"c":"Italy","n":"Eni Green Data Center","v":[30.0,30.0,30.0,30.0,30.0,30.0]},{"c":"Austria","n":"LEND AI Data Center","v":[25.0,25.0,25.0,25.0,25.0,25.0]},{"c":"Norway","n":"Nscale Glomfjord","v":[60.0,60.0,60.0,60.0,60.0,60.0]},{"c":"Germany","n":"Adlershof Berlin Data & AI Centre","v":[0.0,5.0,5.0,5.0,5.0,5.0]},{"c":"Norway","n":"Polar DRA01 Tørdal","v":[12.0,12.0,12.0,12.0,12.0,12.0]},{"c":"Poland","n":"Atman WAW-3 Warsaw","v":[15.84,47.3,47.3,47.3,47.3,47.3]},{"c":"UK","n":"DataVita AI Growth Zone Lanarkshire","v":[24.0,40.0,40.0,40.0,500.0,500.0]},{"c":"Germany","n":"Blue Lion / LRZ Munich expansion","v":[15.0,15.0,40.0,40.0,40.0,40.0]},{"c":"Finland","n":"Glesys Pori Finland","v":[11.0,11.0,11.0,11.0,11.0,11.0]},{"c":"Sweden","n":"HIVE Boden","v":[32.0,32.0,32.0,32.0,32.0,32.0]},{"c":"Denmark","n":"atNorth DEN01 Ballerup","v":[30.0,30.0,30.0,30.0,30.0,30.0]},{"c":"Sweden","n":"Conapto STHLM 4 South","v":[28.0,28.0,28.0,28.0,28.0,28.0]},{"c":"Italy","n":"EuroHPC Leonardo (CINECA, IT4LIA)","v":[11.0,22.0,22.0,22.0,22.0,22.0]},{"c":"Czech Republic","n":"MasterDC Kanice Brno","v":[4.0,25.0,25.0,25.0,25.0,25.0]},{"c":"Switzerland","n":"GTR CH One Zurich","v":[0.0,0.0,24.0,24.0,24.0,24.0]},{"c":"Germany","n":"JUPITER + JAIF (Jülich)","v":[18.0,18.0,18.0,18.0,18.0,18.0]},{"c":"Norway","n":"Hscale Honefoss OSL1-3","v":[6.6,19.8,151.8,165.0,165.0,165.0]},{"c":"Spain","n":"Hscale Barcelona BCN1","v":[0.0,0.0,55.0,55.0,55.0,55.0]},{"c":"Spain","n":"Hscale Madrid MAD1","v":[0.0,0.0,211.2,211.2,211.2,211.2]},{"c":"Italy","n":"Hscale Milan MXP1-2","v":[0.0,52.8,184.8,184.8,184.8,184.8]},{"c":"Sweden","n":"Microsoft Staffanstorp/Sandviken/Gävle","v":[0.0,38.0,38.0,38.0,38.0,38.0]},{"c":"France","n":"Alice Recoque EuroHPC","v":[0.0,24.0,24.0,24.0,24.0,24.0]},{"c":"UK","n":"Nebius UK Ark Longcross","v":[0.0,16.0,16.0,16.0,16.0,16.0]},{"c":"Italy","n":"iGenius/Domyn Colosseum","v":[12.0,12.0,12.0,12.0,12.0,12.0]},{"c":"Switzerland","n":"Alps Supercomputer Phase 2","v":[11.0,11.0,11.0,11.0,11.0,11.0]},{"c":"Finland","n":"Lumi EuroHPC","v":[12.0,12.0,12.0,12.0,12.0,12.0]},{"c":"Poland","n":"Switch WAW1","v":[0.0,0.0,66.0,66.0,66.0,66.0]},{"c":"Netherlands","n":"Switch AMS8","v":[0.0,0.0,38.5,38.5,38.5,38.5]},{"c":"Netherlands","n":"Switch AMS7","v":[0.0,0.0,66.0,66.0,132.0,132.0]},{"c":"Netherlands","n":"Switch AMS6","v":[0.0,55.0,55.0,91.3,91.3,121.0]},{"c":"Netherlands","n":"Switch AMS5","v":[0.0,104.5,104.5,104.5,121.0,121.0]},{"c":"Netherlands","n":"Switch AMS4","v":[15.4,15.4,15.4,15.4,15.4,15.4]},{"c":"Netherlands","n":"Switch AMS3","v":[7.7,7.7,29.7,29.7,29.7,29.7]},{"c":"Netherlands","n":"Switch AMS2","v":[4.4,4.4,4.4,4.4,15.4,15.4]},{"c":"France","n":"Sesterce Marseille (CloudPulse)","v":[10.0,10.0,10.0,10.0,10.0,10.0]},{"c":"Iceland","n":"Nscale/Verne Iceland","v":[15.0,15.0,15.0,15.0,15.0,15.0]},{"c":"Germany","n":"DT Industrial AI Cloud (Munich Tucherpark)","v":[12.0,20.0,20.0,20.0,20.0,20.0]},{"c":"UK","n":"BT/Nscale Sovereign AI","v":[0.0,14.0,14.0,14.0,14.0,14.0]},{"c":"Norway","n":"Green Mountain OSL1 Enebakk DC4","v":[27.5,27.5,93.0,93.0,93.0,93.0]},{"c":"Sweden","n":"atNorth SWE01 Kista Stockholm","v":[12.0,12.0,12.0,12.0,12.0,12.0]},{"c":"Spain","n":"MareNostrum 5 (BSC) + AI Factory","v":[13.0,13.0,13.0,13.0,13.0,13.0]},{"c":"Spain","n":"Substrate AI Talavera","v":[0.0,0.0,10.0,10.0,10.0,10.0]}];
+
+document.getElementById("source-text").innerHTML =
+  'Source: <a href="'+SOURCE_HREF+'" target="_blank" rel="noopener">'+SOURCE_NAME+'</a>';
+(function applyContainerVisibility(){
+  const flags={2:SHOW_CONTAINER_2,3:SHOW_CONTAINER_3,4:SHOW_CONTAINER_4,5:SHOW_CONTAINER_5};
+  Object.entries(flags).forEach(([k,v])=>{ if(!v){const el=document.getElementById("container"+k); if(el) el.style.display="none";}});
+})();
+
+const fmt = d3.format(",.0f");
+let currentYear = 2031, currentMode = "all", timer = null;
+
+// project name -> full MW trajectory, for the tooltip sparkline
+const TRAJ = {}; FAC.forEach(f=>{ TRAJ[f.n]=f.v; });
+// ---- detail tooltip: shows on hover, PINS on click until the next click ----
+const card = document.getElementById("card");
+const closeBtn = card.querySelector(".card-close");
+let pinned = false, hoverName = null;
+
+closeBtn.addEventListener("click", e=>{ e.stopPropagation(); hideCard(); });
+function hideCard(){ pinned=false; hoverName=null; closeBtn.style.display="none"; card.style.display="none"; }
+// track the cursor ourselves — d3plus does not expose d3.event to its listeners
+let mouseX=0, mouseY=0;
+window.addEventListener("mousemove", e=>{ mouseX=e.clientX; mouseY=e.clientY; }, true);
+function positionCard(){
+  const cw=card.offsetWidth, ch=card.offsetHeight;
+  card.style.left = Math.max(8, Math.min(mouseX+14, innerWidth-cw-8))+"px";
+  card.style.top  = Math.max(8, Math.min(mouseY+14, innerHeight-ch-8))+"px";
+}
+function fillCard(d){
+  const color = COLORS[d.c] || "#64748b";
+  card.querySelector(".card-title").textContent = d.n;
+  const cc = card.querySelector(".card-country"); cc.textContent = d.c; cc.style.color = color;
+  drawCardChart(TRAJ[d.n], color, currentYear-2026);
+}
+function onMove(d){
+  if(pinned || !d || !d.n || !TRAJ[d.n]) return;
+  if(hoverName!==d.n){ hoverName=d.n; fillCard(d); closeBtn.style.display="none"; card.style.pointerEvents="none"; card.style.display="block"; }
+  positionCard();
+}
+function onLeave(){ if(!pinned){ hoverName=null; card.style.display="none"; } }
+function onClick(d){
+  if(!d || !d.n || !TRAJ[d.n]) return;
+  pinned=true; hoverName=null; fillCard(d);
+  closeBtn.style.display="block"; card.style.pointerEvents="auto"; card.style.display="block"; positionCard();
+}
+
+// capacity line 2026..2031 with ONE movable point; its value sits top-left in the country colour.
+// Hovering across the chart (when the tooltip is pinned/interactive) moves the point and value.
+function drawCardChart(v, color, startIdx){
+  const W=200,H=96,m={t:20,r:10,b:18,l:10}, iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const svg=d3.select(card).select(".card-chart").html("").append("svg").attr("width",W).attr("height",H);
+  const g=svg.append("g").attr("transform","translate("+m.l+","+m.t+")");
+  const x=d3.scalePoint().domain(YEARS).range([0,iw]);
+  const y=d3.scaleLinear().domain([0, d3.max(v)||1]).range([ih,0]);
+  const line=d3.line().x((dd,i)=>x(YEARS[i])).y(dd=>y(dd));
+  const area=d3.area().x((dd,i)=>x(YEARS[i])).y0(ih).y1(dd=>y(dd));
+  g.append("path").datum(v).attr("d",area).attr("fill",color).attr("opacity",0.16);
+  g.append("path").datum(v).attr("d",line).attr("fill","none").attr("stroke",color)
+    .attr("stroke-width",2).attr("stroke-linejoin","round").attr("stroke-linecap","round");
+  g.append("text").attr("x",0).attr("y",ih+13).attr("font-size",9).attr("fill","#94a3b8").text("2026");
+  g.append("text").attr("x",iw).attr("y",ih+13).attr("font-size",9).attr("fill","#94a3b8").attr("text-anchor","end").text("2031");
+  const dot=g.append("circle").attr("r",4).attr("fill",color).attr("stroke","#fff").attr("stroke-width",1.5);
+  const corner=svg.append("text").attr("x",m.l).attr("y",13).attr("font-size",12).attr("font-weight",700).attr("fill",color);
+  function setIdx(i){ i=Math.max(0,Math.min(YEARS.length-1,i));
+    dot.attr("cx",x(YEARS[i])).attr("cy",y(v[i]));
+    corner.text(YEARS[i]+" · "+fmt(v[i])+" MW"); }
+  setIdx(startIdx);
+  const xs=YEARS.map(yr=>x(yr));
+  g.append("rect").attr("width",iw).attr("height",ih).attr("fill","transparent").style("cursor","crosshair")
+    .on("mousemove",function(){ const mx=d3.mouse(this)[0]; let best=0,bd=Infinity;
+      xs.forEach((px,i)=>{const dd=Math.abs(px-mx); if(dd<bd){bd=dd;best=i;}}); setIdx(best); });
+}
+
+// rows for a year+mode — one row per PROJECT (top-N filter is per project, not per country)
+function rowsFor(year, mode){
+  const k = year - 2026;
+  let rows = FAC.map(f=>({c:f.c, n:f.n, mw:f.v[k]})).filter(d=>d.mw>0);
+  if(mode==="top") rows = rows.slice().sort((a,b)=>b.mw-a.mw).slice(0,TOP_N);
+  return rows;
+}
+
+const col = d => COLORS[d.c] || "#94a3b8";
+const treemap = new d3plus.Treemap()
+  .select("#viz")
+  .legend(false)
+  .groupBy(["c","n"])                 // group by country, then individual project
+  .sum("mw")
+  .duration(900)
+  .shapeConfig({
+    fill: col,
+    labelConfig: { fontFamily:"system-ui, sans-serif", fontColor:"#ffffff", fontResize:true }
+  })
+  .label(d => d.n)
+  .tooltip(false)                                   // custom card instead of the follow-cursor tooltip
+  .on("mousemove",  function(d){ onMove(d); })
+  .on("mouseleave", function(){ onLeave(); })
+  .on("click",      function(d){ onClick(d); });
+
+function update(animate){
+  const rows = rowsFor(currentYear, currentMode);
+  document.getElementById("yearOut").textContent = currentYear;
+  document.getElementById("yearSlider").value = currentYear;
+  treemap.duration(animate?900:0).data(rows).render();
+  buildLegend(rows);
+}
+
+// legend = countries present in the current view, ordered by total MW
+function buildLegend(rows){
+  const tot = {};
+  rows.forEach(d=>{ tot[d.c]=(tot[d.c]||0)+d.mw; });
+  const order = Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
+  const legend = d3.select("#legend"); legend.html("");
+  order.forEach(c=>{
+    const it = legend.append("div").attr("class","item");
+    it.append("span").attr("class","sw").style("background",COLORS[c]||"#94a3b8");
+    it.append("span").text(c);
+  });
+}
+
+// ---- controls ----
+function buildSelector(node, options){
+  node.innerHTML="";
+  options.forEach(o=>{
+    const b=document.createElement("button");
+    b.type="button"; b.className="selector-button"; b.textContent=o.label; b.dataset.val=o.val;
+    b.addEventListener("click",()=>{ if(currentMode===o.val) return; currentMode=o.val; updateModeState(); hideCard(); update(true); });
+    node.appendChild(b);
+  });
+}
+function updateModeState(){
+  document.querySelectorAll("#modeSel .selector-button").forEach(b=>b.classList.toggle("active", b.dataset.val===currentMode));
+}
+buildSelector(document.getElementById("modeSel"),
+  [{val:"top",label:"Top 10 projects"},{val:"all",label:"Full Europe"}]);
+updateModeState();
+
+function play(){
+  const btn=document.getElementById("playBtn");
+  if(timer){ clearInterval(timer); timer=null; btn.textContent="▶"; return; }
+  btn.textContent="❚❚";
+  if(currentYear>=2031){ currentYear=2026; update(true); }
+  timer=setInterval(()=>{
+    if(currentYear>=2031){ clearInterval(timer); timer=null; btn.textContent="▶"; return; }
+    currentYear++; update(true);
+  }, STEP_MS);
+}
+document.getElementById("playBtn").addEventListener("click", play);
+document.getElementById("yearSlider").addEventListener("input", e=>{
+  if(timer){ clearInterval(timer); timer=null; document.getElementById("playBtn").textContent="▶"; }
+  currentYear=+e.target.value; update(true);
+});
+
+update(false);
+
+let resizeTimer=null;
+function redraw(){ hideCard(); treemap.duration(0).render(); }
+window.addEventListener("resize", ()=>{ clearTimeout(resizeTimer); resizeTimer=setTimeout(redraw,220); });
+if(typeof ResizeObserver!=="undefined")
+  new ResizeObserver(()=>{ clearTimeout(resizeTimer); resizeTimer=setTimeout(redraw,220); }).observe(document.getElementById("viz"));
+</script></body></html>
