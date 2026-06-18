@@ -1,0 +1,402 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>European AI data centre projects by country, 2026–2031</title>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+<style>
+  :root { --breakpoint-compact: 500px; }
+  html,body { margin:0; height:100vh; width:100vw; overflow:hidden; color:#0f172a;
+    font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Helvetica,Arial,sans-serif; }
+  /* chart takes the slack (and can shrink to nothing); footer rows size to their content so they
+     never get squeezed into each other -> controls can't overlap the legend on a short window */
+  .viz-grid { display:grid; height:100vh; grid-template-rows:minmax(0,1fr) auto auto auto; grid-template-columns:1fr 1fr; }
+  #container1 { grid-column:1 / -1; display:flex; flex-direction:column; min-height:0; position:relative; }
+  #panes { flex:1 1 auto; display:flex; align-items:stretch; min-height:0;
+    transform-origin:top left; transition:transform 1.5s cubic-bezier(.22,.61,.36,1); }
+  #panes.zoom { pointer-events:none; }              /* US comparison: treemap non-interactive */
+  #euPane { flex:1 1 100%; min-width:0; overflow:hidden; }
+  #viz { width:100%; height:100%; }
+  #viz.nodim g { opacity:1 !important; }            /* Top 10 view: keep all tiles solid on hover */
+  /* US comparison: a solid US block beside the zoomed-out Europe treemap */
+  #usSq { position:absolute; display:none; background:#0f172a; border-radius:3px;
+    align-items:center; justify-content:center;
+    transition:left 1.5s cubic-bezier(.22,.61,.36,1), top 1.5s cubic-bezier(.22,.61,.36,1),
+               width 1.5s cubic-bezier(.22,.61,.36,1), height 1.5s cubic-bezier(.22,.61,.36,1); }
+  #usSq .usTxt { color:#fff; font-weight:800; letter-spacing:3px; font-size:clamp(18px,6vh,58px); }
+  .cmpLabel { position:absolute; display:none; font-weight:800; font-size:clamp(11px,2vh,16px); white-space:nowrap;
+    transform:translateX(-50%); transition:left 1.5s cubic-bezier(.22,.61,.36,1), top 1.5s cubic-bezier(.22,.61,.36,1); }
+  #euLabel { color:#2756d3; } #usLabel { color:#0f172a; }
+  #container5 { grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:clamp(10px,2.5vw,30px); flex-wrap:wrap; padding:6px 0; }
+  #container2 { grid-column:1 / -1; }
+  #container3 { font-size:clamp(10px,1.6vh,13px); display:flex; align-items:center; padding:6px 0 6px 14px; }
+  #container4 { display:flex; justify-content:flex-end; align-items:center; padding:6px 14px 6px 0; }
+  #container4 img { height:75%; object-fit:contain; }
+  #tooltip { position:fixed; pointer-events:none; display:none; background:#fff;
+    border:1px solid #DBDBDB; padding:6px 8px; font-size:12px; border-radius:4px; }
+  #card { position:fixed; display:none; z-index:50; background:#fff; border:1px solid #DBDBDB;
+    border-radius:4px; box-shadow:0 4px 14px rgba(15,23,42,0.15); padding:8px 10px; max-width:240px; }
+  #card .card-title { font-weight:700; font-size:12.5px; color:#0f172a; line-height:1.25; padding-right:14px; }
+  #card .card-country { font-size:11px; font-weight:600; margin-top:1px; }
+  #card .card-chart { margin-top:5px; }
+  #card .card-close { position:absolute; top:3px; right:5px; display:none; border:none; background:transparent;
+    font-size:16px; line-height:1; cursor:pointer; color:#94a3b8; padding:2px 4px; }
+  #card .card-close:hover { color:#0f172a; }
+  #legend { display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
+    gap:clamp(3px,0.7vw,9px); padding:2px 10px; font-size:clamp(9px,1.4vh,12px); }
+  #legend .item { display:flex; align-items:center; gap:5px; white-space:nowrap; }
+  #legend .sw { width:12px; height:12px; border-radius:2px; flex:0 0 auto; }
+  .ctrl { display:flex; align-items:center; gap:8px; }
+  .ctrl > span.lab { font-size:clamp(9px,1.4vw,12px); font-weight:700; color:#475569; }
+  .selector-group { display:flex; align-items:center; justify-content:center;
+    gap:clamp(2px,0.5vw,6px); padding:clamp(2px,0.4vw,4px);
+    border-radius:6px; border:1px solid rgba(17,24,39,0.15); background:#f8fafc; }
+  .selector-button { border:none; background:transparent; border-radius:6px;
+    padding:clamp(4px,0.8vh,8px) clamp(8px,1.5vw,14px);
+    font-size:clamp(9px,1.4vw,13px); font-weight:600; color:#475569;
+    cursor:pointer; white-space:nowrap; transition:background .2s ease,color .2s ease; }
+  .selector-button.active { background:#2756d3; color:#fff; }
+  .playBtn { border:1px solid rgba(17,24,39,0.15); background:#2756d3; color:#fff;
+    border-radius:6px; padding:clamp(3px,0.7vh,7px) clamp(8px,1.3vw,13px);
+    font-size:clamp(10px,1.5vw,14px); font-weight:700; cursor:pointer; line-height:1; }
+  #yearSlider { width:clamp(120px,26vw,300px); accent-color:#2756d3; }
+  #yearOut { font-weight:800; color:#0f172a; font-size:clamp(13px,2.2vw,18px); min-width:3.2em; }
+</style></head><body>
+<div class="viz-grid">
+  <div id="container1">
+    <div id="panes"><div id="euPane"><div id="viz"></div></div></div>
+    <div id="usSq"><span class="usTxt">USA</span></div>
+    <div class="cmpLabel" id="euLabel"></div>
+    <div class="cmpLabel" id="usLabel"></div>
+  </div>
+  <div id="container5">
+    <div class="ctrl"><span class="lab">Show</span><div id="modeSel" class="selector-group"></div></div>
+    <div class="ctrl" id="yearCtrl"><button id="playBtn" class="playBtn">▶</button>
+      <input id="yearSlider" type="range" min="2026" max="2031" step="1" value="2031">
+      <span id="yearOut">2031</span></div>
+  </div>
+  <div id="container2"><div id="legend"></div></div>
+  <div id="container3"><span id="source-text"></span></div>
+  <div id="container4"><a href="https://aiworld.eu/"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></div>
+</div>
+<div id="tooltip"></div>
+<div id="card">
+  <button class="card-close" aria-label="Close">&times;</button>
+  <div class="card-title"></div>
+  <div class="card-country"></div>
+  <div class="card-chart"></div>
+</div>
+<script>
+// ---- CONFIG ----
+const SHOW_CONTAINER_2 = 1, SHOW_CONTAINER_3 = 1, SHOW_CONTAINER_4 = 1, SHOW_CONTAINER_5 = 1;
+const YEARS = [2026,2027,2028,2029,2030,2031];
+const STEP_MS = 1100;
+const TOP_N = 10;                                    // "Top 10 projects" — by individual project, not country
+const SOURCE_NAME = "europe2031.ai";
+const SOURCE_HREF = "https://europe2031.ai/compute-forecast/";
+// Region-aware palette, shared with the bump chart (Nordics blue, France purple, …)
+const COLORS = {
+  "Sweden":"#06b6d4","Norway":"#3b82f6","Finland":"#1e3a8a","Denmark":"#38bdf8","Iceland":"#155e75",
+  "France":"#7c3aed","Germany":"#dc2626","Netherlands":"#f97316","Portugal":"#16a34a",
+  "Ireland":"#10b981","Italy":"#65a30d","Spain":"#f43f5e","Poland":"#fb7185",
+  "Switzerland":"#b91c1c","Austria":"#9f1239","Romania":"#eab308","UK":"#c026d3",
+  "Czech Republic":"#a855f7","EU (TBD)":"#94a3b8",
+  "Other":"#64748b"                                  // aggregate of non-top-10 projects (Top 10 view); bump-chart grey
+};
+// One object per project: c=country, n=short name, v=[MW 2026..2031]
+const FAC = [{"c":"France","n":"Softbank Hauts-de-France","v":[0.0,0.0,0.0,0.0,0.0,3100.0]},{"c":"France","n":"MGX-Mistral Paris Campus","v":[0.0,0.0,1400.0,1400.0,1400.0,1400.0]},{"c":"Portugal","n":"Start Campus Sines (SIN01-SIN06)","v":[36.3,256.3,256.3,256.3,1312.3,1312.3]},{"c":"France","n":"Sesterce Grand Est A+B","v":[0.0,0.0,600.0,600.0,1200.0,1200.0]},{"c":"Netherlands","n":"Volt AI Gigafactory Rotterdam","v":[0.0,0.0,0.0,0.0,0.0,800.0]},{"c":"Romania","n":"AIC/Cluster Power Mischii & Fauresti Cluster","v":[80.0,224.0,224.0,812.0,812.0,812.0]},{"c":"Germany","n":"Microsoft Bergheim/Bedburg/Elsdorf","v":[0.0,0.0,0.0,0.0,520.0,520.0]},{"c":"France","n":"Vantage/Altarea Bordeaux","v":[0.0,0.0,0.0,0.0,400.0,400.0]},{"c":"UK","n":"QTS Northumberland","v":[0.0,0.0,0.0,79.2,79.2,79.2]},{"c":"France","n":"Brookfield-Data4 Cambrai","v":[0.0,0.0,0.0,0.0,300.0,300.0]},{"c":"Spain","n":"Nostrum Evergreen","v":[0.0,0.0,150.0,300.0,490.0,490.0]},{"c":"Sweden","n":"EcoDataCenter Borlänge","v":[0.0,250.0,250.0,250.0,250.0,250.0]},{"c":"Norway","n":"Stargate Norway (Narvik)","v":[230.0,230.0,520.0,520.0,520.0,520.0]},{"c":"Italy","n":"Eni-Khazna Ferrera Erbognone","v":[0.0,0.0,500.0,500.0,500.0,500.0]},{"c":"Finland","n":"atNorth FIN04 Myllykoski","v":[60.0,430.0,430.0,430.0,430.0,430.0]},{"c":"Norway","n":"Bulk N01 Kristiansand","v":[60.0,60.0,660.0,660.0,660.0,660.0]},{"c":"France","n":"Data4 Marcoussis-Nozay (PAR1+PAR03)","v":[0.0,250.0,250.0,250.0,250.0,250.0]},{"c":"Finland","n":"Nebius Lappeenranta","v":[0.0,0.0,310.0,310.0,310.0,310.0]},{"c":"Sweden","n":"Brookfield Strängnäs","v":[0.0,300.0,300.0,300.0,300.0,300.0]},{"c":"Sweden","n":"atNorth SWE04 Sollefteå","v":[0.0,0.0,300.0,300.0,300.0,300.0]},{"c":"France","n":"Sesterce Southern France (PACA)","v":[0.0,0.0,0.0,0.0,250.0,250.0]},{"c":"Denmark","n":"atNorth DEN02 Varde (Ølgod)","v":[0.0,0.0,120.0,120.0,500.0,500.0]},{"c":"Spain","n":"Sierra DC SPO1","v":[0.0,27.5,27.5,77.0,77.0,77.0]},{"c":"Italy","n":"Virtus Milan","v":[0.0,0.0,46.2,46.2,46.2,46.2]},{"c":"Germany","n":"Virtus Marienpark","v":[0.0,63.36,63.36,63.36,63.36,63.36]},{"c":"Germany","n":"Virtus Wustermark","v":[0.0,0.0,224.4,224.4,224.4,224.4]},{"c":"France","n":"Nebius Béthune","v":[120.0,240.0,240.0,240.0,240.0,240.0]},{"c":"Germany","n":"Schwarz Digits Lübbenau","v":[0.0,200.0,200.0,200.0,200.0,200.0]},{"c":"Germany","n":"Data4 Campus Hanau","v":[0.0,180.0,180.0,180.0,180.0,180.0]},{"c":"Portugal","n":"MERLIN-Edged Castanheira AI Campus","v":[0.0,0.0,180.0,180.0,180.0,180.0]},{"c":"Norway","n":"Lefdal Mine","v":[80.0,160.0,160.0,160.0,160.0,160.0]},{"c":"Norway","n":"Bitdeer Tydal","v":[180.0,180.0,180.0,180.0,180.0,180.0]},{"c":"Iceland","n":"Verne Iceland Keflavík","v":[10.0,10.0,10.0,10.0,10.0,10.0]},{"c":"EU (TBD)","n":"EU AI Gigafactory #1","v":[0.0,0.0,156.0,156.0,156.0,156.0]},{"c":"EU (TBD)","n":"EU AI Gigafactory #2","v":[0.0,0.0,156.0,156.0,156.0,156.0]},{"c":"EU (TBD)","n":"EU AI Gigafactory #3","v":[0.0,0.0,156.0,156.0,156.0,156.0]},{"c":"EU (TBD)","n":"EU AI Gigafactory #4","v":[0.0,0.0,156.0,156.0,156.0,156.0]},{"c":"EU (TBD)","n":"EU AI Gigafactory #5","v":[0.0,0.0,156.0,156.0,156.0,156.0]},{"c":"Germany","n":"Mainqubes BER02","v":[0.0,0.0,181.5,181.5,181.5,181.5]},{"c":"Germany","n":"Mainqubes FRA04","v":[0.0,0.0,0.0,44.0,44.0,44.0]},{"c":"Germany","n":"Mainqubes FRA03","v":[17.6,17.6,17.6,17.6,17.6,17.6]},{"c":"Poland","n":"Beyond.pl Poznań","v":[53.0,53.0,150.0,150.0,150.0,150.0]},{"c":"Iceland","n":"atNorth ICE02 Keflavík","v":[83.0,83.0,83.0,83.0,83.0,83.0]},{"c":"Germany","n":"Polarise Munich + Amberg","v":[0.0,30.0,30.0,30.0,120.0,120.0]},{"c":"Ireland","n":"Pure DC Dublin (AVK microgrid)","v":[60.0,110.0,110.0,110.0,110.0,110.0]},{"c":"France","n":"Eclairion Bruyères-le-Châtel","v":[40.0,40.0,40.0,40.0,40.0,40.0]},{"c":"France","n":"Sesterce Valence (Rovaltain)","v":[50.0,50.0,50.0,50.0,50.0,50.0]},{"c":"UK","n":"Nscale Loughton","v":[0.0,50.0,90.0,90.0,90.0,90.0]},{"c":"Finland","n":"Nebius Mäntsälä","v":[75.0,75.0,75.0,75.0,75.0,75.0]},{"c":"Sweden","n":"EcoDataCenter Falun","v":[80.0,80.0,80.0,80.0,80.0,80.0]},{"c":"UK","n":"NTT London 1","v":[70.4,70.4,70.4,70.4,70.4,70.4]},{"c":"France","n":"NTT Paris 1","v":[0.0,36.0,84.0,84.0,84.0,84.0]},{"c":"Germany","n":"NTT Frankfurt 4","v":[34.0,70.0,70.0,70.0,70.0,70.0]},{"c":"Iceland","n":"atNorth ICE03 Akureyri","v":[50.0,50.0,50.0,50.0,50.0,50.0]},{"c":"Finland","n":"atNorth FIN02 Helsinki","v":[40.0,40.0,40.0,40.0,40.0,40.0]},{"c":"Sweden","n":"atNorth SWE02 Stockholm","v":[0.0,30.0,30.0,30.0,30.0,30.0]},{"c":"Iceland","n":"Borealis Blönduós","v":[50.0,50.0,50.0,50.0,50.0,50.0]},{"c":"Finland","n":"Borealis Kajaani","v":[10.0,10.0,10.0,10.0,10.0,10.0]},{"c":"Iceland","n":"Borealis Fitjar","v":[10.0,10.0,10.0,10.0,10.0,10.0]},{"c":"Italy","n":"Eni Green Data Center","v":[30.0,30.0,30.0,30.0,30.0,30.0]},{"c":"Austria","n":"LEND AI Data Center","v":[25.0,25.0,25.0,25.0,25.0,25.0]},{"c":"Norway","n":"Nscale Glomfjord","v":[60.0,60.0,60.0,60.0,60.0,60.0]},{"c":"Germany","n":"Adlershof Berlin Data & AI Centre","v":[0.0,5.0,5.0,5.0,5.0,5.0]},{"c":"Norway","n":"Polar DRA01 Tørdal","v":[12.0,12.0,12.0,12.0,12.0,12.0]},{"c":"Poland","n":"Atman WAW-3 Warsaw","v":[15.84,47.3,47.3,47.3,47.3,47.3]},{"c":"UK","n":"DataVita AI Growth Zone Lanarkshire","v":[24.0,40.0,40.0,40.0,500.0,500.0]},{"c":"Germany","n":"Blue Lion / LRZ Munich expansion","v":[15.0,15.0,40.0,40.0,40.0,40.0]},{"c":"Finland","n":"Glesys Pori Finland","v":[11.0,11.0,11.0,11.0,11.0,11.0]},{"c":"Sweden","n":"HIVE Boden","v":[32.0,32.0,32.0,32.0,32.0,32.0]},{"c":"Denmark","n":"atNorth DEN01 Ballerup","v":[30.0,30.0,30.0,30.0,30.0,30.0]},{"c":"Sweden","n":"Conapto STHLM 4 South","v":[28.0,28.0,28.0,28.0,28.0,28.0]},{"c":"Italy","n":"EuroHPC Leonardo (CINECA, IT4LIA)","v":[11.0,22.0,22.0,22.0,22.0,22.0]},{"c":"Czech Republic","n":"MasterDC Kanice Brno","v":[4.0,25.0,25.0,25.0,25.0,25.0]},{"c":"Switzerland","n":"GTR CH One Zurich","v":[0.0,0.0,24.0,24.0,24.0,24.0]},{"c":"Germany","n":"JUPITER + JAIF (Jülich)","v":[18.0,18.0,18.0,18.0,18.0,18.0]},{"c":"Norway","n":"Hscale Honefoss OSL1-3","v":[6.6,19.8,151.8,165.0,165.0,165.0]},{"c":"Spain","n":"Hscale Barcelona BCN1","v":[0.0,0.0,55.0,55.0,55.0,55.0]},{"c":"Spain","n":"Hscale Madrid MAD1","v":[0.0,0.0,211.2,211.2,211.2,211.2]},{"c":"Italy","n":"Hscale Milan MXP1-2","v":[0.0,52.8,184.8,184.8,184.8,184.8]},{"c":"Sweden","n":"Microsoft Staffanstorp/Sandviken/Gävle","v":[0.0,38.0,38.0,38.0,38.0,38.0]},{"c":"France","n":"Alice Recoque EuroHPC","v":[0.0,24.0,24.0,24.0,24.0,24.0]},{"c":"UK","n":"Nebius UK Ark Longcross","v":[0.0,16.0,16.0,16.0,16.0,16.0]},{"c":"Italy","n":"iGenius/Domyn Colosseum","v":[12.0,12.0,12.0,12.0,12.0,12.0]},{"c":"Switzerland","n":"Alps Supercomputer Phase 2","v":[11.0,11.0,11.0,11.0,11.0,11.0]},{"c":"Finland","n":"Lumi EuroHPC","v":[12.0,12.0,12.0,12.0,12.0,12.0]},{"c":"Poland","n":"Switch WAW1","v":[0.0,0.0,66.0,66.0,66.0,66.0]},{"c":"Netherlands","n":"Switch AMS8","v":[0.0,0.0,38.5,38.5,38.5,38.5]},{"c":"Netherlands","n":"Switch AMS7","v":[0.0,0.0,66.0,66.0,132.0,132.0]},{"c":"Netherlands","n":"Switch AMS6","v":[0.0,55.0,55.0,91.3,91.3,121.0]},{"c":"Netherlands","n":"Switch AMS5","v":[0.0,104.5,104.5,104.5,121.0,121.0]},{"c":"Netherlands","n":"Switch AMS4","v":[15.4,15.4,15.4,15.4,15.4,15.4]},{"c":"Netherlands","n":"Switch AMS3","v":[7.7,7.7,29.7,29.7,29.7,29.7]},{"c":"Netherlands","n":"Switch AMS2","v":[4.4,4.4,4.4,4.4,15.4,15.4]},{"c":"France","n":"Sesterce Marseille (CloudPulse)","v":[10.0,10.0,10.0,10.0,10.0,10.0]},{"c":"Iceland","n":"Nscale/Verne Iceland","v":[15.0,15.0,15.0,15.0,15.0,15.0]},{"c":"Germany","n":"DT Industrial AI Cloud (Munich Tucherpark)","v":[12.0,20.0,20.0,20.0,20.0,20.0]},{"c":"UK","n":"BT/Nscale Sovereign AI","v":[0.0,14.0,14.0,14.0,14.0,14.0]},{"c":"Norway","n":"Green Mountain OSL1 Enebakk DC4","v":[27.5,27.5,93.0,93.0,93.0,93.0]},{"c":"Sweden","n":"atNorth SWE01 Kista Stockholm","v":[12.0,12.0,12.0,12.0,12.0,12.0]},{"c":"Spain","n":"MareNostrum 5 (BSC) + AI Factory","v":[13.0,13.0,13.0,13.0,13.0,13.0]},{"c":"Spain","n":"Substrate AI Talavera","v":[0.0,0.0,10.0,10.0,10.0,10.0]}];
+
+document.getElementById("source-text").innerHTML =
+  'Source: <a href="'+SOURCE_HREF+'" target="_blank" rel="noopener">'+SOURCE_NAME+'</a>';
+
+// ---- URL parameters (for blog embeds) ----
+//   embed=1      strip chrome: legend, controls (toggle + slider), logo (source line stays for attribution)
+//   year=2026..2031  lock to one year and hide the slider -> single-year interactive treemap
+const PARAMS = new URLSearchParams(location.search);
+const pOn = v => v!==null && v!=="" && v!=="0" && v!=="false";
+const EMBED = pOn(PARAMS.get("embed"));
+const yParam = parseInt(PARAMS.get("year"), 10);
+const LOCKED_YEAR = (yParam>=2026 && yParam<=2031) ? yParam : null;
+
+(function applyContainerVisibility(){
+  const flags={2:SHOW_CONTAINER_2,3:SHOW_CONTAINER_3,4:SHOW_CONTAINER_4,5:SHOW_CONTAINER_5};
+  if(EMBED){ flags[2]=0; flags[3]=0; flags[4]=0; flags[5]=0; }   // bare embed: drop controls + the whole footer
+  Object.entries(flags).forEach(([k,v])=>{ if(!v){const el=document.getElementById("container"+k); if(el) el.style.display="none";}});
+  if(EMBED) document.querySelector(".viz-grid").style.gridTemplateRows="1fr";  // chart fills the frame
+})();
+if(LOCKED_YEAR!=null && !EMBED){ const yc=document.getElementById("yearCtrl"); if(yc) yc.style.display="none"; }
+
+const fmt = d3.format(",.0f");
+const gw = mw => (mw/1000).toFixed(1)+" GW";
+// US AI-compute totals (MW) from the world forecast — for the "US comparison" view
+const US_MW = {2026:35300,2027:61300,2028:104400,2029:146600,2030:208200,2031:255100};
+// Default view: US-comparison hero @2031 (with an intro zoom). A locked year switches to the
+// single-year interactive Full Europe treemap instead.
+let currentYear = LOCKED_YEAR!=null ? LOCKED_YEAR : 2031;
+let currentMode = LOCKED_YEAR!=null ? "all" : "us";
+let timer = null;
+let introPending = (currentMode==="us");            // play the zoom-out once, on first view
+let animUntil = 0;                                  // timestamp until which an intentional transition is running
+
+// project name -> full MW trajectory, for the tooltip sparkline
+const TRAJ = {}; FAC.forEach(f=>{ TRAJ[f.n]=f.v; });
+// ---- detail tooltip: shows on hover, PINS on click until the next click ----
+const card = document.getElementById("card");
+const closeBtn = card.querySelector(".card-close");
+let pinned = false, hoverName = null;
+
+closeBtn.addEventListener("click", e=>{ e.stopPropagation(); hideCard(); });
+function hideCard(){ pinned=false; hoverName=null; closeBtn.style.display="none"; card.style.display="none"; }
+// track the cursor ourselves — d3plus does not expose d3.event to its listeners
+let mouseX=0, mouseY=0;
+window.addEventListener("mousemove", e=>{ mouseX=e.clientX; mouseY=e.clientY; }, true);
+function positionCard(){
+  const cw=card.offsetWidth, ch=card.offsetHeight;
+  card.style.left = Math.max(8, Math.min(mouseX+14, innerWidth-cw-8))+"px";
+  card.style.top  = Math.max(8, Math.min(mouseY+14, innerHeight-ch-8))+"px";
+}
+function fillCard(d){
+  const color = COLORS[d.c] || "#64748b";
+  card.querySelector(".card-title").textContent = d.n;
+  const cc = card.querySelector(".card-country"); cc.textContent = d.c; cc.style.color = color;
+  drawCardChart(TRAJ[d.n], color, currentYear-2026);
+}
+function onMove(d){
+  if(pinned || !d || !d.n || !TRAJ[d.n]) return;
+  if(hoverName!==d.n){ hoverName=d.n; fillCard(d); closeBtn.style.display="none"; card.style.pointerEvents="none"; card.style.display="block"; }
+  positionCard();
+}
+function onLeave(){ if(!pinned){ hoverName=null; card.style.display="none"; } }
+function onClick(d){
+  if(!d || !d.n || !TRAJ[d.n]) return;
+  pinned=true; hoverName=null; fillCard(d);
+  closeBtn.style.display="block"; card.style.pointerEvents="auto"; card.style.display="block"; positionCard();
+}
+
+// capacity line 2026..2031 with ONE movable point; its value sits top-left in the country colour.
+// Hovering across the chart (when the tooltip is pinned/interactive) moves the point and value.
+function drawCardChart(v, color, startIdx){
+  const W=200,H=96,m={t:20,r:10,b:18,l:10}, iw=W-m.l-m.r, ih=H-m.t-m.b;
+  const svg=d3.select(card).select(".card-chart").html("").append("svg").attr("width",W).attr("height",H);
+  const g=svg.append("g").attr("transform","translate("+m.l+","+m.t+")");
+  const x=d3.scalePoint().domain(YEARS).range([0,iw]);
+  const y=d3.scaleLinear().domain([0, d3.max(v)||1]).range([ih,0]);
+  const line=d3.line().x((dd,i)=>x(YEARS[i])).y(dd=>y(dd));
+  const area=d3.area().x((dd,i)=>x(YEARS[i])).y0(ih).y1(dd=>y(dd));
+  g.append("path").datum(v).attr("d",area).attr("fill",color).attr("opacity",0.16);
+  g.append("path").datum(v).attr("d",line).attr("fill","none").attr("stroke",color)
+    .attr("stroke-width",2).attr("stroke-linejoin","round").attr("stroke-linecap","round");
+  g.append("text").attr("x",0).attr("y",ih+13).attr("font-size",9).attr("fill","#94a3b8").text("2026");
+  g.append("text").attr("x",iw).attr("y",ih+13).attr("font-size",9).attr("fill","#94a3b8").attr("text-anchor","end").text("2031");
+  const dot=g.append("circle").attr("r",4).attr("fill",color).attr("stroke","#fff").attr("stroke-width",1.5);
+  const corner=svg.append("text").attr("x",m.l).attr("y",13).attr("font-size",12).attr("font-weight",700).attr("fill",color);
+  function setIdx(i){ i=Math.max(0,Math.min(YEARS.length-1,i));
+    dot.attr("cx",x(YEARS[i])).attr("cy",y(v[i]));
+    corner.text(YEARS[i]+" · "+fmt(v[i])+" MW"); }
+  setIdx(startIdx);
+  const xs=YEARS.map(yr=>x(yr));
+  g.append("rect").attr("width",iw).attr("height",ih).attr("fill","transparent").style("cursor","crosshair")
+    .on("mousemove",function(){ const mx=d3.mouse(this)[0]; let best=0,bd=Infinity;
+      xs.forEach((px,i)=>{const dd=Math.abs(px-mx); if(dd<bd){bd=dd;best=i;}}); setIdx(best); });
+}
+
+// rows for a year+mode — one row per PROJECT (top-N filter is per project, not per country)
+function rowsFor(year, mode){
+  const k = year - 2026;
+  let rows = FAC.map(f=>({c:f.c, n:f.n, mw:f.v[k]})).filter(d=>d.mw>0);
+  if(mode==="top"){
+    rows = rows.slice().sort((a,b)=>b.mw-a.mw);
+    const top=rows.slice(0,TOP_N), rest=rows.slice(TOP_N);
+    if(rest.length){
+      const sum=rest.reduce((s,d)=>s+d.mw,0);
+      top.push({c:"Other", n:"Other ("+rest.length+" projects)", mw:sum});  // one big grey tile
+    }
+    rows=top;
+  }
+  return rows;
+}
+
+const col = d => COLORS[d.c] || "#94a3b8";
+const treemap = new d3plus.Treemap()
+  .select("#viz")
+  .legend(false)
+  .groupBy(["c","n"])                 // group by country, then individual project
+  .sum("mw")
+  .sort(function(a,b){                // size order, but the grey "Other" block always goes last (right)
+    const ao=a.data&&a.data.key==="Other", bo=b.data&&b.data.key==="Other";
+    if(ao!==bo) return ao?1:-1;
+    return b.value-a.value;
+  })
+  .duration(900)
+  .shapeConfig({
+    fill: col,
+    labelConfig: { fontFamily:"system-ui, sans-serif", fontColor:"#ffffff", fontResize:true }
+  })
+  .label(d => d.n)
+  .tooltip(false)                                   // custom card instead of the follow-cursor tooltip
+  .on("mousemove",  function(d){ onMove(d); })
+  .on("mouseleave", function(){ onLeave(); })
+  .on("click",      function(d){ onClick(d); });
+
+// d3plus caches its measured size in _width/_height and won't re-measure on a plain render(),
+// so clear them before each render to force a fresh fit to the live container box (needed on resize).
+// (Setting .width()/.height() explicitly instead breaks sizing in this d3plus build.)
+function fitTreemap(){ treemap._width = undefined; treemap._height = undefined; }
+
+function update(animate){
+  const rows = rowsFor(currentYear, currentMode);
+  document.getElementById("yearOut").textContent = currentYear;
+  document.getElementById("yearSlider").value = currentYear;
+  document.getElementById("viz").classList.toggle("nodim", currentMode==="top"); // no hover shading in Top 10
+  // Build the legend FIRST: its item count drives the footer height, which resizes the chart. Doing it
+  // before we measure/render lets the treemap animate straight to the final size (no mid-flight resize snap).
+  if(currentMode==="us") setLegend([["Europe","#2756d3"],["United States","#0f172a"]]);
+  else buildLegend(rows);
+  if(animate) animUntil = performance.now()+1000;        // shield this transition from the self-induced resize
+  fitTreemap();
+  treemap.duration(animate?900:0).data(rows).render();
+  layoutPanes(rows, currentMode==="us" && !introPending);  // zoomed once intro has fired; full treemap until then
+}
+
+// US comparison: keep the full-size treemap but uniformly zoom it out (CSS transform) into a small
+// block, beside a much larger solid US block. Both sized on a FIXED scale (area ∝ MW, linear ∝ √MW).
+const CMP_MAX_GW = 255.1, CMP_MAX_FRAC = 0.72;      // US 2031 sets the scale; its block ≈ 72% of the pane
+const US_MAXH = 0.85;                               // US 2031 block height as a fraction of the pane height
+const EU_MAX_GW = Math.max.apply(null, YEARS.map(y=>FAC.reduce((s,f)=>s+f.v[y-2026],0)))/1000; // Europe 2031 total
+const frac = g => CMP_MAX_FRAC * Math.sqrt(g / CMP_MAX_GW);
+// zoom=false renders the intro state (full-size Europe treemap, US block collapsed) so the
+// transition into zoom=true reads as a zoom-out next to a growing US block.
+function layoutPanes(rows, zoom){
+  const panes=document.getElementById("panes"), usSq=document.getElementById("usSq"),
+        euLabel=document.getElementById("euLabel"), usLabel=document.getElementById("usLabel");
+  if(currentMode!=="us"){
+    panes.classList.remove("zoom"); panes.style.transform="";
+    usSq.style.display="none"; euLabel.style.display="none"; usLabel.style.display="none";
+    return;
+  }
+  const euGW=rows.reduce((s,d)=>s+d.mw,0)/1000, usGW=(US_MW[currentYear]||0)/1000;
+  const r=document.getElementById("container1").getBoundingClientRect(), W=r.width, H=r.height;
+  // Europe: uniform 2-D zoom (area ∝ euGW). US: FIXED width + vertical-only growth (area = usW*hUs ∝ usGW).
+  // The US width is derived from the SAME area scale, so US area / Europe area == usGW / euGW exactly.
+  const sEu=frac(euGW), wEu=W*sEu, hEu=H*sEu;
+  const usW=W*(CMP_MAX_FRAC*CMP_MAX_FRAC/US_MAXH);   // fixed width (keeps US on Europe's area scale)
+  const hUs=H*US_MAXH*(usGW/CMP_MAX_GW);             // grows only vertically
+  // Fixed horizontal layout (independent of year): Europe pinned bottom-left, US pinned to its right.
+  const euMaxW=W*frac(EU_MAX_GW), gap=Math.min(0.04*W,30);
+  const startX=(W-(euMaxW+gap+usW))/2, yBot=H-6, xEu=startX, xUs=startX+euMaxW+gap;
+  panes.classList.add("zoom");
+  usSq.style.display="flex";
+  usSq.style.left=xUs.toFixed(1)+"px"; usSq.style.width=usW.toFixed(1)+"px";   // US horizontally fixed
+  if(!zoom){
+    // intro / pre-zoom: full Europe treemap, US block collapsed at the baseline, no labels
+    panes.style.transform="";
+    usSq.style.top=yBot.toFixed(1)+"px"; usSq.style.height="0px";
+    euLabel.style.display="none"; usLabel.style.display="none";
+    return;
+  }
+  panes.style.transform="translate("+xEu.toFixed(1)+"px,"+(yBot-hEu).toFixed(1)+"px) scale("+sEu.toFixed(4)+")";
+  usSq.style.top=(yBot-hUs).toFixed(1)+"px"; usSq.style.height=hUs.toFixed(1)+"px";
+  euLabel.style.display="block"; euLabel.textContent="Europe "+gw(euGW*1000);
+  euLabel.style.left=(xEu+wEu/2).toFixed(1)+"px"; euLabel.style.top=(yBot-hEu-22).toFixed(1)+"px";
+  usLabel.style.display="block"; usLabel.textContent="United States "+gw(usGW*1000);
+  usLabel.style.left=(xUs+usW/2).toFixed(1)+"px"; usLabel.style.top=(yBot-hUs-22).toFixed(1)+"px";
+}
+
+// legend = countries present in the current view, ordered by total MW
+function setLegend(pairs){
+  const legend = d3.select("#legend"); legend.html("");
+  pairs.forEach(p=>{
+    const it = legend.append("div").attr("class","item");
+    it.append("span").attr("class","sw").style("background",p[1]);
+    it.append("span").text(p[0]);
+  });
+}
+// a "More" swatch: a little colour wheel of the folded countries (the map keeps each real colour)
+function moreSwatch(countries){
+  const cs=countries.map(c=>COLORS[c]||"#94a3b8"), seg=360/cs.length;
+  return "conic-gradient("+cs.map((c,i)=>c+" "+(i*seg).toFixed(1)+"deg "+((i+1)*seg).toFixed(1)+"deg").join(", ")+")";
+}
+function buildLegend(rows){
+  const tot = {};
+  rows.forEach(d=>{ tot[d.c]=(tot[d.c]||0)+d.mw; });
+  let order = Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
+  const hasOther = order.includes("Other");          // Top 10 view's project-aggregate tile
+  order = order.filter(c=>c!=="Other");
+  // fold Poland and every lower-ranked country into a single "More" legend item
+  const pIdx = order.indexOf("Poland");
+  let pairs;
+  if(pIdx>-1){
+    pairs = order.slice(0,pIdx).map(c=>[c, COLORS[c]||"#94a3b8"]);
+    pairs.push(["More", moreSwatch(order.slice(pIdx))]);
+  } else {
+    pairs = order.map(c=>[c, COLORS[c]||"#94a3b8"]);
+  }
+  if(hasOther) pairs.push(["Other", COLORS["Other"]]);  // aggregate tile stays last
+  setLegend(pairs);
+}
+
+// ---- controls ----
+function buildSelector(node, options){
+  node.innerHTML="";
+  options.forEach(o=>{
+    const b=document.createElement("button");
+    b.type="button"; b.className="selector-button"; b.textContent=o.label; b.dataset.val=o.val;
+    b.addEventListener("click",()=>{ if(currentMode===o.val) return; currentMode=o.val; introPending=false; updateModeState(); hideCard(); update(true); });
+    node.appendChild(b);
+  });
+}
+function updateModeState(){
+  document.querySelectorAll("#modeSel .selector-button").forEach(b=>b.classList.toggle("active", b.dataset.val===currentMode));
+}
+buildSelector(document.getElementById("modeSel"),
+  [{val:"top",label:"Top 10 projects"},{val:"all",label:"Full Europe"},{val:"us",label:"US comparison"}]);
+updateModeState();
+
+function play(){
+  const btn=document.getElementById("playBtn");
+  introPending=false;
+  if(timer){ clearInterval(timer); timer=null; btn.textContent="▶"; return; }
+  btn.textContent="❚❚";
+  if(currentYear>=2031){ currentYear=2026; update(true); }
+  timer=setInterval(()=>{
+    if(currentYear>=2031){ clearInterval(timer); timer=null; btn.textContent="▶"; return; }
+    currentYear++; update(true);
+  }, STEP_MS);
+}
+document.getElementById("playBtn").addEventListener("click", play);
+document.getElementById("yearSlider").addEventListener("input", e=>{
+  introPending=false;
+  if(timer){ clearInterval(timer); timer=null; document.getElementById("playBtn").textContent="▶"; }
+  currentYear=+e.target.value; update(true);
+});
+
+update(false);
+
+// US-comparison hero: keep the full Europe treemap, then play the zoom-out ONCE, the first time the
+// (iframe-embedded) viz scrolls into view. An IntersectionObserver inside an iframe still accounts for
+// the iframe's own visibility in the parent page, so this fires correctly in a blog post.
+function triggerIntro(){
+  if(!introPending) return;
+  introPending=false;
+  // hold on the full Europe treemap for a beat, then play the (1.5s) zoom-out
+  setTimeout(()=>{ if(currentMode==="us") layoutPanes(rowsFor(currentYear,currentMode), true); }, 1000);
+}
+if(introPending){
+  if("IntersectionObserver" in window){
+    const io=new IntersectionObserver((entries,obs)=>{
+      if(entries.some(e=>e.isIntersecting)){ obs.disconnect(); triggerIntro(); }
+    }, {threshold:0.25});
+    io.observe(document.getElementById("container1"));
+  } else { triggerIntro(); }
+}
+
+let resizeTimer=null;
+function redraw(){
+  const now=performance.now();
+  if(now<animUntil){ clearTimeout(resizeTimer); resizeTimer=setTimeout(redraw, animUntil-now+30); return; }  // defer past an active transition so it isn't snapped
+  hideCard(); fitTreemap(); treemap.duration(0).render(); layoutPanes(rowsFor(currentYear,currentMode), currentMode==="us" && !introPending);
+}
+window.addEventListener("resize", ()=>{ clearTimeout(resizeTimer); resizeTimer=setTimeout(redraw,220); });
+if(typeof ResizeObserver!=="undefined")
+  new ResizeObserver(()=>{ clearTimeout(resizeTimer); resizeTimer=setTimeout(redraw,220); }).observe(document.getElementById("viz"));
+</script></body></html>

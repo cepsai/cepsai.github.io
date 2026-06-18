@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The largest IPOs in history: a race</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+:root {
+    --fs-control:  clamp(9px, 1.4vw, 13px);        /* selectors, dropdown */
+    --fs-legend:   clamp(0.625rem, 1.4vw, 1rem);   /* legend text */
+    --fs-meta:     clamp(10px, 1.6vw, 16px);       /* source, footnote */
+    --fs-slider:   clamp(11px, 1.2vw, 13px);       /* slider tooltip */
+    --breakpoint-compact: 500px;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    height: 100vh;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+    background-color: white;
+}
+
+.viz-grid {
+    display: grid;
+    grid-template-rows: 16fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    padding-bottom: clamp(8px, 2vh, 18px);
+}
+
+#container1 {
+    grid-row: 1;
+    grid-column: 1 / span 2;
+    overflow: hidden;
+    min-height: 0;
+}
+
+#container1 .chart-wrapper {
+    flex: 1 1 auto;
+    display: flex;
+    min-width: 0;
+    height: 100%;
+    margin-left: 0;
+}
+
+#container1 .chart-wrapper-inner {
+    flex: 1 1 auto;
+    display: flex;
+    min-width: 0;
+    height: 100%;
+}
+
+#container2 {
+    grid-row: 2;
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+#container3 {
+    grid-row: 3;
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+#container4 {
+    grid-row: 3;
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+#container4 a {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    cursor: default;
+}
+
+/* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
+
+#viz {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+}
+
+#chart {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+
+.selector-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(2px, 0.5vw, 6px);
+    padding: clamp(2px, 0.4vw, 4px);
+    border-radius: 6px;
+    border: 1px solid rgba(17, 24, 39, 0.15);
+    background: #f8fafc;
+    max-width: 100%;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.selector-button {
+    border: none;
+    background: transparent;
+    padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+    border-radius: 6px;
+    font-size: var(--fs-control);
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.selector-button.active {
+    background: #2756d3;
+    color: #fff;
+}
+
+#slider-container {
+    grid-row: 4;
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-self: center;
+    gap: clamp(8px, 1vw, 16px);
+    padding: clamp(4px, 1vh, 8px) clamp(8px, 2vw, 24px);
+    overflow: visible;
+    min-height: 0;
+    max-width: 500px;
+    width: 100%;
+}
+
+.slider-wrapper {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    height: 40px;
+}
+
+.slider-track-bg {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 3px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    pointer-events: none;
+}
+
+.slider-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.slider-tooltip {
+    position: absolute;
+    bottom: -18px;
+    transform: translateX(-50%);
+    font-size: var(--fs-slider);
+    font-weight: 600;
+    color: #fff;
+    background: #1e293b;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.slider-tooltip::after {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-bottom: 5px solid #1e293b;
+}
+
+.year-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: transparent;
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+    position: relative;
+    z-index: 2;
+}
+
+.year-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 3px solid #fff;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+
+.year-slider::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.15);
+}
+
+.year-slider::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
+    cursor: pointer;
+}
+
+/* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+
+.source-text {
+    font-size: var(--fs-meta);
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    font-style: normal;
+}
+
+.source-text a {
+    color: #2756d3;
+    text-decoration: underline;
+    cursor: default;
+    font-style: normal;
+}
+
+.source-text a:visited {
+    color: #2756d3;
+}
+
+.logo {
+    height: 100%;
+    width: auto;
+    max-height: 100%;
+    max-width: 100%;
+    pointer-events: auto;
+    object-fit: contain;
+}
+
+/* ─── CHART ELEMENTS (D3) ─────────────────────────────────────────────────── */
+
+.axis path,
+.axis line {
+    stroke: #cfd2d7;
+}
+
+.tick text {
+    font-weight: 600;
+    fill: #4b5563;
+}
+
+.grid-lines line {
+    stroke: #DBDBDB;
+    stroke-dasharray: 2, 3;
+}
+
+.grid-lines path {
+    stroke: none;
+}
+
+.bar-label {
+    fill: #555;
+    font-weight: 500;
+}
+
+@media (max-height: 500px) {
+    .viz-grid {
+        grid-template-rows: 1fr !important;
+        grid-template-columns: 1fr !important;
+        padding-bottom: 0;
+    }
+
+    #container1 {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+    }
+
+    #container2,
+    #container3,
+    #container4,
+    #container5 {
+        display: none !important;
+    }
+
+    .legend,
+    .source-text,
+    .logo,
+    .footnote-text {
+        display: none !important;
+    }
+}
+
+/* ─── CHART-SPECIFIC OVERRIDES ───────────────────────────────────────────── */
+
+.source-text a,
+#container4 a {
+    cursor: pointer;
+}
+
+.selector-button:focus-visible {
+    outline: 2px solid #2756d3;
+    outline-offset: 2px;
+}
+
+.viz-grid {
+    grid-template-columns: 1fr auto 1fr;
+}
+
+#container1,
+#slider-container,
+#container5 {
+    grid-column: 1 / -1;
+}
+
+#container5 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    min-height: 0;
+    padding: 0 clamp(8px, 2vw, 24px);
+}
+
+#container2 {
+    grid-column: 2;
+    padding: 0 clamp(8px, 1.5vw, 20px);
+}
+
+.country-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(5px, 0.9vw, 12px);
+    min-width: 0;
+}
+
+.country-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: var(--fs-legend);
+    font-weight: 600;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.country-legend-swatch {
+    width: 11px;
+    height: 11px;
+    border-radius: 0;
+    flex: 0 0 auto;
+}
+
+#container3 {
+    grid-column: 1;
+}
+
+#container4 {
+    grid-column: 3;
+}
+
+
+#slider-container {
+    max-width: min(720px, 88vw);
+}
+
+.timeline-container .slider-wrapper {
+    height: 48px;
+}
+
+.timeline-progress {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 0%;
+    background: #2756d3;
+    border-radius: 3px;
+}
+
+.slider-track-bg .slider-dot {
+    transform: translate(-50%, -50%);
+}
+
+.slider-dot.passed {
+    background: #2756d3;
+}
+
+.timeline-marker {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #2756d3;
+    border: 3px solid #fff;
+    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 3;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.35);
+}
+
+.slider-dot-label {
+    position: absolute;
+    top: calc(50% + 10px);
+    transform: translateX(-50%);
+    font-size: var(--fs-slider);
+    font-weight: 600;
+    color: #94a3b8;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.slider-dot-label.above {
+    top: auto;
+    bottom: calc(50% + 10px);
+}
+
+.slider-dot-label.passed {
+    color: #2756d3;
+}
+
+.timeline-end-label {
+    flex: 0 0 auto;
+    font-size: var(--fs-slider);
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.timeline-end-label.passed {
+    color: #2756d3;
+}
+
+@media (max-height: 500px) {
+    #slider-container {
+        display: none !important;
+    }
+}
+</style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1" class="container viz-container">
+    <div id="viz"></div>
+  </div>
+  <div id="slider-container" class="container timeline-container">
+    <span class="timeline-end-label start"></span>
+    <div class="slider-wrapper">
+      <div class="slider-track-bg">
+        <div class="timeline-progress"></div>
+      </div>
+      <div class="timeline-marker"></div>
+    </div>
+    <span class="timeline-end-label end"></span>
+  </div>
+  <div id="container5" class="container legend-row">
+    <div class="country-legend" id="country-legend"></div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text" id="source-text"></div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div class="selector-group">
+      <button class="selector-button active" id="btn-race" type="button">Skip to end</button>
+    </div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+    </a>
+  </div>
+</div>
+
+<script>
+const SHOW_CONTAINER_2 = 1;
+const SHOW_CONTAINER_3 = 1;
+const SHOW_CONTAINER_4 = 1;
+const SHOW_TIMELINE    = 1;
+const SHOW_LEGEND      = 1;
+
+const Y_AXIS_TITLE  = "Amount raised at IPO (US$ billions)";
+const SPACEX_LABEL  = "SpaceX";
+const SPACEX_SUFFIX = " ?";
+const COLORS = {
+  base:    "#94a3b8",
+  baseHi:  "#475569",
+  spacex:  "#2756d3"
+};
+const INK  = "#0f172a";
+const REGION_COLORS = {
+  "North America": "#EE7678",
+  "Europe":        "#F7AE6A",
+  "Asia":          "#4D72B4",
+  "Middle East":   "#edc948"
+};
+const LIGHT_REGIONS = new Set(["Middle East"]);
+
+function colorOf(d) {
+  return REGION_COLORS[d.region] || COLORS.base;
+}
+function inBarInk(d) {
+  return LIGHT_REGIONS.has(d.region) ? "#1f2937" : "#ffffff";
+}
+
+const GROW_MS        = 2600;   // growth duration per historical bar
+const GROW_MS_SPACEX = 6000;   // slower, for drama
+const SPACEX_SPLIT_T = 0.60;   // share of duration spent in the crawl
+const SPACEX_SPLIT_V = 0.38;   // share of value reached by the end of the crawl
+const STAGGER_MS     = 1250;   // next bar launches while previous is still growing
+const SPACEX_EXTRA   = 1600;   // extra beat before SpaceX enters
+const X_LERP         = 0.16;   // smoothing factor for the reflowing x-axis
+const Y_DOMAIN_LERP  = 0.20;   // smoothing factor for the rescaling y-axis
+
+// Metadata
+const SOURCE_NAME = "DealRoom";
+const SOURCE_HREF = "https://dealroom.net/blog/biggest-ipos-of-all-time";
+const SOURCE_NOTE = "amount raised at offering, excl. greenshoe";  // "" to omit
+
+const BREAKPOINT_COMPACT = 500;
+
+
+(function applyContainerVisibility() {
+  const vizGrid = document.querySelector('.viz-grid');
+  const c2 = document.getElementById('container2');
+  const c3 = document.getElementById('container3');
+  const c4 = document.getElementById('container4');
+  const c5 = document.getElementById('container5');
+  const tl = document.getElementById('slider-container');
+
+  if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+  if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+  if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+  if (tl && !SHOW_TIMELINE) tl.style.display = 'none';
+
+  const rowTimelineVisible = SHOW_TIMELINE;
+  const rowLegendVisible = SHOW_LEGEND;
+  const rowBottomVisible = SHOW_CONTAINER_2 || SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+  if (c5 && !rowLegendVisible) c5.style.display = 'none';
+
+  let gridRows = [];
+  let currentRow = 1;
+  const chartHeight = 20 - (rowTimelineVisible ? 1.6 : 0) - (rowLegendVisible ? 1.2 : 0) - (rowBottomVisible ? 1 : 0);
+  gridRows.push(`${chartHeight}fr`);
+
+  if (rowTimelineVisible) { gridRows.push('1.6fr'); currentRow++; if (tl) tl.style.gridRow = String(currentRow); }
+  if (rowLegendVisible) { gridRows.push('1.2fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+  if (rowBottomVisible) {
+    gridRows.push('1fr'); currentRow++;
+    if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+    if (SHOW_CONTAINER_2 && c2) c2.style.gridRow = String(currentRow);
+    if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+  }
+
+  vizGrid.style.gridTemplateRows = gridRows.join(' ');
+  document.getElementById('container1').style.gridRow = '1';
+})();
+
+(function fillMetadata() {
+  const src = document.getElementById("source-text");
+  if (src) {
+    const name = SOURCE_HREF
+      ? `<a href="${SOURCE_HREF}" target="_blank" rel="noopener">${SOURCE_NAME}</a>`
+      : SOURCE_NAME;
+    src.innerHTML = `Source: ${name}`;
+  }
+})();
+
+const timelineEls = {};
+
+function timelineExtent() {
+  return [DATA[0].year, DATA[DATA.length - 1].year];
+}
+
+function timelinePos(year) {
+  const [y0, y1] = timelineExtent();
+  return Math.max(0, Math.min(100, (year - y0) / (y1 - y0) * 100));
+}
+
+function buildTimeline() {
+  const c = document.getElementById('slider-container');
+  if (!c || !SHOW_TIMELINE) return;
+  timelineEls.wrapper  = c.querySelector('.slider-wrapper');
+  timelineEls.track    = c.querySelector('.slider-track-bg');
+  timelineEls.progress = c.querySelector('.timeline-progress');
+  timelineEls.marker   = c.querySelector('.timeline-marker');
+  timelineEls.endStart = c.querySelector('.timeline-end-label.start');
+  timelineEls.endEnd   = c.querySelector('.timeline-end-label.end');
+  timelineEls.dots     = [];
+  timelineEls.labels   = [];
+  const [y0, y1] = timelineExtent();
+  timelineEls.endStart.textContent = y0;
+  timelineEls.endStart.dataset.year = y0;
+  timelineEls.endEnd.textContent = y1;
+  timelineEls.endEnd.dataset.year = y1;
+  timelineEls.labels.push(timelineEls.endStart, timelineEls.endEnd);
+  timelineEls.track.querySelectorAll('.slider-dot').forEach(el => el.remove());
+  timelineEls.wrapper.querySelectorAll('.slider-dot-label').forEach(el => el.remove());
+  let prevLabelPct = -Infinity;
+  [...new Set(DATA.map(d => d.year))].forEach(yr => {
+    const pct = timelinePos(yr);
+    const dot = document.createElement('div');
+    dot.className = 'slider-dot';
+    dot.dataset.year = yr;
+    dot.style.left = pct + '%';
+    timelineEls.track.appendChild(dot);
+    timelineEls.dots.push(dot);
+    if (yr === y0 || yr === y1) return;
+    const label = document.createElement('span');
+    label.className = 'slider-dot-label';
+    if (pct - prevLabelPct < 5.5) label.classList.add('above');
+    else prevLabelPct = pct;
+    label.dataset.year = yr;
+    label.textContent = yr;
+    label.style.left = pct + '%';
+    timelineEls.wrapper.appendChild(label);
+    timelineEls.labels.push(label);
+  });
+}
+
+function updateTimeline(year) {
+  if (!timelineEls.track || year == null) return;
+  const pct = timelinePos(year);
+  timelineEls.progress.style.width = pct + '%';
+  timelineEls.marker.style.left = pct + '%';
+  for (const dot of timelineEls.dots) {
+    dot.classList.toggle('passed', +dot.dataset.year <= year);
+  }
+  for (const label of timelineEls.labels) {
+    label.classList.toggle('passed', +label.dataset.year <= year);
+  }
+}
+
+function updateRaceButton() {
+  const btn = document.getElementById("btn-race");
+  if (btn) btn.textContent = (state && state.done) ? "Replay" : "Skip to end";
+}
+
+/* ------------------------ data helpers ------------------------ */
+function parseNum(value) {
+  if (value == null || value === "") return 0;
+  const n = Number(String(value).replace(/,/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function smartFormat(v) {
+  if (!isFinite(v)) return "N/A";
+  if (Math.abs(v) >= 1e9) return d3.format(".1f")(v / 1e9) + "B";
+  if (Math.abs(v) >= 1e6) return d3.format(".1f")(v / 1e6) + "M";
+  if (Math.abs(v) >= 1e3 && Math.floor(v) === v) return d3.format(",")(v);
+  if (Math.floor(v) === v) return d3.format(",")(v);
+  return d3.format(",.1f")(v);
+}
+
+function spacexEase(p) {
+  if (p <= SPACEX_SPLIT_T) {
+    // enter with momentum, then decelerate while passing the leaders
+    return SPACEX_SPLIT_V * d3.easeSinOut(p / SPACEX_SPLIT_T);
+  }
+  // accelerate away to the final height
+  const q = (p - SPACEX_SPLIT_T) / (1 - SPACEX_SPLIT_T);
+  return SPACEX_SPLIT_V + (1 - SPACEX_SPLIT_V) * d3.easeCubicIn(q);
+}
+
+/* Inline data (amount raised at offering in US$ bn, excl. greenshoe; DealRoom / SEC) */
+const INLINE_DATA = [
+  { company: "NTT DoCoMo",     year: 1998, amount: 18.4, region: "Asia",          isSpacex: false },
+  { company: "ENEL",           year: 1999, amount: 16.6, region: "Europe",        isSpacex: false },
+  { company: "Visa",           year: 2008, amount: 17.9, region: "North America", isSpacex: false },
+  { company: "AIA Group",      year: 2010, amount: 17.8, region: "Asia",          isSpacex: false },
+  { company: "General Motors", year: 2010, amount: 15.8, region: "North America", isSpacex: false },
+  { company: "Facebook",       year: 2012, amount: 16.0, region: "North America", isSpacex: false },
+  { company: "Alibaba",        year: 2014, amount: 21.7, region: "Asia",          isSpacex: false },
+  { company: "SoftBank Corp",  year: 2018, amount: 21.3, region: "Asia",          isSpacex: false },
+  { company: "Saudi Aramco",   year: 2019, amount: 25.6, region: "Middle East",   isSpacex: false },
+  { company: "SpaceX",         year: 2026, amount: 75.0, region: "North America", isSpacex: true  }
+];
+
+let DATA = null;          // chronological array of entrants
+let timer = null;         // active d3.timer
+let state = null;         // per-run mutable animation state
+
+function labelOf(d) {
+  return d.isSpacex ? SPACEX_LABEL : d.company;
+}
+
+function keyOf(d) {
+  return d.company + d.year;
+}
+
+function buildState(skipToEnd) {
+  return {
+    entered: [],
+    skip: !!skipToEnd,
+    done: false,
+    finalT: 0,        // 0→1 eased progress of the final "settle" beat
+    currentYear: null
+  };
+}
+
+function stopAnimation() {
+  if (timer) { timer.stop(); timer = null; }
+}
+
+function startRace(skipToEnd = false) {
+  stopAnimation();
+  state = buildState(skipToEnd);
+  if (skipToEnd) {
+    state.entered = DATA.map(d => ({ ...d, current: d.amount, xPos: null, w: null }));
+    state.done = true;
+    state.finalT = 1;
+    state.currentYear = DATA[DATA.length - 1].year;
+    updateRaceButton();
+    render(true);
+    return;
+  }
+  let t = 0;
+  const schedule = DATA.map(d => {
+    if (d.isSpacex) t += SPACEX_EXTRA;
+    const item = { d, start: t, dur: d.isSpacex ? GROW_MS_SPACEX : GROW_MS, entrant: null };
+    t += STAGGER_MS;
+    return item;
+  });
+  const pts = schedule.map(s => ({ t: s.start, y: s.d.year }));
+  const yearAt = e => {
+    if (e <= pts[0].t) return pts[0].y;
+    for (let i = 1; i < pts.length; i++) {
+      if (e <= pts[i].t) {
+        const a = pts[i - 1], b = pts[i];
+        return b.t === a.t ? b.y : a.y + (b.y - a.y) * (e - a.t) / (b.t - a.t);
+      }
+    }
+    return pts[pts.length - 1].y;
+  };
+  state.currentYear = pts[0].y;
+
+  const ease = d3.easeCubicOut;
+  const SETTLE_MS = 650;   // extra beat after growth, so layout glides (not snaps) into place
+  let settleStart = null;
+  render(true);
+  timer = d3.timer(elapsed => {
+    state.currentYear = yearAt(elapsed);
+    let allDone = true;
+    for (const s of schedule) {
+      if (elapsed < s.start) { allDone = false; continue; }
+      if (!s.entrant) {
+        s.entrant = { ...s.d, current: 0, xPos: null, w: null };
+        state.entered.push(s.entrant);
+      }
+      const p = Math.min(1, (elapsed - s.start) / s.dur);
+      s.entrant.current = s.d.amount * (s.d.isSpacex ? spacexEase(p) : ease(p));
+      if (p < 1) allDone = false;
+    }
+    if (allDone && settleStart == null) {
+      settleStart = elapsed;
+      state.done = true;
+      updateRaceButton();
+    }
+    if (settleStart != null) {
+      state.finalT = d3.easeCubicOut(Math.min(1, (elapsed - settleStart) / SETTLE_MS));
+    }
+    render(false);
+    if (settleStart != null && elapsed - settleStart >= SETTLE_MS) {
+      timer.stop(); timer = null;
+    }
+  });
+}
+
+/* ------------------------- rendering ------------------------- */
+const vizContainer = document.getElementById("viz");
+const svg = d3.select(vizContainer).append("svg")
+  .style("width", "100%")
+  .style("height", "100%");
+let L = null;            // cached layout, recomputed only on hard render/resize
+let lastT = null;        // for delta-time smoothing
+
+function computeLayout() {
+  const rect = vizContainer.getBoundingClientRect();
+  const width  = Math.max(320, rect.width);
+  const height = Math.max(220, rect.height);
+  svg.attr("width", width).attr("height", height).attr("viewBox", `0 0 ${width} ${height}`);
+
+  const compact = window.matchMedia(`(max-height:${BREAKPOINT_COMPACT}px)`).matches;
+  // small-window mode: value and x-axis labels shrink by 150% (i.e. ÷1.5)
+  const compactScale = compact ? 1 / 1.5 : 1;
+  const axisFont = Math.max(9, Math.min(13, width / Math.max(5, DATA.length) * 0.5));
+  const nameFs  = axisFont * compactScale;
+  const valueFs = Math.max(10, Math.min(15, axisFont + 2)) * compactScale;
+
+  const yAxisTickFormat = d => `$${d}B`;
+  const yMaxStr = yAxisTickFormat(100);
+  const yLabelWidth = Math.max(yMaxStr.length * 7.5, 28) + 16;
+
+  const xLabels = DATA.map(labelOf);
+  const rotateX = xLabels.length > 7
+    || (xLabels.length > 4 && xLabels.some(l => String(l).length > 5));
+  const bottomMargin = rotateX
+    ? Math.min(height * 0.22, Math.max(48, d3.max(xLabels, l => String(l).length) * 5 + 20))
+    : Math.max(28, height * 0.07);
+
+  const margin = {
+    top: Math.max(24, valueFs * 2),
+    right: Math.max(16, width * 0.02),
+    bottom: compact ? Math.min(bottomMargin, height * 0.3) : bottomMargin,
+    left: yLabelWidth + 32
+  };
+  const iw = Math.max(40, width - margin.left - margin.right);
+  const ih = Math.max(40, height - margin.top - margin.bottom);
+
+  L = { width, height, compact, valueFs, nameFs, axisFont, rotateX, margin, iw, ih,
+        ticks: compact ? 4 : 5,
+        maxBarW: Math.min(120, iw * 0.16),
+        lastAxisMax: 0, lastAxisT: 0 };
+}
+
+function drawYAxis(y, force) {
+  // throttle: redraw only if domain moved >1.5% or 150ms passed, or forced
+  const now = performance.now();
+  const moved = Math.abs(render.yMax - L.lastAxisMax) / (L.lastAxisMax || 1);
+  if (!force && moved < 0.015 && now - L.lastAxisT < 150) return;
+  L.lastAxisMax = render.yMax; L.lastAxisT = now;
+
+  svg.select("g.grid-lines")
+    .call(d3.axisLeft(y).ticks(L.ticks).tickSize(-L.iw).tickFormat(""))
+    .call(s => s.select(".domain").remove());
+
+  svg.select("g.y-axis")
+    .call(d3.axisLeft(y).ticks(L.ticks).tickFormat(d => `$${d}B`))
+    .call(s => {
+      s.select(".domain").remove();
+      s.selectAll("line").remove();
+      s.selectAll("text")
+        .style("font-size", `${L.axisFont}px`)
+        .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+    });
+}
+
+function render(hard) {
+  if (hard) {
+    svg.selectAll("*").remove();
+    computeLayout();
+    lastT = null;
+    render.yMax = null;
+    const defs = svg.append("defs");
+    const glow = defs.append("filter").attr("id", "spacex-glow")
+      .attr("x", "-60%").attr("y", "-60%").attr("width", "220%").attr("height", "220%");
+    glow.append("feDropShadow")
+      .attr("dx", 0).attr("dy", 0).attr("stdDeviation", 5)
+      .attr("flood-color", COLORS.spacex).attr("flood-opacity", 0.55);
+
+    const g = svg.append("g").attr("class", "root")
+      .attr("transform", `translate(${L.margin.left},${L.margin.top})`);
+    g.append("g").attr("class", "grid-lines");
+    g.append("g").attr("class", "y-axis")
+      .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", -L.margin.left + 16)
+      .attr("x", -(L.ih / 2))
+      .attr("dy", "0.71em")
+      .attr("text-anchor", "middle")
+      .style("fill", "#000")
+      .style("font-weight", "700")
+      .style("font-size", "clamp(12px, 1.5vw, 18px)")
+      .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif")
+      .style("display", L.compact ? "none" : null)
+      .text(Y_AXIS_TITLE);
+    g.append("g").attr("class", "bars");
+    g.append("line").attr("class", "baseline")
+      .attr("x1", 0).attr("x2", L.iw)
+      .attr("y1", L.ih).attr("y2", L.ih)
+      .attr("stroke", "#cfd2d7");
+  }
+  const g = svg.select("g.root");
+  const entered = state ? state.entered : [];
+  const done = state && state.done;
+
+  const now = performance.now();
+  const dt = lastT == null ? 1 : Math.min(3, (now - lastT) / 16.7);
+  lastT = now;
+
+  const target = Math.max(20, d3.max(entered, d => d.current) || 0) * 1.15;
+  if (!render.yMax || hard) render.yMax = target;
+  const yk = 1 - Math.pow(1 - Y_DOMAIN_LERP, dt);
+  render.yMax += (target - render.yMax) * yk;
+  const y = d3.scaleLinear().domain([0, render.yMax]).range([L.ih, 0]);
+  drawYAxis(y, hard || done);
+
+  const xBand = d3.scaleBand()
+    .domain(entered.map(keyOf))
+    .range([0, L.iw])
+    .paddingInner(L.compact ? 0.34 : 0.42)
+    .paddingOuter(L.compact ? 0.10 : 0.14);
+  const xk = 1 - Math.pow(1 - X_LERP, dt);
+  for (const d of entered) {
+    const tw = Math.min(xBand.bandwidth(), L.maxBarW);
+    const tx = xBand(keyOf(d)) + (xBand.bandwidth() - tw) / 2;
+    if (d.xPos == null) { d.xPos = tx; d.w = tw; }
+    else { d.xPos += (tx - d.xPos) * xk; d.w += (tw - d.w) * xk; }
+  }
+
+  if (state) updateTimeline(state.currentYear);
+
+  const bars = g.select("g.bars").selectAll("g.bar").data(entered, keyOf);
+  const barsEnter = bars.enter().append("g").attr("class", "bar");
+  barsEnter.append("rect")
+    .attr("fill", d => colorOf(d))
+    .attr("filter", d => d.isSpacex ? "url(#spacex-glow)" : null);
+  barsEnter.append("text").attr("class", "name")
+    .attr("fill", INK).attr("font-weight", 600)
+    .attr("font-size", L.nameFs)
+    .text(d => labelOf(d));
+  barsEnter.append("text").attr("class", "value")
+    .attr("text-anchor", "middle")
+    .attr("fill", d => d.isSpacex ? COLORS.spacex : COLORS.baseHi)
+    .attr("font-weight", 700).attr("font-size", L.valueFs);
+  barsEnter.append("text").attr("class", "in-bar-year")
+    .attr("text-anchor", "middle")
+    .attr("fill", d => inBarInk(d)).attr("font-weight", 700)
+    .attr("opacity", 0)
+    .text(d => d.year);
+
+  const all = barsEnter.merge(bars);
+  all.attr("transform", d => `translate(${d.xPos},0)`);
+  all.select("rect")
+    .attr("x", 0)
+    .attr("width", d => Math.max(0, d.w))
+    .attr("y", d => y(d.current))
+    .attr("height", d => Math.max(0, L.ih - y(d.current)));
+  all.select("text.name")
+    .attr("transform", d => L.rotateX
+      ? `translate(${d.w / 2},${L.ih + 12}) rotate(-35)`
+      : `translate(${d.w / 2},${L.ih + 16})`)
+    .attr("text-anchor", L.rotateX ? "end" : "middle")
+    .attr("dx", L.rotateX ? "-0.4em" : null)
+    .attr("dy", "0.4em");
+  all.select("text.value")
+    .attr("x", d => d.w / 2)
+    .attr("y", d => y(d.current) - Math.max(6, L.valueFs * 0.5))
+    .attr("font-size", d => {
+      const ft = state ? state.finalT : 0;
+      return d.isSpacex && done ? L.valueFs * (1 + 0.25 * ft) : L.valueFs;
+    })
+    .text(d => {
+      const v = `$${d.current.toFixed(d.current >= 30 ? 0 : 1)}B`;
+      return d.isSpacex && done ? v + SPACEX_SUFFIX : v;
+    });
+  all.select("text.in-bar-year")
+    .attr("x", d => d.w / 2)
+    .attr("y", L.ih - 8)
+    .attr("font-size", d => Math.min(L.valueFs, d.w * 0.32))
+    .attr("opacity", d => (L.ih - y(d.current) > L.valueFs * 2.4 && d.w > 34) ? 1 : 0);
+  bars.exit().remove();
+}
+
+function init(rows) {
+  DATA = rows
+    .map(r => ({
+      company: r.company,
+      year: parseNum(r.year),
+      amount: parseNum(r.amount_raised_bn),
+      region: r.region,
+      isSpacex: parseNum(r.is_spacex) === 1
+    }))
+    .filter(d => d.company && d.amount > 0)
+    .sort((a, b) => a.year - b.year || b.amount - a.amount);
+  buildTimeline();
+  buildLegend();
+  startRace(false);
+}
+
+function buildLegend() {
+  const el = document.getElementById("country-legend");
+  if (!el) return;
+  const seen = new Set();
+  const items = [];
+  for (const d of DATA) {
+    if (!d.region || seen.has(d.region)) continue;
+    seen.add(d.region);
+    items.push({ label: d.region, color: REGION_COLORS[d.region] || COLORS.base });
+  }
+  el.innerHTML = items.map(it =>
+    `<span class="country-legend-item">` +
+      `<span class="country-legend-swatch" style="background:${it.color}"></span>${it.label}` +
+    `</span>`).join("");
+}
+
+init(INLINE_DATA.map(d => ({
+  company: d.company, year: d.year, amount_raised_bn: d.amount, region: d.region, is_spacex: d.isSpacex ? 1 : 0
+})));
+
+document.getElementById("btn-race").addEventListener("click", () => {
+  if (!DATA) return;
+  startRace(state && state.done ? false : true);
+  updateRaceButton();
+});
+
+let lastSizeW = 0, lastSizeH = 0;
+function handleResize() {
+  const r = vizContainer.getBoundingClientRect();
+  if (Math.abs(r.width - lastSizeW) < 1 && Math.abs(r.height - lastSizeH) < 1) return;
+  lastSizeW = r.width; lastSizeH = r.height;
+  if (state) {
+    for (const d of state.entered) { d.xPos = null; d.w = null; }
+    render(true);
+  }
+}
+
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(handleResize, 220);
+});
+
+if (typeof ResizeObserver !== "undefined") {
+  const ro = new ResizeObserver(() => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(handleResize, 220);
+  });
+  ro.observe(vizContainer);
+}
+</script>
+</body>
+</html>
