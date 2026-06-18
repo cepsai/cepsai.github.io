@@ -9,13 +9,18 @@
     font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Helvetica,Arial,sans-serif; }
   /* chart takes the slack (and may shrink to nothing); footer rows size to their content with a
      constant padding, so their margins don't scale with viewport height and never get squeezed */
-  .viz-grid { display:grid; height:100vh; grid-template-rows:minmax(0,1fr) auto auto auto; grid-template-columns:1fr 1fr; }
+  .viz-grid { display:grid; height:100vh; box-sizing:border-box; padding-bottom:clamp(8px,2vh,18px);
+    grid-template-rows:minmax(0,1fr) auto auto clamp(22px,5.5vh,50px); grid-template-columns:1fr 1fr; }
   #container1 { grid-column:1 / -1; min-height:0; overflow:hidden; } #viz { width:100%; height:100%; }
   #container5 { grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:clamp(10px,2vw,28px); flex-wrap:wrap; padding:8px 0; }
   #container2 { grid-column:1 / -1; }
-  #container3 { font-size:clamp(10px,1.6vh,13px); display:flex; align-items:flex-end; padding:6px 0 8px 14px; }
-  #container4 { display:flex; justify-content:flex-end; align-items:flex-end; padding:6px 14px 8px 0; }
-  #container4 img { height:clamp(20px,3.4vh,28px); object-fit:contain; }
+  #container3 { font-size:clamp(5px,1.6vw,16px); display:flex; align-items:center; justify-content:flex-start;
+    padding:0 20px; overflow:hidden; min-width:0; }
+  #container3 #source-text { font-weight:600; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  #container3 #source-text a { color:#2756d3; text-decoration:underline; }
+  #container4 { display:flex; justify-content:flex-end; align-items:center; padding:0 20px; overflow:hidden; min-width:0; }
+  #container4 a { height:100%; display:flex; align-items:center; }
+  #container4 img { height:100%; width:auto; max-height:100%; max-width:100%; object-fit:contain; }
   #tooltip { position:fixed; pointer-events:none; display:none; background:#fff;
     border:1px solid #DBDBDB; padding:6px 8px; font-size:12px; border-radius:4px; }
   #legend { display:flex; flex-wrap:wrap; align-items:center; align-content:center; justify-content:center;
@@ -41,7 +46,7 @@
   </div>
   <div id="container2"><div id="legend"></div></div>
   <div id="container3"><span id="source-text"></span></div>
-  <div id="container4"><a href="https://aiworld.eu/"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></div>
+  <div id="container4"><a href="https://aiworld.eu/" target="_blank" rel="noopener"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></div>
 </div>
 <div id="tooltip"></div>
 <script>
@@ -289,8 +294,8 @@ function applyHandlers(sel,x,y){
     .on("mouseleave",()=>tooltip.style("display","none"));
 }
 
-// Legend keeps the full names (only "Rest of Europe" is split, to save width).
-function legendLines(c){ return c==="Rest of Europe" ? ["Rest of","Europe"] : [c]; }
+// Legend keeps the full names on a single line.
+function legendLines(c){ return [c]; }
 // Right-edge axis labels are tighter: split "Rest of Europe" and abbreviate the long Gigafactories name.
 function labelLines(c){
   if(c==="Rest of Europe") return ["Rest of","Europe"];
