@@ -10,7 +10,8 @@
     font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Helvetica,Arial,sans-serif; }
   /* chart takes the slack (and can shrink to nothing); footer rows size to their content so they
      never get squeezed into each other -> controls can't overlap the legend on a short window */
-  .viz-grid { display:grid; height:100vh; grid-template-rows:minmax(0,1fr) auto auto auto; grid-template-columns:1fr 1fr; }
+  .viz-grid { display:grid; height:100vh; box-sizing:border-box; padding-bottom:clamp(8px,2vh,18px);
+    grid-template-rows:minmax(0,1fr) auto auto clamp(22px,5.5vh,50px); grid-template-columns:1fr 1fr; }
   #container1 { grid-column:1 / -1; display:flex; flex-direction:column; min-height:0; position:relative; }
   #panes { flex:1 1 auto; display:flex; align-items:stretch; min-height:0;
     transform-origin:top left; transition:transform 1.5s cubic-bezier(.22,.61,.36,1); }
@@ -29,9 +30,13 @@
   #euLabel { color:#2756d3; } #usLabel { color:#0f172a; }
   #container5 { grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:clamp(10px,2.5vw,30px); flex-wrap:wrap; padding:6px 0; }
   #container2 { grid-column:1 / -1; }
-  #container3 { font-size:clamp(10px,1.6vh,13px); display:flex; align-items:center; padding:6px 0 6px 14px; }
-  #container4 { display:flex; justify-content:flex-end; align-items:center; padding:6px 14px 6px 0; }
-  #container4 img { height:75%; object-fit:contain; }
+  #container3 { font-size:clamp(5px,1.6vw,16px); display:flex; align-items:center; justify-content:flex-start;
+    padding:0 20px; overflow:hidden; min-width:0; }
+  #container3 #source-text { font-weight:600; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  #container3 #source-text a { color:#2756d3; text-decoration:underline; }
+  #container4 { display:flex; justify-content:flex-end; align-items:center; padding:0 20px; overflow:hidden; min-width:0; }
+  #container4 a { height:100%; display:flex; align-items:center; }
+  #container4 img { height:100%; width:auto; max-height:100%; max-width:100%; object-fit:contain; }
   #tooltip { position:fixed; pointer-events:none; display:none; background:#fff;
     border:1px solid #DBDBDB; padding:6px 8px; font-size:12px; border-radius:4px; }
   #card { position:fixed; display:none; z-index:50; background:#fff; border:1px solid #DBDBDB;
@@ -77,7 +82,7 @@
   </div>
   <div id="container2"><div id="legend"></div></div>
   <div id="container3"><span id="source-text"></span></div>
-  <div id="container4"><a href="https://aiworld.eu/"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></div>
+  <div id="container4"><a href="https://aiworld.eu/" target="_blank" rel="noopener"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></div>
 </div>
 <div id="tooltip"></div>
 <div id="card">
@@ -122,7 +127,7 @@ const LOCKED_YEAR = (yParam>=2026 && yParam<=2031) ? yParam : null;
   const flags={2:SHOW_CONTAINER_2,3:SHOW_CONTAINER_3,4:SHOW_CONTAINER_4,5:SHOW_CONTAINER_5};
   if(EMBED){ flags[2]=0; flags[3]=0; flags[4]=0; flags[5]=0; }   // bare embed: drop controls + the whole footer
   Object.entries(flags).forEach(([k,v])=>{ if(!v){const el=document.getElementById("container"+k); if(el) el.style.display="none";}});
-  if(EMBED) document.querySelector(".viz-grid").style.gridTemplateRows="1fr";  // chart fills the frame
+  if(EMBED){ const g=document.querySelector(".viz-grid"); g.style.gridTemplateRows="1fr"; g.style.paddingBottom="0"; }  // chart fills the frame
 })();
 if(LOCKED_YEAR!=null && !EMBED){ const yc=document.getElementById("yearCtrl"); if(yc) yc.style.display="none"; }
 
@@ -322,8 +327,8 @@ function buildLegend(rows){
   let order = Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
   const hasOther = order.includes("Other");          // Top 10 view's project-aggregate tile
   order = order.filter(c=>c!=="Other");
-  // fold Poland and every lower-ranked country into a single "More" legend item
-  const pIdx = order.indexOf("Poland");
+  // fold Denmark and every lower-ranked country into a single "More" legend item
+  const pIdx = order.indexOf("Denmark");
   let pairs;
   if(pIdx>-1){
     pairs = order.slice(0,pIdx).map(c=>[c, COLORS[c]||"#94a3b8"]);
