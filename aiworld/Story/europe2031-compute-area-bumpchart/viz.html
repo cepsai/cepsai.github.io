@@ -7,17 +7,19 @@
   :root { --breakpoint-compact: 500px; }
   html,body { margin:0; height:100vh; width:100vw; overflow:hidden; color:#0f172a;
     font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Helvetica,Arial,sans-serif; }
-  .viz-grid { display:grid; height:100vh; grid-template-rows:15fr 2fr 2fr 1fr; grid-template-columns:1fr 1fr; }
-  #container1 { grid-column:1 / -1; } #viz { width:100%; height:100%; }
-  #container5 { grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:clamp(10px,2vw,28px); flex-wrap:wrap; }
+  /* chart takes the slack (and may shrink to nothing); footer rows size to their content with a
+     constant padding, so their margins don't scale with viewport height and never get squeezed */
+  .viz-grid { display:grid; height:100vh; grid-template-rows:minmax(0,1fr) auto auto auto; grid-template-columns:1fr 1fr; }
+  #container1 { grid-column:1 / -1; min-height:0; overflow:hidden; } #viz { width:100%; height:100%; }
+  #container5 { grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:clamp(10px,2vw,28px); flex-wrap:wrap; padding:8px 0; }
   #container2 { grid-column:1 / -1; }
-  #container3 { font-size:clamp(10px,1.6vh,13px); display:flex; align-items:center; padding-left:14px; }
-  #container4 { display:flex; justify-content:flex-end; align-items:center; padding-right:14px; }
-  #container4 img { height:75%; object-fit:contain; }
+  #container3 { font-size:clamp(10px,1.6vh,13px); display:flex; align-items:flex-end; padding:6px 0 8px 14px; }
+  #container4 { display:flex; justify-content:flex-end; align-items:flex-end; padding:6px 14px 8px 0; }
+  #container4 img { height:clamp(20px,3.4vh,28px); object-fit:contain; }
   #tooltip { position:fixed; pointer-events:none; display:none; background:#fff;
     border:1px solid #DBDBDB; padding:6px 8px; font-size:12px; border-radius:4px; }
-  #legend { display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
-    gap:clamp(3px,0.7vw,9px); padding:0 10px; font-size:clamp(9px,1.4vh,12px); }
+  #legend { display:flex; flex-wrap:wrap; align-items:center; align-content:center; justify-content:center;
+    gap:clamp(3px,0.7vw,9px); padding:4px 10px; min-height:30px; font-size:clamp(9px,1.4vh,12px); }
   #legend .item { display:flex; align-items:center; gap:5px; white-space:nowrap; }
   #legend .sw { width:12px; height:12px; border-radius:2px; flex:0 0 auto; }
   .ctrl { display:flex; align-items:center; gap:8px; }
@@ -30,7 +32,6 @@
     font-size:clamp(9px,1.4vw,13px); font-weight:600; color:#475569;
     cursor:pointer; white-space:nowrap; transition:background .2s ease,color .2s ease; }
   .selector-button.active { background:#2756d3; color:#fff; }
-  @media (max-height:500px) { .viz-grid { grid-template-rows:1fr !important; grid-template-columns:1fr !important; } }
 </style></head><body>
 <div class="viz-grid">
   <div id="container1"><div id="viz"></div></div>
@@ -128,7 +129,7 @@ function computeBands(group, value){
 }
 
 // ---- state + controls ----
-let currentValue="mw", currentGroup="top";
+let currentValue="mw", currentGroup="top", animUntil=0;
 const tooltip = d3.select("#tooltip");
 const vizContainer = document.getElementById("viz");
 const fmt = d3.format(",.0f");
@@ -206,6 +207,7 @@ function drawAll(animate){
   const ribbon=d3.area().x(d=>d.x).y0(d=>y(d.y0)).y1(d=>y(d.y1)).curve(d3.curveBumpX);
   const col=d=>COLORS[d.country]||"#64748b";
   const dur=700;
+  if(animate) animUntil=performance.now()+dur+120;   // shield this transition from a self-induced (legend) resize
   // Only attach a transition when actually animating; a duration-0 transition still
   // schedules an rAF tick that never settles in a throttled/background tab.
   const T = sel => animate ? sel.transition().duration(dur).ease(d3.easeCubicOut) : sel;
@@ -307,7 +309,10 @@ function buildLegend(bands){
 
 render();
 let resizeTimer=null;
-window.addEventListener("resize", ()=>{ clearTimeout(resizeTimer); resizeTimer=setTimeout(render,220); });
+// Defer a re-render past any active transition so a self-induced resize (the legend changing height
+// on a group switch) can't cut the animation short with an instant rebuild.
+function scheduleRender(){ clearTimeout(resizeTimer); resizeTimer=setTimeout(render, Math.max(220, animUntil-performance.now()+30)); }
+window.addEventListener("resize", scheduleRender);
 if(typeof ResizeObserver!=="undefined")
-  new ResizeObserver(()=>{ clearTimeout(resizeTimer); resizeTimer=setTimeout(render,220); }).observe(vizContainer);
+  new ResizeObserver(scheduleRender).observe(vizContainer);
 </script></body></html>

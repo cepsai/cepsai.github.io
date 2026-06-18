@@ -8,10 +8,12 @@
   :root { --breakpoint-compact: 500px; }
   html,body { margin:0; height:100vh; width:100vw; overflow:hidden; color:#0f172a;
     font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Helvetica,Arial,sans-serif; }
-  .viz-grid { display:grid; height:100vh; grid-template-rows:20fr 1.5fr 1.6fr 0.9fr; grid-template-columns:1fr 1fr; }
+  /* chart takes the slack (and can shrink to nothing); footer rows size to their content so they
+     never get squeezed into each other -> controls can't overlap the legend on a short window */
+  .viz-grid { display:grid; height:100vh; grid-template-rows:minmax(0,1fr) auto auto auto; grid-template-columns:1fr 1fr; }
   #container1 { grid-column:1 / -1; display:flex; flex-direction:column; min-height:0; position:relative; }
   #panes { flex:1 1 auto; display:flex; align-items:stretch; min-height:0;
-    transform-origin:top left; transition:transform .8s cubic-bezier(.22,.61,.36,1); }
+    transform-origin:top left; transition:transform 1.5s cubic-bezier(.22,.61,.36,1); }
   #panes.zoom { pointer-events:none; }              /* US comparison: treemap non-interactive */
   #euPane { flex:1 1 100%; min-width:0; overflow:hidden; }
   #viz { width:100%; height:100%; }
@@ -19,16 +21,16 @@
   /* US comparison: a solid US block beside the zoomed-out Europe treemap */
   #usSq { position:absolute; display:none; background:#0f172a; border-radius:3px;
     align-items:center; justify-content:center;
-    transition:left .8s cubic-bezier(.22,.61,.36,1), top .8s cubic-bezier(.22,.61,.36,1),
-               width .8s cubic-bezier(.22,.61,.36,1), height .8s cubic-bezier(.22,.61,.36,1); }
+    transition:left 1.5s cubic-bezier(.22,.61,.36,1), top 1.5s cubic-bezier(.22,.61,.36,1),
+               width 1.5s cubic-bezier(.22,.61,.36,1), height 1.5s cubic-bezier(.22,.61,.36,1); }
   #usSq .usTxt { color:#fff; font-weight:800; letter-spacing:3px; font-size:clamp(18px,6vh,58px); }
   .cmpLabel { position:absolute; display:none; font-weight:800; font-size:clamp(11px,2vh,16px); white-space:nowrap;
-    transform:translateX(-50%); transition:left .8s cubic-bezier(.22,.61,.36,1), top .8s cubic-bezier(.22,.61,.36,1); }
+    transform:translateX(-50%); transition:left 1.5s cubic-bezier(.22,.61,.36,1), top 1.5s cubic-bezier(.22,.61,.36,1); }
   #euLabel { color:#2756d3; } #usLabel { color:#0f172a; }
-  #container5 { grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:clamp(10px,2.5vw,30px); flex-wrap:wrap; }
+  #container5 { grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:clamp(10px,2.5vw,30px); flex-wrap:wrap; padding:6px 0; }
   #container2 { grid-column:1 / -1; }
-  #container3 { font-size:clamp(10px,1.6vh,13px); display:flex; align-items:center; padding-left:14px; }
-  #container4 { display:flex; justify-content:flex-end; align-items:center; padding-right:14px; }
+  #container3 { font-size:clamp(10px,1.6vh,13px); display:flex; align-items:center; padding:6px 0 6px 14px; }
+  #container4 { display:flex; justify-content:flex-end; align-items:center; padding:6px 14px 6px 0; }
   #container4 img { height:75%; object-fit:contain; }
   #tooltip { position:fixed; pointer-events:none; display:none; background:#fff;
     border:1px solid #DBDBDB; padding:6px 8px; font-size:12px; border-radius:4px; }
@@ -41,7 +43,7 @@
     font-size:16px; line-height:1; cursor:pointer; color:#94a3b8; padding:2px 4px; }
   #card .card-close:hover { color:#0f172a; }
   #legend { display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
-    gap:clamp(3px,0.7vw,9px); padding:0 10px; font-size:clamp(9px,1.4vh,12px); }
+    gap:clamp(3px,0.7vw,9px); padding:2px 10px; font-size:clamp(9px,1.4vh,12px); }
   #legend .item { display:flex; align-items:center; gap:5px; white-space:nowrap; }
   #legend .sw { width:12px; height:12px; border-radius:2px; flex:0 0 auto; }
   .ctrl { display:flex; align-items:center; gap:8px; }
@@ -59,7 +61,6 @@
     font-size:clamp(10px,1.5vw,14px); font-weight:700; cursor:pointer; line-height:1; }
   #yearSlider { width:clamp(120px,26vw,300px); accent-color:#2756d3; }
   #yearOut { font-weight:800; color:#0f172a; font-size:clamp(13px,2.2vw,18px); min-width:3.2em; }
-  @media (max-height:500px) { .viz-grid { grid-template-rows:1fr !important; grid-template-columns:1fr !important; } }
 </style></head><body>
 <div class="viz-grid">
   <div id="container1">
@@ -70,7 +71,7 @@
   </div>
   <div id="container5">
     <div class="ctrl"><span class="lab">Show</span><div id="modeSel" class="selector-group"></div></div>
-    <div class="ctrl"><button id="playBtn" class="playBtn">▶</button>
+    <div class="ctrl" id="yearCtrl"><button id="playBtn" class="playBtn">▶</button>
       <input id="yearSlider" type="range" min="2026" max="2031" step="1" value="2031">
       <span id="yearOut">2031</span></div>
   </div>
@@ -107,16 +108,35 @@ const FAC = [{"c":"France","n":"Softbank Hauts-de-France","v":[0.0,0.0,0.0,0.0,0
 
 document.getElementById("source-text").innerHTML =
   'Source: <a href="'+SOURCE_HREF+'" target="_blank" rel="noopener">'+SOURCE_NAME+'</a>';
+
+// ---- URL parameters (for blog embeds) ----
+//   embed=1      strip chrome: legend, controls (toggle + slider), logo (source line stays for attribution)
+//   year=2026..2031  lock to one year and hide the slider -> single-year interactive treemap
+const PARAMS = new URLSearchParams(location.search);
+const pOn = v => v!==null && v!=="" && v!=="0" && v!=="false";
+const EMBED = pOn(PARAMS.get("embed"));
+const yParam = parseInt(PARAMS.get("year"), 10);
+const LOCKED_YEAR = (yParam>=2026 && yParam<=2031) ? yParam : null;
+
 (function applyContainerVisibility(){
   const flags={2:SHOW_CONTAINER_2,3:SHOW_CONTAINER_3,4:SHOW_CONTAINER_4,5:SHOW_CONTAINER_5};
+  if(EMBED){ flags[2]=0; flags[3]=0; flags[4]=0; flags[5]=0; }   // bare embed: drop controls + the whole footer
   Object.entries(flags).forEach(([k,v])=>{ if(!v){const el=document.getElementById("container"+k); if(el) el.style.display="none";}});
+  if(EMBED) document.querySelector(".viz-grid").style.gridTemplateRows="1fr";  // chart fills the frame
 })();
+if(LOCKED_YEAR!=null && !EMBED){ const yc=document.getElementById("yearCtrl"); if(yc) yc.style.display="none"; }
 
 const fmt = d3.format(",.0f");
 const gw = mw => (mw/1000).toFixed(1)+" GW";
 // US AI-compute totals (MW) from the world forecast — for the "US comparison" view
 const US_MW = {2026:35300,2027:61300,2028:104400,2029:146600,2030:208200,2031:255100};
-let currentYear = 2031, currentMode = "all", timer = null;
+// Default view: US-comparison hero @2031 (with an intro zoom). A locked year switches to the
+// single-year interactive Full Europe treemap instead.
+let currentYear = LOCKED_YEAR!=null ? LOCKED_YEAR : 2031;
+let currentMode = LOCKED_YEAR!=null ? "all" : "us";
+let timer = null;
+let introPending = (currentMode==="us");            // play the zoom-out once, on first view
+let animUntil = 0;                                  // timestamp until which an intentional transition is running
 
 // project name -> full MW trajectory, for the tooltip sparkline
 const TRAJ = {}; FAC.forEach(f=>{ TRAJ[f.n]=f.v; });
@@ -218,15 +238,24 @@ const treemap = new d3plus.Treemap()
   .on("mouseleave", function(){ onLeave(); })
   .on("click",      function(d){ onClick(d); });
 
+// d3plus caches its measured size in _width/_height and won't re-measure on a plain render(),
+// so clear them before each render to force a fresh fit to the live container box (needed on resize).
+// (Setting .width()/.height() explicitly instead breaks sizing in this d3plus build.)
+function fitTreemap(){ treemap._width = undefined; treemap._height = undefined; }
+
 function update(animate){
   const rows = rowsFor(currentYear, currentMode);
   document.getElementById("yearOut").textContent = currentYear;
   document.getElementById("yearSlider").value = currentYear;
   document.getElementById("viz").classList.toggle("nodim", currentMode==="top"); // no hover shading in Top 10
-  treemap.duration(animate?900:0).data(rows).render();
-  layoutPanes(rows);                                // size/zoom the panes (after render, full-size treemap)
+  // Build the legend FIRST: its item count drives the footer height, which resizes the chart. Doing it
+  // before we measure/render lets the treemap animate straight to the final size (no mid-flight resize snap).
   if(currentMode==="us") setLegend([["Europe","#2756d3"],["United States","#0f172a"]]);
   else buildLegend(rows);
+  if(animate) animUntil = performance.now()+1000;        // shield this transition from the self-induced resize
+  fitTreemap();
+  treemap.duration(animate?900:0).data(rows).render();
+  layoutPanes(rows, currentMode==="us" && !introPending);  // zoomed once intro has fired; full treemap until then
 }
 
 // US comparison: keep the full-size treemap but uniformly zoom it out (CSS transform) into a small
@@ -235,7 +264,9 @@ const CMP_MAX_GW = 255.1, CMP_MAX_FRAC = 0.72;      // US 2031 sets the scale; i
 const US_MAXH = 0.85;                               // US 2031 block height as a fraction of the pane height
 const EU_MAX_GW = Math.max.apply(null, YEARS.map(y=>FAC.reduce((s,f)=>s+f.v[y-2026],0)))/1000; // Europe 2031 total
 const frac = g => CMP_MAX_FRAC * Math.sqrt(g / CMP_MAX_GW);
-function layoutPanes(rows){
+// zoom=false renders the intro state (full-size Europe treemap, US block collapsed) so the
+// transition into zoom=true reads as a zoom-out next to a growing US block.
+function layoutPanes(rows, zoom){
   const panes=document.getElementById("panes"), usSq=document.getElementById("usSq"),
         euLabel=document.getElementById("euLabel"), usLabel=document.getElementById("usLabel");
   if(currentMode!=="us"){
@@ -254,10 +285,17 @@ function layoutPanes(rows){
   const euMaxW=W*frac(EU_MAX_GW), gap=Math.min(0.04*W,30);
   const startX=(W-(euMaxW+gap+usW))/2, yBot=H-6, xEu=startX, xUs=startX+euMaxW+gap;
   panes.classList.add("zoom");
-  panes.style.transform="translate("+xEu.toFixed(1)+"px,"+(yBot-hEu).toFixed(1)+"px) scale("+sEu.toFixed(4)+")";
   usSq.style.display="flex";
-  usSq.style.left=xUs.toFixed(1)+"px"; usSq.style.top=(yBot-hUs).toFixed(1)+"px";
-  usSq.style.width=usW.toFixed(1)+"px"; usSq.style.height=hUs.toFixed(1)+"px";
+  usSq.style.left=xUs.toFixed(1)+"px"; usSq.style.width=usW.toFixed(1)+"px";   // US horizontally fixed
+  if(!zoom){
+    // intro / pre-zoom: full Europe treemap, US block collapsed at the baseline, no labels
+    panes.style.transform="";
+    usSq.style.top=yBot.toFixed(1)+"px"; usSq.style.height="0px";
+    euLabel.style.display="none"; usLabel.style.display="none";
+    return;
+  }
+  panes.style.transform="translate("+xEu.toFixed(1)+"px,"+(yBot-hEu).toFixed(1)+"px) scale("+sEu.toFixed(4)+")";
+  usSq.style.top=(yBot-hUs).toFixed(1)+"px"; usSq.style.height=hUs.toFixed(1)+"px";
   euLabel.style.display="block"; euLabel.textContent="Europe "+gw(euGW*1000);
   euLabel.style.left=(xEu+wEu/2).toFixed(1)+"px"; euLabel.style.top=(yBot-hEu-22).toFixed(1)+"px";
   usLabel.style.display="block"; usLabel.textContent="United States "+gw(usGW*1000);
@@ -273,12 +311,28 @@ function setLegend(pairs){
     it.append("span").text(p[0]);
   });
 }
+// a "More" swatch: a little colour wheel of the folded countries (the map keeps each real colour)
+function moreSwatch(countries){
+  const cs=countries.map(c=>COLORS[c]||"#94a3b8"), seg=360/cs.length;
+  return "conic-gradient("+cs.map((c,i)=>c+" "+(i*seg).toFixed(1)+"deg "+((i+1)*seg).toFixed(1)+"deg").join(", ")+")";
+}
 function buildLegend(rows){
   const tot = {};
   rows.forEach(d=>{ tot[d.c]=(tot[d.c]||0)+d.mw; });
-  const order = Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
-  const oi=order.indexOf("Other"); if(oi>-1){ order.splice(oi,1); order.push("Other"); }  // aggregate last
-  setLegend(order.map(c=>[c, COLORS[c]||"#94a3b8"]));
+  let order = Object.keys(tot).sort((a,b)=>tot[b]-tot[a]);
+  const hasOther = order.includes("Other");          // Top 10 view's project-aggregate tile
+  order = order.filter(c=>c!=="Other");
+  // fold Poland and every lower-ranked country into a single "More" legend item
+  const pIdx = order.indexOf("Poland");
+  let pairs;
+  if(pIdx>-1){
+    pairs = order.slice(0,pIdx).map(c=>[c, COLORS[c]||"#94a3b8"]);
+    pairs.push(["More", moreSwatch(order.slice(pIdx))]);
+  } else {
+    pairs = order.map(c=>[c, COLORS[c]||"#94a3b8"]);
+  }
+  if(hasOther) pairs.push(["Other", COLORS["Other"]]);  // aggregate tile stays last
+  setLegend(pairs);
 }
 
 // ---- controls ----
@@ -287,7 +341,7 @@ function buildSelector(node, options){
   options.forEach(o=>{
     const b=document.createElement("button");
     b.type="button"; b.className="selector-button"; b.textContent=o.label; b.dataset.val=o.val;
-    b.addEventListener("click",()=>{ if(currentMode===o.val) return; currentMode=o.val; updateModeState(); hideCard(); update(true); });
+    b.addEventListener("click",()=>{ if(currentMode===o.val) return; currentMode=o.val; introPending=false; updateModeState(); hideCard(); update(true); });
     node.appendChild(b);
   });
 }
@@ -300,6 +354,7 @@ updateModeState();
 
 function play(){
   const btn=document.getElementById("playBtn");
+  introPending=false;
   if(timer){ clearInterval(timer); timer=null; btn.textContent="▶"; return; }
   btn.textContent="❚❚";
   if(currentYear>=2031){ currentYear=2026; update(true); }
@@ -310,14 +365,37 @@ function play(){
 }
 document.getElementById("playBtn").addEventListener("click", play);
 document.getElementById("yearSlider").addEventListener("input", e=>{
+  introPending=false;
   if(timer){ clearInterval(timer); timer=null; document.getElementById("playBtn").textContent="▶"; }
   currentYear=+e.target.value; update(true);
 });
 
 update(false);
 
+// US-comparison hero: keep the full Europe treemap, then play the zoom-out ONCE, the first time the
+// (iframe-embedded) viz scrolls into view. An IntersectionObserver inside an iframe still accounts for
+// the iframe's own visibility in the parent page, so this fires correctly in a blog post.
+function triggerIntro(){
+  if(!introPending) return;
+  introPending=false;
+  // hold on the full Europe treemap for a beat, then play the (1.5s) zoom-out
+  setTimeout(()=>{ if(currentMode==="us") layoutPanes(rowsFor(currentYear,currentMode), true); }, 1000);
+}
+if(introPending){
+  if("IntersectionObserver" in window){
+    const io=new IntersectionObserver((entries,obs)=>{
+      if(entries.some(e=>e.isIntersecting)){ obs.disconnect(); triggerIntro(); }
+    }, {threshold:0.25});
+    io.observe(document.getElementById("container1"));
+  } else { triggerIntro(); }
+}
+
 let resizeTimer=null;
-function redraw(){ hideCard(); treemap.duration(0).render(); layoutPanes(rowsFor(currentYear,currentMode)); }
+function redraw(){
+  const now=performance.now();
+  if(now<animUntil){ clearTimeout(resizeTimer); resizeTimer=setTimeout(redraw, animUntil-now+30); return; }  // defer past an active transition so it isn't snapped
+  hideCard(); fitTreemap(); treemap.duration(0).render(); layoutPanes(rowsFor(currentYear,currentMode), currentMode==="us" && !introPending);
+}
 window.addEventListener("resize", ()=>{ clearTimeout(resizeTimer); resizeTimer=setTimeout(redraw,220); });
 if(typeof ResizeObserver!=="undefined")
   new ResizeObserver(()=>{ clearTimeout(resizeTimer); resizeTimer=setTimeout(redraw,220); }).observe(document.getElementById("viz"));
