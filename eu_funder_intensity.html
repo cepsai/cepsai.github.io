@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Digital ODA — Digital Share of Each EU Country's Funding</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f8fafc; color: #0f172a; min-height: 100vh; }
+    header { padding: 12px 20px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    header h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
+    header h1 .sub { font-size: 12px; font-weight: 600; color: #64748b; }
+    header .links { float: right; font-size: 12px; font-weight: 700; }
+    header .links a { color: #2563eb; text-decoration: none; margin-left: 12px; }
+    header .links a:hover { text-decoration: underline; }
+
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 10px 20px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .ctl-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+    .button-group { display: flex; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+    .control-btn { padding: 6px 11px; font-size: 12px; font-weight: 700; border: none; background: #fff; color: #334155; cursor: pointer; font-family: inherit; }
+    .control-btn:not(:last-child) { border-right: 1px solid #cbd5e1; }
+    .control-btn:hover:not(.active) { background: #f1f5f9; }
+    .control-btn.active { background: #2563eb; color: #fff; }
+    .legend { display: flex; gap: 16px; align-items: center; margin-left: auto; font-size: 12px; font-weight: 700; color: #334155; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .legend i { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
+
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 20px; }
+    .chart-card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px 12px; }
+    .chart { display: flex; align-items: stretch; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
+    .col { display: flex; flex-direction: column; flex: 1 1 0; min-width: 36px; }
+    .barzone { height: 320px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+    .tot { font-size: 11px; font-weight: 800; color: #0f172a; margin-bottom: 3px; font-variant-numeric: tabular-nums; }
+    .bar { width: 62%; min-width: 16px; display: flex; flex-direction: column-reverse; border-radius: 3px 3px 0 0; overflow: hidden; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05) inset; cursor: default; }
+    .seg { width: 100%; transition: height 0.25s ease; }
+    .labzone { height: 86px; display: flex; justify-content: center; }
+    .xlab { font-size: 10.5px; font-weight: 600; color: #334155; transform: rotate(-50deg); transform-origin: top center; white-space: nowrap; margin-top: 8px; }
+    .baseline { border-top: 1px solid #cbd5e1; margin-top: 2px; }
+    .yaxis-note { font-size: 11px; color: #94a3b8; margin: 4px 0 0; }
+
+    footer { max-width: 1180px; margin: 0 auto; padding: 4px 20px 30px; font-size: 11px; color: #94a3b8; }
+    footer b { color: #64748b; }
+    .tip { position: fixed; pointer-events: none; z-index: 99; background: #0f172a; color: #fff; font-size: 12px; line-height: 1.5; padding: 8px 10px; border-radius: 7px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); opacity: 0; transition: opacity 0.1s; max-width: 280px; }
+    .tip.show { opacity: 1; }
+  </style>
+  <script src="tm_eu_funder.js"></script>
+</head>
+
+<body>
+  <header>
+    <div class="links">
+      <a href="donor_treemaps.html">Donors</a><a href="recipient_treemaps.html">Recipients</a>
+      <a href="donor_recipient_treemaps.html">Donor × Recipient</a><a href="channels_explorer.html">Channels</a>
+    </div>
+    <h1>Digital ODA — Digital Share of Each EU Country's Funding<br>
+      <span class="sub">For each EU member state: digital ODA as a percentage of that country's own ODA to the priority partner countries, split by digital type.</span>
+    </h1>
+  </header>
+
+  <div class="controls">
+    <span class="ctl-label">Size by</span>
+    <div class="button-group" id="metric-group">
+      <button class="control-btn active" data-metric="d">DISBURSED</button>
+      <button class="control-btn" data-metric="c">COMMITTED</button>
+    </div>
+
+    <span class="ctl-label">Rank by</span>
+    <div class="button-group" id="rank-group">
+      <button class="control-btn active" data-rank="pct">% OF OWN ODA</button>
+      <button class="control-btn" data-rank="abs">ABSOLUTE&nbsp;$</button>
+    </div>
+
+    <span class="ctl-label">Years</span>
+    <div class="button-group" id="year-group">
+      <button class="control-btn active" data-year="all">ALL</button>
+      <button class="control-btn active" data-year="2019">2019</button>
+      <button class="control-btn active" data-year="2020">2020</button>
+      <button class="control-btn active" data-year="2021">2021</button>
+      <button class="control-btn active" data-year="2022">2022</button>
+      <button class="control-btn active" data-year="2023">2023</button>
+      <button class="control-btn active" data-year="2024">2024</button>
+    </div>
+
+    <div class="legend">
+      <span><i style="background:#2563eb"></i>Digital Governance</span>
+      <span><i style="background:#16a34a"></i>Digital Inclusion</span>
+      <span><i style="background:#d97706"></i>Hard Infrastructure</span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="chart-card">
+      <div class="chart" id="chart"></div>
+      <p class="yaxis-note" id="ynote"></p>
+    </div>
+  </div>
+  <footer>
+    Source: OECD CRS, classified by the v3.1 LLM ensemble. Each bar is digital ODA divided by that country's total ODA
+    to the priority partner countries, for the selected years; the segments are the three digital types and sum to the
+    percentage shown on top. <b id="foot"></b>
+  </footer>
+
+  <script>
+    var D = window.TM_EU_FUNDER || {};
+    var YEARS = window.TM_EU_FUNDER_YEARS || [2019, 2020, 2021, 2022, 2023, 2024];
+    var TYPES = [["g", "Digital Governance", "#2563eb"], ["i", "Digital Inclusion", "#16a34a"], ["f", "Hard Infrastructure", "#d97706"]];
+    var state = { metric: "d", rank: "pct", years: new Set(YEARS) };
+
+    function fmtUSD(m) {
+      m = +m || 0;
+      if (m >= 1000) return "$" + (m / 1000).toFixed(2) + "B";
+      if (m >= 1) return "$" + m.toFixed(1) + "M";
+      if (m > 0) return "$" + (m * 1000).toFixed(0) + "K";
+      return "$0";
+    }
+
+    // sum a country's totals over the selected years for the current metric
+    function aggCountry(donor) {
+      var m = state.metric, tot = 0, g = 0, i = 0, f = 0;
+      var yrs = D[donor] || {};
+      state.years.forEach(function (y) {
+        var r = yrs[String(y)]; if (!r) return;
+        tot += r["t" + m];
+        g += r["g" + m]; i += r["i" + m]; f += r["f" + m];
+      });
+      return { tot: tot, g: g, i: i, f: f, dig: g + i + f };
+    }
+
+    var tip = document.createElement("div");
+    tip.className = "tip"; document.body.appendChild(tip);
+    function showTip(html, e) { tip.innerHTML = html; tip.classList.add("show"); tip.style.left = (e.clientX + 14) + "px"; tip.style.top = (e.clientY + 14) + "px"; }
+    function hideTip() { tip.classList.remove("show"); }
+
+    function render() {
+      var rows = [];
+      Object.keys(D).forEach(function (donor) {
+        var a = aggCountry(donor);
+        if (a.tot > 0) { a.donor = donor; a.pct = a.dig / a.tot * 100; rows.push(a); }
+      });
+      if (state.rank === "abs") rows.sort(function (x, y) { return y.dig - x.dig; });
+      else rows.sort(function (x, y) { return y.pct - x.pct; });
+      var maxPct = rows.reduce(function (m, r) { return Math.max(m, r.pct); }, 0) || 1;
+      var maxDig = rows.reduce(function (m, r) { return Math.max(m, r.dig); }, 0) || 1;
+      var BAR_AREA = 300; // px usable bar height
+      // bar height ALWAYS encodes absolute digital ODA ($); the % is shown on top.
+      function barH(a) { return Math.max(2, (a.dig / maxDig) * BAR_AREA); }
+
+      var chart = document.getElementById("chart");
+      chart.innerHTML = "";
+      rows.forEach(function (a) {
+        var col = document.createElement("div"); col.className = "col";
+        var bz = document.createElement("div"); bz.className = "barzone";
+        var tot = document.createElement("div"); tot.className = "tot"; tot.textContent = a.pct.toFixed(1) + "%";
+        var bar = document.createElement("div"); bar.className = "bar";
+        bar.style.height = barH(a) + "px";
+        TYPES.forEach(function (ty) {
+          var val = a[ty[0]]; if (val <= 0) return;
+          var seg = document.createElement("div"); seg.className = "seg";
+          seg.style.background = ty[2];
+          seg.style.height = (a.dig > 0 ? (val / a.dig) * 100 : 0) + "%";
+          var typePct = a.tot > 0 ? val / a.tot * 100 : 0;
+          seg.addEventListener("mousemove", function (e) {
+            showTip("<b>" + a.donor + "</b><br>" + ty[1] + "<br><b>" + typePct.toFixed(1) +
+              "%</b> of own ODA<br>" + fmtUSD(val) + " of " + fmtUSD(a.tot) + " total", e);
+          });
+          seg.addEventListener("mouseleave", hideTip);
+          bar.appendChild(seg);
+        });
+        bz.appendChild(tot); bz.appendChild(bar);
+        var lz = document.createElement("div"); lz.className = "labzone";
+        var lab = document.createElement("div"); lab.className = "xlab"; lab.textContent = a.donor;
+        lz.appendChild(lab);
+        col.appendChild(bz); col.appendChild(document.createElement("div")).className = "baseline";
+        col.appendChild(lz);
+        chart.appendChild(col);
+      });
+
+      var lab = state.metric === "c" ? "committed" : "disbursed";
+      var nYears = state.years.size === YEARS.length ? "2019–2024" : Array.from(state.years).sort().join(", ");
+      var rankLab = state.rank === "abs" ? "absolute digital $" : "% of own ODA";
+      document.getElementById("ynote").textContent = "Bar height = digital ODA (" + lab + "); % on top = digital share of that country's own ODA. Tallest bar = " + fmtUSD(maxDig) + ". Ranked by " + rankLab + ".";
+      document.getElementById("foot").textContent = rows.length + " member states with ODA in " + nYears + " · " + lab;
+    }
+
+    // ---- controls ----
+    document.querySelectorAll("#metric-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#metric-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active"); state.metric = this.dataset.metric; render();
+      });
+    });
+    document.querySelectorAll("#rank-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#rank-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active"); state.rank = this.dataset.rank; render();
+      });
+    });
+    function reflectYears() {
+      document.querySelectorAll("#year-group .control-btn").forEach(function (b) {
+        if (b.dataset.year === "all") b.classList.toggle("active", state.years.size === YEARS.length);
+        else b.classList.toggle("active", state.years.has(parseInt(b.dataset.year, 10)));
+      });
+    }
+    document.querySelectorAll("#year-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var y = this.dataset.year;
+        if (y === "all") { state.years = new Set(YEARS); }
+        else {
+          y = parseInt(y, 10);
+          if (state.years.has(y)) state.years.delete(y); else state.years.add(y);
+          if (state.years.size === 0) state.years = new Set(YEARS);
+        }
+        reflectYears(); render();
+      });
+    });
+    render();
+  </script>
+</body>
+
+</html>
