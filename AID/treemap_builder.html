@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Treemap builder — pick parameters &amp; open</title>
+<style>
+  :root{--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f6f8fb;--accent:#0d9488;--accent2:#0f766e;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.5}
+  .wrap{max-width:560px;margin:48px auto;padding:0 22px}
+  h1{font-size:24px;font-weight:800;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 26px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px 24px 20px;
+        box-shadow:0 1px 3px rgba(15,23,42,.05)}
+  .field{margin-bottom:20px}
+  .field>label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;
+        letter-spacing:.05em;color:var(--muted);margin-bottom:8px}
+  .seg{display:flex;flex-wrap:wrap;gap:8px}
+  .seg button{flex:1 1 auto;min-width:72px;border:1px solid var(--line);background:#fff;border-radius:10px;
+        padding:9px 12px;font-size:13.5px;font-weight:600;color:#334155;cursor:pointer;transition:.12s}
+  .seg button:hover{border-color:#94a3b8}
+  .seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  details{margin:4px 0 22px;border-top:1px dashed var(--line);padding-top:14px}
+  summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
+  details .field{margin-top:16px;margin-bottom:14px}
+  .preview{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#475569;
+        background:#f1f5f9;border-radius:8px;padding:10px 12px;word-break:break-all;margin:4px 0 18px}
+  .actions{display:flex;gap:10px}
+  .btn{border:0;border-radius:10px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer}
+  .btn.open{background:var(--accent2);color:#fff;flex:1}
+  .btn.open:hover{background:#0e6b62}
+  .btn.copy{background:#fff;border:1px solid var(--line);color:#334155}
+  .btn.copy:hover{border-color:#94a3b8}
+  .copied{color:var(--accent);font-size:12.5px;margin-left:4px;visibility:hidden}
+  .copied.show{visibility:visible}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Treemap builder</h1>
+  <p class="sub">Pick the parameters, then <b>Open</b> to launch the matching treemap in a new tab.</p>
+  <div class="card">
+    <div class="field"><label>Region</label>
+      <div class="seg" data-group="region">
+        <button class="on" data-val="africa">Africa</button>
+        <button data-val="asia">Asia</button>
+        <button data-val="pacific">Pacific</button>
+        <button data-val="spain">Spain</button>
+      </div>
+    </div>
+    <div class="field"><label>Scope</label>
+      <div class="seg" data-group="scope">
+        <button class="on" data-val="dig">Digital only</button>
+        <button data-val="all">Incl. non-digital</button>
+      </div>
+    </div>
+    <div class="field"><label>Metric</label>
+      <div class="seg" data-group="metric">
+        <button class="on" data-val="disb">Disbursements</button>
+        <button data-val="commit">Commitments</button>
+      </div>
+    </div>
+
+    <details>
+      <summary>Advanced options</summary>
+      <div class="field"><label>Colour by</label>
+        <div class="seg" data-group="color" data-default="type">
+          <button class="on" data-val="type">Digital type</button>
+          <button data-val="funder">Funder group</button>
+          <button data-val="recipient">Recipient</button>
+        </div>
+      </div>
+      <div class="field"><label>Classification</label>
+        <div class="seg" data-group="class" data-default="hard">
+          <button class="on" data-val="hard">Hard (single label)</button>
+          <button data-val="weighted">Weighted %</button>
+        </div>
+      </div>
+      <div class="field"><label>Show top</label>
+        <div class="seg" data-group="top" data-default="100">
+          <button data-val="25">25</button>
+          <button data-val="50">50</button>
+          <button class="on" data-val="100">100</button>
+          <button data-val="all">All</button>
+        </div>
+      </div>
+    </details>
+
+    <div class="preview" id="preview"></div>
+    <div class="actions">
+      <button class="btn open" id="openBtn">Open in new tab ↗</button>
+      <button class="btn copy" id="copyBtn">Copy link</button>
+      <span class="copied" id="copied">copied</span>
+    </div>
+  </div>
+</div>
+<script>
+  var sel = {region:"africa", scope:"dig", metric:"disb", color:"type", class:"hard", top:"100"};
+
+  function buildUrl(){
+    var file = "treemap_" + sel.region + "_" + sel.scope + "_" + sel.metric + ".html";
+    var qs = [];
+    if (sel.color !== "type")  qs.push("color=" + sel.color);
+    if (sel.class === "weighted") qs.push("class=weighted");
+    if (sel.top !== "100")     qs.push("top=" + sel.top);
+    return file + (qs.length ? "?" + qs.join("&") : "");
+  }
+
+  function refresh(){ document.getElementById("preview").textContent = buildUrl(); }
+
+  document.querySelectorAll(".seg").forEach(function(seg){
+    var group = seg.dataset.group;
+    seg.querySelectorAll("button").forEach(function(b){
+      b.addEventListener("click", function(){
+        seg.querySelectorAll("button").forEach(function(x){ x.classList.remove("on"); });
+        b.classList.add("on");
+        sel[group] = b.dataset.val;
+        refresh();
+      });
+    });
+  });
+
+  document.getElementById("openBtn").addEventListener("click", function(){
+    window.open(buildUrl(), "_blank");
+  });
+  document.getElementById("copyBtn").addEventListener("click", function(){
+    var abs = new URL(buildUrl(), window.location.href).href;
+    navigator.clipboard.writeText(abs).then(function(){
+      var c = document.getElementById("copied"); c.classList.add("show");
+      setTimeout(function(){ c.classList.remove("show"); }, 1400);
+    });
+  });
+  refresh();
+</script>
+</body>
+</html>
