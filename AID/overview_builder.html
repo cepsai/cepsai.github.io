@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Overview-grid builder — pick parameters &amp; open</title>
+<style>
+  :root{--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f6f8fb;--accent:#0d9488;--accent2:#0f766e;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.5}
+  .wrap{max-width:560px;margin:48px auto;padding:0 22px}
+  h1{font-size:24px;font-weight:800;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 26px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px 24px 20px;
+        box-shadow:0 1px 3px rgba(15,23,42,.05)}
+  .field{margin-bottom:20px}
+  .field>label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;
+        letter-spacing:.05em;color:var(--muted);margin-bottom:8px}
+  .seg{display:flex;flex-wrap:wrap;gap:8px}
+  .seg button{flex:1 1 auto;min-width:80px;border:1px solid var(--line);background:#fff;border-radius:10px;
+        padding:9px 12px;font-size:13.5px;font-weight:600;color:#334155;cursor:pointer;transition:.12s}
+  .seg button:hover{border-color:#94a3b8}
+  .seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .preview{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#475569;
+        background:#f1f5f9;border-radius:8px;padding:10px 12px;word-break:break-all;margin:6px 0 18px}
+  .actions{display:flex;gap:10px;align-items:center}
+  .btn{border:0;border-radius:10px;padding:12px 22px;font-size:15px;font-weight:700;cursor:pointer}
+  .btn.open{background:var(--accent2);color:#fff;flex:1}
+  .btn.open:hover{background:#0e6b62}
+  .btn.copy{background:#fff;border:1px solid var(--line);color:#334155}
+  .btn.copy:hover{border-color:#94a3b8}
+  .copied{color:var(--accent);font-size:12.5px;visibility:hidden}
+  .copied.show{visibility:visible}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Overview-grid builder</h1>
+  <p class="sub">Pick the parameters, then <b>Open</b> to launch the matching recipient/top-donor
+  overview grid in a new tab.</p>
+  <div class="card">
+    <div class="field"><label>Region</label>
+      <div class="seg" data-group="region">
+        <button class="on" data-val="all">All</button>
+        <button data-val="africa">Africa</button>
+        <button data-val="asia">Asia</button>
+        <button data-val="pacific">Pacific</button>
+      </div>
+    </div>
+    <div class="field"><label>Show</label>
+      <div class="seg" data-group="mode">
+        <button class="on" data-val="alloda">All ODA</button>
+        <button data-val="digital">Digital only</button>
+      </div>
+    </div>
+    <div class="field"><label>Donors</label>
+      <div class="seg" data-group="scope">
+        <button class="on" data-val="alldon">All</button>
+        <button data-val="eu">European</button>
+      </div>
+    </div>
+    <div class="field"><label>Metric</label>
+      <div class="seg" data-group="metric">
+        <button class="on" data-val="commit">Commitments</button>
+        <button data-val="disb">Disbursements</button>
+      </div>
+    </div>
+
+    <div class="preview" id="preview"></div>
+    <div class="actions">
+      <button class="btn open" id="openBtn">Open in new tab ↗</button>
+      <button class="btn copy" id="copyBtn">Copy link</button>
+      <span class="copied" id="copied">copied</span>
+    </div>
+  </div>
+</div>
+<script>
+  var sel = {region:"all", mode:"alloda", scope:"alldon", metric:"commit"};
+
+  function buildUrl(){
+    return "overview_grids/overview_" + sel.region + "_" + sel.mode + "_" +
+           sel.scope + "_" + sel.metric + ".html";
+  }
+  function refresh(){ document.getElementById("preview").textContent = buildUrl(); }
+
+  document.querySelectorAll(".seg").forEach(function(seg){
+    var group = seg.dataset.group;
+    seg.querySelectorAll("button").forEach(function(b){
+      b.addEventListener("click", function(){
+        seg.querySelectorAll("button").forEach(function(x){ x.classList.remove("on"); });
+        b.classList.add("on");
+        sel[group] = b.dataset.val;
+        refresh();
+      });
+    });
+  });
+  document.getElementById("openBtn").addEventListener("click", function(){
+    window.open(buildUrl(), "_blank");
+  });
+  document.getElementById("copyBtn").addEventListener("click", function(){
+    var abs = new URL(buildUrl(), window.location.href).href;
+    navigator.clipboard.writeText(abs).then(function(){
+      var c = document.getElementById("copied"); c.classList.add("show");
+      setTimeout(function(){ c.classList.remove("show"); }, 1400);
+    });
+  });
+  refresh();
+</script>
+</body>
+</html>
