@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Digital ODA — Asia · top 100 · disbursed · incl. non-digital</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #fff; color: #0f172a; height: 100vh; overflow: hidden; }
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* ─── TREEMAP fills the page ───────────────────────────────────────────── */
+    #treewrap { flex: 1; min-height: 0; position: relative; }
+    #treemap { width: 100%; height: 100%; }
+    .empty { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: #94a3b8; font-size: 14px; font-weight: 600; text-align: center; padding: 0 30px; }
+    .empty.show { display: flex; }
+
+    /* ─── BOTTOM BAR: source (left) · legend (centre) · CEPS logo (right) ───── */
+    .bottom { background: #fff; border-top: 1px solid #e2e8f0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: clamp(10px, 2vw, 28px); padding: clamp(8px, 1.5vh, 16px) clamp(14px, 2.5vw, 28px); min-height: clamp(44px, 7vh, 80px); }
+    .ctrl-left { justify-self: start; display: flex; align-items: center; min-width: 0; }
+    .ctrl-center { justify-self: center; display: flex; align-items: center; }
+    .ctrl-right { justify-self: end; display: flex; align-items: center; }
+
+    .source-text { min-width: 0; font-size: clamp(13px, 2vw, 20px); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .source-text a, .source-text a:visited { color: #2756d3; text-decoration: underline; }
+
+    .legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; }
+    .legend-item { display: flex; align-items: center; gap: 7px; cursor: pointer; font-size: clamp(13px, 2vw, 20px); font-weight: 600; color: #333; transition: opacity 0.15s; }
+    .legend-item.inactive { opacity: 0.32; }
+    .legend-square { width: 14px; height: 14px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12) inset; }
+
+    .logo-link { height: clamp(28px, 5vh, 48px); display: flex; align-items: center; flex-shrink: 0; }
+    .logo { height: 100%; width: auto; max-height: 100%; object-fit: contain; }
+
+    /* URL switches: ?legend=0 ?source=0 ?chrome=0 */
+    body.no-legend .legend { display: none; }
+    body.no-source .source-text { display: none; }
+    body.no-chrome .bottom { display: none; }
+
+    /* On very short viewports, let the treemap take the whole page. */
+    @media (max-height: 380px) { .bottom { display: none; } }
+  </style>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+
+<body>
+  <div class="app">
+    <div id="treewrap">
+      <div id="treemap"></div>
+      <div class="empty" id="empty">No projects for this selection.</div>
+    </div>
+
+    <div class="bottom">
+      <div class="ctrl-left">
+        <div class="source-text" id="source-text">Source: <a href="https://stats.oecd.org/Index.aspx?DataSetCode=CRS1" target="_blank" rel="noopener">OECD CRS</a></div>
+      </div>
+      <div class="ctrl-center">
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="ctrl-right">
+        <a href="https://www.ceps.eu" target="_blank" rel="noopener" class="logo-link" aria-label="CEPS">
+          <img src="../ceps-logo.png" class="logo" alt="CEPS logo" />
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script src="../tm_donor_dig.js"></script>
+  <script src="../tm_regions.js"></script>
+  <script>
+    // =====================================================================
+    //  v2 — full-page, URL-DRIVEN treemap (no buttons; configured via the
+    //  query string, github_stacked.html style). Examples:
+    //    ?donors=all&recipients=africa
+    //    ?donors=France~Germany&recipients=asia+pacific&metric=committed
+    //    ?recipients=all&color=funder&top=all&years=2022~2023~2024&nd=1
+    //
+    //  Recipient GROUP keywords: africa · asia · pacific · asia+pacific · all
+    //  (or pass an explicit ~-separated list of country names).
+    //
+    //  Params: donors · recipients · top(50|100|all) · metric(disb|commit)
+    //          class(hard|weighted) · color(type|funder|recipient)
+    //          years(all|2022~2023…) · nd(1) · legend(0) · source(0) · chrome(0)
+    // =====================================================================
+
+    var BAKED = "recipients=asia&top=100&metric=disb&nd=1";
+    // ---- config ----------------------------------------------------------
+    var CAT_COLOR = { gov: "#2563eb", inc: "#16a34a", inf: "#d97706", nd: "#94a3b8" };
+    var CAT_LABEL = { gov: "Digital Governance", inc: "Digital Inclusion", inf: "Hard Infrastructure", nd: "Non-digital" };
+    var CAT_ORDER = ["gov", "inc", "inf", "nd"];
+    // compact tile array layout: [title, cat, other(recipient), yrs=[[year,disb,commit]], W=[Wg,Wi,Wf]]
+    var T = { TITLE: 0, CAT: 1, OTHER: 2, YRS: 3, W: 4, DESC: 5 };
+    function esc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+    var WCATS = ["gov", "inc", "inf"];   // index order of the weight vector W
+
+    // funder-group colouring (Team Europe = EU Institutions + EU member states)
+    var EU_INST = "EU Institutions";
+    var FG_COLOR = { "EU Institutions": "#1d4ed8", "EU member states": "#f59e0b" };
+    var REC_PALETTE = ["#2563eb", "#16a34a", "#d97706", "#7c3aed", "#db2777", "#0891b2",
+      "#dc2626", "#65a30d", "#0d9488", "#9333ea", "#ea580c", "#0369a1", "#4d7c0f"];
+    function fgroupOf(donor) { return donor === EU_INST ? "EU Institutions" : "EU member states"; }
+    function colorCatOf(r) {
+      if (state.colorBy === "funder") return fgroupOf(r.donor);
+      if (state.colorBy === "recipient") return r.other;
+      return r.cat;
+    }
+    function colorCatColor(c) {
+      if (state.colorBy === "funder") return FG_COLOR[c] || "#94a3b8";
+      if (state.colorBy === "recipient") { var i = ALL_RECIPS.indexOf(c); return REC_PALETTE[(i < 0 ? 0 : i) % REC_PALETTE.length]; }
+      return CAT_COLOR[c] || "#999";
+    }
+    function colorCatLabel(c) { return state.colorBy === "type" ? (CAT_LABEL[c] || c) : c; }
+    function rowVisible(r) {
+      if (state.colorBy === "type") return state.activeCats.has(r.cat);
+      return !state.hidden.has(r.grp);
+    }
+
+    var DIG = window.TM_DONOR_DIG || {};
+    var REGION = window.TM_REGION || {};
+    var ND = null;                // lazy-loaded
+    var ndLoading = false;
+    var YEARS = window.TM_YEARS || [2019, 2020, 2021, 2022, 2023, 2024];
+
+    // every recipient that appears in the donor tiles, grouped by region
+    var ALL_RECIPS = Object.keys(REGION);
+
+    var state = {
+      donors: new Set(),
+      recips: new Set(),
+      years: new Set(YEARS),
+      limit: "100",
+      metric: "disb",
+      classMode: "hard",          // "hard" = argmax category · "weighted" = split $ by ensemble %
+      colorBy: "type",            // "type" | "funder" | "recipient"
+      includeND: false,
+      activeCats: new Set(["gov", "inc", "inf", "nd"]),
+      hidden: new Set()           // hidden colour categories in funder/recipient mode
+    };
+
+    // ---- recipient region groups (URL keywords) --------------------------
+    // africa · asia · pacific · asia+pacific · all  → expand to member countries.
+    function recipsForGroup(key) {
+      key = String(key || "").toLowerCase().trim().replace(/[\s_\-]+/g, "+");
+      if (key === "all" || key === "") return ALL_RECIPS.slice();
+      var regs = null;
+      if (key === "africa") regs = ["Africa"];
+      else if (key === "asia") regs = ["Asia"];
+      else if (key === "pacific") regs = ["Pacific"];
+      else if (key === "asia+pacific" || key === "pacific+asia") regs = ["Asia", "Pacific"];
+      if (!regs) return null;     // not a group keyword → treat as a country list
+      return ALL_RECIPS.filter(function (r) { return regs.indexOf(REGION[r]) !== -1; });
+    }
+
+    // sum a tile's disbursed/committed US$ over the currently-selected years
+    function tileVal(t, metric) {
+      var yrs = t[T.YRS], col = metric === "commit" ? 2 : 1, s = 0, i;
+      for (i = 0; i < yrs.length; i++) if (state.years.has(yrs[i][0])) s += yrs[i][col];
+      return s;
+    }
+    // first/last selected year with any money on this tile (for the tooltip)
+    function tileYears(t) {
+      var yrs = t[T.YRS], lo = null, hi = null, i, y;
+      for (i = 0; i < yrs.length; i++) {
+        y = yrs[i][0];
+        if (!state.years.has(y)) continue;
+        if (yrs[i][1] || yrs[i][2]) { if (lo === null || y < lo) lo = y; if (hi === null || y > hi) hi = y; }
+      }
+      return [lo, hi];
+    }
+
+    // ---- helpers ---------------------------------------------------------
+    function fmtUSD(m) {
+      m = +m || 0;
+      if (m >= 1000) return "$" + (m / 1000).toFixed(2) + "B";
+      if (m >= 1) return "$" + m.toFixed(1) + "M";
+      if (m > 0) return "$" + (m * 1000).toFixed(0) + "K";
+      return "$0";
+    }
+    function donorTotal(d) {
+      var sum = 0, a = DIG[d] || [], i;
+      for (i = 0; i < a.length; i++) if (recipOK(a[i][T.OTHER])) sum += tileVal(a[i], "disb");
+      if (state.includeND && ND && ND[d]) { var b = ND[d]; for (i = 0; i < b.length; i++) if (recipOK(b[i][T.OTHER])) sum += tileVal(b[i], "disb"); }
+      return sum;
+    }
+    function recipOK(r) { return state.recips.size === 0 || state.recips.has(r); }
+
+    // ---- legend ----------------------------------------------------------
+    function buildLegend(rows) {
+      var legend = document.getElementById("legend");
+      legend.innerHTML = "";
+      var cats;
+      if (state.colorBy === "type") {
+        cats = CAT_ORDER.filter(function (c) { return c !== "nd" || state.includeND; });
+      } else {
+        var seen = {}; cats = [];
+        (rows || []).forEach(function (r) { if (!seen[r.grp]) { seen[r.grp] = 1; cats.push(r.grp); } });
+        cats.sort();
+      }
+      cats.forEach(function (c) {
+        var inactive = state.colorBy === "type" ? !state.activeCats.has(c) : state.hidden.has(c);
+        var item = document.createElement("div");
+        item.className = "legend-item" + (inactive ? " inactive" : "");
+        var sq = document.createElement("div");
+        sq.className = "legend-square"; sq.style.background = colorCatColor(c);
+        var lab = document.createElement("span"); lab.textContent = colorCatLabel(c);
+        item.appendChild(sq); item.appendChild(lab);
+        item.addEventListener("click", function () {
+          if (state.colorBy === "type") {
+            if (state.activeCats.has(c)) state.activeCats.delete(c); else state.activeCats.add(c);
+          } else {
+            if (state.hidden.has(c)) state.hidden.delete(c); else state.hidden.add(c);
+          }
+          render();
+        });
+        legend.appendChild(item);
+      });
+    }
+
+    // ---- treemap ---------------------------------------------------------
+    var uidCounter = 0;
+    var treemap = new d3plus.Treemap()
+      .select("#treemap")
+      .groupBy(["grp", "uid"])
+      .sum("value")
+      .layoutPadding(1)
+      .legend(false)
+      .label(function (d) {
+        if (d.depth === 0) return colorCatLabel(d.id);
+        return (d.title || "") + "\n" + fmtUSD(d.value);
+      })
+      .color(function (d) { return colorCatColor(d.grp || d.id); })
+      .shapeConfig({
+        stroke: function (d) { return d.depth === 0 ? colorCatColor(d.id) : "rgba(255,255,255,0.6)"; },
+        strokeWidth: function (d) { return d.depth === 0 ? 2 : 0.5; },
+        labelConfig: { fontColor: "#ffffff", fontSize: 11, fontWeight: 600,
+          ellipsis: function (t) { var s = String(t).replace(/\s+\S*$/, ""); return (s || String(t)) + "\u2026"; } }
+      })
+      .tooltipConfig({
+        title: function (d) { return d.title || colorCatLabel(d.grp || d.id); },
+        body: function (d) {
+          if (!d.title) return "";
+          return '<div style="font-size:12px;line-height:1.55">' +
+            '<b>' + (CAT_LABEL[d.cat] || d.cat) + '</b>' +
+            (d.wpct != null ? ' · <b>' + d.wpct + '%</b> of project' : '') + '<br>' +
+            'Donor: <b>' + (d.donor || "—") + '</b><br>' +
+            'Recipient: <b>' + (d.other || "—") + '</b><br>' +
+            (d.wpct != null ? 'Allocated' : 'Disbursed') + ': <b>' + fmtUSD(d.disb) + '</b><br>' +
+            'Committed: <b>' + fmtUSD(d.commit) + '</b><br>' +
+            'Years: ' + (d.y0 === d.y1 ? d.y0 : d.y0 + "–" + d.y1) +
+            (d.desc && d.desc !== d.title
+              ? '<div style="margin-top:7px;max-width:340px;white-space:normal">'
+                + esc(d.desc) + '</div>'
+              : '') +
+            '</div>';
+        }
+      });
+
+    function addRow(rows, o) { o.uid = "u" + (uidCounter++); o.grp = colorCatOf(o); rows.push(o); }
+    function pushTile(t, donor, rows) {
+      var hardcat = t[T.CAT];
+      if (!recipOK(t[T.OTHER])) return;
+      var disb = tileVal(t, "disb"), commit = tileVal(t, "commit");
+      var v = state.metric === "commit" ? commit : disb;
+      if (!(v > 0)) return;
+      var yr = tileYears(t);
+      // Weighted mode: split a digital project's $ across the three digital types
+      // by its ensemble weight vector W (non-digital tiles are never split).
+      if (state.classMode === "weighted" && hardcat !== "nd" && t[T.W]) {
+        var W = t[T.W], k, c, w;
+        for (k = 0; k < 3; k++) {
+          c = WCATS[k]; w = W[k];
+          if (!(w > 0)) continue;
+          var vv = v * w;
+          if (!(vv > 0)) continue;
+          addRow(rows, {
+            cat: c, title: t[T.TITLE], value: vv, desc: t[T.DESC],
+            disb: disb * w, commit: commit * w, other: t[T.OTHER], donor: donor,
+            y0: yr[0], y1: yr[1], wpct: Math.round(w * 100)
+          });
+        }
+        return;
+      }
+      addRow(rows, {
+        cat: hardcat, title: t[T.TITLE], value: v, desc: t[T.DESC],
+        disb: disb, commit: commit, other: t[T.OTHER], donor: donor,
+        y0: yr[0], y1: yr[1]
+      });
+    }
+    function gatherTiles() {
+      var rows = []; uidCounter = 0;
+      state.donors.forEach(function (donor) {
+        (DIG[donor] || []).forEach(function (t) { pushTile(t, donor, rows); });
+        if (state.includeND && ND && ND[donor]) ND[donor].forEach(function (t) { pushTile(t, donor, rows); });
+      });
+      return rows;
+    }
+
+    function render() {
+      var empty = document.getElementById("empty");
+      if (state.donors.size === 0 || state.recips.size === 0) {
+        buildLegend([]);
+        empty.textContent = "No donor or recipient selected.";
+        empty.classList.add("show"); treemap.data([]).render();
+        return;
+      }
+      var all = gatherTiles();
+      buildLegend(all);
+      var rows = all.filter(rowVisible);
+      rows.sort(function (a, b) { return b.value - a.value; });
+      var shown = state.limit === "all" ? rows : rows.slice(0, parseInt(state.limit, 10));
+
+      if (shown.length === 0) {
+        empty.textContent = "No projects for this selection.";
+        empty.classList.add("show"); treemap.data([]).render(); return;
+      }
+      empty.classList.remove("show");
+      treemap.data(shown).render();
+    }
+
+    // ---- non-digital lazy load ------------------------------------------
+    function loadND(cb) {
+      if (ND || ndLoading) { if (ND && cb) cb(); return; }
+      ndLoading = true;
+      var s = document.createElement("script");
+      s.src = "../tm_donor_nd.js";
+      s.onload = function () { ND = window.TM_DONOR_ND || {}; ndLoading = false; if (cb) cb(); };
+      s.onerror = function () { ndLoading = false; ND = {}; if (cb) cb(); };
+      document.head.appendChild(s);
+    }
+
+    // ---- read settings from the URL query string -------------------------
+    function applyQuery(p) {
+      var dv = p.get("donors");
+      if (dv != null) {
+        if (dv.toLowerCase() === "all") state.donors = new Set(Object.keys(DIG));
+        else state.donors = new Set(dv.split("~").filter(function (x) { return DIG[x]; }));
+      }
+      var rv = p.get("recipients");
+      if (rv != null) {
+        var grp = recipsForGroup(rv);
+        if (grp) state.recips = new Set(grp);
+        else state.recips = new Set(rv.split("~").filter(function (x) { return REGION[x]; }));
+      }
+      var tv = p.get("top");
+      if (tv != null) state.limit = tv.toLowerCase() === "all" ? "all" : tv;
+      var mv = p.get("metric");
+      if (mv === "commit" || mv === "committed") state.metric = "commit";
+      if ((p.get("class") || "") === "weighted") state.classMode = "weighted";
+      var cby = p.get("color");
+      if (cby && ["type", "funder", "recipient"].indexOf(cby) !== -1) state.colorBy = cby;
+      var yv = p.get("years");
+      if (yv != null && yv.toLowerCase() !== "all") {
+        var ys = yv.split("~").map(function (x) { return parseInt(x, 10); }).filter(function (x) { return YEARS.indexOf(x) !== -1; });
+        if (ys.length) state.years = new Set(ys);
+      }
+      if (p.get("nd") === "1") state.includeND = true;
+      if (p.get("legend") === "0") document.body.classList.add("no-legend");
+      if (p.get("source") === "0") document.body.classList.add("no-source");
+      if (p.get("chrome") === "0") document.body.classList.add("no-chrome");
+    }
+
+    // ---- init ------------------------------------------------------------
+    function init() {
+      applyQuery(new URLSearchParams(BAKED));
+      applyQuery(new URLSearchParams(window.location.search));
+      // sensible defaults when a param is omitted: everything.
+      if (state.donors.size === 0) state.donors = new Set(Object.keys(DIG));
+      if (state.recips.size === 0) state.recips = new Set(ALL_RECIPS);
+      if (state.includeND) { state.activeCats.add("nd"); loadND(function () { render(); }); return; }
+      render();
+    }
+    init();
+
+    var rt;
+    window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { treemap.render(); }, 150); });
+  </script>
+</body>
+
+</html>

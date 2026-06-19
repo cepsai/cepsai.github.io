@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Digital ODA — Who Executes It?</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f8fafc; color: #0f172a; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 18px 60px; }
+
+    header { padding: 16px 18px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .header-inner { max-width: 1080px; margin: 0 auto; }
+    header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.4px; }
+    header h1 .sub { display: block; margin-top: 5px; font-size: 13px; font-weight: 600; color: #64748b; }
+    header .links { float: right; font-size: 12px; font-weight: 700; }
+    header .links a { color: #2563eb; text-decoration: none; }
+    header .links a:hover { text-decoration: underline; }
+
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 9px 18px; background: #fff; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 40; }
+    .controls-inner { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; max-width: 1080px; margin: 0 auto; width: 100%; }
+    .ctl-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+
+    .button-group { display: flex; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+    .control-btn { padding: 6px 12px; font-size: 12px; font-weight: 700; border: none; background: #fff; color: #334155; cursor: pointer; font-family: inherit; }
+    .control-btn:not(:last-child) { border-right: 1px solid #cbd5e1; }
+    .control-btn:hover:not(.active) { background: #f1f5f9; }
+    .control-btn.active { background: #2563eb; color: #fff; }
+
+    .toggle { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; cursor: pointer; user-select: none; }
+    .toggle input { width: 16px; height: 16px; cursor: pointer; accent-color: #2563eb; }
+
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 22px; margin-top: 18px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+    .card h2 { margin: 0 0 4px; font-size: 17px; font-weight: 800; letter-spacing: -0.2px; }
+    .card .desc { margin: 0 0 16px; font-size: 12.5px; font-weight: 600; color: #64748b; }
+    .prose p { margin: 0 0 12px; font-size: 14px; line-height: 1.6; color: #334155; }
+    .prose p:last-child { margin-bottom: 0; }
+
+    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 18px; }
+    .stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+    .stat .label { font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat .value { margin-top: 6px; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; font-variant-numeric: tabular-nums; }
+    .stat .note { margin-top: 4px; font-size: 12px; font-weight: 600; color: #64748b; line-height: 1.35; }
+    @media (max-width: 760px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
+
+    .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: 14px; }
+    .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: #334155; }
+    .legend-square { width: 14px; height: 14px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12) inset; }
+
+    #treemap { width: 100%; height: 480px; }
+
+    /* stacked bars */
+    .bars { display: flex; flex-direction: column; gap: 9px; margin-top: 6px; }
+    .barrow { display: grid; grid-template-columns: 190px 1fr 86px; align-items: center; gap: 12px; }
+    .barrow .bname { font-size: 12.5px; font-weight: 700; color: #1e293b; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .barrow .btrack { height: 22px; position: relative; }
+    .barrow .bseg { height: 100%; display: inline-block; vertical-align: top; }
+    .barrow .bseg:first-child { border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+    .barrow .btotal { font-size: 12px; font-weight: 700; color: #475569; text-align: left; font-variant-numeric: tabular-nums; }
+    @media (max-width: 760px) { .barrow { grid-template-columns: 120px 1fr 70px; } }
+
+    /* family 100% bar */
+    .fambar { display: flex; height: 38px; width: 100%; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,0.06) inset; margin-top: 4px; }
+    .fambar .fseg { height: 100%; }
+
+    /* team europe comparison */
+    .tecmp-row { display: grid; grid-template-columns: 150px 1fr 96px; align-items: center; gap: 12px; margin-top: 12px; }
+    .tecmp-row .tclabel { font-size: 12.5px; font-weight: 800; color: #1e293b; text-align: right; line-height: 1.25; }
+    .tecmp-row .tclabel .sub { display: block; font-size: 10.5px; font-weight: 600; color: #94a3b8; }
+    .tecmp-row .tcbar { display: flex; height: 34px; width: 100%; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,0.06) inset; }
+    .tecmp-row .tcbar .fseg { height: 100%; }
+    .tecmp-row .tctotal { font-size: 12.5px; font-weight: 700; color: #475569; text-align: left; font-variant-numeric: tabular-nums; }
+
+    table.famtab { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 13px; }
+    table.famtab th { text-align: left; font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; padding: 6px 10px; border-bottom: 1px solid #e2e8f0; }
+    table.famtab th.num, table.famtab td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    table.famtab td { padding: 9px 10px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #334155; vertical-align: middle; }
+    table.famtab .swatch { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; box-shadow: 0 0 0 1px rgba(0,0,0,0.12) inset; }
+    table.famtab .split { display: inline-flex; height: 9px; width: 120px; border-radius: 3px; overflow: hidden; vertical-align: middle; }
+    table.famtab .split i { height: 100%; }
+
+    .tip { position: fixed; z-index: 200; pointer-events: none; background: #0f172a; color: #fff; padding: 9px 11px; border-radius: 8px; font-size: 12px; line-height: 1.5; box-shadow: 0 8px 24px rgba(15,23,42,0.3); max-width: 280px; opacity: 0; transition: opacity 0.1s; }
+    .tip.show { opacity: 1; }
+    .tip b { color: #fff; }
+    .tip .trow { display: flex; align-items: center; gap: 6px; }
+    .tip .tsq { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+
+    footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11.5px; color: #94a3b8; }
+    footer b { color: #64748b; }
+  </style>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="links">
+        <a href="donor_treemaps.html">Donors</a> ·
+        <a href="recipient_treemaps.html">Recipients</a> ·
+        <a href="donor_recipient_treemaps.html">Donor × Recipient</a>
+      </div>
+      <h1>Digital ODA — Who Executes It?
+        <span class="sub">Channels of delivery: the organisations that implement digital ODA, and the share of US$ each one delivers.</span>
+      </h1>
+    </div>
+  </header>
+
+  <div class="controls">
+    <div class="controls-inner">
+      <span class="ctl-label">Size by</span>
+      <div class="button-group" id="metric-group">
+        <button class="control-btn active" data-metric="d" type="button">DISBURSED</button>
+        <button class="control-btn" data-metric="c" type="button">COMMITTED</button>
+      </div>
+      <span class="ctl-label">Funder group</span>
+      <div class="button-group" id="fg-group">
+        <button class="control-btn active" data-fg="all" type="button">ALL</button>
+        <button class="control-btn" data-fg="te" type="button">TEAM EUROPE</button>
+        <button class="control-btn" data-fg="inst" type="button">· EU INSTITUTIONS</button>
+        <button class="control-btn" data-fg="mem" type="button">· EU MEMBER STATES</button>
+        <button class="control-btn" data-fg="oth" type="button">NON-TEAM EUROPE</button>
+      </div>
+      <label class="toggle"><input type="checkbox" id="nd-toggle"> Include non-digital</label>
+    </div>
+  </div>
+
+  <div class="controls" style="position:static; top:auto; z-index:auto; padding-top:7px; padding-bottom:7px;">
+    <div class="controls-inner">
+      <span id="showing-line" style="font-size:12.5px; font-weight:600; color:#475569;"></span>
+    </div>
+  </div>
+
+  <div class="wrap">
+
+    <div class="card prose">
+      <p>A CRS <b>channel of delivery</b> is the type of organisation that actually carries out a project on the ground. The OECD records it for every reported activity, separating the donor that funds the work from the implementer that delivers it. Implementers fall into broad families: recipient governments, multilateral agencies, NGOs and civil society, universities and research bodies, private firms, and public-private networks.</p>
+      <p>Who executes matters because the channel shapes the aid modality. Funds routed through recipient government systems build state capacity and run on national budgets; NGOs and universities tend to deliver discrete projects; multilaterals pool resources at scale; private firms supply technology and build infrastructure. The mix below shows where the digital ODA dollar lands, and which type of digital work each implementer takes on.</p>
+    </div>
+
+    <div class="stat-row" id="stats"></div>
+
+    <div class="card">
+      <h2>Where the money lands, by channel</h2>
+      <p class="desc">Each tile is a single channel of delivery, grouped into its family and sized by US$. Hover a tile for its digital-type split.</p>
+      <div id="treemap"></div>
+      <div class="legend" id="treelegend"></div>
+    </div>
+
+    <div class="card">
+      <h2>What type of digital work each channel executes</h2>
+      <p class="desc">Top 15 channels by current metric. Bar length is the channel's total relative to the largest; segments show the US$ split across digital types. Hover for the breakdown.</p>
+      <div class="legend" id="barlegend"></div>
+      <div class="bars" id="bars"></div>
+    </div>
+
+    <div class="card">
+      <h2>Who executes what — by family</h2>
+      <p class="desc">Channels aggregated into delivery families. The bar shows each family's share of the total; the table breaks down the digital split within each family.</p>
+      <div class="fambar" id="fambar"></div>
+      <div class="legend" id="famlegend"></div>
+      <table class="famtab" id="famtab">
+        <thead>
+          <tr><th>Family</th><th class="num">US$</th><th class="num">% of total</th><th>Digital split (Gov · Inclusion · Infrastructure)</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Team Europe vs the rest</h2>
+      <p class="desc">Family composition of digital disbursed US$. Team Europe = EU Institutions plus EU member states; the rest = all other funders. Each bar is a 100% split across delivery families. Hover a segment for the breakdown.</p>
+      <div id="te-compare"></div>
+      <div class="legend" id="tecmplegend"></div>
+    </div>
+
+    <footer>
+      <b>Source:</b> OECD CRS, classified by the v3.1 LLM ensemble. Channel = CRS channel of delivery (implementing organisation type).
+    </footer>
+  </div>
+
+  <div class="tip" id="tip"></div>
+
+  <script src="tm_channel_data.js"></script>
+  <script>
+    // ---- config ----------------------------------------------------------
+    var CHANNELS = window.TM_CHANNELS || [];
+    var FAM_ORDER = window.TM_FAM_ORDER || [];
+
+    var TYPE_COLOR = { gov: "#2563eb", inc: "#16a34a", inf: "#d97706", nd: "#94a3b8" };
+    var TYPE_LABEL = { gov: "Digital Governance", inc: "Digital Inclusion", inf: "Hard Infrastructure", nd: "Non-digital" };
+
+    var FAM_COLOR = {
+      "Government & public sector": "#1d4ed8",
+      "Multilateral": "#0891b2",
+      "NGOs & civil society": "#16a34a",
+      "Universities & research": "#7c3aed",
+      "Private sector": "#d97706",
+      "PPPs & networks": "#db2777",
+      "Other / unspecified": "#94a3b8"
+    };
+
+    var state = { metric: "d", includeND: false };
+    var FG = "all";
+
+    var FG_LABEL = {
+      all: "All funders",
+      te: "Team Europe",
+      inst: "EU Institutions",
+      mem: "EU member states",
+      oth: "Non-Team Europe"
+    };
+
+    // per-type value for a channel, respecting the current metric + funder group.
+    // cat in {gov,inc,inf,nd}; suffix matches the page metric ("d"|"c").
+    function tval(ch, cat) {
+      var suf = "_" + state.metric;       // state.metric is "d" (disbursed) or "c" (committed)
+      var key = cat + suf;
+      if (FG === "all") return +ch[key] || 0;
+      if (!ch.fg) return 0;
+      if (FG === "te") return (+ch.fg.inst[key] || 0) + (+ch.fg.mem[key] || 0);
+      return (ch.fg[FG] && +ch.fg[FG][key]) || 0;
+    }
+
+    // ---- helpers ---------------------------------------------------------
+    function fmtUSD(m) {
+      m = +m || 0;
+      if (m >= 1000) return "$" + (m / 1000).toFixed(2) + "B";
+      if (m >= 1) return "$" + m.toFixed(1) + "M";
+      if (m > 0) return "$" + (m * 1000).toFixed(0) + "K";
+      return "$0";
+    }
+    // active digital types for the current scope
+    function activeTypes() {
+      return state.includeND ? ["gov", "inc", "inf", "nd"] : ["gov", "inc", "inf"];
+    }
+    // per-type value for a channel under the current metric + funder group
+    function typeVal(ch, t) { return tval(ch, t); }
+    // total value of a channel under the current metric + scope
+    function chanVal(ch) {
+      var s = 0, ts = activeTypes();
+      for (var i = 0; i < ts.length; i++) s += typeVal(ch, ts[i]);
+      return s;
+    }
+
+    // ---- stat cards ------------------------------------------------------
+    function renderStats() {
+      var el = document.getElementById("stats");
+      var total = 0;
+      var nChan = 0;
+      var top = null;
+      CHANNELS.forEach(function (ch) {
+        var v = chanVal(ch);
+        if (v > 0) { total += v; nChan++; if (!top || v > chanVal(top)) top = ch; }
+      });
+      // family aggregates
+      var famTot = {};
+      CHANNELS.forEach(function (ch) {
+        var v = chanVal(ch);
+        if (v > 0) famTot[ch.fam] = (famTot[ch.fam] || 0) + v;
+      });
+      var topFam = null, topFamV = 0;
+      FAM_ORDER.forEach(function (f) { if ((famTot[f] || 0) > topFamV) { topFamV = famTot[f] || 0; topFam = f; } });
+
+      var metricWord = state.metric === "c" ? "committed" : "disbursed";
+      var scopeWord = state.includeND ? "all ODA" : "digital ODA";
+      var topShare = (top && total) ? (chanVal(top) / total * 100) : 0;
+      var topFamShare = total ? (topFamV / total * 100) : 0;
+      var fgWord = FG_LABEL[FG] || "All funders";
+      var acrossNote = FG === "all" ? "across all channels of delivery" : "delivered for " + fgWord;
+
+      // dynamic showing line under the controls
+      var sl = document.getElementById("showing-line");
+      if (sl) {
+        sl.textContent = "Showing: " + fgWord + " · " + fmtUSD(total) + " " + metricWord +
+          " (" + scopeWord + ") across " + nChan + " channels";
+      }
+
+      var cards = [
+        { label: "Total " + metricWord + " (" + scopeWord + ")", value: fmtUSD(total), note: acrossNote },
+        { label: "Distinct channels", value: String(nChan), note: "implementing organisation types with US$ > 0" },
+        { label: "Largest channel", value: top ? top.name : "—", note: top ? fmtUSD(chanVal(top)) + " · " + topShare.toFixed(1) + "% of total" : "" },
+        { label: "Largest family", value: topFam || "—", note: topFam ? fmtUSD(topFamV) + " · " + topFamShare.toFixed(1) + "% of total" : "" }
+      ];
+      el.innerHTML = cards.map(function (c) {
+        return '<div class="stat"><div class="label">' + esc(c.label) + '</div>' +
+          '<div class="value">' + esc(c.value) + '</div>' +
+          '<div class="note">' + esc(c.note) + '</div></div>';
+      }).join("");
+    }
+
+    function esc(s) {
+      return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // ---- type legend builder --------------------------------------------
+    function buildTypeLegend(elId) {
+      var el = document.getElementById(elId);
+      el.innerHTML = activeTypes().map(function (t) {
+        return '<span class="legend-item"><span class="legend-square" style="background:' + TYPE_COLOR[t] + '"></span>' + TYPE_LABEL[t] + '</span>';
+      }).join("");
+    }
+
+    // ---- treemap ---------------------------------------------------------
+    var treemap = new d3plus.Treemap()
+      .select("#treemap")
+      .groupBy(["fam", "name"])
+      .sum("value")
+      .layoutPadding(1)
+      .legend(false)
+      .label(function (d) {
+        if (d.depth === 0) return d.fam || d.id;
+        return (d.name || "") + "\n" + fmtUSD(d.value);
+      })
+      .color(function (d) { return FAM_COLOR[d.fam] || "#94a3b8"; })
+      .shapeConfig({
+        stroke: function (d) { return d.depth === 0 ? FAM_COLOR[d.fam || d.id] : "rgba(255,255,255,0.65)"; },
+        strokeWidth: function (d) { return d.depth === 0 ? 2 : 0.5; },
+        labelConfig: { fontColor: "#ffffff", fontSize: 11, fontWeight: 600 }
+      })
+      .tooltipConfig({
+        title: function (d) { return d.name || d.fam || d.id; },
+        body: function (d) {
+          if (!d.name) return "";
+          var ts = activeTypes();
+          var rows = ts.map(function (t) {
+            return '<div style="display:flex;align-items:center;gap:6px">' +
+              '<span style="width:9px;height:9px;border-radius:2px;background:' + TYPE_COLOR[t] + ';display:inline-block"></span>' +
+              TYPE_LABEL[t] + ': <b>' + fmtUSD(d["v_" + t] || 0) + '</b></div>';
+          }).join("");
+          return '<div style="font-size:12px;line-height:1.55">' +
+            'Family: <b>' + esc(d.fam || "—") + '</b><br>' +
+            'Total: <b>' + fmtUSD(d.value) + '</b>' +
+            '<div style="margin-top:5px">' + rows + '</div></div>';
+        }
+      });
+
+    function renderTreemap() {
+      var ts = activeTypes();
+      var rows = [];
+      CHANNELS.forEach(function (ch) {
+        var v = chanVal(ch);
+        if (!(v > 0)) return; // drop value<=0
+        var row = { fam: ch.fam, name: ch.name, value: v };
+        ts.forEach(function (t) { row["v_" + t] = typeVal(ch, t); });
+        rows.push(row);
+      });
+      treemap.data(rows).render();
+    }
+
+    // ---- stacked bars (top 15) ------------------------------------------
+    function renderBars() {
+      buildTypeLegend("barlegend");
+      var ts = activeTypes();
+      var list = CHANNELS
+        .map(function (ch) { return { ch: ch, v: chanVal(ch) }; })
+        .filter(function (o) { return o.v > 0; })
+        .sort(function (a, b) { return b.v - a.v; })
+        .slice(0, 15);
+      var maxV = list.length ? list[0].v : 1;
+
+      var el = document.getElementById("bars");
+      el.innerHTML = "";
+      list.forEach(function (o) {
+        var ch = o.ch, v = o.v;
+        var row = document.createElement("div");
+        row.className = "barrow";
+
+        var nm = document.createElement("div");
+        nm.className = "bname";
+        nm.textContent = ch.name;
+        nm.title = ""; // no native title
+
+        var track = document.createElement("div");
+        track.className = "btrack";
+        // total width relative to largest channel
+        var widthPct = (v / maxV) * 100;
+        var segWrap = document.createElement("div");
+        segWrap.style.width = widthPct + "%";
+        segWrap.style.height = "100%";
+        segWrap.style.whiteSpace = "nowrap";
+        ts.forEach(function (t) {
+          var tv = typeVal(ch, t);
+          if (!(tv > 0)) return;
+          var seg = document.createElement("span");
+          seg.className = "bseg";
+          seg.style.width = (tv / v * 100) + "%";
+          seg.style.background = TYPE_COLOR[t];
+          segWrap.appendChild(seg);
+        });
+        track.appendChild(segWrap);
+
+        var tot = document.createElement("div");
+        tot.className = "btotal";
+        tot.textContent = fmtUSD(v);
+
+        // tooltip data stored on track
+        track._tipData = { ch: ch, v: v, ts: ts };
+
+        row.appendChild(nm);
+        row.appendChild(track);
+        row.appendChild(tot);
+        el.appendChild(row);
+      });
+    }
+
+    // bar tooltip via event delegation
+    var tip = document.getElementById("tip");
+    function barTipHTML(ch, v, ts) {
+      var rows = ts.map(function (t) {
+        var tv = tval(ch, t);
+        var pct = v ? (tv / v * 100).toFixed(0) : 0;
+        return '<div class="trow"><span class="tsq" style="background:' + TYPE_COLOR[t] + '"></span>' +
+          TYPE_LABEL[t] + ': <b>' + fmtUSD(tv) + '</b> (' + pct + '%)</div>';
+      }).join("");
+      return '<div style="font-weight:700;margin-bottom:5px">' + esc(ch.name) + '</div>' +
+        '<div style="color:#cbd5e1;margin-bottom:6px">' + esc(ch.fam) + ' · total <b style="color:#fff">' + fmtUSD(v) + '</b></div>' +
+        rows;
+    }
+    function findTrack(node) {
+      while (node && node !== document.body) {
+        if (node._tipData) return node;
+        node = node.parentNode;
+      }
+      return null;
+    }
+    document.getElementById("bars").addEventListener("mousemove", function (e) {
+      var trk = findTrack(e.target);
+      if (!trk) { tip.classList.remove("show"); return; }
+      var d = trk._tipData;
+      tip.innerHTML = barTipHTML(d.ch, d.v, d.ts);
+      tip.classList.add("show");
+      var x = e.clientX + 14, y = e.clientY + 14;
+      if (x + 290 > window.innerWidth) x = e.clientX - 290;
+      tip.style.left = x + "px";
+      tip.style.top = y + "px";
+    });
+    document.getElementById("bars").addEventListener("mouseleave", function () {
+      tip.classList.remove("show");
+    });
+
+    // ---- by family -------------------------------------------------------
+    function renderFamily() {
+      buildTypeLegend("famlegend");
+      var ts = activeTypes();
+      var agg = {};
+      FAM_ORDER.forEach(function (f) { agg[f] = { total: 0, gov: 0, inc: 0, inf: 0, nd: 0 }; });
+      CHANNELS.forEach(function (ch) {
+        var a = agg[ch.fam];
+        if (!a) return;
+        ts.forEach(function (t) { a[t] += typeVal(ch, t); });
+        a.total += chanVal(ch);
+      });
+      var grand = 0;
+      FAM_ORDER.forEach(function (f) { grand += agg[f].total; });
+
+      // 100% stacked bar
+      var fb = document.getElementById("fambar");
+      fb.innerHTML = "";
+      FAM_ORDER.forEach(function (f) {
+        var a = agg[f];
+        if (!(a.total > 0)) return;
+        var seg = document.createElement("div");
+        seg.className = "fseg";
+        seg.style.width = (a.total / grand * 100) + "%";
+        seg.style.background = FAM_COLOR[f];
+        seg._tipData = { fam: f, agg: a, grand: grand, ts: ts };
+        fb.appendChild(seg);
+      });
+
+      // family-color legend under the bar
+      var fl = document.getElementById("famlegend");
+      fl.innerHTML = FAM_ORDER.filter(function (f) { return agg[f].total > 0; }).map(function (f) {
+        return '<span class="legend-item"><span class="legend-square" style="background:' + FAM_COLOR[f] + '"></span>' + esc(f) + '</span>';
+      }).join("");
+
+      // table
+      var tb = document.querySelector("#famtab tbody");
+      tb.innerHTML = "";
+      FAM_ORDER.forEach(function (f) {
+        var a = agg[f];
+        if (!(a.total > 0)) return;
+        var pct = grand ? (a.total / grand * 100) : 0;
+        var digTot = a.gov + a.inc + a.inf;
+        var split = "";
+        ["gov", "inc", "inf"].forEach(function (t) {
+          var w = digTot ? (a[t] / digTot * 100) : 0;
+          split += '<i style="width:' + w + '%;background:' + TYPE_COLOR[t] + '"></i>';
+        });
+        var tr = document.createElement("tr");
+        tr.innerHTML =
+          '<td><span class="swatch" style="background:' + FAM_COLOR[f] + '"></span>' + esc(f) + '</td>' +
+          '<td class="num">' + fmtUSD(a.total) + '</td>' +
+          '<td class="num">' + pct.toFixed(1) + '%</td>' +
+          '<td><span class="split">' + split + '</span></td>';
+        tb.appendChild(tr);
+      });
+    }
+
+    // family bar tooltip
+    var famBarEl = document.getElementById("fambar");
+    function famTipHTML(d) {
+      var a = d.agg;
+      var pct = d.grand ? (a.total / d.grand * 100).toFixed(1) : 0;
+      var rows = d.ts.map(function (t) {
+        var tv = a[t];
+        var p = a.total ? (tv / a.total * 100).toFixed(0) : 0;
+        return '<div class="trow"><span class="tsq" style="background:' + TYPE_COLOR[t] + '"></span>' +
+          TYPE_LABEL[t] + ': <b>' + fmtUSD(tv) + '</b> (' + p + '%)</div>';
+      }).join("");
+      return '<div style="font-weight:700;margin-bottom:5px">' + esc(d.fam) + '</div>' +
+        '<div style="color:#cbd5e1;margin-bottom:6px">' + fmtUSD(a.total) + ' · ' + pct + '% of total</div>' + rows;
+    }
+    function findFamSeg(node) {
+      while (node && node !== document.body) {
+        if (node._tipData && node._tipData.fam !== undefined && node._tipData.agg) return node;
+        node = node.parentNode;
+      }
+      return null;
+    }
+    famBarEl.addEventListener("mousemove", function (e) {
+      var seg = findFamSeg(e.target);
+      if (!seg) { tip.classList.remove("show"); return; }
+      tip.innerHTML = famTipHTML(seg._tipData);
+      tip.classList.add("show");
+      var x = e.clientX + 14, y = e.clientY + 14;
+      if (x + 290 > window.innerWidth) x = e.clientX - 290;
+      tip.style.left = x + "px";
+      tip.style.top = y + "px";
+    });
+    famBarEl.addEventListener("mouseleave", function () { tip.classList.remove("show"); });
+
+    // ---- Team Europe vs the rest ----------------------------------------
+    // Always digital disbursed (gov+inc+inf, _d), grouped by family.
+    // grp: "te" = inst+mem, "oth" = the rest.
+    function famDigDisbByGroup(grp) {
+      var agg = {};
+      FAM_ORDER.forEach(function (f) { agg[f] = 0; });
+      CHANNELS.forEach(function (ch) {
+        if (!ch.fg || agg[ch.fam] === undefined) return;
+        var v = 0;
+        ["gov_d", "inc_d", "inf_d"].forEach(function (k) {
+          if (grp === "te") v += (+ch.fg.inst[k] || 0) + (+ch.fg.mem[k] || 0);
+          else v += (+ch.fg.oth[k] || 0);
+        });
+        agg[ch.fam] += v;
+      });
+      var total = 0;
+      FAM_ORDER.forEach(function (f) { total += agg[f]; });
+      return { agg: agg, total: total };
+    }
+
+    function renderTECompare() {
+      var groups = [
+        { key: "te", label: "Team Europe", sub: "EU institutions + member states" },
+        { key: "oth", label: "Non-Team Europe", sub: "all other funders" }
+      ];
+      var el = document.getElementById("te-compare");
+      el.innerHTML = "";
+      groups.forEach(function (g) {
+        var d = famDigDisbByGroup(g.key);
+        var row = document.createElement("div");
+        row.className = "tecmp-row";
+
+        var lab = document.createElement("div");
+        lab.className = "tclabel";
+        lab.innerHTML = esc(g.label) + '<span class="sub">' + esc(g.sub) + '</span>';
+
+        var bar = document.createElement("div");
+        bar.className = "tcbar";
+        FAM_ORDER.forEach(function (f) {
+          var fv = d.agg[f];
+          if (!(fv > 0) || !(d.total > 0)) return;
+          var seg = document.createElement("div");
+          seg.className = "fseg";
+          seg.style.width = (fv / d.total * 100) + "%";
+          seg.style.background = FAM_COLOR[f];
+          seg._tecmp = { group: g.label, fam: f, val: fv, total: d.total };
+          bar.appendChild(seg);
+        });
+
+        var tot = document.createElement("div");
+        tot.className = "tctotal";
+        tot.textContent = fmtUSD(d.total);
+
+        row.appendChild(lab);
+        row.appendChild(bar);
+        row.appendChild(tot);
+        el.appendChild(row);
+      });
+
+      // family legend
+      var lg = document.getElementById("tecmplegend");
+      lg.innerHTML = FAM_ORDER.map(function (f) {
+        return '<span class="legend-item"><span class="legend-square" style="background:' + FAM_COLOR[f] + '"></span>' + esc(f) + '</span>';
+      }).join("");
+    }
+
+    function teCmpTipHTML(d) {
+      var pct = d.total ? (d.val / d.total * 100).toFixed(1) : 0;
+      return '<div style="font-weight:700;margin-bottom:5px">' + esc(d.group) + '</div>' +
+        '<div class="trow"><span class="tsq" style="background:' + FAM_COLOR[d.fam] + '"></span>' +
+        esc(d.fam) + '</div>' +
+        '<div style="margin-top:4px">' + fmtUSD(d.val) + ' · <b style="color:#fff">' + pct + '%</b> of digital disbursed</div>';
+    }
+    function findTECmp(node) {
+      while (node && node !== document.body) {
+        if (node._tecmp) return node;
+        node = node.parentNode;
+      }
+      return null;
+    }
+    var teCmpEl = document.getElementById("te-compare");
+    teCmpEl.addEventListener("mousemove", function (e) {
+      var seg = findTECmp(e.target);
+      if (!seg) { tip.classList.remove("show"); return; }
+      tip.innerHTML = teCmpTipHTML(seg._tecmp);
+      tip.classList.add("show");
+      var x = e.clientX + 14, y = e.clientY + 14;
+      if (x + 290 > window.innerWidth) x = e.clientX - 290;
+      tip.style.left = x + "px";
+      tip.style.top = y + "px";
+    });
+    teCmpEl.addEventListener("mouseleave", function () { tip.classList.remove("show"); });
+
+    // ---- master render ---------------------------------------------------
+    function renderAll() {
+      renderStats();
+      buildTypeLegend("treelegend");
+      renderTreemap();
+      renderBars();
+      renderFamily();
+      renderTECompare();
+    }
+
+    // ---- controls --------------------------------------------------------
+    document.querySelectorAll("#metric-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#metric-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active");
+        state.metric = this.getAttribute("data-metric");
+        renderAll();
+      });
+    });
+    document.querySelectorAll("#fg-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#fg-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active");
+        FG = this.getAttribute("data-fg");
+        renderAll();
+      });
+    });
+    document.getElementById("nd-toggle").addEventListener("change", function () {
+      state.includeND = this.checked;
+      renderAll();
+    });
+
+    // ---- init ------------------------------------------------------------
+    renderAll();
+
+    var rt;
+    window.addEventListener("resize", function () {
+      clearTimeout(rt);
+      rt = setTimeout(function () { treemap.render(); }, 150);
+    });
+  </script>
+</body>
+
+</html>
