@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Digital ODA — Recipient Project Treemaps</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f8fafc; color: #0f172a; height: 100vh; overflow: hidden; }
+    .app { display: flex; flex-direction: column; height: 100vh; }
+    header { padding: 10px 18px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    header h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
+    header h1 .sub { font-size: 12px; font-weight: 600; color: #64748b; }
+    header .links { float: right; font-size: 12px; font-weight: 700; }
+    header .links a { color: #2563eb; text-decoration: none; }
+    header .links a:hover { text-decoration: underline; }
+
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 9px 18px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .ctl-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+
+    .button-group { display: flex; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+    .control-btn { padding: 6px 12px; font-size: 12px; font-weight: 700; border: none; background: #fff; color: #334155; cursor: pointer; font-family: inherit; }
+    .control-btn:not(:last-child) { border-right: 1px solid #cbd5e1; }
+    .control-btn:hover:not(.active) { background: #f1f5f9; }
+    .control-btn.active { background: #2563eb; color: #fff; }
+
+    .toggle { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; cursor: pointer; user-select: none; }
+    .toggle input { width: 16px; height: 16px; cursor: pointer; accent-color: #2563eb; }
+
+    /* multi-select dropdown */
+    .ms { position: relative; }
+    .ms-btn { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #0f172a; cursor: pointer; font-family: inherit; min-width: 220px; justify-content: space-between; }
+    .ms-btn:hover { background: #f8fafc; }
+    .ms-btn .caret { color: #94a3b8; }
+    .ms-panel { display: none; position: absolute; z-index: 50; top: calc(100% + 4px); left: 0; width: 320px; max-height: 60vh; overflow-y: auto; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18); padding: 6px; }
+    .ms-panel.open { display: block; }
+    .ms-tools { display: flex; gap: 6px; padding: 4px 6px 8px; border-bottom: 1px solid #eef2f7; margin-bottom: 4px; }
+    .ms-tools button { flex: 1; font-size: 11px; font-weight: 700; padding: 5px; border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; cursor: pointer; }
+    .ms-tools button:hover { background: #eef2f7; }
+    .ms-row { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .ms-row:hover { background: #f1f5f9; }
+    .ms-row input { width: 15px; height: 15px; cursor: pointer; accent-color: #2563eb; }
+    .ms-row .nm { flex: 1; font-weight: 600; }
+    .ms-row .amt { font-size: 11px; font-weight: 700; color: #64748b; font-variant-numeric: tabular-nums; }
+    .ms-row.hdr { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; cursor: default; padding: 8px 8px 3px; }
+    .ms-row.hdr:hover { background: transparent; }
+
+    .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 8px 18px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .legend-item { display: flex; align-items: center; gap: 7px; cursor: pointer; font-size: 12px; font-weight: 700; color: #334155; transition: opacity 0.15s; }
+    .legend-item.inactive { opacity: 0.32; }
+    .legend-square { width: 14px; height: 14px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12) inset; }
+    .legend .meta { margin-left: auto; font-size: 11.5px; font-weight: 600; color: #64748b; }
+    .legend .meta b { color: #0f172a; }
+
+    #treewrap { flex: 1; min-height: 0; position: relative; }
+    #treemap { width: 100%; height: 100%; }
+    .empty { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: #94a3b8; font-size: 14px; font-weight: 600; }
+    .empty.show { display: flex; }
+    footer { padding: 6px 18px; background: #fff; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; }
+    footer b { color: #64748b; }
+  </style>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+
+<body>
+  <div class="app">
+    <header>
+      <div class="links"><a href="donor_treemaps.html">← Donor view</a> · <a href="donor_recipient_treemaps.html">Donor × Recipient</a></div>
+      <h1>Digital ODA — Recipient Project Treemaps<br><span class="sub">Priority partner countries · each tile is a project received, sized by US$ disbursed, coloured by digital type</span></h1>
+    </header>
+
+    <div class="controls">
+      <span class="ctl-label">Region</span>
+      <div class="button-group" id="region-group">
+        <button class="control-btn" data-region="Africa">AFRICA</button>
+        <button class="control-btn" data-region="Asia">ASIA</button>
+        <button class="control-btn" data-region="Pacific">PACIFIC</button>
+        <button class="control-btn" data-region="all">ALL</button>
+      </div>
+
+      <span class="ctl-label">Countries</span>
+      <div class="ms" id="ms">
+        <button class="ms-btn" id="ms-btn" type="button" aria-haspopup="true" aria-expanded="false">
+          <span id="ms-btn-label">Select countries…</span><span class="caret">▾</span>
+        </button>
+        <div class="ms-panel" id="ms-panel"></div>
+      </div>
+
+      <span class="ctl-label">Show top</span>
+      <div class="button-group" id="limit-group">
+        <button class="control-btn" data-limit="50">50</button>
+        <button class="control-btn active" data-limit="100">100</button>
+        <button class="control-btn" data-limit="all">ALL</button>
+      </div>
+
+      <span class="ctl-label">Size by</span>
+      <div class="button-group" id="metric-group">
+        <button class="control-btn active" data-metric="disb">DISBURSED</button>
+        <button class="control-btn" data-metric="commit">COMMITTED</button>
+      </div>
+
+      <span class="ctl-label">Colour by</span>
+      <div class="button-group" id="color-group">
+        <button class="control-btn active" data-color="type" title="Colour tiles by digital type">TYPE</button>
+        <button class="control-btn" data-color="funder" title="Colour by funder: Team Europe (EU Institutions + EU member states) vs Non-Team Europe">FUNDER</button>
+      </div>
+
+      <span class="ctl-label">Years</span>
+      <div class="button-group" id="year-group">
+        <button class="control-btn active" data-year="all">ALL</button>
+        <button class="control-btn active" data-year="2019">2019</button>
+        <button class="control-btn active" data-year="2020">2020</button>
+        <button class="control-btn active" data-year="2021">2021</button>
+        <button class="control-btn active" data-year="2022">2022</button>
+        <button class="control-btn active" data-year="2023">2023</button>
+        <button class="control-btn active" data-year="2024">2024</button>
+      </div>
+
+      <label class="toggle"><input type="checkbox" id="nd-toggle"> Include non-digital</label>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <div id="treewrap">
+      <div id="treemap"></div>
+      <div class="empty" id="empty">Select one or more countries to see their projects.</div>
+    </div>
+
+    <footer>
+      Source: OECD CRS, classified by the v3.1 LLM ensemble. Tiles group a project's rows across years.
+      Non-digital projects are capped to the 1,500 largest (by disbursed US$) per recipient. <b id="foot-stats"></b>
+    </footer>
+  </div>
+
+  <script src="tm_rec_dig.js"></script>
+  <script src="tm_regions.js"></script>
+  <script>
+    // ---- config ----------------------------------------------------------
+    var CAT_COLOR = { gov: "#2563eb", inc: "#16a34a", inf: "#d97706", nd: "#94a3b8" };
+    var CAT_LABEL = { gov: "Digital Governance", inc: "Digital Inclusion", inf: "Hard Infrastructure", nd: "Non-digital" };
+    var CAT_ORDER = ["gov", "inc", "inf", "nd"];
+    // compact tile array layout: [title, cat, other, yrs=[[year,disb,commit]], W=[Wg,Wi,Wf]]
+    // here OTHER = the donor (who funded it); the axis key = the recipient country.
+    var T = { TITLE: 0, CAT: 1, OTHER: 2, YRS: 3, W: 4 };
+
+    // funder-group colouring (Team Europe = EU Institutions + EU member states)
+    var EU_INST = "EU Institutions";
+    var EU27 = new Set(["Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czechia", "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland", "Portugal", "Romania", "Slovak Republic", "Slovenia", "Spain", "Sweden"]);
+    function fgroupOf(donor) { if (donor === EU_INST) return "EU Institutions"; if (EU27.has(donor)) return "EU member states"; return "Non-Team Europe"; }
+    var FG_COLOR = { "EU Institutions": "#1d4ed8", "EU member states": "#38bdf8", "Non-Team Europe": "#f59e0b" };
+    var FG_ORDER = ["EU Institutions", "EU member states", "Non-Team Europe"];
+    function colorCatOf(r) {
+      if (state.colorBy === "funder") return fgroupOf(r.other);
+      return r.cat;
+    }
+    function colorCatColor(c) {
+      if (state.colorBy === "funder") return FG_COLOR[c] || "#94a3b8";
+      return CAT_COLOR[c] || "#999";
+    }
+    function colorCatLabel(c) { return state.colorBy === "type" ? (CAT_LABEL[c] || c) : c; }
+    function rowVisible(r) {
+      if (state.colorBy === "type") return state.activeCats.has(r.cat);
+      return !state.hidden.has(r.grp);
+    }
+
+    var RDIG = window.TM_REC_DIG || {};
+    var REGION = window.TM_REGION || {};
+    var ND = null;                // lazy-loaded
+    var ndLoading = false;
+    var REGION_ORDER = ["Africa", "Asia", "Pacific"];
+    var YEARS = window.TM_YEARS || [2019, 2020, 2021, 2022, 2023, 2024];
+
+    var state = {
+      selected: new Set(),
+      years: new Set(YEARS),
+      limit: "100",
+      metric: "disb",
+      colorBy: "type",            // "type" | "funder"
+      includeND: false,
+      activeCats: new Set(["gov", "inc", "inf", "nd"]),
+      hidden: new Set()           // hidden colour categories in funder mode
+    };
+
+    // sum a tile's disbursed/committed US$ over the currently-selected years
+    function tileVal(t, metric) {
+      var yrs = t[T.YRS], col = metric === "commit" ? 2 : 1, s = 0, i;
+      for (i = 0; i < yrs.length; i++) if (state.years.has(yrs[i][0])) s += yrs[i][col];
+      return s;
+    }
+    // first/last selected year with any money on this tile (for the tooltip)
+    function tileYears(t) {
+      var yrs = t[T.YRS], lo = null, hi = null, i, y;
+      for (i = 0; i < yrs.length; i++) {
+        y = yrs[i][0];
+        if (!state.years.has(y)) continue;
+        if (yrs[i][1] || yrs[i][2]) { if (lo === null || y < lo) lo = y; if (hi === null || y > hi) hi = y; }
+      }
+      return [lo, hi];
+    }
+
+    // ---- helpers ---------------------------------------------------------
+    function fmtUSD(m) {
+      m = +m || 0;
+      if (m >= 1000) return "$" + (m / 1000).toFixed(2) + "B";
+      if (m >= 1) return "$" + m.toFixed(1) + "M";
+      if (m > 0) return "$" + (m * 1000).toFixed(0) + "K";
+      return "$0";
+    }
+    function recipientTotal(d) {
+      var sum = 0, a = RDIG[d] || [], i;
+      for (i = 0; i < a.length; i++) sum += tileVal(a[i], "disb");
+      if (state.includeND && ND && ND[d]) { var b = ND[d]; for (i = 0; i < b.length; i++) sum += tileVal(b[i], "disb"); }
+      return sum;
+    }
+    function metricVal(tile) { return tileVal(tile, state.metric); }
+    function regionOf(c) { return REGION[c] || "Other"; }
+    function countriesInRegion(region) {
+      return Object.keys(RDIG).filter(function (c) { return region === "all" || regionOf(c) === region; });
+    }
+
+    // ---- multi-select dropdown ------------------------------------------
+    var msBtn = document.getElementById("ms-btn");
+    var msPanel = document.getElementById("ms-panel");
+    var msLabel = document.getElementById("ms-btn-label");
+
+    function buildPanel() {
+      var html = '<div class="ms-tools"><button type="button" data-act="all">Select all</button>' +
+        '<button type="button" data-act="none">Clear</button></div>';
+      REGION_ORDER.forEach(function (region) {
+        var list = countriesInRegion(region).sort(function (a, b) { return recipientTotal(b) - recipientTotal(a); });
+        if (!list.length) return;
+        html += '<div class="ms-row hdr">' + region.toUpperCase() + '</div>';
+        list.forEach(function (c) {
+          var checked = state.selected.has(c) ? "checked" : "";
+          html += '<label class="ms-row"><input type="checkbox" value="' + encodeURIComponent(c) + '" ' + checked + '>' +
+            '<span class="nm">' + c + '</span><span class="amt">' + fmtUSD(recipientTotal(c)) + '</span></label>';
+        });
+      });
+      msPanel.innerHTML = html;
+    }
+    function updateMsLabel() {
+      var n = state.selected.size;
+      if (n === 0) msLabel.textContent = "Select countries…";
+      else if (n === 1) msLabel.textContent = Array.from(state.selected)[0];
+      else msLabel.textContent = n + " countries selected";
+    }
+    msBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var open = msPanel.classList.toggle("open");
+      msBtn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) buildPanel();
+    });
+    msPanel.addEventListener("click", function (e) { e.stopPropagation(); });
+    msPanel.addEventListener("change", function (e) {
+      if (e.target && e.target.type === "checkbox") {
+        var c = decodeURIComponent(e.target.value);
+        if (e.target.checked) state.selected.add(c); else state.selected.delete(c);
+        clearRegionActive(); updateMsLabel(); render();
+      }
+    });
+    msPanel.addEventListener("click", function (e) {
+      var act = e.target && e.target.getAttribute && e.target.getAttribute("data-act");
+      if (!act) return;
+      if (act === "all") { state.selected = new Set(Object.keys(RDIG)); setRegionActive("all"); }
+      else { state.selected = new Set(); clearRegionActive(); }
+      buildPanel(); updateMsLabel(); render();
+    });
+    document.addEventListener("click", function () { msPanel.classList.remove("open"); msBtn.setAttribute("aria-expanded", "false"); });
+
+    // ---- region quick-filter --------------------------------------------
+    function clearRegionActive() {
+      document.querySelectorAll("#region-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+    }
+    function setRegionActive(region) {
+      clearRegionActive();
+      var btn = document.querySelector('#region-group .control-btn[data-region="' + region + '"]');
+      if (btn) btn.classList.add("active");
+    }
+    function selectRegion(region) {
+      state.selected = new Set(countriesInRegion(region));
+      setRegionActive(region);
+      updateMsLabel(); render();
+    }
+    document.querySelectorAll("#region-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () { selectRegion(this.dataset.region); });
+    });
+
+    // ---- legend ----------------------------------------------------------
+    function buildLegend(rows) {
+      var legend = document.getElementById("legend");
+      legend.innerHTML = "";
+      var cats;
+      if (state.colorBy === "type") {
+        cats = CAT_ORDER.filter(function (c) { return c !== "nd" || state.includeND; });
+      } else {
+        var seen = {}; cats = [];
+        (rows || []).forEach(function (r) { if (!seen[r.grp]) { seen[r.grp] = 1; cats.push(r.grp); } });
+        cats.sort(function (a, b) { return FG_ORDER.indexOf(a) - FG_ORDER.indexOf(b); });
+      }
+      cats.forEach(function (c) {
+        var inactive = state.colorBy === "type" ? !state.activeCats.has(c) : state.hidden.has(c);
+        var item = document.createElement("div");
+        item.className = "legend-item" + (inactive ? " inactive" : "");
+        var sq = document.createElement("div");
+        sq.className = "legend-square"; sq.style.background = colorCatColor(c);
+        var lab = document.createElement("span"); lab.textContent = colorCatLabel(c);
+        item.appendChild(sq); item.appendChild(lab);
+        item.addEventListener("click", function () {
+          if (state.colorBy === "type") {
+            if (state.activeCats.has(c)) state.activeCats.delete(c); else state.activeCats.add(c);
+          } else {
+            if (state.hidden.has(c)) state.hidden.delete(c); else state.hidden.add(c);
+          }
+          render();
+        });
+        legend.appendChild(item);
+      });
+      var meta = document.createElement("div");
+      meta.className = "meta"; meta.id = "legend-meta";
+      legend.appendChild(meta);
+    }
+
+    // ---- treemap ---------------------------------------------------------
+    var uidCounter = 0;
+    var treemap = new d3plus.Treemap()
+      .select("#treemap")
+      .groupBy(["grp", "uid"])
+      .sum("value")
+      .layoutPadding(1)
+      .legend(false)
+      .label(function (d) {
+        if (d.depth === 0) return colorCatLabel(d.id);
+        return (d.title || "") + "\n" + fmtUSD(d.value);
+      })
+      .color(function (d) { return colorCatColor(d.grp || d.id); })
+      .shapeConfig({
+        stroke: function (d) { return d.depth === 0 ? colorCatColor(d.id) : "rgba(255,255,255,0.6)"; },
+        strokeWidth: function (d) { return d.depth === 0 ? 2 : 0.5; },
+        labelConfig: { fontColor: "#ffffff", fontSize: 11, fontWeight: 600 }
+      })
+      .tooltipConfig({
+        title: function (d) { return d.title || colorCatLabel(d.grp || d.id); },
+        body: function (d) {
+          if (!d.title) return "";
+          return '<div style="font-size:12px;line-height:1.55">' +
+            '<b>' + (CAT_LABEL[d.cat] || d.cat) + '</b><br>' +
+            'Recipient: <b>' + (d.recipient || "—") + '</b><br>' +
+            'Funded by: <b>' + (d.other || "—") + '</b><br>' +
+            'Disbursed: <b>' + fmtUSD(d.disb) + '</b><br>' +
+            'Committed: <b>' + fmtUSD(d.commit) + '</b><br>' +
+            'Years: ' + (d.y0 === d.y1 ? d.y0 : d.y0 + "–" + d.y1) +
+            '</div>';
+        }
+      });
+
+    function gatherTiles() {
+      var rows = [];
+      uidCounter = 0;
+      state.selected.forEach(function (recipient) {
+        (RDIG[recipient] || []).forEach(function (t) { pushTile(t, recipient, rows); });
+        if (state.includeND && ND && ND[recipient]) ND[recipient].forEach(function (t) { pushTile(t, recipient, rows); });
+      });
+      return rows;
+    }
+    function addRow(rows, o) { o.uid = "u" + (uidCounter++); o.grp = colorCatOf(o); rows.push(o); }
+    function pushTile(t, recipient, rows) {
+      var cat = t[T.CAT];
+      var v = tileVal(t, state.metric);
+      if (!(v > 0)) return; // zero-area tiles can't render
+      var yr = tileYears(t);
+      addRow(rows, {
+        cat: cat, title: t[T.TITLE], value: v,
+        disb: tileVal(t, "disb"), commit: tileVal(t, "commit"), other: t[T.OTHER], recipient: recipient,
+        y0: yr[0], y1: yr[1]
+      });
+    }
+
+    function render() {
+      var all = gatherTiles();
+      buildLegend(all);
+      var rows = all.filter(rowVisible);
+      var empty = document.getElementById("empty");
+      // apply top-N (on the pooled set, by value desc)
+      rows.sort(function (a, b) { return b.value - a.value; });
+      var shown = state.limit === "all" ? rows : rows.slice(0, parseInt(state.limit, 10));
+
+      var totalVal = shown.reduce(function (s, r) { return s + r.value; }, 0);
+      var metaEl = document.getElementById("legend-meta");
+      if (metaEl) metaEl.innerHTML = "<b>" + shown.length + "</b> projects · " + fmtUSD(totalVal) +
+        " " + (state.metric === "commit" ? "committed" : "disbursed");
+      var n = state.selected.size;
+      document.getElementById("foot-stats").textContent =
+        n + " countr" + (n === 1 ? "y" : "ies") + " selected · " + rows.length + " projects in pool";
+
+      if (shown.length === 0) { empty.classList.add("show"); treemap.data([]).render(); return; }
+      empty.classList.remove("show");
+      treemap.data(shown).render();
+    }
+
+    // ---- non-digital lazy load ------------------------------------------
+    function loadND(cb) {
+      if (ND || ndLoading) { if (ND && cb) cb(); return; }
+      ndLoading = true;
+      var s = document.createElement("script");
+      s.src = "tm_rec_nd.js";
+      s.onload = function () { ND = window.TM_REC_ND || {}; ndLoading = false; if (cb) cb(); };
+      s.onerror = function () { ndLoading = false; ND = {}; if (cb) cb(); };
+      document.head.appendChild(s);
+    }
+
+    // ---- control wiring --------------------------------------------------
+    document.querySelectorAll("#limit-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#limit-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active"); state.limit = this.dataset.limit; render();
+      });
+    });
+    document.querySelectorAll("#metric-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#metric-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active"); state.metric = this.dataset.metric; render();
+      });
+    });
+    document.querySelectorAll("#color-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#color-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active"); state.colorBy = this.dataset.color; state.hidden = new Set(); render();
+      });
+    });
+    function reflectYearButtons() {
+      document.querySelectorAll("#year-group .control-btn").forEach(function (b) {
+        if (b.dataset.year === "all") b.classList.toggle("active", state.years.size === YEARS.length);
+        else b.classList.toggle("active", state.years.has(parseInt(b.dataset.year, 10)));
+      });
+    }
+    document.querySelectorAll("#year-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var y = this.dataset.year;
+        if (y === "all") {
+          state.years = new Set(YEARS);
+        } else {
+          y = parseInt(y, 10);
+          if (state.years.has(y)) state.years.delete(y); else state.years.add(y);
+          if (state.years.size === 0) state.years = new Set(YEARS); // never empty
+        }
+        reflectYearButtons(); render();
+      });
+    });
+    document.getElementById("nd-toggle").addEventListener("change", function () {
+      var on = this.checked;
+      var self = this;
+      if (on) {
+        self.disabled = true;
+        loadND(function () {
+          self.disabled = false;
+          state.includeND = true; state.activeCats.add("nd"); render();
+        });
+      } else { state.includeND = false; render(); }
+    });
+
+    // ---- init ------------------------------------------------------------
+    function init() {
+      // default: select all AFRICA priority countries (page opens non-empty)
+      selectRegion("Africa");
+    }
+    init();
+
+    // responsive
+    var rt;
+    window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { treemap.render(); }, 150); });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Digital ODA — Donor Project Treemaps</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f8fafc; color: #0f172a; height: 100vh; overflow: hidden; }
+    .app { display: flex; flex-direction: column; height: 100vh; }
+    header { padding: 10px 18px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    header h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
+    header h1 .sub { font-size: 12px; font-weight: 600; color: #64748b; }
+    header .links { float: right; font-size: 12px; font-weight: 700; }
+    header .links a { color: #2563eb; text-decoration: none; }
+    header .links a:hover { text-decoration: underline; }
+
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 9px 18px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .ctl-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+
+    .button-group { display: flex; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+    .control-btn { padding: 6px 12px; font-size: 12px; font-weight: 700; border: none; background: #fff; color: #334155; cursor: pointer; font-family: inherit; }
+    .control-btn:not(:last-child) { border-right: 1px solid #cbd5e1; }
+    .control-btn:hover:not(.active) { background: #f1f5f9; }
+    .control-btn.active { background: #2563eb; color: #fff; }
+
+    .toggle { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; cursor: pointer; user-select: none; }
+    .toggle input { width: 16px; height: 16px; cursor: pointer; accent-color: #2563eb; }
+
+    /* multi-select dropdown */
+    .ms { position: relative; }
+    .ms-btn { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #0f172a; cursor: pointer; font-family: inherit; min-width: 220px; justify-content: space-between; }
+    .ms-btn:hover { background: #f8fafc; }
+    .ms-btn .caret { color: #94a3b8; }
+    .ms-panel { display: none; position: absolute; z-index: 50; top: calc(100% + 4px); left: 0; width: 320px; max-height: 60vh; overflow-y: auto; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18); padding: 6px; }
+    .ms-panel.open { display: block; }
+    .ms-tools { display: flex; gap: 6px; padding: 4px 6px 8px; border-bottom: 1px solid #eef2f7; margin-bottom: 4px; }
+    .ms-tools button { flex: 1; font-size: 11px; font-weight: 700; padding: 5px; border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; cursor: pointer; }
+    .ms-tools button:hover { background: #eef2f7; }
+    .ms-row { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .ms-row:hover { background: #f1f5f9; }
+    .ms-row input { width: 15px; height: 15px; cursor: pointer; accent-color: #2563eb; }
+    .ms-row .nm { flex: 1; font-weight: 600; }
+    .ms-row .amt { font-size: 11px; font-weight: 700; color: #64748b; font-variant-numeric: tabular-nums; }
+    .ms-row.hdr { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; cursor: default; padding: 8px 8px 3px; }
+    .ms-row.hdr:hover { background: transparent; }
+
+    .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 8px 18px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .legend-item { display: flex; align-items: center; gap: 7px; cursor: pointer; font-size: 12px; font-weight: 700; color: #334155; transition: opacity 0.15s; }
+    .legend-item.inactive { opacity: 0.32; }
+    .legend-square { width: 14px; height: 14px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12) inset; }
+    .legend .meta { margin-left: auto; font-size: 11.5px; font-weight: 600; color: #64748b; }
+    .legend .meta b { color: #0f172a; }
+
+    #treewrap { flex: 1; min-height: 0; position: relative; }
+    #treemap { width: 100%; height: 100%; }
+    .empty { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: #94a3b8; font-size: 14px; font-weight: 600; }
+    .empty.show { display: flex; }
+    footer { padding: 6px 18px; background: #fff; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; }
+    footer b { color: #64748b; }
+  </style>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+
+<body>
+  <div class="app">
+    <header>
+      <div class="links"><a href="donor_recipient_treemaps.html">Donor × Recipient</a> · <a href="recipient_treemaps.html">Recipient view →</a></div>
+      <h1>Digital ODA — Donor Project Treemaps<br><span class="sub">EU member states &amp; institutions · each tile is a project, sized by US$ disbursed, coloured by digital type</span></h1>
+    </header>
+
+    <div class="controls">
+      <span class="ctl-label">Donors</span>
+      <div class="ms" id="ms">
+        <button class="ms-btn" id="ms-btn" type="button" aria-haspopup="true" aria-expanded="false">
+          <span id="ms-btn-label">Select donors…</span><span class="caret">▾</span>
+        </button>
+        <div class="ms-panel" id="ms-panel"></div>
+      </div>
+
+      <span class="ctl-label">Show top</span>
+      <div class="button-group" id="limit-group">
+        <button class="control-btn" data-limit="50">50</button>
+        <button class="control-btn active" data-limit="100">100</button>
+        <button class="control-btn" data-limit="all">ALL</button>
+      </div>
+
+      <span class="ctl-label">Size by</span>
+      <div class="button-group" id="metric-group">
+        <button class="control-btn active" data-metric="disb">DISBURSED</button>
+        <button class="control-btn" data-metric="commit">COMMITTED</button>
+      </div>
+
+      <span class="ctl-label">Years</span>
+      <div class="button-group" id="year-group">
+        <button class="control-btn active" data-year="all">ALL</button>
+        <button class="control-btn active" data-year="2019">2019</button>
+        <button class="control-btn active" data-year="2020">2020</button>
+        <button class="control-btn active" data-year="2021">2021</button>
+        <button class="control-btn active" data-year="2022">2022</button>
+        <button class="control-btn active" data-year="2023">2023</button>
+        <button class="control-btn active" data-year="2024">2024</button>
+      </div>
+
+      <label class="toggle"><input type="checkbox" id="nd-toggle"> Include non-digital</label>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <div id="treewrap">
+      <div id="treemap"></div>
+      <div class="empty" id="empty">Select one or more donors to see their projects.</div>
+    </div>
+
+    <footer>
+      Source: OECD CRS, classified by the v3.1 LLM ensemble. Tiles group a project's rows across years.
+      Non-digital projects are capped to the 1,500 largest (by disbursed US$) per donor. <b id="foot-stats"></b>
+    </footer>
+  </div>
+
+  <script src="tm_donor_dig.js"></script>
+  <script>
+    // ---- config ----------------------------------------------------------
+    var CAT_COLOR = { gov: "#2563eb", inc: "#16a34a", inf: "#d97706", nd: "#94a3b8" };
+    var CAT_LABEL = { gov: "Digital Governance", inc: "Digital Inclusion", inf: "Hard Infrastructure", nd: "Non-digital" };
+    var CAT_ORDER = ["gov", "inc", "inf", "nd"];
+    // compact tile array layout: [title, cat, other, yrs=[[year,disb,commit]], W=[Wg,Wi,Wf]]
+    var T = { TITLE: 0, CAT: 1, OTHER: 2, YRS: 3, W: 4 };
+
+    var DIG = window.TM_DONOR_DIG || {};
+    var ND = null;                // lazy-loaded
+    var ndLoading = false;
+    var YEARS = window.TM_YEARS || [2019, 2020, 2021, 2022, 2023, 2024];
+
+    var state = {
+      selected: new Set(),
+      years: new Set(YEARS),
+      limit: "100",
+      metric: "disb",
+      includeND: false,
+      activeCats: new Set(["gov", "inc", "inf", "nd"])
+    };
+
+    // sum a tile's disbursed/committed US$ over the currently-selected years
+    function tileVal(t, metric) {
+      var yrs = t[T.YRS], col = metric === "commit" ? 2 : 1, s = 0, i;
+      for (i = 0; i < yrs.length; i++) if (state.years.has(yrs[i][0])) s += yrs[i][col];
+      return s;
+    }
+    // first/last selected year with any money on this tile (for the tooltip)
+    function tileYears(t) {
+      var yrs = t[T.YRS], lo = null, hi = null, i, y;
+      for (i = 0; i < yrs.length; i++) {
+        y = yrs[i][0];
+        if (!state.years.has(y)) continue;
+        if (yrs[i][1] || yrs[i][2]) { if (lo === null || y < lo) lo = y; if (hi === null || y > hi) hi = y; }
+      }
+      return [lo, hi];
+    }
+
+    // ---- helpers ---------------------------------------------------------
+    function fmtUSD(m) {
+      m = +m || 0;
+      if (m >= 1000) return "$" + (m / 1000).toFixed(2) + "B";
+      if (m >= 1) return "$" + m.toFixed(1) + "M";
+      if (m > 0) return "$" + (m * 1000).toFixed(0) + "K";
+      return "$0";
+    }
+    function donorTotal(d) {
+      var sum = 0, a = DIG[d] || [], i;
+      for (i = 0; i < a.length; i++) sum += tileVal(a[i], "disb");
+      if (state.includeND && ND && ND[d]) { var b = ND[d]; for (i = 0; i < b.length; i++) sum += tileVal(b[i], "disb"); }
+      return sum;
+    }
+
+    // ---- multi-select dropdown ------------------------------------------
+    var msBtn = document.getElementById("ms-btn");
+    var msPanel = document.getElementById("ms-panel");
+    var msLabel = document.getElementById("ms-btn-label");
+
+    function donorList() {
+      // EU Institutions pinned conceptually, but order all by current total desc
+      return Object.keys(DIG).sort(function (a, b) { return donorTotal(b) - donorTotal(a); });
+    }
+    function buildPanel() {
+      var donors = donorList();
+      var html = '<div class="ms-tools"><button type="button" data-act="all">Select all</button>' +
+        '<button type="button" data-act="none">Clear</button></div>';
+      html += '<div class="ms-row hdr">Donor · disbursed (digital' + (state.includeND ? " + non-digital" : "") + ')</div>';
+      donors.forEach(function (d) {
+        var checked = state.selected.has(d) ? "checked" : "";
+        html += '<label class="ms-row"><input type="checkbox" value="' + encodeURIComponent(d) + '" ' + checked + '>' +
+          '<span class="nm">' + d + '</span><span class="amt">' + fmtUSD(donorTotal(d)) + '</span></label>';
+      });
+      msPanel.innerHTML = html;
+    }
+    function updateMsLabel() {
+      var n = state.selected.size;
+      if (n === 0) msLabel.textContent = "Select donors…";
+      else if (n === 1) msLabel.textContent = Array.from(state.selected)[0];
+      else msLabel.textContent = n + " donors selected";
+    }
+    msBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var open = msPanel.classList.toggle("open");
+      msBtn.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) buildPanel();
+    });
+    msPanel.addEventListener("click", function (e) { e.stopPropagation(); });
+    msPanel.addEventListener("change", function (e) {
+      if (e.target && e.target.type === "checkbox") {
+        var d = decodeURIComponent(e.target.value);
+        if (e.target.checked) state.selected.add(d); else state.selected.delete(d);
+        updateMsLabel(); render();
+      }
+    });
+    msPanel.addEventListener("click", function (e) {
+      var act = e.target && e.target.getAttribute && e.target.getAttribute("data-act");
+      if (!act) return;
+      if (act === "all") state.selected = new Set(Object.keys(DIG));
+      else state.selected = new Set();
+      buildPanel(); updateMsLabel(); render();
+    });
+    document.addEventListener("click", function () { msPanel.classList.remove("open"); msBtn.setAttribute("aria-expanded", "false"); });
+
+    // ---- legend ----------------------------------------------------------
+    function buildLegend(presentCats) {
+      var legend = document.getElementById("legend");
+      legend.innerHTML = "";
+      CAT_ORDER.forEach(function (c) {
+        if (c === "nd" && !state.includeND) return;
+        var item = document.createElement("div");
+        item.className = "legend-item" + (state.activeCats.has(c) ? "" : " inactive");
+        var sq = document.createElement("div");
+        sq.className = "legend-square"; sq.style.background = CAT_COLOR[c];
+        var lab = document.createElement("span"); lab.textContent = CAT_LABEL[c];
+        item.appendChild(sq); item.appendChild(lab);
+        item.addEventListener("click", function () {
+          if (state.activeCats.has(c)) state.activeCats.delete(c); else state.activeCats.add(c);
+          render();
+        });
+        legend.appendChild(item);
+      });
+      var meta = document.createElement("div");
+      meta.className = "meta"; meta.id = "legend-meta";
+      legend.appendChild(meta);
+    }
+
+    // ---- treemap ---------------------------------------------------------
+    var uidCounter = 0;
+    var treemap = new d3plus.Treemap()
+      .select("#treemap")
+      .groupBy(["cat", "uid"])
+      .sum("value")
+      .layoutPadding(1)
+      .legend(false)
+      .label(function (d) {
+        if (d.depth === 0) return CAT_LABEL[d.id] || d.id;
+        return (d.title || "") + "\n" + fmtUSD(d.value);
+      })
+      .color(function (d) { return CAT_COLOR[d.cat || d.id] || "#999"; })
+      .shapeConfig({
+        stroke: function (d) { return d.depth === 0 ? CAT_COLOR[d.id] : "rgba(255,255,255,0.6)"; },
+        strokeWidth: function (d) { return d.depth === 0 ? 2 : 0.5; },
+        labelConfig: { fontColor: "#ffffff", fontSize: 11, fontWeight: 600 }
+      })
+      .tooltipConfig({
+        title: function (d) { return d.title || CAT_LABEL[d.cat || d.id]; },
+        body: function (d) {
+          if (!d.title) return "";
+          return '<div style="font-size:12px;line-height:1.55">' +
+            '<b>' + (CAT_LABEL[d.cat] || d.cat) + '</b><br>' +
+            'Recipient: <b>' + (d.other || "—") + '</b><br>' +
+            'Donor: <b>' + (d.donor || "—") + '</b><br>' +
+            'Disbursed: <b>' + fmtUSD(d.disb) + '</b><br>' +
+            'Committed: <b>' + fmtUSD(d.commit) + '</b><br>' +
+            'Years: ' + (d.y0 === d.y1 ? d.y0 : d.y0 + "–" + d.y1) +
+            '</div>';
+        }
+      });
+
+    function gatherTiles() {
+      var rows = [];
+      uidCounter = 0;
+      state.selected.forEach(function (donor) {
+        (DIG[donor] || []).forEach(function (t) { pushTile(t, donor, rows); });
+        if (state.includeND && ND && ND[donor]) ND[donor].forEach(function (t) { pushTile(t, donor, rows); });
+      });
+      return rows;
+    }
+    function pushTile(t, donor, rows) {
+      var cat = t[T.CAT];
+      if (!state.activeCats.has(cat)) return;
+      var v = tileVal(t, state.metric);
+      if (!(v > 0)) return; // zero-area tiles can't render
+      var yr = tileYears(t);
+      rows.push({
+        cat: cat, uid: "u" + (uidCounter++), title: t[T.TITLE], value: v,
+        disb: tileVal(t, "disb"), commit: tileVal(t, "commit"), other: t[T.OTHER], donor: donor,
+        y0: yr[0], y1: yr[1]
+      });
+    }
+
+    function render() {
+      buildLegend();
+      var rows = gatherTiles();
+      var empty = document.getElementById("empty");
+      // apply top-N (on the pooled set, by value desc)
+      rows.sort(function (a, b) { return b.value - a.value; });
+      var shown = state.limit === "all" ? rows : rows.slice(0, parseInt(state.limit, 10));
+
+      var totalVal = shown.reduce(function (s, r) { return s + r.value; }, 0);
+      var metaEl = document.getElementById("legend-meta");
+      if (metaEl) metaEl.innerHTML = "<b>" + shown.length + "</b> projects · " + fmtUSD(totalVal) +
+        " " + (state.metric === "commit" ? "committed" : "disbursed");
+      document.getElementById("foot-stats").textContent =
+        state.selected.size + " donor(s) selected · " + rows.length + " projects in pool";
+
+      if (shown.length === 0) { empty.classList.add("show"); treemap.data([]).render(); return; }
+      empty.classList.remove("show");
+      treemap.data(shown).render();
+    }
+
+    // ---- non-digital lazy load ------------------------------------------
+    function loadND(cb) {
+      if (ND || ndLoading) { if (ND && cb) cb(); return; }
+      ndLoading = true;
+      var s = document.createElement("script");
+      s.src = "tm_donor_nd.js";
+      s.onload = function () { ND = window.TM_DONOR_ND || {}; ndLoading = false; if (cb) cb(); };
+      s.onerror = function () { ndLoading = false; ND = {}; if (cb) cb(); };
+      document.head.appendChild(s);
+    }
+
+    // ---- control wiring --------------------------------------------------
+    document.querySelectorAll("#limit-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#limit-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active"); state.limit = this.dataset.limit; render();
+      });
+    });
+    document.querySelectorAll("#metric-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#metric-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active"); state.metric = this.dataset.metric; render();
+      });
+    });
+    function reflectYearButtons() {
+      document.querySelectorAll("#year-group .control-btn").forEach(function (b) {
+        if (b.dataset.year === "all") b.classList.toggle("active", state.years.size === YEARS.length);
+        else b.classList.toggle("active", state.years.has(parseInt(b.dataset.year, 10)));
+      });
+    }
+    document.querySelectorAll("#year-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var y = this.dataset.year;
+        if (y === "all") {
+          state.years = new Set(YEARS);
+        } else {
+          y = parseInt(y, 10);
+          if (state.years.has(y)) state.years.delete(y); else state.years.add(y);
+          if (state.years.size === 0) state.years = new Set(YEARS); // never empty
+        }
+        reflectYearButtons(); render();
+      });
+    });
+    document.getElementById("nd-toggle").addEventListener("change", function () {
+      var on = this.checked;
+      var self = this;
+      if (on) {
+        self.disabled = true;
+        loadND(function () {
+          self.disabled = false;
+          state.includeND = true; state.activeCats.add("nd"); render();
+        });
+      } else { state.includeND = false; render(); }
+    });
+
+    // ---- init ------------------------------------------------------------
+    function init() {
+      // default: select the single largest donor by disbursed digital $
+      var donors = donorList();
+      if (donors.length) state.selected.add(donors[0]);
+      updateMsLabel();
+      render();
+    }
+    init();
+
+    // responsive
+    var rt;
+    window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { treemap.render(); }, 150); });
+  </script>
+</body>
+
+</html>

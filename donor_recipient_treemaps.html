@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Digital ODA — Donor × Recipient Treemaps</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f8fafc; color: #0f172a; height: 100vh; overflow: hidden; }
+    .app { display: flex; flex-direction: column; height: 100vh; }
+    header { padding: 10px 18px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    header h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
+    header h1 .sub { font-size: 12px; font-weight: 600; color: #64748b; }
+    header .links { float: right; font-size: 12px; font-weight: 700; }
+    header .links a { color: #2563eb; text-decoration: none; margin-left: 14px; }
+    header .links a:hover { text-decoration: underline; }
+
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 9px 18px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .ctl-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+
+    .button-group { display: flex; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+    .control-btn { padding: 6px 12px; font-size: 12px; font-weight: 700; border: none; background: #fff; color: #334155; cursor: pointer; font-family: inherit; }
+    .control-btn:not(:last-child) { border-right: 1px solid #cbd5e1; }
+    .control-btn:hover:not(.active) { background: #f1f5f9; }
+    .control-btn.active { background: #2563eb; color: #fff; }
+
+    .toggle { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; cursor: pointer; user-select: none; }
+    .toggle input { width: 16px; height: 16px; cursor: pointer; accent-color: #2563eb; }
+
+    .share-btn { padding: 6px 12px; font-size: 12px; font-weight: 700; border: 1px solid #2563eb; border-radius: 6px; background: #eff6ff; color: #1d4ed8; cursor: pointer; font-family: inherit; }
+    .share-btn:hover { background: #dbeafe; }
+    .share-btn.copied { background: #16a34a; border-color: #16a34a; color: #fff; }
+
+    /* multi-select dropdown */
+    .ms { position: relative; }
+    .ms-btn { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #0f172a; cursor: pointer; font-family: inherit; min-width: 200px; justify-content: space-between; }
+    .ms-btn:hover { background: #f8fafc; }
+    .ms-btn .caret { color: #94a3b8; }
+    .ms-panel { display: none; position: absolute; z-index: 50; top: calc(100% + 4px); left: 0; width: 320px; max-height: 60vh; overflow-y: auto; background: #fff; border: 1px solid #cbd5e1; border-radius: 8px; box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18); padding: 6px; }
+    .ms-panel.open { display: block; }
+    .ms-tools { display: flex; gap: 6px; padding: 4px 6px 8px; border-bottom: 1px solid #eef2f7; margin-bottom: 4px; }
+    .ms-tools button { flex: 1; font-size: 11px; font-weight: 700; padding: 5px; border: 1px solid #cbd5e1; border-radius: 5px; background: #f8fafc; cursor: pointer; }
+    .ms-tools button:hover { background: #eef2f7; }
+    .ms-row { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .ms-row:hover { background: #f1f5f9; }
+    .ms-row input { width: 15px; height: 15px; cursor: pointer; accent-color: #2563eb; }
+    .ms-row .nm { flex: 1; font-weight: 600; }
+    .ms-row .amt { font-size: 11px; font-weight: 700; color: #64748b; font-variant-numeric: tabular-nums; }
+    .ms-row.hdr { font-size: 10px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; cursor: default; padding: 8px 8px 3px; }
+    .ms-row.hdr:hover { background: transparent; }
+
+    .legend { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 8px 18px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .legend-item { display: flex; align-items: center; gap: 7px; cursor: pointer; font-size: 12px; font-weight: 700; color: #334155; transition: opacity 0.15s; }
+    .legend-item.inactive { opacity: 0.32; }
+    .legend-square { width: 14px; height: 14px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12) inset; }
+    .legend .meta { margin-left: auto; font-size: 11.5px; font-weight: 600; color: #64748b; }
+    .legend .meta b { color: #0f172a; }
+
+    #treewrap { flex: 1; min-height: 0; position: relative; }
+    #treemap { width: 100%; height: 100%; }
+    .empty { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: #94a3b8; font-size: 14px; font-weight: 600; text-align: center; padding: 0 30px; }
+    .empty.show { display: flex; }
+    footer { padding: 6px 18px; background: #fff; border-top: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; }
+    footer b { color: #64748b; }
+  </style>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+
+<body>
+  <div class="app">
+    <header>
+      <div class="links"><a href="donor_treemaps.html">Donors</a><a href="recipient_treemaps.html">Recipients</a></div>
+      <h1>Digital ODA — Donor &times; Recipient Treemaps<br><span class="sub">pick donors and partner countries to see the projects between them · each tile is a project, sized by US$ disbursed, coloured by digital type</span></h1>
+    </header>
+
+    <div class="controls">
+      <span class="ctl-label">Donors</span>
+      <div class="ms" id="ms-d">
+        <button class="ms-btn" id="ms-d-btn" type="button" aria-haspopup="true" aria-expanded="false">
+          <span id="ms-d-label">Select donors…</span><span class="caret">▾</span>
+        </button>
+        <div class="ms-panel" id="ms-d-panel"></div>
+      </div>
+
+      <span class="ctl-label">Recipients</span>
+      <div class="ms" id="ms-r">
+        <button class="ms-btn" id="ms-r-btn" type="button" aria-haspopup="true" aria-expanded="false">
+          <span id="ms-r-label">Select recipients…</span><span class="caret">▾</span>
+        </button>
+        <div class="ms-panel" id="ms-r-panel"></div>
+      </div>
+      <div class="button-group" id="region-group">
+        <button class="control-btn" data-region="Africa">AFRICA</button>
+        <button class="control-btn" data-region="Asia">ASIA</button>
+        <button class="control-btn" data-region="Pacific">PACIFIC</button>
+        <button class="control-btn active" data-region="all">ALL</button>
+      </div>
+
+      <span class="ctl-label">Top</span>
+      <div class="button-group" id="limit-group">
+        <button class="control-btn" data-limit="50">50</button>
+        <button class="control-btn active" data-limit="100">100</button>
+        <button class="control-btn" data-limit="all">ALL</button>
+      </div>
+
+      <span class="ctl-label">Size by</span>
+      <div class="button-group" id="metric-group">
+        <button class="control-btn active" data-metric="disb">DISBURSED</button>
+        <button class="control-btn" data-metric="commit">COMMITTED</button>
+      </div>
+
+      <span class="ctl-label">Classify</span>
+      <div class="button-group" id="class-group">
+        <button class="control-btn active" data-class="hard" title="Each project counted once under its single best-fit digital type">HARD</button>
+        <button class="control-btn" data-class="weighted" title="Split each project's $ across digital types by the ensemble's % weights">WEIGHTED&nbsp;%</button>
+      </div>
+
+      <span class="ctl-label">Colour by</span>
+      <div class="button-group" id="color-group">
+        <button class="control-btn active" data-color="type" title="Colour tiles by digital type">TYPE</button>
+        <button class="control-btn" data-color="funder" title="Colour by funder: EU Institutions vs EU member states">FUNDER</button>
+        <button class="control-btn" data-color="recipient" title="Colour by recipient country">RECIPIENT</button>
+      </div>
+
+      <span class="ctl-label">Years</span>
+      <div class="button-group" id="year-group">
+        <button class="control-btn active" data-year="all">ALL</button>
+        <button class="control-btn active" data-year="2019">2019</button>
+        <button class="control-btn active" data-year="2020">2020</button>
+        <button class="control-btn active" data-year="2021">2021</button>
+        <button class="control-btn active" data-year="2022">2022</button>
+        <button class="control-btn active" data-year="2023">2023</button>
+        <button class="control-btn active" data-year="2024">2024</button>
+      </div>
+
+      <label class="toggle"><input type="checkbox" id="nd-toggle"> Include non-digital</label>
+      <button class="share-btn" id="share-btn" type="button" title="Copy a link that reproduces this exact view">🔗 Copy link</button>
+    </div>
+
+    <div class="legend" id="legend"></div>
+
+    <div id="treewrap">
+      <div id="treemap"></div>
+      <div class="empty" id="empty">Select at least one donor and one recipient.</div>
+    </div>
+
+    <footer>
+      Source: OECD CRS, classified by the v3.1 LLM ensemble. Tiles group a project's rows across years.
+      Donors are EU member states &amp; institutions; recipients are the priority partner countries.
+      Non-digital projects are capped to the 1,500 largest (by disbursed US$) per donor. <b id="foot-stats"></b>
+    </footer>
+  </div>
+
+  <script src="tm_donor_dig.js"></script>
+  <script src="tm_regions.js"></script>
+  <script>
+    // ---- config ----------------------------------------------------------
+    var CAT_COLOR = { gov: "#2563eb", inc: "#16a34a", inf: "#d97706", nd: "#94a3b8" };
+    var CAT_LABEL = { gov: "Digital Governance", inc: "Digital Inclusion", inf: "Hard Infrastructure", nd: "Non-digital" };
+    var CAT_ORDER = ["gov", "inc", "inf", "nd"];
+    var REGION_ORDER = ["Africa", "Asia", "Pacific"];
+    // compact tile array layout: [title, cat, other(recipient), yrs=[[year,disb,commit]], W=[Wg,Wi,Wf]]
+    var T = { TITLE: 0, CAT: 1, OTHER: 2, YRS: 3, W: 4 };
+    var WCATS = ["gov", "inc", "inf"];   // index order of the weight vector W
+
+    // funder-group colouring (Team Europe = EU Institutions + EU member states)
+    var EU_INST = "EU Institutions";
+    var FG_COLOR = { "EU Institutions": "#1d4ed8", "EU member states": "#f59e0b" };
+    var REC_PALETTE = ["#2563eb", "#16a34a", "#d97706", "#7c3aed", "#db2777", "#0891b2",
+      "#dc2626", "#65a30d", "#0d9488", "#9333ea", "#ea580c", "#0369a1", "#4d7c0f"];
+    function fgroupOf(donor) { return donor === EU_INST ? "EU Institutions" : "EU member states"; }
+    function colorCatOf(r) {
+      if (state.colorBy === "funder") return fgroupOf(r.donor);
+      if (state.colorBy === "recipient") return r.other;
+      return r.cat;
+    }
+    function colorCatColor(c) {
+      if (state.colorBy === "funder") return FG_COLOR[c] || "#94a3b8";
+      if (state.colorBy === "recipient") { var i = ALL_RECIPS.indexOf(c); return REC_PALETTE[(i < 0 ? 0 : i) % REC_PALETTE.length]; }
+      return CAT_COLOR[c] || "#999";
+    }
+    function colorCatLabel(c) { return state.colorBy === "type" ? (CAT_LABEL[c] || c) : c; }
+    function rowVisible(r) {
+      if (state.colorBy === "type") return state.activeCats.has(r.cat);
+      return !state.hidden.has(r.grp);
+    }
+
+    var DIG = window.TM_DONOR_DIG || {};
+    var REGION = window.TM_REGION || {};
+    var ND = null;                // lazy-loaded
+    var ndLoading = false;
+    var YEARS = window.TM_YEARS || [2019, 2020, 2021, 2022, 2023, 2024];
+
+    // every recipient that appears in the donor tiles, grouped by region
+    var ALL_RECIPS = Object.keys(REGION);
+
+    var state = {
+      donors: new Set(),
+      recips: new Set(),
+      years: new Set(YEARS),
+      limit: "100",
+      metric: "disb",
+      classMode: "hard",          // "hard" = argmax category · "weighted" = split $ by ensemble %
+      colorBy: "type",            // "type" | "funder" | "recipient"
+      includeND: false,
+      activeCats: new Set(["gov", "inc", "inf", "nd"]),
+      hidden: new Set()           // hidden colour categories in funder/recipient mode
+    };
+
+    // sum a tile's disbursed/committed US$ over the currently-selected years
+    function tileVal(t, metric) {
+      var yrs = t[T.YRS], col = metric === "commit" ? 2 : 1, s = 0, i;
+      for (i = 0; i < yrs.length; i++) if (state.years.has(yrs[i][0])) s += yrs[i][col];
+      return s;
+    }
+    // first/last selected year with any money on this tile (for the tooltip)
+    function tileYears(t) {
+      var yrs = t[T.YRS], lo = null, hi = null, i, y;
+      for (i = 0; i < yrs.length; i++) {
+        y = yrs[i][0];
+        if (!state.years.has(y)) continue;
+        if (yrs[i][1] || yrs[i][2]) { if (lo === null || y < lo) lo = y; if (hi === null || y > hi) hi = y; }
+      }
+      return [lo, hi];
+    }
+
+    // ---- helpers ---------------------------------------------------------
+    function fmtUSD(m) {
+      m = +m || 0;
+      if (m >= 1000) return "$" + (m / 1000).toFixed(2) + "B";
+      if (m >= 1) return "$" + m.toFixed(1) + "M";
+      if (m > 0) return "$" + (m * 1000).toFixed(0) + "K";
+      return "$0";
+    }
+    // donor total restricted to currently-selected recipients (so the donor
+    // list reflects the bilateral context)
+    function donorTotal(d) {
+      var sum = 0, a = DIG[d] || [], i;
+      for (i = 0; i < a.length; i++) if (recipOK(a[i][T.OTHER])) sum += tileVal(a[i], "disb");
+      if (state.includeND && ND && ND[d]) { var b = ND[d]; for (i = 0; i < b.length; i++) if (recipOK(b[i][T.OTHER])) sum += tileVal(b[i], "disb"); }
+      return sum;
+    }
+    // recipient total across selected donors
+    function recipTotal(r) {
+      var sum = 0;
+      state.donors.forEach(function (d) {
+        (DIG[d] || []).forEach(function (t) { if (t[T.OTHER] === r) sum += tileVal(t, "disb"); });
+        if (state.includeND && ND && ND[d]) ND[d].forEach(function (t) { if (t[T.OTHER] === r) sum += tileVal(t, "disb"); });
+      });
+      return sum;
+    }
+    function recipOK(r) { return state.recips.size === 0 || state.recips.has(r); }
+
+    // ---- generic multi-select dropdown ----------------------------------
+    function setupDropdown(id, getRows, onChange) {
+      var btn = document.getElementById("ms-" + id + "-btn");
+      var panel = document.getElementById("ms-" + id + "-panel");
+      function rebuild() { panel.innerHTML = getRows(); }
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var open = panel.classList.toggle("open");
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+        if (open) rebuild();
+      });
+      panel.addEventListener("click", function (e) { e.stopPropagation(); });
+      panel.addEventListener("change", function (e) {
+        if (e.target && e.target.type === "checkbox") {
+          onChange("toggle", decodeURIComponent(e.target.value), e.target.checked);
+        }
+      });
+      panel.addEventListener("click", function (e) {
+        var act = e.target && e.target.getAttribute && e.target.getAttribute("data-act");
+        if (!act) return;
+        onChange(act);
+        rebuild();
+      });
+      return { rebuild: rebuild, panel: panel };
+    }
+
+    // donor dropdown -------------------------------------------------------
+    var dDrop = setupDropdown("d", function () {
+      var donors = Object.keys(DIG).sort(function (a, b) { return donorTotal(b) - donorTotal(a); });
+      var html = '<div class="ms-tools"><button type="button" data-act="all">Select all</button>' +
+        '<button type="button" data-act="none">Clear</button></div>';
+      html += '<div class="ms-row hdr">Donor · disbursed to current recipients</div>';
+      donors.forEach(function (d) {
+        html += '<label class="ms-row"><input type="checkbox" value="' + encodeURIComponent(d) + '" ' +
+          (state.donors.has(d) ? "checked" : "") + '><span class="nm">' + d + '</span>' +
+          '<span class="amt">' + fmtUSD(donorTotal(d)) + '</span></label>';
+      });
+      return html;
+    }, function (act, val, checked) {
+      if (act === "toggle") { if (checked) state.donors.add(val); else state.donors.delete(val); }
+      else if (act === "all") state.donors = new Set(Object.keys(DIG));
+      else if (act === "none") state.donors = new Set();
+      updateDonorLabel(); render();
+    });
+
+    // recipient dropdown ---------------------------------------------------
+    var rDrop = setupDropdown("r", function () {
+      var html = '<div class="ms-tools"><button type="button" data-act="all">Select all</button>' +
+        '<button type="button" data-act="none">Clear</button></div>';
+      REGION_ORDER.forEach(function (reg) {
+        var inReg = ALL_RECIPS.filter(function (r) { return REGION[r] === reg; })
+          .sort(function (a, b) { return recipTotal(b) - recipTotal(a); });
+        if (!inReg.length) return;
+        html += '<div class="ms-row hdr">' + reg + '</div>';
+        inReg.forEach(function (r) {
+          html += '<label class="ms-row"><input type="checkbox" value="' + encodeURIComponent(r) + '" ' +
+            (state.recips.has(r) ? "checked" : "") + '><span class="nm">' + r + '</span>' +
+            '<span class="amt">' + fmtUSD(recipTotal(r)) + '</span></label>';
+        });
+      });
+      return html;
+    }, function (act, val, checked) {
+      if (act === "toggle") { if (checked) state.recips.add(val); else state.recips.delete(val); }
+      else if (act === "all") state.recips = new Set(ALL_RECIPS);
+      else if (act === "none") state.recips = new Set();
+      syncRegionButtons(); updateRecipLabel(); render();
+    });
+
+    document.addEventListener("click", function () {
+      [dDrop.panel, rDrop.panel].forEach(function (p) { p.classList.remove("open"); });
+    });
+
+    function updateDonorLabel() {
+      var n = state.donors.size, el = document.getElementById("ms-d-label");
+      el.textContent = n === 0 ? "Select donors…" : n === 1 ? Array.from(state.donors)[0] : n + " donors";
+    }
+    function updateRecipLabel() {
+      var n = state.recips.size, el = document.getElementById("ms-r-label");
+      if (n === 0) el.textContent = "All recipients";
+      else if (n === 1) el.textContent = Array.from(state.recips)[0];
+      else el.textContent = n + " recipients";
+    }
+
+    // ---- recipient region quick-filter ----------------------------------
+    function syncRegionButtons() {
+      // mark a region active iff selection == exactly that region's members
+      var sel = state.recips;
+      var match = null;
+      if (sel.size === ALL_RECIPS.length) match = "all";
+      else REGION_ORDER.forEach(function (reg) {
+        var members = ALL_RECIPS.filter(function (r) { return REGION[r] === reg; });
+        if (members.length && members.length === sel.size && members.every(function (r) { return sel.has(r); })) match = reg;
+      });
+      document.querySelectorAll("#region-group .control-btn").forEach(function (b) {
+        b.classList.toggle("active", b.dataset.region === match);
+      });
+    }
+    document.querySelectorAll("#region-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var reg = this.dataset.region;
+        if (reg === "all") state.recips = new Set(ALL_RECIPS);
+        else state.recips = new Set(ALL_RECIPS.filter(function (r) { return REGION[r] === reg; }));
+        syncRegionButtons(); updateRecipLabel(); render();
+      });
+    });
+
+    // ---- legend ----------------------------------------------------------
+    function buildLegend(rows) {
+      var legend = document.getElementById("legend");
+      legend.innerHTML = "";
+      var cats;
+      if (state.colorBy === "type") {
+        cats = CAT_ORDER.filter(function (c) { return c !== "nd" || state.includeND; });
+      } else {
+        var seen = {}; cats = [];
+        (rows || []).forEach(function (r) { if (!seen[r.grp]) { seen[r.grp] = 1; cats.push(r.grp); } });
+        cats.sort();
+      }
+      cats.forEach(function (c) {
+        var inactive = state.colorBy === "type" ? !state.activeCats.has(c) : state.hidden.has(c);
+        var item = document.createElement("div");
+        item.className = "legend-item" + (inactive ? " inactive" : "");
+        var sq = document.createElement("div");
+        sq.className = "legend-square"; sq.style.background = colorCatColor(c);
+        var lab = document.createElement("span"); lab.textContent = colorCatLabel(c);
+        item.appendChild(sq); item.appendChild(lab);
+        item.addEventListener("click", function () {
+          if (state.colorBy === "type") {
+            if (state.activeCats.has(c)) state.activeCats.delete(c); else state.activeCats.add(c);
+          } else {
+            if (state.hidden.has(c)) state.hidden.delete(c); else state.hidden.add(c);
+          }
+          render();
+        });
+        legend.appendChild(item);
+      });
+      var meta = document.createElement("div");
+      meta.className = "meta"; meta.id = "legend-meta";
+      legend.appendChild(meta);
+    }
+
+    // ---- treemap ---------------------------------------------------------
+    var uidCounter = 0;
+    var treemap = new d3plus.Treemap()
+      .select("#treemap")
+      .groupBy(["grp", "uid"])
+      .sum("value")
+      .layoutPadding(1)
+      .legend(false)
+      .label(function (d) {
+        if (d.depth === 0) return colorCatLabel(d.id);
+        return (d.title || "") + "\n" + fmtUSD(d.value);
+      })
+      .color(function (d) { return colorCatColor(d.grp || d.id); })
+      .shapeConfig({
+        stroke: function (d) { return d.depth === 0 ? colorCatColor(d.id) : "rgba(255,255,255,0.6)"; },
+        strokeWidth: function (d) { return d.depth === 0 ? 2 : 0.5; },
+        labelConfig: { fontColor: "#ffffff", fontSize: 11, fontWeight: 600 }
+      })
+      .tooltipConfig({
+        title: function (d) { return d.title || colorCatLabel(d.grp || d.id); },
+        body: function (d) {
+          if (!d.title) return "";
+          return '<div style="font-size:12px;line-height:1.55">' +
+            '<b>' + (CAT_LABEL[d.cat] || d.cat) + '</b>' +
+            (d.wpct != null ? ' · <b>' + d.wpct + '%</b> of project' : '') + '<br>' +
+            'Donor: <b>' + (d.donor || "—") + '</b><br>' +
+            'Recipient: <b>' + (d.other || "—") + '</b><br>' +
+            (d.wpct != null ? 'Allocated' : 'Disbursed') + ': <b>' + fmtUSD(d.disb) + '</b><br>' +
+            'Committed: <b>' + fmtUSD(d.commit) + '</b><br>' +
+            'Years: ' + (d.y0 === d.y1 ? d.y0 : d.y0 + "–" + d.y1) +
+            '</div>';
+        }
+      });
+
+    function addRow(rows, o) { o.uid = "u" + (uidCounter++); o.grp = colorCatOf(o); rows.push(o); }
+    function pushTile(t, donor, rows) {
+      var hardcat = t[T.CAT];
+      if (!recipOK(t[T.OTHER])) return;
+      var disb = tileVal(t, "disb"), commit = tileVal(t, "commit");
+      var v = state.metric === "commit" ? commit : disb;
+      if (!(v > 0)) return;
+      var yr = tileYears(t);
+      // Weighted mode: split a digital project's $ across the three digital types
+      // by its ensemble weight vector W (non-digital tiles are never split).
+      if (state.classMode === "weighted" && hardcat !== "nd" && t[T.W]) {
+        var W = t[T.W], k, c, w;
+        for (k = 0; k < 3; k++) {
+          c = WCATS[k]; w = W[k];
+          if (!(w > 0)) continue;
+          var vv = v * w;
+          if (!(vv > 0)) continue;
+          addRow(rows, {
+            cat: c, title: t[T.TITLE], value: vv,
+            disb: disb * w, commit: commit * w, other: t[T.OTHER], donor: donor,
+            y0: yr[0], y1: yr[1], wpct: Math.round(w * 100)
+          });
+        }
+        return;
+      }
+      addRow(rows, {
+        cat: hardcat, title: t[T.TITLE], value: v,
+        disb: disb, commit: commit, other: t[T.OTHER], donor: donor,
+        y0: yr[0], y1: yr[1]
+      });
+    }
+    function gatherTiles() {
+      var rows = []; uidCounter = 0;
+      state.donors.forEach(function (donor) {
+        (DIG[donor] || []).forEach(function (t) { pushTile(t, donor, rows); });
+        if (state.includeND && ND && ND[donor]) ND[donor].forEach(function (t) { pushTile(t, donor, rows); });
+      });
+      return rows;
+    }
+
+    function render() {
+      var empty = document.getElementById("empty");
+      if (state.donors.size === 0 || state.recips.size === 0) {
+        buildLegend([]);
+        empty.textContent = "Select at least one donor and one recipient.";
+        empty.classList.add("show"); treemap.data([]).render();
+        document.getElementById("foot-stats").textContent = "";
+        return;
+      }
+      var all = gatherTiles();
+      buildLegend(all);
+      var rows = all.filter(rowVisible);
+      rows.sort(function (a, b) { return b.value - a.value; });
+      var shown = state.limit === "all" ? rows : rows.slice(0, parseInt(state.limit, 10));
+      var totalVal = shown.reduce(function (s, r) { return s + r.value; }, 0);
+
+      var metaEl = document.getElementById("legend-meta");
+      if (metaEl) metaEl.innerHTML = "<b>" + shown.length + "</b> projects · " + fmtUSD(totalVal) +
+        " " + (state.metric === "commit" ? "committed" : "disbursed");
+      document.getElementById("foot-stats").textContent =
+        state.donors.size + " donor(s) × " + state.recips.size + " recipient(s) · " + rows.length + " projects in pool";
+
+      if (shown.length === 0) {
+        empty.textContent = "No projects for this donor × recipient combination.";
+        empty.classList.add("show"); treemap.data([]).render(); return;
+      }
+      empty.classList.remove("show");
+      treemap.data(shown).render();
+    }
+
+    // ---- non-digital lazy load ------------------------------------------
+    function loadND(cb) {
+      if (ND || ndLoading) { if (ND && cb) cb(); return; }
+      ndLoading = true;
+      var s = document.createElement("script");
+      s.src = "tm_donor_nd.js";
+      s.onload = function () { ND = window.TM_DONOR_ND || {}; ndLoading = false; if (cb) cb(); };
+      s.onerror = function () { ndLoading = false; ND = {}; if (cb) cb(); };
+      document.head.appendChild(s);
+    }
+
+    // ---- control wiring --------------------------------------------------
+    document.querySelectorAll("#limit-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#limit-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active"); state.limit = this.dataset.limit; render();
+      });
+    });
+    document.querySelectorAll("#metric-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#metric-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active"); state.metric = this.dataset.metric; render();
+      });
+    });
+    document.querySelectorAll("#class-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#class-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active"); state.classMode = this.dataset.class; render();
+      });
+    });
+    document.querySelectorAll("#color-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#color-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active"); state.colorBy = this.dataset.color; state.hidden = new Set(); render();
+      });
+    });
+    function reflectYearButtons() {
+      document.querySelectorAll("#year-group .control-btn").forEach(function (b) {
+        if (b.dataset.year === "all") b.classList.toggle("active", state.years.size === YEARS.length);
+        else b.classList.toggle("active", state.years.has(parseInt(b.dataset.year, 10)));
+      });
+    }
+    document.querySelectorAll("#year-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var y = this.dataset.year;
+        if (y === "all") { state.years = new Set(YEARS); }
+        else {
+          y = parseInt(y, 10);
+          if (state.years.has(y)) state.years.delete(y); else state.years.add(y);
+          if (state.years.size === 0) state.years = new Set(YEARS);
+        }
+        reflectYearButtons(); render();
+      });
+    });
+    document.getElementById("nd-toggle").addEventListener("change", function () {
+      var self = this;
+      if (this.checked) {
+        self.disabled = true;
+        loadND(function () { self.disabled = false; state.includeND = true; state.activeCats.add("nd"); render(); });
+      } else { state.includeND = false; render(); }
+    });
+
+    // ---- shareable link --------------------------------------------------
+    function encodeState() {
+      var p = new URLSearchParams();
+      if (state.donors.size) p.set("d", Array.from(state.donors).join("~"));
+      if (state.recips.size && state.recips.size !== ALL_RECIPS.length) p.set("r", Array.from(state.recips).join("~"));
+      if (state.limit !== "100") p.set("lim", state.limit);
+      if (state.metric !== "disb") p.set("m", state.metric);
+      if (state.classMode !== "hard") p.set("cls", state.classMode);
+      if (state.colorBy !== "type") p.set("cby", state.colorBy);
+      if (state.years.size !== YEARS.length) p.set("y", Array.from(state.years).sort().join("~"));
+      if (state.includeND) p.set("nd", "1");
+      return p.toString();
+    }
+    function applyState(qs) {
+      var p = new URLSearchParams(qs);
+      if (p.has("d")) state.donors = new Set(p.get("d").split("~").filter(function (x) { return DIG[x]; }));
+      if (p.has("r")) state.recips = new Set(p.get("r").split("~").filter(function (x) { return REGION[x]; }));
+      else state.recips = new Set(ALL_RECIPS);
+      if (p.has("lim")) state.limit = p.get("lim");
+      if (p.has("m")) state.metric = p.get("m");
+      if (p.get("cls") === "weighted") state.classMode = "weighted";
+      if (p.has("cby") && ["type", "funder", "recipient"].indexOf(p.get("cby")) !== -1) state.colorBy = p.get("cby");
+      if (p.has("y")) {
+        var ys = p.get("y").split("~").map(function (x) { return parseInt(x, 10); }).filter(function (x) { return YEARS.indexOf(x) !== -1; });
+        if (ys.length) state.years = new Set(ys);
+      }
+      if (p.get("nd") === "1") state.includeND = true;
+    }
+    function reflectControls() {
+      document.querySelectorAll("#limit-group .control-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.limit === state.limit); });
+      document.querySelectorAll("#metric-group .control-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.metric === state.metric); });
+      document.querySelectorAll("#class-group .control-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.class === state.classMode); });
+      document.querySelectorAll("#color-group .control-btn").forEach(function (b) { b.classList.toggle("active", b.dataset.color === state.colorBy); });
+      reflectYearButtons();
+      document.getElementById("nd-toggle").checked = state.includeND;
+    }
+    document.getElementById("share-btn").addEventListener("click", function () {
+      var url = location.origin + location.pathname + "#" + encodeState();
+      var btn = this;
+      function flash() { btn.classList.add("copied"); btn.textContent = "✓ Copied!"; setTimeout(function () { btn.classList.remove("copied"); btn.textContent = "🔗 Copy link"; }, 1600); }
+      try { history.replaceState(null, "", "#" + encodeState()); } catch (e) { }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(flash, function () { window.prompt("Copy this link:", url); });
+      } else { window.prompt("Copy this link:", url); }
+    });
+
+    // ---- init ------------------------------------------------------------
+    function init() {
+      var hash = location.hash.replace(/^#/, "");
+      if (hash) {
+        applyState(hash);
+        // non-digital data must be present before first render if requested
+        if (state.includeND) { loadND(function () { finishInit(); }); return; }
+      } else {
+        // default: largest donor (by total) × all recipients
+        state.recips = new Set(ALL_RECIPS);
+        var donors = Object.keys(DIG).sort(function (a, b) { return donorTotal(b) - donorTotal(a); });
+        if (donors.length) state.donors.add(donors[0]);
+      }
+      finishInit();
+    }
+    function finishInit() {
+      reflectControls(); syncRegionButtons(); updateDonorLabel(); updateRecipLabel(); render();
+    }
+    init();
+
+    var rt;
+    window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(function () { treemap.render(); }, 150); });
+  </script>
+</body>
+
+</html>

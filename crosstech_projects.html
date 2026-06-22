@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Digital ODA — Cross-cutting Projects</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f8fafc; color: #0f172a; min-height: 100vh; }
+    header { padding: 12px 20px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    header h1 { margin: 0; font-size: 18px; font-weight: 800; letter-spacing: -0.3px; }
+    header h1 .sub { font-size: 12px; font-weight: 600; color: #64748b; }
+    header .links { float: right; font-size: 12px; font-weight: 700; }
+    header .links a { color: #2563eb; text-decoration: none; margin-left: 12px; }
+    header .links a:hover { text-decoration: underline; }
+
+    .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 10px 20px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .ctl { display: inline-flex; align-items: center; gap: 8px; }
+    .ctl-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+    .button-group { display: flex; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+    .control-btn { padding: 6px 11px; font-size: 12px; font-weight: 700; border: none; background: #fff; color: #334155; cursor: pointer; font-family: inherit; }
+    .control-btn:not(:last-child) { border-right: 1px solid #cbd5e1; }
+    .control-btn:hover:not(.active) { background: #f1f5f9; }
+    .control-btn.active { background: #2563eb; color: #fff; }
+    .legend { display: flex; gap: 14px; align-items: center; margin-left: auto; font-size: 12px; font-weight: 700; color: #334155; }
+    .legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .legend i { width: 13px; height: 13px; border-radius: 3px; display: inline-block; }
+
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 18px 20px 40px; }
+    .intro { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; font-size: 13.5px; line-height: 1.6; color: #334155; }
+    .intro b { color: #0f172a; }
+    .intro .big { font-size: 22px; font-weight: 800; color: #0f172a; }
+
+    .chart { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px; }
+    .row { display: flex; align-items: center; gap: 12px; padding: 5px 0; border-bottom: 1px solid #f1f5f9; }
+    .row:last-child { border-bottom: none; }
+    .row .lbl { width: 320px; flex: none; overflow: hidden; }
+    .row .lbl .t { font-size: 12.5px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row .lbl .dr { font-size: 11px; font-weight: 600; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .row .lbl .badge { display: inline-block; font-size: 9px; font-weight: 800; color: #fff; background: #7c3aed; border-radius: 4px; padding: 1px 5px; margin-left: 5px; vertical-align: middle; letter-spacing: 0.3px; }
+    .row .track { flex: 1; height: 22px; position: relative; }
+    .row .bar { height: 100%; display: flex; border-radius: 3px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.05) inset; min-width: 2px; }
+    .row .seg { height: 100%; }
+    .row .val { width: 64px; flex: none; text-align: right; font-size: 12.5px; font-weight: 800; color: #0f172a; font-variant-numeric: tabular-nums; }
+    .rank { width: 22px; flex: none; text-align: right; font-size: 11px; font-weight: 700; color: #94a3b8; font-variant-numeric: tabular-nums; }
+    footer { max-width: 1180px; margin: 0 auto; padding: 8px 20px 30px; font-size: 11px; color: #94a3b8; line-height: 1.5; }
+    footer b { color: #64748b; }
+
+    .tip { position: fixed; pointer-events: none; z-index: 99; background: #0f172a; color: #fff; font-size: 12px; line-height: 1.55; padding: 9px 11px; border-radius: 7px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); opacity: 0; transition: opacity 0.1s; max-width: 320px; }
+    .tip.show { opacity: 1; }
+    .tip b { font-weight: 700; }
+    .tip .mix { margin-top: 4px; }
+    .tip .mix span { display: inline-block; margin-right: 8px; }
+  </style>
+  <script src="tm_crosstech.js"></script>
+</head>
+
+<body>
+  <header>
+    <div class="links">
+      <a href="donor_treemaps.html">Donors</a><a href="recipient_treemaps.html">Recipients</a>
+      <a href="donor_recipient_treemaps.html">Donor × Recipient</a><a href="channels_explorer.html">Channels</a>
+      <a href="eu_funder_intensity.html">Funder intensity</a>
+    </div>
+    <h1>Digital ODA — Cross-cutting Projects<br>
+      <span class="sub">The largest EU-funded projects that span multiple digital domains — at least 15% of the project's
+        allocation on each of ≥2 digital tech types (ensemble weights, 2019–2024).</span>
+    </h1>
+  </header>
+
+  <div class="controls">
+    <div class="ctl">
+      <span class="ctl-label">Size by</span>
+      <div class="button-group" id="metric-group">
+        <button class="control-btn active" data-metric="disb">DISBURSED</button>
+        <button class="control-btn" data-metric="commit">COMMITTED</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="ctl-label">Funder</span>
+      <div class="button-group" id="fg-group">
+        <button class="control-btn active" data-fg="all">ALL (TEAM EUROPE)</button>
+        <button class="control-btn" data-fg="inst">EU INSTITUTIONS</button>
+        <button class="control-btn" data-fg="mem">EU MEMBER STATES</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="ctl-label">Scale</span>
+      <div class="button-group" id="scale-group">
+        <button class="control-btn" data-scale="linear">LINEAR</button>
+        <button class="control-btn active" data-scale="sqrt">√</button>
+        <button class="control-btn" data-scale="log">LOG</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="ctl-label">Show</span>
+      <div class="button-group" id="top-group">
+        <button class="control-btn active" data-top="25">TOP 25</button>
+        <button class="control-btn" data-top="50">50</button>
+        <button class="control-btn" data-top="100">100</button>
+        <button class="control-btn" data-top="0">ALL</button>
+      </div>
+    </div>
+    <div class="ctl">
+      <span class="ctl-label">Min types</span>
+      <div class="button-group" id="types-group">
+        <button class="control-btn active" data-types="2">≥2</button>
+        <button class="control-btn" data-types="3">ALL 3</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls" style="border-top:none">
+    <div class="ctl">
+      <span class="ctl-label">Years</span>
+      <div class="button-group" id="year-group"></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:#2563eb"></i>Digital Governance</span>
+      <span><i style="background:#16a34a"></i>Digital Inclusion</span>
+      <span><i style="background:#d97706"></i>Hard Infrastructure</span>
+      <span><i style="background:#cbd5e1"></i>Non-digital</span>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="intro" id="intro"></div>
+    <div class="chart" id="chart"></div>
+  </div>
+  <footer>
+    Source: OECD CRS, classified by the v3.1 LLM ensemble. A project's tech mix is its disbursement-weighted,
+    4-way-normalised ensemble allocation across the three digital types and non-digital. <b>Cross-cutting</b> =
+    at least 15% on each of two (or all three) digital types. Bar width encodes project size on the chosen scale
+    (the $ value is exact); segments show the tech mix. The mix is a project-level property — changing the year
+    filter rescales each bar's size but not its composition. <b id="foot"></b>
+  </footer>
+
+  <script>
+    var DATA = window.TM_CROSSTECH || [];
+    var YEARS = window.TM_CROSSTECH_YEARS || [2019, 2020, 2021, 2022, 2023, 2024];
+    var CATS = [{ k: 0, c: "#2563eb", l: "Digital Governance" },
+                { k: 1, c: "#16a34a", l: "Digital Inclusion" },
+                { k: 2, c: "#d97706", l: "Hard Infrastructure" },
+                { k: 3, c: "#cbd5e1", l: "Non-digital" }];
+    var THRESH = 0.15;
+    var FG_LABEL = { inst: "EU Institutions", mem: "EU member state", oth: "Non-Team Europe" };
+
+    var state = { metric: "disb", fg: "all", scale: "sqrt", top: 25, types: 2, years: {} };
+    YEARS.forEach(function (y) { state.years[y] = true; });
+
+    function fmtUSD(m) {
+      m = +m || 0;
+      if (m >= 1000) return "$" + (m / 1000).toFixed(2) + "B";
+      if (m >= 1) return "$" + m.toFixed(1) + "M";
+      if (m > 0) return "$" + (m * 1000).toFixed(0) + "K";
+      return "$0";
+    }
+    function projVal(p) {
+      var col = state.metric === "commit" ? 2 : 1, s = 0, yrs = p.yrs, i;
+      for (i = 0; i < yrs.length; i++) if (state.years[yrs[i][0]]) s += yrs[i][col];
+      return s;
+    }
+    function nTypes(p) {
+      var n = 0, k; for (k = 0; k < 3; k++) if (p.W[k] >= THRESH) n++; return n;
+    }
+
+    var tip = document.createElement("div");
+    tip.className = "tip"; document.body.appendChild(tip);
+    function showTip(html, e) { tip.innerHTML = html; tip.classList.add("show"); moveTip(e); }
+    function moveTip(e) {
+      var x = e.clientX + 14, y = e.clientY + 14;
+      if (x + 330 > window.innerWidth) x = e.clientX - 330;
+      tip.style.left = x + "px"; tip.style.top = y + "px";
+    }
+    function hideTip() { tip.classList.remove("show"); }
+
+    function scaleW(v, max) {
+      if (max <= 0 || v <= 0) return 0;
+      if (state.scale === "linear") return v / max;
+      if (state.scale === "log") return Math.log(v + 1) / Math.log(max + 1);
+      return Math.sqrt(v) / Math.sqrt(max);                   // sqrt default
+    }
+
+    function render() {
+      // filter: funder group, min-types, has value in selected years
+      var rows = DATA.filter(function (p) {
+        if (state.fg !== "all" && p.fg !== state.fg) return false;
+        if (nTypes(p) < state.types) return false;
+        return projVal(p) > 0;
+      }).map(function (p) { return { p: p, v: projVal(p) }; });
+      rows.sort(function (a, b) { return b.v - a.v; });
+
+      var nQual = rows.length;
+      var sumAll = rows.reduce(function (s, r) { return s + r.v; }, 0);
+      if (state.top > 0) rows = rows.slice(0, state.top);
+      var maxV = rows.length ? rows[0].v : 1;
+
+      var chart = document.getElementById("chart");
+      chart.innerHTML = "";
+      rows.forEach(function (r, idx) {
+        var p = r.p, v = r.v;
+        var row = document.createElement("div"); row.className = "row";
+
+        var rank = document.createElement("div"); rank.className = "rank"; rank.textContent = (idx + 1);
+
+        var lbl = document.createElement("div"); lbl.className = "lbl";
+        var t = document.createElement("div"); t.className = "t"; t.textContent = p.t;
+        if (nTypes(p) === 3) { var b = document.createElement("span"); b.className = "badge"; b.textContent = "ALL 3"; t.appendChild(b); }
+        var dr = document.createElement("div"); dr.className = "dr"; dr.textContent = p.d + " → " + p.r;
+        lbl.appendChild(t); lbl.appendChild(dr);
+
+        var track = document.createElement("div"); track.className = "track";
+        var bar = document.createElement("div"); bar.className = "bar";
+        bar.style.width = (scaleW(v, maxV) * 100).toFixed(2) + "%";
+        CATS.forEach(function (cat) {
+          var frac = p.W[cat.k]; if (frac <= 0) return;
+          var seg = document.createElement("div"); seg.className = "seg";
+          seg.style.background = cat.c;
+          seg.style.width = (frac * 100).toFixed(2) + "%";
+          bar.appendChild(seg);
+        });
+        track.appendChild(bar);
+
+        var val = document.createElement("div"); val.className = "val"; val.textContent = fmtUSD(v);
+        row.appendChild(rank); row.appendChild(lbl); row.appendChild(track); row.appendChild(val);
+
+        row.addEventListener("mousemove", function (e) {
+          var mix = CATS.map(function (cat) {
+            return '<span><b style="color:' + cat.c + '">●</b> ' + cat.l + " " + Math.round(p.W[cat.k] * 100) + "%</span>";
+          }).join("");
+          showTip("<b>" + p.t + "</b><br>" + p.d + " → " + p.r +
+            "<br>" + FG_LABEL[p.fg] + " · " + fmtUSD(v) + " " + (state.metric === "commit" ? "committed" : "disbursed") +
+            '<div class="mix">' + mix + "</div>", e);
+        });
+        row.addEventListener("mouseleave", hideTip);
+        chart.appendChild(row);
+      });
+
+      // intro headline
+      var shown = rows.length;
+      document.getElementById("intro").innerHTML =
+        '<span class="big">' + nQual + "</span> cross-cutting projects" +
+        (state.fg === "all" ? "" : " from " + FG_LABEL[state.fg] + "s") +
+        " span " + (state.types === 3 ? "all three" : "at least two") +
+        " digital tech types (≥15% each) — together <b>" + fmtUSD(sumAll) + "</b> " +
+        (state.metric === "commit" ? "committed" : "disbursed") + " over the selected years. " +
+        "Showing the <b>" + shown + "</b> largest below.";
+
+      document.getElementById("foot").textContent =
+        shown + " of " + nQual + " qualifying projects shown · scale: " +
+        (state.scale === "sqrt" ? "√ (square-root)" : state.scale) + ".";
+    }
+
+    // ---- year button group ----
+    (function () {
+      var grp = document.getElementById("year-group");
+      var allBtn = document.createElement("button");
+      allBtn.className = "control-btn active"; allBtn.dataset.year = "all"; allBtn.textContent = "ALL";
+      grp.appendChild(allBtn);
+      YEARS.forEach(function (y) {
+        var btn = document.createElement("button");
+        btn.className = "control-btn active"; btn.dataset.year = y; btn.textContent = y;
+        grp.appendChild(btn);
+      });
+      grp.addEventListener("click", function (e) {
+        var btn = e.target.closest(".control-btn"); if (!btn) return;
+        if (btn.dataset.year === "all") {
+          var on = YEARS.some(function (y) { return !state.years[y]; });   // if any off → turn all on
+          YEARS.forEach(function (y) { state.years[y] = true; });
+          if (!on) { /* all already on; keep on */ }
+        } else {
+          var y = +btn.dataset.year; state.years[y] = !state.years[y];
+          if (YEARS.every(function (yy) { return !state.years[yy]; })) state.years[y] = true; // never zero
+        }
+        // reflect state on buttons
+        Array.prototype.forEach.call(grp.querySelectorAll(".control-btn"), function (b) {
+          if (b.dataset.year === "all") {
+            b.classList.toggle("active", YEARS.every(function (yy) { return state.years[yy]; }));
+          } else {
+            b.classList.toggle("active", !!state.years[+b.dataset.year]);
+          }
+        });
+        render();
+      });
+    })();
+
+    function wireGroup(id, key, cast) {
+      var grp = document.getElementById(id);
+      grp.addEventListener("click", function (e) {
+        var btn = e.target.closest(".control-btn"); if (!btn) return;
+        Array.prototype.forEach.call(grp.querySelectorAll(".control-btn"), function (b) { b.classList.remove("active"); });
+        btn.classList.add("active");
+        state[key] = cast ? cast(btn.dataset[key]) : btn.dataset[key];
+        render();
+      });
+    }
+    wireGroup("metric-group", "metric");
+    wireGroup("fg-group", "fg");
+    wireGroup("scale-group", "scale");
+    wireGroup("top-group", "top", function (v) { return +v; });
+    wireGroup("types-group", "types", function (v) { return +v; });
+
+    render();
+  </script>
+</body>
+
+</html>
