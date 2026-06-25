@@ -9,8 +9,11 @@
             overflow: hidden;
             height: 100vh;
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
-            background: #ffffff;
+            background: linear-gradient(180deg, #ffffff 0%, #f7f8fa 100%);
             color: #1f2933;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+            letter-spacing: 0.005em;
         }
 
         .viz-grid {
@@ -54,8 +57,9 @@
 
         .footnote-text {
             font-size: clamp(10px, 1.6vw, 16px);
-            color: #333;
+            color: #6b7280;
             font-style: italic;
+            letter-spacing: 0.01em;
         }
 
         #container2 {
@@ -151,15 +155,17 @@
         .source-text {
             font-size: clamp(12px, 1.5vw, 16px);
             font-weight: 600;
-            color: #333;
+            color: #4b5563;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+            letter-spacing: 0.01em;
         }
 
         .source-text a {
-            color: #2756d3;
+            color: #4f46e5;
             text-decoration: none;
+            border-bottom: 1px solid rgba(79, 70, 229, 0.25);
         }
 
         .source-text a:hover {
@@ -177,8 +183,8 @@
 
         .links path {
             fill: none;
-            stroke-opacity: 0.4;
-            transition: all 0.3s ease;
+            stroke-opacity: 0.32;
+            transition: stroke-opacity 0.3s ease;
         }
 
         .nodes rect {
@@ -193,33 +199,35 @@
         }
 
         .hoveredNode rect {
-            filter: drop-shadow(0 0 5px #fff);
-            stroke-width: 2px;
+            filter: drop-shadow(0 1px 4px rgba(15, 23, 42, 0.18));
+            stroke-width: 1.5px;
         }
 
         .hoveredNode text {
-            font-weight: bold;
+            font-weight: 700;
         }
 
+        /* Capped below full opacity so even mid-tone ribbons never read as solid bands */
         .hoveredLink {
-            stroke-opacity: 1 !important;
+            stroke-opacity: 0.78 !important;
         }
 
         .dimmedNode rect {
-            fill: #eeeeee !important;
-            stroke: #eeeeee !important;
+            opacity: 0.28;
         }
 
         .dimmedNode text {
-            fill: #999999 !important;
+            fill: #c4c9d4 !important;
         }
 
+        /* Soft fade rather than a hard grey block */
         .dimmedLink {
-            stroke: #eeeeee !important;
+            stroke-opacity: 0.08 !important;
         }
 
+        /* Labels stay fully visible on hover — only the hovered ones get extra emphasis */
         .dimmedLabel {
-            opacity: 0.1 !important;
+            opacity: 1 !important;
             transition: opacity 0.2s;
         }
 
@@ -231,17 +239,19 @@
         .tooltip {
             position: absolute;
             text-align: left;
-            padding: 6px 8px;
-            background: #fff;
-            border: 1px solid #eee;
-            font-size: 12px;
-            border-radius: 2px;
-            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.15);
+            padding: 9px 12px;
+            background: rgba(255, 255, 255, 0.97);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            font-size: 12.5px;
+            line-height: 1.5;
+            border-radius: 8px;
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
             pointer-events: none;
             opacity: 0;
-            color: #444;
+            color: #374151;
             z-index: 9999;
-            transition: opacity 0.1s ease;
+            transition: opacity 0.12s ease;
+            backdrop-filter: saturate(1.2) blur(2px);
             font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
         }
 
@@ -255,9 +265,10 @@
 
         .level-label {
             font-weight: 700;
-            fill: #333;
+            fill: #6b7280;
             text-anchor: middle;
             font-size: 14px;
+            letter-spacing: 0.02em;
         }
 
         @media (max-height: 500px) {
@@ -312,7 +323,7 @@
     <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
     <script src="https://d3js.org/d3-scale-chromatic.v1.min.js"></script>
     <script>
-        const originalData = [{"value":1.1,"color":"#a5b4fc","source":"MacBook Air 8GB","target":"Nemotron Nano 1.5B"},{"value":4.4,"color":"#a5b4fc","source":"MacBook Air 8GB","target":"Mistral 7B"},{"value":1.1,"color":"#bef264","source":"RTX 3060 (12GB)","target":"Nemotron Nano 1.5B"},{"value":4.4,"color":"#bef264","source":"RTX 3060 (12GB)","target":"Mistral 7B"},{"value":9,"color":"#bef264","source":"RTX 3060 (12GB)","target":"Phi-4 (14B)"},{"value":1.1,"color":"#6366f1","source":"MacBook Pro 16GB","target":"Nemotron Nano 1.5B"},{"value":4.4,"color":"#6366f1","source":"MacBook Pro 16GB","target":"Mistral 7B"},{"value":9,"color":"#6366f1","source":"MacBook Pro 16GB","target":"Phi-4 (14B)"},{"value":1.1,"color":"#76B900","source":"RTX 4090 (24GB)","target":"Nemotron Nano 1.5B"},{"value":4.4,"color":"#76B900","source":"RTX 4090 (24GB)","target":"Mistral 7B"},{"value":9,"color":"#76B900","source":"RTX 4090 (24GB)","target":"Phi-4 (14B)"},{"value":18,"color":"#76B900","source":"RTX 4090 (24GB)","target":"Qwen3-Coder-30B-A3B"},{"value":1.1,"color":"#4338ca","source":"MacBook Pro 64GB","target":"Nemotron Nano 1.5B"},{"value":4.4,"color":"#4338ca","source":"MacBook Pro 64GB","target":"Mistral 7B"},{"value":9,"color":"#4338ca","source":"MacBook Pro 64GB","target":"Phi-4 (14B)"},{"value":18,"color":"#4338ca","source":"MacBook Pro 64GB","target":"Qwen3-Coder-30B-A3B"},{"value":42,"color":"#4338ca","source":"MacBook Pro 64GB","target":"Llama-3.3-70B"},{"value":1.1,"color":"#3f6212","source":"DGX Spark (128GB)","target":"Nemotron Nano 1.5B"},{"value":4.4,"color":"#3f6212","source":"DGX Spark (128GB)","target":"Mistral 7B"},{"value":9,"color":"#3f6212","source":"DGX Spark (128GB)","target":"Phi-4 (14B)"},{"value":18,"color":"#3f6212","source":"DGX Spark (128GB)","target":"Qwen3-Coder-30B-A3B"},{"value":42,"color":"#3f6212","source":"DGX Spark (128GB)","target":"Llama-3.3-70B"},{"value":60,"color":"#3f6212","source":"DGX Spark (128GB)","target":"GLM-4.5-Air (106B)"}];
+        const originalData = [{"value":1.1,"color":"#a5b4fc","source":"MacBook Air 8GB","target":"Nemotron Nano 1.5B"},{"value":4.4,"color":"#a5b4fc","source":"MacBook Air 8GB","target":"Mistral 7B"},{"value":1.1,"color":"#bef264","source":"RTX 3060 (12GB)","target":"Nemotron Nano 1.5B"},{"value":4.4,"color":"#bef264","source":"RTX 3060 (12GB)","target":"Mistral 7B"},{"value":9,"color":"#bef264","source":"RTX 3060 (12GB)","target":"Phi-4 (14B)"},{"value":1.1,"color":"#6366f1","source":"MacBook Pro 16GB","target":"Nemotron Nano 1.5B"},{"value":4.4,"color":"#6366f1","source":"MacBook Pro 16GB","target":"Mistral 7B"},{"value":9,"color":"#6366f1","source":"MacBook Pro 16GB","target":"Phi-4 (14B)"},{"value":1.1,"color":"#76B900","source":"RTX 4090 (24GB)","target":"Nemotron Nano 1.5B"},{"value":4.4,"color":"#76B900","source":"RTX 4090 (24GB)","target":"Mistral 7B"},{"value":9,"color":"#76B900","source":"RTX 4090 (24GB)","target":"Phi-4 (14B)"},{"value":18,"color":"#76B900","source":"RTX 4090 (24GB)","target":"Qwen3-Coder-30B-A3B"},{"value":1.1,"color":"#818cf8","source":"MacBook Pro 64GB","target":"Nemotron Nano 1.5B"},{"value":4.4,"color":"#818cf8","source":"MacBook Pro 64GB","target":"Mistral 7B"},{"value":9,"color":"#818cf8","source":"MacBook Pro 64GB","target":"Phi-4 (14B)"},{"value":18,"color":"#818cf8","source":"MacBook Pro 64GB","target":"Qwen3-Coder-30B-A3B"},{"value":42,"color":"#818cf8","source":"MacBook Pro 64GB","target":"Llama-3.3-70B"},{"value":1.1,"color":"#65a30d","source":"DGX Spark (128GB)","target":"Nemotron Nano 1.5B"},{"value":4.4,"color":"#65a30d","source":"DGX Spark (128GB)","target":"Mistral 7B"},{"value":9,"color":"#65a30d","source":"DGX Spark (128GB)","target":"Phi-4 (14B)"},{"value":18,"color":"#65a30d","source":"DGX Spark (128GB)","target":"Qwen3-Coder-30B-A3B"},{"value":42,"color":"#65a30d","source":"DGX Spark (128GB)","target":"Llama-3.3-70B"},{"value":60,"color":"#65a30d","source":"DGX Spark (128GB)","target":"GLM-4.5-Air (106B)"}];
         const HEADER_TEXT = "";
         const SHOW_LEGEND = 0;
         const SHOW_CONTAINER_3 = 1; // Source
@@ -731,24 +742,40 @@
             nodeSelection.append('rect')
                 .attr('height', d => d.y1 - d.y0)
                 .attr('width', sankey.nodeWidth())
-                .attr('fill', d => d.color)
-                .attr('stroke', '#999');
+                .attr('rx', 4)
+                .attr('ry', 4)
+                .attr('fill', '#cbd2dc')
+                .attr('stroke', '#9aa3b2')
+                .attr('stroke-width', 1);
 
             // 6. Node Text Layer (Labels always on top of Highlight Layer)
             const nodeTextLayer = svg.append('g')
                 .attr('class', 'node-labels');
             // Allow pointer events on text to trigger hover
 
+            const nodeLabelFontSize = getLabelFontSize();
             const nodeLabels = nodeTextLayer.selectAll('text')
                 .data(graph.nodes)
                 .enter().append('text')
-                .attr('x', d => d.x0 < width / 2 ? d.x0 + sankey.nodeWidth() + 6 : d.x0 - 6)
+                .attr('x', d => d.x0 < width / 2 ? d.x0 + sankey.nodeWidth() + 9 : d.x0 - 9)
                 .attr('y', d => d.y0 + (d.y1 - d.y0) / 2)
                 .attr('dy', '0.35em')
                 .attr('text-anchor', d => d.x0 < width / 2 ? 'start' : 'end')
-                .attr('fill', '#000')
+                // White halo (stroke) painted behind a dark fill so labels stay
+                // crisp over any ribbon, particle, or background.
+                .attr('fill', '#1f2933')
+                .attr('stroke', '#ffffff')
+                .attr('stroke-width', 3)
+                .attr('stroke-linejoin', 'round')
+                .attr('paint-order', 'stroke fill')
+                .style('fill', '#1f2933')
+                .style('stroke', '#ffffff')
+                .style('stroke-width', '3px')
+                .style('stroke-linejoin', 'round')
+                .style('paint-order', 'stroke fill')
                 .style('cursor', 'pointer') // Indicate clickability
-                .style('font-size', '14px')
+                .style('font-weight', '600')
+                .style('font-size', `${nodeLabelFontSize}px`)
                 .text(d => d.name);
 
             // Replicate hover logic for labels (same as rects)
@@ -978,7 +1005,8 @@
                     return;
                 }
                 particleContext.beginPath();
-                // If hovered, white. Else link color.
+                // If hovered, bright white with a soft dark rim so the particle
+                // stays visible against the lighter (mid-tone) ribbons.
                 const hasHoveredId = p.link && p.link.id && hoveredLinkIds.has(p.link.id);
                 const isHovered = hasHoveredId;
                 let fill = isHovered ? '#ffffff' : (p.link.color || '#999');
@@ -992,6 +1020,11 @@
                     2 * Math.PI
                 );
                 particleContext.fill();
+                if (isHovered) {
+                    particleContext.lineWidth = 1;
+                    particleContext.strokeStyle = 'rgba(31, 41, 51, 0.35)';
+                    particleContext.stroke();
+                }
             });
         }
 
