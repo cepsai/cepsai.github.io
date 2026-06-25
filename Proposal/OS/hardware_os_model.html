@@ -395,7 +395,8 @@
 
         const sankey = d3.sankey()
             .nodeWidth(20)
-            .nodePadding(16);
+            .nodePadding(16)
+            .nodeSort(null); // preserve our largest-up node order instead of re-sorting by flow value
 
         const linkPath = d3.sankeyLinkHorizontal();
 
@@ -529,10 +530,24 @@
                 }
             });
 
-            // Sort nodes by level, then name
+            // Vertical-order rank (largest on top). A model's rank is its own size
+            // (the value of any link into it = its VRAM). A hardware's rank is the
+            // largest model it can run (max outgoing link value). This orders the
+            // model chain by true size rather than by aggregated flow value.
+            const modelRank = new Map();   // target (model) -> VRAM
+            const hwRank = new Map();       // source (hardware) -> max outgoing value
+            linkKeyMap.forEach(link => {
+                if (!modelRank.has(link.targetName)) modelRank.set(link.targetName, link.value);
+                hwRank.set(link.sourceName, Math.max(hwRank.get(link.sourceName) || 0, link.value));
+            });
+            const rankOf = name => (hwRank.has(name) ? hwRank.get(name) : (modelRank.get(name) || 0));
+
+            // Sort nodes by level, then by size rank (largest up), then name
             const sortedNames = Array.from(nodeNames).sort((a, b) => {
                 const levelDiff = (levels.get(a) || 0) - (levels.get(b) || 0);
-                return levelDiff !== 0 ? levelDiff : a.localeCompare(b);
+                if (levelDiff !== 0) return levelDiff;
+                const rankDiff = rankOf(b) - rankOf(a); // descending: largest at top
+                return rankDiff !== 0 ? rankDiff : a.localeCompare(b);
             });
 
             const nodes = sortedNames.map(name => ({
