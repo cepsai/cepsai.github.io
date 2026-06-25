@@ -1,0 +1,5675 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style type="text/css">
+        .knitr .inline {
+            background-color: #F7F7F7;
+            border: solid 1px #B0B0B0;
+        }
+
+        .error {
+            font-weight: bold;
+            color: #FF0000;
+        }
+
+        .warning {
+            font-weight: bold;
+        }
+
+        .message {
+            font-style: italic;
+        }
+
+        .source,
+        .output,
+        .warning,
+        .error,
+        .message {
+            padding: 0 1em;
+            border: solid 1px #F7F7F7;
+        }
+
+        .source {
+            background-color: #F5F5F5;
+        }
+
+        .rimage .left {
+            text-align: left;
+        }
+
+        .rimage .right {
+            text-align: right;
+        }
+
+        .rimage .center {
+            text-align: center;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 16fr 1fr 2fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+        }
+
+        #container5 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+        }
+
+        #container2 {
+            grid-row: 3;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #container3 {
+            grid-row: 4;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 4;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        #viz {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        .custom-legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(4px, 1vw, 10px);
+            padding: clamp(2px, 0.5vh, 4px) clamp(4px, 0.8vw, 8px);
+            overflow: auto;
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(8px, 1.3vw, 13px);
+            font-weight: 600;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: opacity 0.2s ease;
+            font-weight: 600;
+            color: #333;
+            position: relative;
+        }
+
+        .legend-item.inactive {
+            opacity: 0.35;
+        }
+
+        .legend-square {
+            width: clamp(10px, 1.2vw, 14px);
+            height: clamp(10px, 1.2vw, 14px);
+            border-radius: 4px;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset;
+        }
+
+        .legend-item:focus-visible {
+            outline: 2px solid rgba(0, 0, 0, 0.5);
+            outline-offset: 2px;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: 100%;
+            max-width: 100%;
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .source-text a:visited {
+            color: #2756d3;
+        }
+
+        .footnote-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-style: italic;
+            color: #333;
+            text-align: right;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+        }
+
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr;
+                grid-template-columns: 1fr;
+            }
+
+            #container1 {
+                grid-row: 1;
+                grid-column: 1;
+            }
+
+            #container2,
+            #container3,
+            #container4,
+            #container5 {
+                display: none !important;
+            }
+
+            .custom-legend,
+            .source-text,
+            .logo,
+            .footnote-text {
+                display: none !important;
+            }
+        }
+    </style>
+
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1" class="container viz-container">
+            <div id="viz"></div>
+        </div>
+        <div id="container5" class="container footnote-container">
+            <div class="footnote-text" id="footnote-text">
+                This is a footnote example
+            </div>
+        </div>
+        <div id="container2" class="container legend-container">
+            <div class="custom-legend" id="legend"></div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-text" id="source-text">
+    Source: <a href="www.huggingface.co" target="_blank" rel="noopener noreferrer">Hugging Face</a>
+  </div>
+        </div>
+        <div id="container4" class="container logo-container"><a href="https://aiworld.eu/" target="_blank" rel="noopener"><img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" /></a></div>
+    </div>
+
+    <script>
+        const SHOW_CONTAINER_2 = 0;
+        const SHOW_CONTAINER_3 = 1;
+        const SHOW_CONTAINER_4 = 1;
+        const SHOW_CONTAINER_5 = 0;
+
+        const VIZ_CONTAINER_ID = 'viz';
+        const SOURCE_CONTAINER_ID = 'source-text';
+        const LOGO_CONTAINER_ID = 'logo-link';
+        const FOOTNOTE_CONTAINER_ID = 'footnote-text';
+
+        const vizContainer = document.getElementById(VIZ_CONTAINER_ID);
+        const sourceContainer = document.getElementById(SOURCE_CONTAINER_ID);
+        const logoContainer = document.getElementById(LOGO_CONTAINER_ID);
+        const footnoteContainer = document.getElementById(FOOTNOTE_CONTAINER_ID);
+
+        (function applyContainerVisibility() {
+            const vizGrid = document.querySelector('.viz-grid');
+            const container1 = document.getElementById('container1');
+            const container2 = document.getElementById('container2');
+            const container3 = document.getElementById('container3');
+            const container4 = document.getElementById('container4');
+            const container5 = document.getElementById('container5');
+
+            if (!SHOW_CONTAINER_2) {
+                container2.style.display = 'none';
+            }
+            if (!SHOW_CONTAINER_3) {
+                container3.style.display = 'none';
+            }
+            if (!SHOW_CONTAINER_4) {
+                container4.style.display = 'none';
+            }
+            if (!SHOW_CONTAINER_5) {
+                container5.style.display = 'none';
+            }
+
+            const row2Visible = SHOW_CONTAINER_5;
+            const row3Visible = SHOW_CONTAINER_2;
+            const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+            let gridRows = [];
+            let currentRow = 1;
+
+            const container1Height = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 2 : 0) - (row4Visible ? 1 : 0);
+            gridRows.push(`${container1Height}fr`);
+
+            if (row2Visible) {
+                gridRows.push('1fr');
+                currentRow++;
+                container5.style.gridRow = currentRow.toString();
+            }
+
+            if (row3Visible) {
+                gridRows.push('2fr');
+                currentRow++;
+                container2.style.gridRow = currentRow.toString();
+            }
+
+            if (row4Visible) {
+                gridRows.push('1fr');
+                currentRow++;
+                if (SHOW_CONTAINER_3) container3.style.gridRow = currentRow.toString();
+                if (SHOW_CONTAINER_4) container4.style.gridRow = currentRow.toString();
+            }
+
+            vizGrid.style.gridTemplateRows = gridRows.join(' ');
+            container1.style.gridRow = '1';
+
+            if (row4Visible) {
+                if (SHOW_CONTAINER_3 && !SHOW_CONTAINER_4) {
+                    container3.style.gridColumn = '1 / span 2';
+                } else if (!SHOW_CONTAINER_3 && SHOW_CONTAINER_4) {
+                    container4.style.gridColumn = '1 / span 2';
+                }
+            }
+        })();
+
+        const originalData = [
+  {
+    "id": "DeepSeek-V4-Pro-NVFP4",
+    "value": 62,
+    "name": "DeepSeek-V4-Pro-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16",
+    "value": 231,
+    "name": "NVIDIA-Nemotron-3-Ultra-550B-A55B-BF16",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Ultra-550B-A55B-GenRM",
+    "value": 10,
+    "name": "NVIDIA-Nemotron-3-Ultra-550B-A55B-GenRM",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Ultra-550B-A55B-Base-BF16",
+    "value": 25,
+    "name": "NVIDIA-Nemotron-3-Ultra-550B-A55B-Base-BF16",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "GLM-5.1-NVFP4",
+    "value": 37,
+    "name": "GLM-5.1-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "GLM-5-NVFP4",
+    "value": 30,
+    "name": "GLM-5-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Llama-3.1-405B-Instruct-FP8",
+    "value": 16,
+    "name": "Llama-3.1-405B-Instruct-FP8",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "value": 15,
+    "name": "Llama-4-Maverick-17B-128E-Instruct-FP8",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "DeepSeek-R1-NVFP4",
+    "value": 281,
+    "name": "DeepSeek-R1-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "DeepSeek-V3-0324-NVFP4",
+    "value": 17,
+    "name": "DeepSeek-V3-0324-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "DeepSeek-R1-0528-NVFP4",
+    "value": 44,
+    "name": "DeepSeek-R1-0528-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "DeepSeek-V3.2-NVFP4",
+    "value": 15,
+    "name": "DeepSeek-V3.2-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "DeepSeek-R1-0528-NVFP4-v2",
+    "value": 23,
+    "name": "DeepSeek-R1-0528-NVFP4-v2",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "DeepSeek-R1-NVFP4-v2",
+    "value": 8,
+    "name": "DeepSeek-R1-NVFP4-v2",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "DeepSeek-V3.1-NVFP4",
+    "value": 15,
+    "name": "DeepSeek-V3.1-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4",
+    "value": 198,
+    "name": "NVIDIA-Nemotron-3-Ultra-550B-A55B-NVFP4",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Qwen3-Coder-480B-A35B-Instruct-NVFP4",
+    "value": 12,
+    "name": "Qwen3-Coder-480B-A35B-Instruct-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Llama-3_1-Nemotron-Ultra-253B-v1",
+    "value": 352,
+    "name": "Llama-3_1-Nemotron-Ultra-253B-v1",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3_1-Nemotron-Ultra-253B-CPT-v1",
+    "value": 6,
+    "name": "Llama-3_1-Nemotron-Ultra-253B-CPT-v1",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3_1-Nemotron-Ultra-253B-v1-FP8",
+    "value": 12,
+    "name": "Llama-3_1-Nemotron-Ultra-253B-v1-FP8",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Qwen3-235B-A22B-FP8",
+    "value": 5,
+    "name": "Qwen3-235B-A22B-FP8",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Qwen3-Nemotron-235B-A22B-GenRM",
+    "value": 31,
+    "name": "Qwen3-Nemotron-235B-A22B-GenRM",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Qwen3-Nemotron-235B-A22B-GenRM-2603",
+    "value": 29,
+    "name": "Qwen3-Nemotron-235B-A22B-GenRM-2603",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3.1-405B-Instruct-NVFP4",
+    "value": 12,
+    "name": "Llama-3.1-405B-Instruct-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "GLM-4.7-NVFP4",
+    "value": 15,
+    "name": "GLM-4.7-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "DeepSeek-V4-Flash-NVFP4",
+    "value": 30,
+    "name": "DeepSeek-V4-Flash-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Qwen3-235B-A22B-Thinking-2507-NVFP4",
+    "value": 8,
+    "name": "Qwen3-235B-A22B-Thinking-2507-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Qwen3-235B-A22B-Instruct-2507-NVFP4",
+    "value": 10,
+    "name": "Qwen3-235B-A22B-Instruct-2507-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Qwen3-VL-235B-A22B-Instruct-NVFP4-MLPerf-Inference-Closed-V6.0",
+    "value": 7,
+    "name": "Qwen3-VL-235B-A22B-Instruct-NVFP4-MLPerf-Inference-Closed-V6.0",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Qwen3-VL-235B-A22B-Instruct-NVFP4-MLPerf-Inference-Closed-V6.1",
+    "value": 1,
+    "name": "Qwen3-VL-235B-A22B-Instruct-NVFP4-MLPerf-Inference-Closed-V6.1",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Qwen3-VL-235B-A22B-Instruct-NVFP4",
+    "value": 3,
+    "name": "Qwen3-VL-235B-A22B-Instruct-NVFP4",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Qwen3-235B-A22B-NVFP4",
+    "value": 18,
+    "name": "Qwen3-235B-A22B-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "MiniMax-M2.7-NVFP4",
+    "value": 59,
+    "name": "MiniMax-M2.7-NVFP4",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "MiniMax-M2.5-NVFP4",
+    "value": 37,
+    "name": "MiniMax-M2.5-NVFP4",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Super-120B-A12B-FP8",
+    "value": 260,
+    "name": "NVIDIA-Nemotron-3-Super-120B-A12B-FP8",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Super-120B-A12B-Base-BF16",
+    "value": 32,
+    "name": "NVIDIA-Nemotron-3-Super-120B-A12B-Base-BF16",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Super-120B-A12B-BF16",
+    "value": 384,
+    "name": "NVIDIA-Nemotron-3-Super-120B-A12B-BF16",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-4-Scout-17B-16E-Instruct-FP8",
+    "value": 16,
+    "name": "Llama-4-Scout-17B-16E-Instruct-FP8",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "gpt-oss-puzzle-88B",
+    "value": 92,
+    "name": "gpt-oss-puzzle-88B",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "NVLM-D-72B",
+    "value": 776,
+    "name": "NVLM-D-72B",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Qwen3.5-122B-A10B-NVFP4",
+    "value": 20,
+    "name": "Qwen3.5-122B-A10B-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
+    "value": 358,
+    "name": "NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "AceMath-72B-Instruct",
+    "value": 21,
+    "name": "AceMath-72B-Instruct",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "AceInstruct-72B",
+    "value": 18,
+    "name": "AceInstruct-72B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "AceMath-72B-RM",
+    "value": 10,
+    "name": "AceMath-72B-RM",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "Qwen2.5-CascadeRL-RM-72B",
+    "value": 13,
+    "name": "Qwen2.5-CascadeRL-RM-72B",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Llama3-ChatQA-1.5-70B",
+    "value": 334,
+    "name": "Llama3-ChatQA-1.5-70B",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Llama-3.3-70B-Instruct-FP8",
+    "value": 26,
+    "name": "Llama-3.3-70B-Instruct-FP8",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Llama-3.1-70B-Instruct-FP8",
+    "value": 18,
+    "name": "Llama-3.1-70B-Instruct-FP8",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Llama-3.1-Nemotron-70B-Reward-HF",
+    "value": 93,
+    "name": "Llama-3.1-Nemotron-70B-Reward-HF",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "OpenMath2-Llama3.1-70B",
+    "value": 22,
+    "name": "OpenMath2-Llama3.1-70B",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "Llama-3.1-Nemotron-70B-Instruct-HF",
+    "value": 2067,
+    "name": "Llama-3.1-Nemotron-70B-Instruct-HF",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3.3-Nemotron-70B-Feedback",
+    "value": 9,
+    "name": "Llama-3.3-Nemotron-70B-Feedback",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3.3-Nemotron-70B-Edit",
+    "value": 4,
+    "name": "Llama-3.3-Nemotron-70B-Edit",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3.3-Nemotron-70B-Select",
+    "value": 12,
+    "name": "Llama-3.3-Nemotron-70B-Select",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3.3-Nemotron-70B-Reward",
+    "value": 4,
+    "name": "Llama-3.3-Nemotron-70B-Reward",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "Llama-3.3-Nemotron-70B-Reward-Multilingual",
+    "value": 10,
+    "name": "Llama-3.3-Nemotron-70B-Reward-Multilingual",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "Llama-3.3-Nemotron-70B-Reward-Principle",
+    "value": 7,
+    "name": "Llama-3.3-Nemotron-70B-Reward-Principle",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "OpenMath-CodeLlama-70b-Python-hf",
+    "value": 12,
+    "name": "OpenMath-CodeLlama-70b-Python-hf",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "OpenMath-Llama-2-70b-hf",
+    "value": 4,
+    "name": "OpenMath-Llama-2-70b-hf",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "Cosmos3-Super",
+    "value": 180,
+    "name": "Cosmos3-Super",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos3-Super-Text2Image",
+    "value": 144,
+    "name": "Cosmos3-Super-Text2Image",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos3-Super-Image2Video",
+    "value": 127,
+    "name": "Cosmos3-Super-Image2Video",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Llama-4-Scout-17B-16E-Instruct-NVFP4",
+    "value": 32,
+    "name": "Llama-4-Scout-17B-16E-Instruct-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Nemotron-H-56B-Base-8K",
+    "value": 33,
+    "name": "Nemotron-H-56B-Base-8K",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3_1-Nemotron-51B-Instruct",
+    "value": 210,
+    "name": "Llama-3_1-Nemotron-51B-Instruct",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3_3-Nemotron-Super-49B-v1_5",
+    "value": 234,
+    "name": "Llama-3_3-Nemotron-Super-49B-v1_5",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3_3-Nemotron-Super-49B-v1",
+    "value": 322,
+    "name": "Llama-3_3-Nemotron-Super-49B-v1",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3_3-Nemotron-Super-49B-v1-FP8",
+    "value": 13,
+    "name": "Llama-3_3-Nemotron-Super-49B-v1-FP8",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3_3-Nemotron-Super-49B-GenRM",
+    "value": 19,
+    "name": "Llama-3_3-Nemotron-Super-49B-GenRM",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3_3-Nemotron-Super-49B-GenRM-Multilingual",
+    "value": 7,
+    "name": "Llama-3_3-Nemotron-Super-49B-GenRM-Multilingual",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3_3-Nemotron-Super-49B-v1_5-FP8",
+    "value": 28,
+    "name": "Llama-3_3-Nemotron-Super-49B-v1_5-FP8",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-H-47B-Base-8K",
+    "value": 22,
+    "name": "Nemotron-H-47B-Base-8K",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-H-47B-Reasoning-128K",
+    "value": 22,
+    "name": "Nemotron-H-47B-Reasoning-128K",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "Nemotron-H-47B-Reasoning-128K-FP8",
+    "value": 6,
+    "name": "Nemotron-H-47B-Reasoning-128K-FP8",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "NeKo-v0-post-correction",
+    "value": 2,
+    "name": "NeKo-v0-post-correction",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Llama-3.3-70B-Instruct-NVFP4",
+    "value": 44,
+    "name": "Llama-3.3-70B-Instruct-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Ising-Calibration-1-35B-A3B",
+    "value": 55,
+    "name": "Ising-Calibration-1-35B-A3B",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "OpenMath-CodeLlama-34b-Python-hf",
+    "value": 2,
+    "name": "OpenMath-CodeLlama-34b-Python-hf",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "Cosmos-Reason2-32B",
+    "value": 14,
+    "name": "Cosmos-Reason2-32B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16",
+    "value": 356,
+    "name": "Nemotron-3-Nano-Omni-30B-A3B-Reasoning-BF16",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "Nemotron-3-Nano-Omni-30B-A3B-Reasoning-FP8",
+    "value": 54,
+    "name": "Nemotron-3-Nano-Omni-30B-A3B-Reasoning-FP8",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "OpenCodeReasoning-Nemotron-32B",
+    "value": 75,
+    "name": "OpenCodeReasoning-Nemotron-32B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "OpenMath-Nemotron-32B",
+    "value": 31,
+    "name": "OpenMath-Nemotron-32B",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "OpenCodeReasoning-Nemotron-32B-IOI",
+    "value": 26,
+    "name": "OpenCodeReasoning-Nemotron-32B-IOI",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "OpenCodeReasoning-Nemotron-1.1-32B",
+    "value": 48,
+    "name": "OpenCodeReasoning-Nemotron-1.1-32B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "NFT-32B",
+    "value": 8,
+    "name": "NFT-32B",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "OpenReasoning-Nemotron-32B",
+    "value": 126,
+    "name": "OpenReasoning-Nemotron-32B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "Qwen3-Nemotron-32B-GenRM-Principle",
+    "value": 17,
+    "name": "Qwen3-Nemotron-32B-GenRM-Principle",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Qwen3-Nemotron-32B-RLBFF",
+    "value": 28,
+    "name": "Qwen3-Nemotron-32B-RLBFF",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-Terminal-32B",
+    "value": 38,
+    "name": "Nemotron-Terminal-32B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Qwen-2.5-Nemotron-32B-Reward",
+    "value": 3,
+    "name": "Qwen-2.5-Nemotron-32B-Reward",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "Qwen-3-Nemotron-32B-Reward",
+    "value": 20,
+    "name": "Qwen-3-Nemotron-32B-Reward",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Nano-30B-A3B-FP8",
+    "value": 350,
+    "name": "NVIDIA-Nemotron-3-Nano-30B-A3B-FP8",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Labs-3-Elastic-30B-A3B-FP8",
+    "value": 9,
+    "name": "NVIDIA-Nemotron-Labs-3-Elastic-30B-A3B-FP8",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+    "value": 770,
+    "name": "NVIDIA-Nemotron-3-Nano-30B-A3B-BF16",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-Cascade-2-30B-A3B",
+    "value": 504,
+    "name": "Nemotron-Cascade-2-30B-A3B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Nano-30B-A3B-Base-BF16",
+    "value": 126,
+    "name": "NVIDIA-Nemotron-3-Nano-30B-A3B-Base-BF16",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Labs-3-Elastic-30B-A3B-BF16",
+    "value": 29,
+    "name": "NVIDIA-Nemotron-Labs-3-Elastic-30B-A3B-BF16",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3_3-Nemotron-Super-49B-v1_5-NVFP4",
+    "value": 20,
+    "name": "Llama-3_3-Nemotron-Super-49B-v1_5-NVFP4",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Gemma-4-31B-IT-NVFP4",
+    "value": 511,
+    "name": "Gemma-4-31B-IT-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Qwen3.6-35B-A3B-NVFP4",
+    "value": 246,
+    "name": "Qwen3.6-35B-A3B-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Nemotron-3-Nano-Omni-30B-A3B-Reasoning-NVFP4",
+    "value": 143,
+    "name": "Nemotron-3-Nano-Omni-30B-A3B-Reasoning-NVFP4",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "Qwen3-32B-NVFP4",
+    "value": 17,
+    "name": "Qwen3-32B-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4",
+    "value": 157,
+    "name": "NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Labs-3-Elastic-30B-A3B-NVFP4",
+    "value": 16,
+    "name": "NVIDIA-Nemotron-Labs-3-Elastic-30B-A3B-NVFP4",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Qwen3-30B-A3B-NVFP4",
+    "value": 34,
+    "name": "Qwen3-30B-A3B-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "diffusiongemma-26B-A4B-it-NVFP4",
+    "value": 81,
+    "name": "diffusiongemma-26B-A4B-it-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Gemma-4-26B-A4B-NVFP4",
+    "value": 81,
+    "name": "Gemma-4-26B-A4B-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Cosmos3-Nano",
+    "value": 245,
+    "name": "Cosmos3-Nano",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos3-Nano-Policy-DROID",
+    "value": 23,
+    "name": "Cosmos3-Nano-Policy-DROID",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "esm2_t48_15B_UR50D",
+    "value": 8,
+    "name": "esm2_t48_15B_UR50D",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "OpenCodeReasoning-Nemotron-14B",
+    "value": 20,
+    "name": "OpenCodeReasoning-Nemotron-14B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "OpenMath-Nemotron-14B",
+    "value": 17,
+    "name": "OpenMath-Nemotron-14B",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "OpenMath-Nemotron-14B-Kaggle",
+    "value": 21,
+    "name": "OpenMath-Nemotron-14B-Kaggle",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "AceReason-Nemotron-14B",
+    "value": 97,
+    "name": "AceReason-Nemotron-14B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "OpenCodeReasoning-Nemotron-1.1-14B",
+    "value": 13,
+    "name": "OpenCodeReasoning-Nemotron-1.1-14B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "OpenReasoning-Nemotron-14B",
+    "value": 43,
+    "name": "OpenReasoning-Nemotron-14B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "Qwen3-14B-FP8",
+    "value": 6,
+    "name": "Qwen3-14B-FP8",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Nemotron-Cascade-14B-Thinking",
+    "value": 79,
+    "name": "Nemotron-Cascade-14B-Thinking",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-Terminal-14B",
+    "value": 11,
+    "name": "Nemotron-Terminal-14B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Phi-4-reasoning-plus-FP8",
+    "value": 7,
+    "name": "Phi-4-reasoning-plus-FP8",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "Nemotron-Labs-Diffusion-14B",
+    "value": 146,
+    "name": "Nemotron-Labs-Diffusion-14B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-Labs-Diffusion-14B-Base",
+    "value": 6,
+    "name": "Nemotron-Labs-Diffusion-14B-Base",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Nano-12B-v2-VL-BF16",
+    "value": 84,
+    "name": "NVIDIA-Nemotron-Nano-12B-v2-VL-BF16",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Nano-12B-v2-VL-FP8",
+    "value": 51,
+    "name": "NVIDIA-Nemotron-Nano-12B-v2-VL-FP8",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "OpenMath-CodeLlama-13b-Python-hf",
+    "value": 2,
+    "name": "OpenMath-CodeLlama-13b-Python-hf",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "Nemotron-Elastic-12B",
+    "value": 66,
+    "name": "Nemotron-Elastic-12B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Nano-12B-v2-Base",
+    "value": 90,
+    "name": "NVIDIA-Nemotron-Nano-12B-v2-Base",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Nano-12B-v2",
+    "value": 165,
+    "name": "NVIDIA-Nemotron-Nano-12B-v2",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Alpamayo-R1-10B",
+    "value": 415,
+    "name": "Alpamayo-R1-10B",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Alpamayo-1.5-10B",
+    "value": 74,
+    "name": "Alpamayo-1.5-10B",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Llama-3.1-8B-Medusa-FP8",
+    "value": 12,
+    "name": "Llama-3.1-8B-Medusa-FP8",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Qwen3-14B-NVFP4",
+    "value": 12,
+    "name": "Qwen3-14B-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Eagle2-9B",
+    "value": 63,
+    "name": "Eagle2-9B",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Nemotron-Labs-Diffusion-VLM-8B",
+    "value": 26,
+    "name": "Nemotron-Labs-Diffusion-VLM-8B",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Nano-9B-v2-FP8",
+    "value": 9,
+    "name": "NVIDIA-Nemotron-Nano-9B-v2-FP8",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Nano-9B-v2",
+    "value": 495,
+    "name": "NVIDIA-Nemotron-Nano-9B-v2",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Nano-9B-v2-Base",
+    "value": 46,
+    "name": "NVIDIA-Nemotron-Nano-9B-v2-Base",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Nano-9B-v2-Japanese",
+    "value": 138,
+    "name": "NVIDIA-Nemotron-Nano-9B-v2-Japanese",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Cosmos-Reason2-8B",
+    "value": 193,
+    "name": "Cosmos-Reason2-8B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "nemotron-colembed-vl-8b-v2",
+    "value": 47,
+    "name": "nemotron-colembed-vl-8b-v2",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "EGM-8B",
+    "value": 10,
+    "name": "EGM-8B",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "EGM-8B-SFT",
+    "value": 5,
+    "name": "EGM-8B-SFT",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Llama-3.1-Nemotron-Nano-VL-8B-V1",
+    "value": 181,
+    "name": "Llama-3.1-Nemotron-Nano-VL-8B-V1",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Phi-4-reasoning-plus-NVFP4",
+    "value": 9,
+    "name": "Phi-4-reasoning-plus-NVFP4",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "Nemotron-Labs-Diffusion-8B-Base",
+    "value": 6,
+    "name": "Nemotron-Labs-Diffusion-8B-Base",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-Labs-Diffusion-8B",
+    "value": 49,
+    "name": "Nemotron-Labs-Diffusion-8B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Mistral-NeMo-Minitron-8B-Base",
+    "value": 180,
+    "name": "Mistral-NeMo-Minitron-8B-Base",
+    "parent": "Minitron (compressed)",
+    "color": "#4d7c0f"
+  },
+  {
+    "id": "Mistral-NeMo-Minitron-8B-Instruct",
+    "value": 85,
+    "name": "Mistral-NeMo-Minitron-8B-Instruct",
+    "parent": "Minitron (compressed)",
+    "color": "#4d7c0f"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Nano-12B-v2-VL-NVFP4-QAD",
+    "value": 27,
+    "name": "NVIDIA-Nemotron-Nano-12B-v2-VL-NVFP4-QAD",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "personaplex-7b-v1",
+    "value": 2562,
+    "name": "personaplex-7b-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Cosmos-Reason1-7B",
+    "value": 242,
+    "name": "Cosmos-Reason1-7B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Qwen2.5-VL-7B-Instruct-FP8",
+    "value": 8,
+    "name": "Qwen2.5-VL-7B-Instruct-FP8",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Qwen2.5-VL-7B-Surg-CholecT50",
+    "value": 10,
+    "name": "Qwen2.5-VL-7B-Surg-CholecT50",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "music-flamingo-2601-hf",
+    "value": 104,
+    "name": "music-flamingo-2601-hf",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "music-flamingo-hf",
+    "value": 99,
+    "name": "music-flamingo-hf",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "audio-flamingo-next-hf",
+    "value": 56,
+    "name": "audio-flamingo-next-hf",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "audio-flamingo-next-think-hf",
+    "value": 9,
+    "name": "audio-flamingo-next-think-hf",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "audio-flamingo-3-hf",
+    "value": 187,
+    "name": "audio-flamingo-3-hf",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "music-flamingo-think-2601-hf",
+    "value": 41,
+    "name": "music-flamingo-think-2601-hf",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "audio-flamingo-next-captioner-hf",
+    "value": 18,
+    "name": "audio-flamingo-next-captioner-hf",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Nemotron-Orchestrator-8B",
+    "value": 583,
+    "name": "Nemotron-Orchestrator-8B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Qwen3-8B-FP8",
+    "value": 6,
+    "name": "Qwen3-8B-FP8",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Efficient-DLM-8B",
+    "value": 12,
+    "name": "Efficient-DLM-8B",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Nemotron-Cascade-8B-Thinking",
+    "value": 41,
+    "name": "Nemotron-Cascade-8B-Thinking",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-Cascade-8B",
+    "value": 67,
+    "name": "Nemotron-Cascade-8B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Qwen3-8B-DMS-8x",
+    "value": 37,
+    "name": "Qwen3-8B-DMS-8x",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Nemotron-Terminal-8B",
+    "value": 34,
+    "name": "Nemotron-Terminal-8B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "MM-Embed",
+    "value": 66,
+    "name": "MM-Embed",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "Nemotron-H-8B-Base-8K",
+    "value": 58,
+    "name": "Nemotron-H-8B-Base-8K",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-H-8B-Reasoning-128K",
+    "value": 28,
+    "name": "Nemotron-H-8B-Reasoning-128K",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "Nemotron-H-8B-Reasoning-128K-FP8",
+    "value": 13,
+    "name": "Nemotron-H-8B-Reasoning-128K-FP8",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "Eagle2.5-8B",
+    "value": 44,
+    "name": "Eagle2.5-8B",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Llama-3.1-Nemotron-8B-UltraLong-1M-Instruct",
+    "value": 59,
+    "name": "Llama-3.1-Nemotron-8B-UltraLong-1M-Instruct",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3.1-Nemotron-8B-UltraLong-2M-Instruct",
+    "value": 18,
+    "name": "Llama-3.1-Nemotron-8B-UltraLong-2M-Instruct",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3.1-Nemotron-8B-UltraLong-4M-Instruct",
+    "value": 122,
+    "name": "Llama-3.1-Nemotron-8B-UltraLong-4M-Instruct",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama3-ChatQA-1.5-8B",
+    "value": 555,
+    "name": "Llama3-ChatQA-1.5-8B",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Llama-3.1-Nemotron-Safety-Guard-8B-v3",
+    "value": 21,
+    "name": "Llama-3.1-Nemotron-Safety-Guard-8B-v3",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3.1-8B-Instruct-FP8",
+    "value": 37,
+    "name": "Llama-3.1-8B-Instruct-FP8",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "OpenMath2-Llama3.1-8B",
+    "value": 33,
+    "name": "OpenMath2-Llama3.1-8B",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "Llama-3.1-Nemotron-Nano-8B-v1",
+    "value": 221,
+    "name": "Llama-3.1-Nemotron-Nano-8B-v1",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "DLER-Llama-Nemotron-8B-Merge-Research",
+    "value": 18,
+    "name": "DLER-Llama-Nemotron-8B-Merge-Research",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NV-Embed-v2",
+    "value": 512,
+    "name": "NV-Embed-v2",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "NV-Embed-v1",
+    "value": 429,
+    "name": "NV-Embed-v1",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "CUDA-Autocomplete",
+    "value": 15,
+    "name": "CUDA-Autocomplete",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "OpenMath-Nemotron-7B",
+    "value": 14,
+    "name": "OpenMath-Nemotron-7B",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "AceReason-Nemotron-7B",
+    "value": 22,
+    "name": "AceReason-Nemotron-7B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "AceMath-7B-Instruct",
+    "value": 32,
+    "name": "AceMath-7B-Instruct",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "AceInstruct-7B",
+    "value": 22,
+    "name": "AceInstruct-7B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "OpenCodeReasoning-Nemotron-7B",
+    "value": 40,
+    "name": "OpenCodeReasoning-Nemotron-7B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "AceMath-RL-Nemotron-7B",
+    "value": 26,
+    "name": "AceMath-RL-Nemotron-7B",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "OpenCodeReasoning-Nemotron-1.1-7B",
+    "value": 13,
+    "name": "OpenCodeReasoning-Nemotron-1.1-7B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "AceReason-Nemotron-1.1-7B",
+    "value": 59,
+    "name": "AceReason-Nemotron-1.1-7B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "NFT-7B",
+    "value": 3,
+    "name": "NFT-7B",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "OpenReasoning-Nemotron-7B",
+    "value": 50,
+    "name": "OpenReasoning-Nemotron-7B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "DLER-R1-7B-Research",
+    "value": 16,
+    "name": "DLER-R1-7B-Research",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "VideoITG-8B",
+    "value": 9,
+    "name": "VideoITG-8B",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "llama-embed-nemotron-8b",
+    "value": 166,
+    "name": "llama-embed-nemotron-8b",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "OpenMath-Mistral-7B-v0.1-hf",
+    "value": 36,
+    "name": "OpenMath-Mistral-7B-v0.1-hf",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "NV-Retriever-v1",
+    "value": 24,
+    "name": "NV-Retriever-v1",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "NV-EmbedCode-7b-v1",
+    "value": 24,
+    "name": "NV-EmbedCode-7b-v1",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "AceMath-7B-RM",
+    "value": 7,
+    "name": "AceMath-7B-RM",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "OpenMath-CodeLlama-7b-Python-hf",
+    "value": 9,
+    "name": "OpenMath-CodeLlama-7b-Python-hf",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Nano-9B-v2-NVFP4",
+    "value": 25,
+    "name": "NVIDIA-Nemotron-Nano-9B-v2-NVFP4",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama-3.1-Nemotron-Nano-VL-8B-V1-FP4-QAD",
+    "value": 15,
+    "name": "Llama-3.1-Nemotron-Nano-VL-8B-V1-FP4-QAD",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Phi-4-multimodal-instruct-FP8",
+    "value": 7,
+    "name": "Phi-4-multimodal-instruct-FP8",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Qwen2.5-VL-7B-Instruct-NVFP4",
+    "value": 16,
+    "name": "Qwen2.5-VL-7B-Instruct-NVFP4",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Qwen3-8B-NVFP4",
+    "value": 17,
+    "name": "Qwen3-8B-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Llama-3.1-8B-Instruct-NVFP4",
+    "value": 11,
+    "name": "Llama-3.1-8B-Instruct-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Nemotron-Content-Safety-Reasoning-4B",
+    "value": 28,
+    "name": "Nemotron-Content-Safety-Reasoning-4B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "nemotron-colembed-vl-4b-v2",
+    "value": 38,
+    "name": "nemotron-colembed-vl-4b-v2",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "EGM-4B",
+    "value": 8,
+    "name": "EGM-4B",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "omni-embed-nemotron-3b",
+    "value": 125,
+    "name": "omni-embed-nemotron-3b",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "Llama-3.1-Minitron-4B-Depth-Base",
+    "value": 22,
+    "name": "Llama-3.1-Minitron-4B-Depth-Base",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "Llama-3.1-Minitron-4B-Width-Base",
+    "value": 196,
+    "name": "Llama-3.1-Minitron-4B-Width-Base",
+    "parent": "Minitron (compressed)",
+    "color": "#4d7c0f"
+  },
+  {
+    "id": "Llama-3.1-Nemotron-Nano-4B-v1.1",
+    "value": 115,
+    "name": "Llama-3.1-Nemotron-Nano-4B-v1.1",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-H-4B-Base-8K",
+    "value": 6,
+    "name": "Nemotron-H-4B-Base-8K",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-H-4B-Instruct-128K",
+    "value": 10,
+    "name": "Nemotron-H-4B-Instruct-128K",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "EGM-4B-SFT",
+    "value": 1,
+    "name": "EGM-4B-SFT",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Efficient-DLM-4B",
+    "value": 26,
+    "name": "Efficient-DLM-4B",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Nemotron-Research-GooseReason-4B-Instruct",
+    "value": 8,
+    "name": "Nemotron-Research-GooseReason-4B-Instruct",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "llama-nemoretriever-colembed-3b-v1",
+    "value": 75,
+    "name": "llama-nemoretriever-colembed-3b-v1",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "llama-nemotron-colembed-vl-3b-v2",
+    "value": 22,
+    "name": "llama-nemotron-colembed-vl-3b-v2",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Nemotron-3.5-Content-Safety",
+    "value": 25,
+    "name": "Nemotron-3.5-Content-Safety",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-3-Content-Safety",
+    "value": 16,
+    "name": "Nemotron-3-Content-Safety",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Riva-Translate-4B-Instruct",
+    "value": 19,
+    "name": "Riva-Translate-4B-Instruct",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Riva-Translate-4B-Instruct-v1.1",
+    "value": 26,
+    "name": "Riva-Translate-4B-Instruct-v1.1",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Phi-4-multimodal-instruct-NVFP4",
+    "value": 12,
+    "name": "Phi-4-multimodal-instruct-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "NV-Reason-CXR-3B",
+    "value": 31,
+    "name": "NV-Reason-CXR-3B",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Nano-4B-FP8",
+    "value": 26,
+    "name": "NVIDIA-Nemotron-3-Nano-4B-FP8",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Nano-4B-GGUF",
+    "value": 161,
+    "name": "NVIDIA-Nemotron-3-Nano-4B-GGUF",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-3-Nano-4B-BF16",
+    "value": 93,
+    "name": "NVIDIA-Nemotron-3-Nano-4B-BF16",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-Labs-Diffusion-3B-Base",
+    "value": 10,
+    "name": "Nemotron-Labs-Diffusion-3B-Base",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-Labs-Diffusion-3B",
+    "value": 31,
+    "name": "Nemotron-Labs-Diffusion-3B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "LocateAnything-3B",
+    "value": 2207,
+    "name": "LocateAnything-3B",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "pi05-arena-gr1-microwave",
+    "value": 1,
+    "name": "pi05-arena-gr1-microwave",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "GR00T-N1.7-3B",
+    "value": 59,
+    "name": "GR00T-N1.7-3B",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.7-DROID",
+    "value": 5,
+    "name": "GR00T-N1.7-DROID",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.7-SimplerEnv-Bridge",
+    "value": 2,
+    "name": "GR00T-N1.7-SimplerEnv-Bridge",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.7-SimplerEnv-Fractal",
+    "value": 2,
+    "name": "GR00T-N1.7-SimplerEnv-Fractal",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "SO_ARM_Starter_Gr00tN17",
+    "value": 1,
+    "name": "SO_ARM_Starter_Gr00tN17",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-H",
+    "value": 17,
+    "name": "GR00T-H",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.6-fractal",
+    "value": 2,
+    "name": "GR00T-N1.6-fractal",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.6-bridge",
+    "value": 2,
+    "name": "GR00T-N1.6-bridge",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.6-DROID",
+    "value": 8,
+    "name": "GR00T-N1.6-DROID",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.6-3B",
+    "value": 89,
+    "name": "GR00T-N1.6-3B",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.6-G1-PnPAppleToPlate",
+    "value": 5,
+    "name": "GR00T-N1.6-G1-PnPAppleToPlate",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.6-BEHAVIOR1k",
+    "value": 4,
+    "name": "GR00T-N1.6-BEHAVIOR1k",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.6-Rheo-Sim-PushCart",
+    "value": 1,
+    "name": "GR00T-N1.6-Rheo-Sim-PushCart",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.6-Rheo-PickNPlaceTray",
+    "value": 1,
+    "name": "GR00T-N1.6-Rheo-PickNPlaceTray",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-H-N1.7",
+    "value": 5,
+    "name": "GR00T-H-N1.7",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "llama-nv-embed-reasoning-3b",
+    "value": 21,
+    "name": "llama-nv-embed-reasoning-3b",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "esm2_t36_3B_UR50D",
+    "value": 5,
+    "name": "esm2_t36_3B_UR50D",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Nemotron-Flash-3B-Instruct",
+    "value": 43,
+    "name": "Nemotron-Flash-3B-Instruct",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-Flash-3B",
+    "value": 18,
+    "name": "Nemotron-Flash-3B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "GR00T-N1.5-3B_Assemble_Trocar",
+    "value": 2,
+    "name": "GR00T-N1.5-3B_Assemble_Trocar",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.5-RL-Rheo-AssembleTrocar",
+    "value": 1,
+    "name": "GR00T-N1.5-RL-Rheo-AssembleTrocar",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.5-3B",
+    "value": 192,
+    "name": "GR00T-N1.5-3B",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1.5-3B-WaveHand",
+    "value": 4,
+    "name": "GR00T-N1.5-3B-WaveHand",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GN1x-Tuned-Arena-G1-Loco-Manipulation",
+    "value": 4,
+    "name": "GN1x-Tuned-Arena-G1-Loco-Manipulation",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "GN1x-Tuned-Arena-GR1-Manipulation",
+    "value": 4,
+    "name": "GN1x-Tuned-Arena-GR1-Manipulation",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "SO_ARM_Starter_Gr00t",
+    "value": 5,
+    "name": "SO_ARM_Starter_Gr00t",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "canary-qwen-2.5b",
+    "value": 439,
+    "name": "canary-qwen-2.5b",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Cosmos-Reason2-2B",
+    "value": 104,
+    "name": "Cosmos-Reason2-2B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "llama-nemoretriever-colembed-1b-v1",
+    "value": 25,
+    "name": "llama-nemoretriever-colembed-1b-v1",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "Eagle2-2B",
+    "value": 34,
+    "name": "Eagle2-2B",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Llama-3.3-70B-Instruct-Eagle3",
+    "value": 2,
+    "name": "Llama-3.3-70B-Instruct-Eagle3",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "GR00T-N1-2B",
+    "value": 356,
+    "name": "GR00T-N1-2B",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1-2B-tuned-Nut-Pouring-task",
+    "value": 1,
+    "name": "GR00T-N1-2B-tuned-Nut-Pouring-task",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "GR00T-N1-2B-tuned-Exhaust-Pipe-Sorting-task",
+    "value": 1,
+    "name": "GR00T-N1-2B-tuned-Exhaust-Pipe-Sorting-task",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "Liver_Scan_Gr00t_Cosmos_Rel",
+    "value": 1,
+    "name": "Liver_Scan_Gr00t_Cosmos_Rel",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "Kimi-K2.6-Eagle3",
+    "value": 9,
+    "name": "Kimi-K2.6-Eagle3",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Kimi-K2-Thinking-Eagle3",
+    "value": 2,
+    "name": "Kimi-K2-Thinking-Eagle3",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Kimi-K2.5-Thinking-Eagle3",
+    "value": 16,
+    "name": "Kimi-K2.5-Thinking-Eagle3",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "AceMath-1.5B-Instruct",
+    "value": 17,
+    "name": "AceMath-1.5B-Instruct",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "AceInstruct-1.5B",
+    "value": 22,
+    "name": "AceInstruct-1.5B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "Nemotron-Research-Reasoning-Qwen-1.5B",
+    "value": 243,
+    "name": "Nemotron-Research-Reasoning-Qwen-1.5B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "DLER-R1-1.5B-Research",
+    "value": 19,
+    "name": "DLER-R1-1.5B-Research",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Llama-4-Maverick-17B-128E-Eagle3",
+    "value": 11,
+    "name": "Llama-4-Maverick-17B-128E-Eagle3",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "llama-nemotron-rerank-vl-1b-v2",
+    "value": 52,
+    "name": "llama-nemotron-rerank-vl-1b-v2",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "llama-nemotron-embed-vl-1b-v2",
+    "value": 86,
+    "name": "llama-nemotron-embed-vl-1b-v2",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "llama-nemotron-embed-vl-1b-v2-fp8",
+    "value": 8,
+    "name": "llama-nemotron-embed-vl-1b-v2-fp8",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "RADIOv2-bigG",
+    "value": 2,
+    "name": "RADIOv2-bigG",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "OpenMath-Nemotron-1.5B",
+    "value": 34,
+    "name": "OpenMath-Nemotron-1.5B",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "OpenReasoning-Nemotron-1.5B",
+    "value": 56,
+    "name": "OpenReasoning-Nemotron-1.5B",
+    "parent": "Reasoning & Code",
+    "color": "#2563eb"
+  },
+  {
+    "id": "Hymba-1.5B-Base",
+    "value": 157,
+    "name": "Hymba-1.5B-Base",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Hymba-1.5B-Instruct",
+    "value": 245,
+    "name": "Hymba-1.5B-Instruct",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "PS3-4K-SigLIP2",
+    "value": 2,
+    "name": "PS3-4K-SigLIP2",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "llama-nemotron-rerank-1b-v2",
+    "value": 56,
+    "name": "llama-nemotron-rerank-1b-v2",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "llama-nemotron-embed-1b-v2",
+    "value": 57,
+    "name": "llama-nemotron-embed-1b-v2",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "vgg-ttt",
+    "value": 23,
+    "name": "vgg-ttt",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Cosmos-Embed1-448p-anomaly-detection",
+    "value": 11,
+    "name": "Cosmos-Embed1-448p-anomaly-detection",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Embed1-448p",
+    "value": 12,
+    "name": "Cosmos-Embed1-448p",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Embed1-336p",
+    "value": 5,
+    "name": "Cosmos-Embed1-336p",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "PS3-1.5K-SigLIP2",
+    "value": 3,
+    "name": "PS3-1.5K-SigLIP2",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "Cosmos-Embed1-224p",
+    "value": 11,
+    "name": "Cosmos-Embed1-224p",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "C-RADIOv3-g",
+    "value": 13,
+    "name": "C-RADIOv3-g",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "C-RADIOv2-g",
+    "value": 13,
+    "name": "C-RADIOv2-g",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "RADIO-g",
+    "value": 8,
+    "name": "RADIO-g",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "Eagle2-1B",
+    "value": 30,
+    "name": "Eagle2-1B",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "parakeet-ctc-1.1b",
+    "value": 50,
+    "name": "parakeet-ctc-1.1b",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "PS3-4K-SigLIP",
+    "value": 4,
+    "name": "PS3-4K-SigLIP",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "Nemotron-Flash-1B",
+    "value": 29,
+    "name": "Nemotron-Flash-1B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Parse-v1.1-TC",
+    "value": 13,
+    "name": "NVIDIA-Nemotron-Parse-v1.1-TC",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "PS3-4K-C-RADIOv2",
+    "value": 1,
+    "name": "PS3-4K-C-RADIOv2",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Parse-v1.1",
+    "value": 169,
+    "name": "NVIDIA-Nemotron-Parse-v1.1",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "PS3-1.5K-SigLIP",
+    "value": 6,
+    "name": "PS3-1.5K-SigLIP",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "NVIDIA-Nemotron-Parse-v1.2",
+    "value": 47,
+    "name": "NVIDIA-Nemotron-Parse-v1.2",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Qwen3-235B-A22B-Thinking-2507-FP4-Eagle3",
+    "value": 1,
+    "name": "Qwen3-235B-A22B-Thinking-2507-FP4-Eagle3",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "NV-CodonFM-Encodon-TE-Cdwt-1B-v1",
+    "value": 3,
+    "name": "NV-CodonFM-Encodon-TE-Cdwt-1B-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "NV-CodonFM-Encodon-TE-1B-v1",
+    "value": 1,
+    "name": "NV-CodonFM-Encodon-TE-1B-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "PS3-1.5K-C-RADIOv2",
+    "value": 1,
+    "name": "PS3-1.5K-C-RADIOv2",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "canary-1b-flash",
+    "value": 272,
+    "name": "canary-1b-flash",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "gpt-oss-120b-Eagle3-v3",
+    "value": 10,
+    "name": "gpt-oss-120b-Eagle3-v3",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "gpt-oss-120b-Eagle3-short-context",
+    "value": 17,
+    "name": "gpt-oss-120b-Eagle3-short-context",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "gpt-oss-120b-Eagle3-throughput",
+    "value": 35,
+    "name": "gpt-oss-120b-Eagle3-throughput",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "MambaVision-L3-512-21K",
+    "value": 56,
+    "name": "MambaVision-L3-512-21K",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "MambaVision-L3-256-21K",
+    "value": 8,
+    "name": "MambaVision-L3-256-21K",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "QLIP-L-14-392",
+    "value": 14,
+    "name": "QLIP-L-14-392",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "RADIO",
+    "value": 44,
+    "name": "RADIO",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "C-RADIO",
+    "value": 28,
+    "name": "C-RADIO",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "C-RADIOv4-H",
+    "value": 77,
+    "name": "C-RADIOv4-H",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "C-RADIOv3-H",
+    "value": 5,
+    "name": "C-RADIOv3-H",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "RADIO-H",
+    "value": 11,
+    "name": "RADIO-H",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "C-RADIOv2-H",
+    "value": 13,
+    "name": "C-RADIOv2-H",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "C-RADIOv2-VLM-H",
+    "value": 11,
+    "name": "C-RADIOv2-VLM-H",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "C-RADIOv2-VLM-H-RC3",
+    "value": 1,
+    "name": "C-RADIOv2-VLM-H-RC3",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "esm2_t33_650M_UR50D",
+    "value": 6,
+    "name": "esm2_t33_650M_UR50D",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "parakeet-tdt-0.6b-v3",
+    "value": 935,
+    "name": "parakeet-tdt-0.6b-v3",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "NV-CodonFM-Encodon-TE-600M-v1",
+    "value": 2,
+    "name": "NV-CodonFM-Encodon-TE-600M-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "parakeet-ctc-0.6b",
+    "value": 26,
+    "name": "parakeet-ctc-0.6b",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "PS3_Lang-4K-SigLIP2",
+    "value": 1,
+    "name": "PS3_Lang-4K-SigLIP2",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "PS3_Lang-1.5K-SigLIP2",
+    "value": 2,
+    "name": "PS3_Lang-1.5K-SigLIP2",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "C-RADIOv4-SO400M",
+    "value": 35,
+    "name": "C-RADIOv4-SO400M",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "E-RADIO",
+    "value": 14,
+    "name": "E-RADIO",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "AMPLIFY_350M",
+    "value": 9,
+    "name": "AMPLIFY_350M",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "geneformer_V2_316M",
+    "value": 2,
+    "name": "geneformer_V2_316M",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "C-RADIOv3-L",
+    "value": 5,
+    "name": "C-RADIOv3-L",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "RADIO-L",
+    "value": 11,
+    "name": "RADIO-L",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "C-RADIOv2-L",
+    "value": 4,
+    "name": "C-RADIOv2-L",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "Qwen3-235B-A22B-Eagle3",
+    "value": 13,
+    "name": "Qwen3-235B-A22B-Eagle3",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Qwen3-235B-A22B-Thinking-2507-Eagle3",
+    "value": 2,
+    "name": "Qwen3-235B-A22B-Thinking-2507-Eagle3",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Kimodo-G1-RP-v1",
+    "value": 11,
+    "name": "Kimodo-G1-RP-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Kimodo-G1-SEED-v1",
+    "value": 7,
+    "name": "Kimodo-G1-SEED-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Kimodo-SOMA-RP-v1.1",
+    "value": 27,
+    "name": "Kimodo-SOMA-RP-v1.1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Kimodo-SOMA-SEED-v1",
+    "value": 5,
+    "name": "Kimodo-SOMA-SEED-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Kimodo-SOMA-RP-v1",
+    "value": 58,
+    "name": "Kimodo-SOMA-RP-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Kimodo-SOMA-SEED-v1.1",
+    "value": 5,
+    "name": "Kimodo-SOMA-SEED-v1.1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Kimodo-SMPLX-RP-v1",
+    "value": 18,
+    "name": "Kimodo-SMPLX-RP-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "multilingual-domain-classifier",
+    "value": 24,
+    "name": "multilingual-domain-classifier",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "hebclip-model",
+    "value": 2,
+    "name": "hebclip-model",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "MambaVision-L2-1K",
+    "value": 14,
+    "name": "MambaVision-L2-1K",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "MambaVision-L2-512-21K",
+    "value": 4,
+    "name": "MambaVision-L2-512-21K",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "QLIP-B-16-256",
+    "value": 5,
+    "name": "QLIP-B-16-256",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "QLIP-B-8-256",
+    "value": 8,
+    "name": "QLIP-B-8-256",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "MambaVision-L-1K",
+    "value": 6,
+    "name": "MambaVision-L-1K",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "MambaVision-L-21K",
+    "value": 5,
+    "name": "MambaVision-L-21K",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "gpt-oss-120b-Eagle3-long-context",
+    "value": 72,
+    "name": "gpt-oss-120b-Eagle3-long-context",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "KVzap-mlp-Qwen3-32B",
+    "value": 6,
+    "name": "KVzap-mlp-Qwen3-32B",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "prompt-task-and-complexity-classifier",
+    "value": 85,
+    "name": "prompt-task-and-complexity-classifier",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "domain-classifier",
+    "value": 98,
+    "name": "domain-classifier",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "content-type-classifier-deberta",
+    "value": 18,
+    "name": "content-type-classifier-deberta",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "quality-classifier-deberta",
+    "value": 76,
+    "name": "quality-classifier-deberta",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "esm2_t30_150M_UR50D",
+    "value": 3,
+    "name": "esm2_t30_150M_UR50D",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "diar_sortformer_4spk-v1",
+    "value": 142,
+    "name": "diar_sortformer_4spk-v1",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "geneformer_V2_104M",
+    "value": 2,
+    "name": "geneformer_V2_104M",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "geneformer_V2_104M_CLcancer",
+    "value": 1,
+    "name": "geneformer_V2_104M_CLcancer",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "AMPLIFY_120M",
+    "value": 5,
+    "name": "AMPLIFY_120M",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Qwen3-30B-A3B-Thinking-2507-Eagle3",
+    "value": 4,
+    "name": "Qwen3-30B-A3B-Thinking-2507-Eagle3",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "dvlt",
+    "value": 40,
+    "name": "dvlt",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "nemocurator-fineweb-mixtral-edu-classifier",
+    "value": 8,
+    "name": "nemocurator-fineweb-mixtral-edu-classifier",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "nemocurator-fineweb-nemotron-4-edu-classifier",
+    "value": 14,
+    "name": "nemocurator-fineweb-nemotron-4-edu-classifier",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "C-RADIOv3-B",
+    "value": 11,
+    "name": "C-RADIOv3-B",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "RADIO-B",
+    "value": 4,
+    "name": "RADIO-B",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "C-RADIOv2-B",
+    "value": 11,
+    "name": "C-RADIOv2-B",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "MambaVision-B-1K",
+    "value": 13,
+    "name": "MambaVision-B-1K",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "MambaVision-B-21K",
+    "value": 7,
+    "name": "MambaVision-B-21K",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "NV-CodonFM-Encodon-TE-80M-v1",
+    "value": 1,
+    "name": "NV-CodonFM-Encodon-TE-80M-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "KVzap-mlp-Qwen3-8B",
+    "value": 4,
+    "name": "KVzap-mlp-Qwen3-8B",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "KVzap-mlp-Llama-3.1-8B-Instruct",
+    "value": 4,
+    "name": "KVzap-mlp-Llama-3.1-8B-Instruct",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "groupvit-gcc-redcaps",
+    "value": 5,
+    "name": "groupvit-gcc-redcaps",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "MambaVision-S-1K",
+    "value": 11,
+    "name": "MambaVision-S-1K",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "MambaVision-T2-1K",
+    "value": 6,
+    "name": "MambaVision-T2-1K",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "esm2_t12_35M_UR50D",
+    "value": 3,
+    "name": "esm2_t12_35M_UR50D",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "MambaVision-T-1K",
+    "value": 42,
+    "name": "MambaVision-T-1K",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "instruction-data-guard",
+    "value": 19,
+    "name": "instruction-data-guard",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "geneformer_V1_10M",
+    "value": 1,
+    "name": "geneformer_V1_10M",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "RE-USE",
+    "value": 77,
+    "name": "RE-USE",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "esm2_t6_8M_UR50D",
+    "value": 7,
+    "name": "esm2_t6_8M_UR50D",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "segformer-b0-finetuned-ade-512-512",
+    "value": 190,
+    "name": "segformer-b0-finetuned-ade-512-512",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "AutoGaze",
+    "value": 27,
+    "name": "AutoGaze",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "KVzap-linear-Qwen3-32B",
+    "value": 4,
+    "name": "KVzap-linear-Qwen3-32B",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "KVzap-linear-Qwen3-8B",
+    "value": 2,
+    "name": "KVzap-linear-Qwen3-8B",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "KVzap-linear-Llama-3.1-8B-Instruct",
+    "value": 1,
+    "name": "KVzap-linear-Llama-3.1-8B-Instruct",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "nemotron-3.5-asr-streaming-0.6b",
+    "value": 570,
+    "name": "nemotron-3.5-asr-streaming-0.6b",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "PiD",
+    "value": 344,
+    "name": "PiD",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "parakeet-tdt-0.6b-v2",
+    "value": 1500,
+    "name": "parakeet-tdt-0.6b-v2",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "canary-1b-v2",
+    "value": 397,
+    "name": "canary-1b-v2",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "NitroGen",
+    "value": 544,
+    "name": "NitroGen",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Cosmos-Guardrail1",
+    "value": 27,
+    "name": "Cosmos-Guardrail1",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "nemotron-speech-streaming-en-0.6b",
+    "value": 576,
+    "name": "nemotron-speech-streaming-en-0.6b",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "stt_en_conformer_ctc_small",
+    "value": 7,
+    "name": "stt_en_conformer_ctc_small",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "nemotron-3-8b-base-4k",
+    "value": 106,
+    "name": "nemotron-3-8b-base-4k",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "parakeet-rnnt-1.1b",
+    "value": 175,
+    "name": "parakeet-rnnt-1.1b",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Cosmos-Transfer2.5-2B",
+    "value": 67,
+    "name": "Cosmos-Transfer2.5-2B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "GEAR-SONIC",
+    "value": 51,
+    "name": "GEAR-SONIC",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_en_citrinet_384_ls",
+    "value": 1,
+    "name": "stt_en_citrinet_384_ls",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_en_citrinet_512_ls",
+    "value": 1,
+    "name": "stt_en_citrinet_512_ls",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_fa_fastconformer_hybrid_large",
+    "value": 22,
+    "name": "stt_fa_fastconformer_hybrid_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Mistral-NeMo-12B-Base",
+    "value": 43,
+    "name": "Mistral-NeMo-12B-Base",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-Mini-4B-Instruct",
+    "value": 183,
+    "name": "Nemotron-Mini-4B-Instruct",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "parakeet-tdt_ctc-110m",
+    "value": 47,
+    "name": "parakeet-tdt_ctc-110m",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Cosmos-1.0-Guardrail",
+    "value": 63,
+    "name": "Cosmos-1.0-Guardrail",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict2-2B-Text2Image",
+    "value": 84,
+    "name": "Cosmos-Predict2-2B-Text2Image",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict2-2B-Video2World",
+    "value": 65,
+    "name": "Cosmos-Predict2-2B-Video2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Audio2Face-3D-v2.3-Mark",
+    "value": 18,
+    "name": "Audio2Face-3D-v2.3-Mark",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Cosmos-Predict2.5-2B",
+    "value": 134,
+    "name": "Cosmos-Predict2.5-2B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "nemo-nano-codec-22khz-1.78kbps-12.5fps",
+    "value": 14,
+    "name": "nemo-nano-codec-22khz-1.78kbps-12.5fps",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "multitalker-parakeet-streaming-0.6b-v1",
+    "value": 112,
+    "name": "multitalker-parakeet-streaming-0.6b-v1",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "diar_streaming_sortformer_4spk-v2.1",
+    "value": 81,
+    "name": "diar_streaming_sortformer_4spk-v2.1",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "NV-Segment-CT",
+    "value": 21,
+    "name": "NV-Segment-CT",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "nvpanoptix-3d",
+    "value": 16,
+    "name": "nvpanoptix-3d",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Qwen3-Next-80B-A3B-Thinking-NVFP4",
+    "value": 62,
+    "name": "Qwen3-Next-80B-A3B-Thinking-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "parakeet-ctc-0.6b-Vietnamese",
+    "value": 88,
+    "name": "parakeet-ctc-0.6b-Vietnamese",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "asset-harvester",
+    "value": 38,
+    "name": "asset-harvester",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Cosmos-H-Surgical",
+    "value": 13,
+    "name": "Cosmos-H-Surgical",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "SOMA-X",
+    "value": 11,
+    "name": "SOMA-X",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "nemotron-ocr-v2",
+    "value": 206,
+    "name": "nemotron-ocr-v2",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "omni-dreams-models",
+    "value": 32,
+    "name": "omni-dreams-models",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Kimi-K2.6-NVFP4",
+    "value": 36,
+    "name": "Kimi-K2.6-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "ArtiFixer",
+    "value": 13,
+    "name": "ArtiFixer",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "megatron-gpt2-345m",
+    "value": 25,
+    "name": "megatron-gpt2-345m",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "mit-b0",
+    "value": 39,
+    "name": "mit-b0",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "mit-b1",
+    "value": 3,
+    "name": "mit-b1",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "mit-b2",
+    "value": 7,
+    "name": "mit-b2",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "mit-b3",
+    "value": 8,
+    "name": "mit-b3",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "mit-b4",
+    "value": 1,
+    "name": "mit-b4",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "mit-b5",
+    "value": 14,
+    "name": "mit-b5",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b0-finetuned-cityscapes-1024-1024",
+    "value": 10,
+    "name": "segformer-b0-finetuned-cityscapes-1024-1024",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b0-finetuned-cityscapes-512-1024",
+    "value": 1,
+    "name": "segformer-b0-finetuned-cityscapes-512-1024",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b0-finetuned-cityscapes-640-1280",
+    "value": 0,
+    "name": "segformer-b0-finetuned-cityscapes-640-1280",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b0-finetuned-cityscapes-768-768",
+    "value": 0,
+    "name": "segformer-b0-finetuned-cityscapes-768-768",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b1-finetuned-ade-512-512",
+    "value": 16,
+    "name": "segformer-b1-finetuned-ade-512-512",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b1-finetuned-cityscapes-1024-1024",
+    "value": 18,
+    "name": "segformer-b1-finetuned-cityscapes-1024-1024",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b2-finetuned-ade-512-512",
+    "value": 7,
+    "name": "segformer-b2-finetuned-ade-512-512",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b2-finetuned-cityscapes-1024-1024",
+    "value": 2,
+    "name": "segformer-b2-finetuned-cityscapes-1024-1024",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b3-finetuned-ade-512-512",
+    "value": 14,
+    "name": "segformer-b3-finetuned-ade-512-512",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b3-finetuned-cityscapes-1024-1024",
+    "value": 4,
+    "name": "segformer-b3-finetuned-cityscapes-1024-1024",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b4-finetuned-ade-512-512",
+    "value": 4,
+    "name": "segformer-b4-finetuned-ade-512-512",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b4-finetuned-cityscapes-1024-1024",
+    "value": 7,
+    "name": "segformer-b4-finetuned-cityscapes-1024-1024",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b5-finetuned-ade-640-640",
+    "value": 45,
+    "name": "segformer-b5-finetuned-ade-640-640",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "segformer-b5-finetuned-cityscapes-1024-1024",
+    "value": 43,
+    "name": "segformer-b5-finetuned-cityscapes-1024-1024",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "stt_en_conformer_ctc_large",
+    "value": 31,
+    "name": "stt_en_conformer_ctc_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_en_conformer_transducer_xlarge",
+    "value": 57,
+    "name": "stt_en_conformer_transducer_xlarge",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "groupvit-gcc-yfcc",
+    "value": 6,
+    "name": "groupvit-gcc-yfcc",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "stt_en_citrinet_1024_gamma_0_25",
+    "value": 3,
+    "name": "stt_en_citrinet_1024_gamma_0_25",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_de_conformer_ctc_large",
+    "value": 6,
+    "name": "stt_de_conformer_ctc_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_de_conformer_transducer_large",
+    "value": 8,
+    "name": "stt_de_conformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_zh_citrinet_1024_gamma_0_25",
+    "value": 5,
+    "name": "stt_zh_citrinet_1024_gamma_0_25",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_fr_conformer_ctc_large",
+    "value": 8,
+    "name": "stt_fr_conformer_ctc_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "tts_en_fastpitch",
+    "value": 40,
+    "name": "tts_en_fastpitch",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "tts_hifigan",
+    "value": 39,
+    "name": "tts_hifigan",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_zh_conformer_transducer_large",
+    "value": 13,
+    "name": "stt_zh_conformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_fr_conformer_transducer_large",
+    "value": 10,
+    "name": "stt_fr_conformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_es_conformer_ctc_large",
+    "value": 2,
+    "name": "stt_es_conformer_ctc_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_es_conformer_transducer_large",
+    "value": 3,
+    "name": "stt_es_conformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "speakerverification_en_titanet_large",
+    "value": 122,
+    "name": "speakerverification_en_titanet_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_en_citrinet_256_ls",
+    "value": 1,
+    "name": "stt_en_citrinet_256_ls",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_en_citrinet_768_ls",
+    "value": 0,
+    "name": "stt_en_citrinet_768_ls",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_ca_conformer_ctc_large",
+    "value": 1,
+    "name": "stt_ca_conformer_ctc_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_ca_conformer_transducer_large",
+    "value": 1,
+    "name": "stt_ca_conformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_uk_citrinet_1024_gamma_0_25",
+    "value": 14,
+    "name": "stt_uk_citrinet_1024_gamma_0_25",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_rw_conformer_ctc_large",
+    "value": 1,
+    "name": "stt_rw_conformer_ctc_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_rw_conformer_transducer_large",
+    "value": 1,
+    "name": "stt_rw_conformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_hr_conformer_ctc_large",
+    "value": 2,
+    "name": "stt_hr_conformer_ctc_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_hr_conformer_transducer_large",
+    "value": 1,
+    "name": "stt_hr_conformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_kab_conformer_transducer_large",
+    "value": 2,
+    "name": "stt_kab_conformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "slu_conformer_transformer_large_slurp",
+    "value": 2,
+    "name": "slu_conformer_transformer_large_slurp",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "nemo-megatron-gpt-1.3B",
+    "value": 32,
+    "name": "nemo-megatron-gpt-1.3B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "nemo-megatron-gpt-5B",
+    "value": 22,
+    "name": "nemo-megatron-gpt-5B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "nemo-megatron-gpt-20B",
+    "value": 32,
+    "name": "nemo-megatron-gpt-20B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "nemo-megatron-t5-3B",
+    "value": 9,
+    "name": "nemo-megatron-t5-3B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "stt_en_conformer_transducer_large",
+    "value": 11,
+    "name": "stt_en_conformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "nemo-megatron-mt5-3B",
+    "value": 13,
+    "name": "nemo-megatron-mt5-3B",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "stt_be_conformer_ctc_large",
+    "value": 4,
+    "name": "stt_be_conformer_ctc_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_be_conformer_transducer_large",
+    "value": 6,
+    "name": "stt_be_conformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_ru_conformer_transducer_large",
+    "value": 22,
+    "name": "stt_ru_conformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_it_conformer_ctc_large",
+    "value": 1,
+    "name": "stt_it_conformer_ctc_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_it_conformer_transducer_large",
+    "value": 1,
+    "name": "stt_it_conformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_ru_conformer_ctc_large",
+    "value": 8,
+    "name": "stt_ru_conformer_ctc_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_eo_conformer_ctc_large",
+    "value": 3,
+    "name": "stt_eo_conformer_ctc_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_eo_conformer_transducer_large",
+    "value": 4,
+    "name": "stt_eo_conformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "GPT-2B-001",
+    "value": 192,
+    "name": "GPT-2B-001",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "stt_de_fastconformer_hybrid_large_pc",
+    "value": 6,
+    "name": "stt_de_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_en_fastconformer_hybrid_large_pc",
+    "value": 4,
+    "name": "stt_en_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_es_fastconformer_hybrid_large_pc",
+    "value": 4,
+    "name": "stt_es_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_it_fastconformer_hybrid_large_pc",
+    "value": 2,
+    "name": "stt_it_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_ua_fastconformer_hybrid_large_pc",
+    "value": 4,
+    "name": "stt_ua_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_pl_fastconformer_hybrid_large_pc",
+    "value": 5,
+    "name": "stt_pl_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_hr_fastconformer_hybrid_large_pc",
+    "value": 0,
+    "name": "stt_hr_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_be_fastconformer_hybrid_large_pc",
+    "value": 4,
+    "name": "stt_be_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_fr_fastconformer_hybrid_large_pc",
+    "value": 7,
+    "name": "stt_fr_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_ru_fastconformer_hybrid_large_pc",
+    "value": 15,
+    "name": "stt_ru_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_en_fastconformer_transducer_large",
+    "value": 10,
+    "name": "stt_en_fastconformer_transducer_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_en_fastconformer_ctc_large",
+    "value": 19,
+    "name": "stt_en_fastconformer_ctc_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_en_fastconformer_ctc_xlarge",
+    "value": 4,
+    "name": "stt_en_fastconformer_ctc_xlarge",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_en_fastconformer_transducer_xlarge",
+    "value": 25,
+    "name": "stt_en_fastconformer_transducer_xlarge",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_en_fastconformer_transducer_xxlarge",
+    "value": 13,
+    "name": "stt_en_fastconformer_transducer_xxlarge",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "FasterViT",
+    "value": 27,
+    "name": "FasterViT",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_en_fastconformer_ctc_xxlarge",
+    "value": 2,
+    "name": "stt_en_fastconformer_ctc_xxlarge",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "SteerLM-llama2-13B",
+    "value": 43,
+    "name": "SteerLM-llama2-13B",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "stt_en_fastconformer_hybrid_large_streaming_multi",
+    "value": 25,
+    "name": "stt_en_fastconformer_hybrid_large_streaming_multi",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_nl_fastconformer_hybrid_large_pc",
+    "value": 1,
+    "name": "stt_nl_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "nemotron-3-8b-chat-4k-rlhf",
+    "value": 29,
+    "name": "nemotron-3-8b-chat-4k-rlhf",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "nemotron-3-8b-chat-4k-sft",
+    "value": 12,
+    "name": "nemotron-3-8b-chat-4k-sft",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "nemotron-3-8b-chat-4k-steerlm",
+    "value": 22,
+    "name": "nemotron-3-8b-chat-4k-steerlm",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "nemotron-3-8b-qa-4k",
+    "value": 20,
+    "name": "nemotron-3-8b-qa-4k",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Llama2-70B-SteerLM-Chat",
+    "value": 24,
+    "name": "Llama2-70B-SteerLM-Chat",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "retro-48b-instruct-4k",
+    "value": 21,
+    "name": "retro-48b-instruct-4k",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "parakeet-rnnt-0.6b",
+    "value": 13,
+    "name": "parakeet-rnnt-0.6b",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "retro-8b-instruct-4k",
+    "value": 15,
+    "name": "retro-8b-instruct-4k",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "parakeet-tdt-1.1b",
+    "value": 125,
+    "name": "parakeet-tdt-1.1b",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "OpenMath-Mistral-7B-v0.1",
+    "value": 13,
+    "name": "OpenMath-Mistral-7B-v0.1",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "canary-1b",
+    "value": 457,
+    "name": "canary-1b",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Llama2-13B-SteerLM-RM",
+    "value": 9,
+    "name": "Llama2-13B-SteerLM-RM",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "NV-Llama2-13B-RLHF-RM",
+    "value": 4,
+    "name": "NV-Llama2-13B-RLHF-RM",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Aegis-AI-Content-Safety-LlamaGuard-Defensive-1.0",
+    "value": 33,
+    "name": "Aegis-AI-Content-Safety-LlamaGuard-Defensive-1.0",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Aegis-AI-Content-Safety-LlamaGuard-Permissive-1.0",
+    "value": 19,
+    "name": "Aegis-AI-Content-Safety-LlamaGuard-Permissive-1.0",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "dragon-multiturn-query-encoder",
+    "value": 61,
+    "name": "dragon-multiturn-query-encoder",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "dragon-multiturn-context-encoder",
+    "value": 25,
+    "name": "dragon-multiturn-context-encoder",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "parakeet-tdt_ctc-1.1b",
+    "value": 22,
+    "name": "parakeet-tdt_ctc-1.1b",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "parakeet-tdt_ctc-0.6b-ja",
+    "value": 56,
+    "name": "parakeet-tdt_ctc-0.6b-ja",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Llama3-70B-SteerLM-RM",
+    "value": 44,
+    "name": "Llama3-70B-SteerLM-RM",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "stt_ka_fastconformer_hybrid_large_pc",
+    "value": 6,
+    "name": "stt_ka_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "mamba2-8b-3t-4k",
+    "value": 23,
+    "name": "mamba2-8b-3t-4k",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "mamba2-hybrid-8b-3t-128k",
+    "value": 46,
+    "name": "mamba2-hybrid-8b-3t-128k",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "mamba2-hybrid-8b-3t-4k",
+    "value": 75,
+    "name": "mamba2-hybrid-8b-3t-4k",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Nemotron-4-340B-Instruct",
+    "value": 696,
+    "name": "Nemotron-4-340B-Instruct",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-4-340B-Reward",
+    "value": 127,
+    "name": "Nemotron-4-340B-Reward",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "Nemotron-4-340B-Base",
+    "value": 149,
+    "name": "Nemotron-4-340B-Base",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "bigvgan_v2_24khz_100band_256x",
+    "value": 22,
+    "name": "bigvgan_v2_24khz_100band_256x",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "bigvgan_v2_22khz_80band_256x",
+    "value": 29,
+    "name": "bigvgan_v2_22khz_80band_256x",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "bigvgan_v2_22khz_80band_fmax8k_256x",
+    "value": 3,
+    "name": "bigvgan_v2_22khz_80band_fmax8k_256x",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "bigvgan_v2_44khz_128band_256x",
+    "value": 8,
+    "name": "bigvgan_v2_44khz_128band_256x",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "bigvgan_v2_44khz_128band_512x",
+    "value": 74,
+    "name": "bigvgan_v2_44khz_128band_512x",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "bigvgan_22khz_80band",
+    "value": 2,
+    "name": "bigvgan_22khz_80band",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "bigvgan_24khz_100band",
+    "value": 5,
+    "name": "bigvgan_24khz_100band",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "bigvgan_base_22khz_80band",
+    "value": 1,
+    "name": "bigvgan_base_22khz_80band",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "bigvgan_base_24khz_100band",
+    "value": 1,
+    "name": "bigvgan_base_24khz_100band",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "audio-flamingo",
+    "value": 28,
+    "name": "audio-flamingo",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Mistral-NeMo-12B-Instruct",
+    "value": 177,
+    "name": "Mistral-NeMo-12B-Instruct",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Minitron-8B-Base",
+    "value": 70,
+    "name": "Minitron-8B-Base",
+    "parent": "Minitron (compressed)",
+    "color": "#4d7c0f"
+  },
+  {
+    "id": "Minitron-4B-Base",
+    "value": 138,
+    "name": "Minitron-4B-Base",
+    "parent": "Minitron (compressed)",
+    "color": "#4d7c0f"
+  },
+  {
+    "id": "Llama3-ChatQA-2-70B",
+    "value": 15,
+    "name": "Llama3-ChatQA-2-70B",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Llama3-ChatQA-2-8B",
+    "value": 18,
+    "name": "Llama3-ChatQA-2-8B",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "stt_kk_ru_fastconformer_hybrid_large",
+    "value": 8,
+    "name": "stt_kk_ru_fastconformer_hybrid_large",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Llama-3.1-Nemotron-70B-Reward",
+    "value": 82,
+    "name": "Llama-3.1-Nemotron-70B-Reward",
+    "parent": "Embeddings & Rerankers",
+    "color": "#64748b"
+  },
+  {
+    "id": "OpenMath2-Llama3.1-70B-nemo",
+    "value": 10,
+    "name": "OpenMath2-Llama3.1-70B-nemo",
+    "parent": "Math (OpenMath/AceMath)",
+    "color": "#7c3aed"
+  },
+  {
+    "id": "Llama-3.1-Nemotron-70B-Instruct",
+    "value": 568,
+    "name": "Llama-3.1-Nemotron-70B-Instruct",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-4-Mini-Hindi-4B-Base",
+    "value": 17,
+    "name": "Nemotron-4-Mini-Hindi-4B-Base",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Nemotron-4-Mini-Hindi-4B-Instruct",
+    "value": 21,
+    "name": "Nemotron-4-Mini-Hindi-4B-Instruct",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "stt_ka_fastconformer_hybrid_transducer_ctc_large_streaming_80ms_pc",
+    "value": 4,
+    "name": "stt_ka_fastconformer_hybrid_transducer_ctc_large_streaming_80ms_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Cosmos-0.1-Tokenizer-DV8x16x16",
+    "value": 10,
+    "name": "Cosmos-0.1-Tokenizer-DV8x16x16",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "stt_uz_fastconformer_hybrid_large_pc",
+    "value": 11,
+    "name": "stt_uz_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Cosmos-0.1-Tokenizer-DV8x8x8",
+    "value": 8,
+    "name": "Cosmos-0.1-Tokenizer-DV8x8x8",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "stt_ar_fastconformer_hybrid_large_pc_v1.0",
+    "value": 19,
+    "name": "stt_ar_fastconformer_hybrid_large_pc_v1.0",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Cosmos-0.1-Tokenizer-CV8x16x16",
+    "value": 10,
+    "name": "Cosmos-0.1-Tokenizer-CV8x16x16",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-0.1-Tokenizer-CV8x8x8",
+    "value": 14,
+    "name": "Cosmos-0.1-Tokenizer-CV8x8x8",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-0.1-Tokenizer-CV4x8x8",
+    "value": 9,
+    "name": "Cosmos-0.1-Tokenizer-CV4x8x8",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-0.1-Tokenizer-CI8x8",
+    "value": 34,
+    "name": "Cosmos-0.1-Tokenizer-CI8x8",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-0.1-Tokenizer-CI16x16",
+    "value": 9,
+    "name": "Cosmos-0.1-Tokenizer-CI16x16",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-0.1-Tokenizer-DI8x8",
+    "value": 12,
+    "name": "Cosmos-0.1-Tokenizer-DI8x8",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-0.1-Tokenizer-DI16x16",
+    "value": 10,
+    "name": "Cosmos-0.1-Tokenizer-DI16x16",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-0.1-Tokenizer-DV4x8x8",
+    "value": 14,
+    "name": "Cosmos-0.1-Tokenizer-DV4x8x8",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Meta-Llama-3.1-8B-Instruct-ONNX-INT4",
+    "value": 8,
+    "name": "Meta-Llama-3.1-8B-Instruct-ONNX-INT4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "stt_hy_fastconformer_hybrid_large_pc",
+    "value": 12,
+    "name": "stt_hy_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "low-frame-rate-speech-codec-22khz",
+    "value": 20,
+    "name": "low-frame-rate-speech-codec-22khz",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "audio-codec-22khz",
+    "value": 6,
+    "name": "audio-codec-22khz",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "audio-codec-44khz",
+    "value": 24,
+    "name": "audio-codec-44khz",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "mel-codec-22khz",
+    "value": 4,
+    "name": "mel-codec-22khz",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "mel-codec-44khz",
+    "value": 9,
+    "name": "mel-codec-44khz",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "ssl_en_nest_large_v1.0",
+    "value": 9,
+    "name": "ssl_en_nest_large_v1.0",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "ssl_en_nest_xlarge_v1.0",
+    "value": 8,
+    "name": "ssl_en_nest_xlarge_v1.0",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_pt_fastconformer_hybrid_large_pc",
+    "value": 2,
+    "name": "stt_pt_fastconformer_hybrid_large_pc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_es_fastconformer_hybrid_large_pc_nc",
+    "value": 2,
+    "name": "stt_es_fastconformer_hybrid_large_pc_nc",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stt_ar_fastconformer_hybrid_large_pcd_v1.0",
+    "value": 39,
+    "name": "stt_ar_fastconformer_hybrid_large_pcd_v1.0",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Cosmos-1.0-Tokenizer-CV8x8x8",
+    "value": 25,
+    "name": "Cosmos-1.0-Tokenizer-CV8x8x8",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-1.0-Tokenizer-DV8x16x16",
+    "value": 19,
+    "name": "Cosmos-1.0-Tokenizer-DV8x16x16",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-1.0-Prompt-Upsampler-12B-Text2World",
+    "value": 14,
+    "name": "Cosmos-1.0-Prompt-Upsampler-12B-Text2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-1.0-Diffusion-7B-Video2World",
+    "value": 40,
+    "name": "Cosmos-1.0-Diffusion-7B-Video2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-1.0-Diffusion-14B-Text2World",
+    "value": 61,
+    "name": "Cosmos-1.0-Diffusion-14B-Text2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-1.0-Diffusion-14B-Video2World",
+    "value": 59,
+    "name": "Cosmos-1.0-Diffusion-14B-Video2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-1.0-Autoregressive-13B-Video2World",
+    "value": 33,
+    "name": "Cosmos-1.0-Autoregressive-13B-Video2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-1.0-Autoregressive-12B",
+    "value": 31,
+    "name": "Cosmos-1.0-Autoregressive-12B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-1.0-Autoregressive-5B-Video2World",
+    "value": 31,
+    "name": "Cosmos-1.0-Autoregressive-5B-Video2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-1.0-Diffusion-7B-Decoder-DV8x16x16ToCV8x8x8",
+    "value": 10,
+    "name": "Cosmos-1.0-Diffusion-7B-Decoder-DV8x16x16ToCV8x8x8",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-1.0-Autoregressive-4B",
+    "value": 57,
+    "name": "Cosmos-1.0-Autoregressive-4B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-1.0-Diffusion-7B-Text2World",
+    "value": 234,
+    "name": "Cosmos-1.0-Diffusion-7B-Text2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "NemoGuard-JailbreakDetect",
+    "value": 24,
+    "name": "NemoGuard-JailbreakDetect",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "llama-3.1-nemoguard-8b-topic-control",
+    "value": 18,
+    "name": "llama-3.1-nemoguard-8b-topic-control",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "llama-3.1-nemoguard-8b-content-safety",
+    "value": 35,
+    "name": "llama-3.1-nemoguard-8b-content-safety",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "X-Mobility",
+    "value": 15,
+    "name": "X-Mobility",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "audio-flamingo-2",
+    "value": 49,
+    "name": "audio-flamingo-2",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "audio-flamingo-2-0.5B",
+    "value": 14,
+    "name": "audio-flamingo-2-0.5B",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "COMPASS",
+    "value": 11,
+    "name": "COMPASS",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Cosmos-Transfer1-7B",
+    "value": 65,
+    "name": "Cosmos-Transfer1-7B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Transfer1-7B-Sample-AV",
+    "value": 22,
+    "name": "Cosmos-Transfer1-7B-Sample-AV",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict1-7B-Text2World-Sample-AV-Multiview",
+    "value": 9,
+    "name": "Cosmos-Predict1-7B-Text2World-Sample-AV-Multiview",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict1-7B-Video2World-Sample-AV-Multiview",
+    "value": 5,
+    "name": "Cosmos-Predict1-7B-Video2World-Sample-AV-Multiview",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict1-7B-Text2World",
+    "value": 5,
+    "name": "Cosmos-Predict1-7B-Text2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict1-7B-Video2World",
+    "value": 3,
+    "name": "Cosmos-Predict1-7B-Video2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict1-14B-Text2World",
+    "value": 6,
+    "name": "Cosmos-Predict1-14B-Text2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict1-14B-Video2World",
+    "value": 6,
+    "name": "Cosmos-Predict1-14B-Video2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict1-4B",
+    "value": 4,
+    "name": "Cosmos-Predict1-4B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict1-12B",
+    "value": 2,
+    "name": "Cosmos-Predict1-12B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict1-13B-Video2World",
+    "value": 3,
+    "name": "Cosmos-Predict1-13B-Video2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict1-5B-Video2World",
+    "value": 5,
+    "name": "Cosmos-Predict1-5B-Video2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "canary-180m-flash",
+    "value": 100,
+    "name": "canary-180m-flash",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Cosmos-Tokenize1-CI8x8-360p",
+    "value": 3,
+    "name": "Cosmos-Tokenize1-CI8x8-360p",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Tokenize1-CI16x16-360p",
+    "value": 2,
+    "name": "Cosmos-Tokenize1-CI16x16-360p",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Tokenize1-CV4x8x8-360p",
+    "value": 2,
+    "name": "Cosmos-Tokenize1-CV4x8x8-360p",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Tokenize1-DI8x8-360p",
+    "value": 2,
+    "name": "Cosmos-Tokenize1-DI8x8-360p",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Tokenize1-DI16x16-360p",
+    "value": 1,
+    "name": "Cosmos-Tokenize1-DI16x16-360p",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Tokenize1-DV4x8x8-360p",
+    "value": 2,
+    "name": "Cosmos-Tokenize1-DV4x8x8-360p",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Tokenize1-CV8x8x8-720p",
+    "value": 12,
+    "name": "Cosmos-Tokenize1-CV8x8x8-720p",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Tokenize1-DV8x16x16-720p",
+    "value": 3,
+    "name": "Cosmos-Tokenize1-DV8x16x16-720p",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-UpsamplePrompt1-12B-Text2World",
+    "value": 2,
+    "name": "Cosmos-UpsamplePrompt1-12B-Text2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict1-7B-Decoder-DV8x16x16ToCV8x8x8-720p",
+    "value": 1,
+    "name": "Cosmos-Predict1-7B-Decoder-DV8x16x16ToCV8x8x8-720p",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Transfer1-7B-4KUpscaler",
+    "value": 9,
+    "name": "Cosmos-Transfer1-7B-4KUpscaler",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict1-7B-WorldInterpolator",
+    "value": 6,
+    "name": "Cosmos-Predict1-7B-WorldInterpolator",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "DAM-3B",
+    "value": 132,
+    "name": "DAM-3B",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "DAM-3B-Video",
+    "value": 59,
+    "name": "DAM-3B-Video",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "DAM-3B-Self-Contained",
+    "value": 25,
+    "name": "DAM-3B-Self-Contained",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "Cosmos-Predict2-14B-Text2Image",
+    "value": 49,
+    "name": "Cosmos-Predict2-14B-Text2Image",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Transfer1-7B-Sample-AV-Single2MultiView",
+    "value": 5,
+    "name": "Cosmos-Transfer1-7B-Sample-AV-Single2MultiView",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict2-14B-Video2World",
+    "value": 30,
+    "name": "Cosmos-Predict2-14B-Video2World",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Frame_VAD_Multilingual_MarbleNet_v2.0",
+    "value": 45,
+    "name": "Frame_VAD_Multilingual_MarbleNet_v2.0",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "VILA-HD-8B-PS3-1.5K-SigLIP",
+    "value": 4,
+    "name": "VILA-HD-8B-PS3-1.5K-SigLIP",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "VILA-HD-8B-PS3-4K-SigLIP",
+    "value": 2,
+    "name": "VILA-HD-8B-PS3-4K-SigLIP",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "GEN3C-Cosmos-7B",
+    "value": 29,
+    "name": "GEN3C-Cosmos-7B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "PartPacker",
+    "value": 55,
+    "name": "PartPacker",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "parakeet-rnnt-110m-da-dk",
+    "value": 19,
+    "name": "parakeet-rnnt-110m-da-dk",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "difix",
+    "value": 27,
+    "name": "difix",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "diar_streaming_sortformer_4spk-v2",
+    "value": 124,
+    "name": "diar_streaming_sortformer_4spk-v2",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Cosmos-Predict2-14B-Sample-GR00T-Dreams-GR1",
+    "value": 6,
+    "name": "Cosmos-Predict2-14B-Sample-GR00T-Dreams-GR1",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "Cosmos-Predict2-14B-Sample-GR00T-Dreams-DROID",
+    "value": 3,
+    "name": "Cosmos-Predict2-14B-Sample-GR00T-Dreams-DROID",
+    "parent": "GR00T (robotics)",
+    "color": "#db2777"
+  },
+  {
+    "id": "difix_ref",
+    "value": 7,
+    "name": "difix_ref",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Diffusion_Renderer_Inverse_Cosmos_7B",
+    "value": 9,
+    "name": "Diffusion_Renderer_Inverse_Cosmos_7B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Diffusion_Renderer_Forward_Cosmos_7B",
+    "value": 6,
+    "name": "Diffusion_Renderer_Forward_Cosmos_7B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Predict2-2B-Sample-Action-Conditioned",
+    "value": 10,
+    "name": "Cosmos-Predict2-2B-Sample-Action-Conditioned",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Audio2Face-3D-v3.0",
+    "value": 81,
+    "name": "Audio2Face-3D-v3.0",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Cosmos-Predict2-0.6B-Text2Image",
+    "value": 11,
+    "name": "Cosmos-Predict2-0.6B-Text2Image",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Audio2Face-3D-v2.3.1-Claire",
+    "value": 11,
+    "name": "Audio2Face-3D-v2.3.1-Claire",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Audio2Face-3D-v2.3.1-James",
+    "value": 9,
+    "name": "Audio2Face-3D-v2.3.1-James",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "audio-flamingo-3",
+    "value": 151,
+    "name": "audio-flamingo-3",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "audio-flamingo-3-chat",
+    "value": 49,
+    "name": "audio-flamingo-3-chat",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "VILA-HD-8B-PS3-1.5K-SigLIP2",
+    "value": 1,
+    "name": "VILA-HD-8B-PS3-1.5K-SigLIP2",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "VILA-HD-8B-PS3-4K-SigLIP2",
+    "value": 3,
+    "name": "VILA-HD-8B-PS3-4K-SigLIP2",
+    "parent": "Vision backbones",
+    "color": "#0d9488"
+  },
+  {
+    "id": "Audio2Emotion-v2.2",
+    "value": 24,
+    "name": "Audio2Emotion-v2.2",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "audio-flamingo-2-SoundCoT",
+    "value": 11,
+    "name": "audio-flamingo-2-SoundCoT",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "audio_to_audio_schrodinger_bridge",
+    "value": 23,
+    "name": "audio_to_audio_schrodinger_bridge",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "nemo-nano-codec-22khz-1.89kbps-21.5fps",
+    "value": 13,
+    "name": "nemo-nano-codec-22khz-1.89kbps-21.5fps",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "nemo-nano-codec-22khz-0.6kbps-12.5fps",
+    "value": 17,
+    "name": "nemo-nano-codec-22khz-0.6kbps-12.5fps",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Audio2Emotion-v3.0",
+    "value": 38,
+    "name": "Audio2Emotion-v3.0",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "omnivinci",
+    "value": 178,
+    "name": "omnivinci",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Lyra",
+    "value": 42,
+    "name": "Lyra",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "gliner-PII",
+    "value": 137,
+    "name": "gliner-PII",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Cosmos-Predict2.5-14B",
+    "value": 28,
+    "name": "Cosmos-Predict2.5-14B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "parakeet_realtime_eou_120m-v1",
+    "value": 142,
+    "name": "parakeet_realtime_eou_120m-v1",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "nemotron-page-elements-v3",
+    "value": 46,
+    "name": "nemotron-page-elements-v3",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NV-La-Proteina-Ucond-v1",
+    "value": 1,
+    "name": "NV-La-Proteina-Ucond-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "nemotron-graphic-elements-v1",
+    "value": 22,
+    "name": "nemotron-graphic-elements-v1",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "nemotron-table-structure-v1",
+    "value": 34,
+    "name": "nemotron-table-structure-v1",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Cosmos-Transfer-LidarGen",
+    "value": 7,
+    "name": "Cosmos-Transfer-LidarGen",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Tokenizer-CI8x8-Lidar",
+    "value": 3,
+    "name": "Cosmos-Tokenizer-CI8x8-Lidar",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "NV-CodonFM-Encodon-600M-v1",
+    "value": 2,
+    "name": "NV-CodonFM-Encodon-600M-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "NV-CodonFM-Encodon-80M-v1",
+    "value": 1,
+    "name": "NV-CodonFM-Encodon-80M-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "NV-La-Proteina-Motif-v1",
+    "value": 3,
+    "name": "NV-La-Proteina-Motif-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "NV-Proteina-200M-v1",
+    "value": 1,
+    "name": "NV-Proteina-200M-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "NV-Generate-CT",
+    "value": 26,
+    "name": "NV-Generate-CT",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Fixer",
+    "value": 23,
+    "name": "Fixer",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "nemotron-ocr-v1",
+    "value": 119,
+    "name": "nemotron-ocr-v1",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Qwen3-Nemotron-8B-BRRM",
+    "value": 9,
+    "name": "Qwen3-Nemotron-8B-BRRM",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "Qwen3-Nemotron-14B-BRRM",
+    "value": 13,
+    "name": "Qwen3-Nemotron-14B-BRRM",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "NV-Generate-MR",
+    "value": 21,
+    "name": "NV-Generate-MR",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "NV-Segment-CTMR",
+    "value": 16,
+    "name": "NV-Segment-CTMR",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "fourcastnet3",
+    "value": 35,
+    "name": "fourcastnet3",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stormcast-v1-era5-hrrr",
+    "value": 18,
+    "name": "stormcast-v1-era5-hrrr",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Kimi-K2-Thinking-NVFP4",
+    "value": 30,
+    "name": "Kimi-K2-Thinking-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Qwen3-Next-80B-A3B-Instruct-NVFP4",
+    "value": 41,
+    "name": "Qwen3-Next-80B-A3B-Instruct-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "magpie_tts_multilingual_357m",
+    "value": 138,
+    "name": "magpie_tts_multilingual_357m",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "smolvla-arena-gr1-microwave",
+    "value": 1,
+    "name": "smolvla-arena-gr1-microwave",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Cosmos-Policy-LIBERO-Predict2-2B",
+    "value": 5,
+    "name": "Cosmos-Policy-LIBERO-Predict2-2B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Cosmos-Policy-RoboCasa-Predict2-2B",
+    "value": 3,
+    "name": "Cosmos-Policy-RoboCasa-Predict2-2B",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "Nemotron-Cascade-8B-Intermediate-ckpts",
+    "value": 13,
+    "name": "Nemotron-Cascade-8B-Intermediate-ckpts",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "RNAPro-Private-Best-500M",
+    "value": 1,
+    "name": "RNAPro-Private-Best-500M",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "cbottle",
+    "value": 10,
+    "name": "cbottle",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "stormscope-goes-mrms",
+    "value": 27,
+    "name": "stormscope-goes-mrms",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "corrdiff-cmip6-era5",
+    "value": 12,
+    "name": "corrdiff-cmip6-era5",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "atlas-era5",
+    "value": 23,
+    "name": "atlas-era5",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Kimi-K2.5-NVFP4",
+    "value": 86,
+    "name": "Kimi-K2.5-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "DreamDojo",
+    "value": 36,
+    "name": "DreamDojo",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Qwen3.5-397B-A17B-NVFP4",
+    "value": 100,
+    "name": "Qwen3.5-397B-A17B-NVFP4",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  },
+  {
+    "id": "Cosmos-H-Surgical-Simulator",
+    "value": 15,
+    "name": "Cosmos-H-Surgical-Simulator",
+    "parent": "Cosmos (physical AI)",
+    "color": "#ea580c"
+  },
+  {
+    "id": "fourcastnet1",
+    "value": 3,
+    "name": "fourcastnet1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "NV-Raw2insights-MRI",
+    "value": 10,
+    "name": "NV-Raw2insights-MRI",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "DiffiT",
+    "value": 12,
+    "name": "DiffiT",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "NV-Proteina-Complexa-Protein-Target-160M-v1",
+    "value": 5,
+    "name": "NV-Proteina-Complexa-Protein-Target-160M-v1",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "GEM-X",
+    "value": 20,
+    "name": "GEM-X",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "NVILA-8B-HD-Video",
+    "value": 40,
+    "name": "NVILA-8B-HD-Video",
+    "parent": "Multimodal / VLM",
+    "color": "#0891b2"
+  },
+  {
+    "id": "NV-Generate-MR-Brain",
+    "value": 28,
+    "name": "NV-Generate-MR-Brain",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "LuxDiT",
+    "value": 10,
+    "name": "LuxDiT",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "UniRelight",
+    "value": 19,
+    "name": "UniRelight",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "nvpanoptix-3d-v1.1-matterport3d",
+    "value": 19,
+    "name": "nvpanoptix-3d-v1.1-matterport3d",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "PixelDiT-1300M-1024px",
+    "value": 41,
+    "name": "PixelDiT-1300M-1024px",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "nemocurator-speech-bandwidth-filter",
+    "value": 21,
+    "name": "nemocurator-speech-bandwidth-filter",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "Lyra-2.0",
+    "value": 327,
+    "name": "Lyra-2.0",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Ising-Decoder-SurfaceCode-1-Fast",
+    "value": 13,
+    "name": "Ising-Decoder-SurfaceCode-1-Fast",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "parakeet-unified-en-0.6b",
+    "value": 51,
+    "name": "parakeet-unified-en-0.6b",
+    "parent": "Speech & Audio",
+    "color": "#f59e0b"
+  },
+  {
+    "id": "nemotron-climb-fasttext-classifiers",
+    "value": 14,
+    "name": "nemotron-climb-fasttext-classifiers",
+    "parent": "Nemotron (LLM)",
+    "color": "#76B900"
+  },
+  {
+    "id": "instant-nurec",
+    "value": 10,
+    "name": "instant-nurec",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Wan2.2-T2V-A14B-Diffusers-NVFP4",
+    "value": 11,
+    "name": "Wan2.2-T2V-A14B-Diffusers-NVFP4",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Wan2.2-T2V-A14B-Diffusers-FP8",
+    "value": 15,
+    "name": "Wan2.2-T2V-A14B-Diffusers-FP8",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "AnyFlow-Wan2.1-T2V-14B-Diffusers",
+    "value": 16,
+    "name": "AnyFlow-Wan2.1-T2V-14B-Diffusers",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "AnyFlow-FAR-Wan2.1-1.3B-Diffusers",
+    "value": 11,
+    "name": "AnyFlow-FAR-Wan2.1-1.3B-Diffusers",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "AnyFlow-FAR-Wan2.1-14B-Diffusers",
+    "value": 10,
+    "name": "AnyFlow-FAR-Wan2.1-14B-Diffusers",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "Harmonizer",
+    "value": 13,
+    "name": "Harmonizer",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "kokoro-82M-onnx-opt",
+    "value": 34,
+    "name": "kokoro-82M-onnx-opt",
+    "parent": "Other / research",
+    "color": "#94a3b8"
+  },
+  {
+    "id": "4D-RGPT-8B",
+    "value": 15,
+    "name": "4D-RGPT-8B",
+    "parent": "Built on other bases",
+    "color": "#a3e635"
+  }
+];
+        const TREEMAP_BORDER_RADIUS = 6;
+        const TREEMAP_SHOW_VALUES = 0;
+        const SHOW_TOOLTIP = 1;
+        const PALETTE_MODE = "none";
+
+        function normalizeData(arr) {
+            return arr.map(function (d) {
+                var parent = d.parent || d.group || d.domain || d.category || d.type || d.class;
+                var name = d.name || d.id || d.label || d.title;
+                var value = (d.value != null) ? +d.value : (d.count != null) ? +d.count : (d.size != null) ? +d.size : 0;
+                var color = d.color != null ? d.color : null;
+                return { parent: parent, name: name, value: value, color: color };
+            });
+        }
+
+        let treemapData = normalizeData(originalData);
+        const groups = Array.from(new Set(treemapData.map(function (d) { return d.parent; })));
+        const inferredColors = {};
+        groups.forEach(function (g) {
+            var item = originalData.find(function (x) {
+                var p = x.parent || x.group || x.domain || x.category || x.type || x.class;
+                return p === g;
+            });
+            inferredColors[g] = item && item.color ? item.color : null;
+        });
+
+        const fallbackPalette = ["#1F77B4", "#FF7F0E", "#2CA02C", "#9467BD", "#D62728", "#17BECF", "#8C564B", "#E377C2", "#7F7F7F", "#BCBD22"];
+        const groupColors = {};
+        groups.forEach(function (g, i) {
+            var baseColor;
+            if (inferredColors[g]) baseColor = inferredColors[g];
+            else if (PALETTE_MODE === "aiw") baseColor = "#2756d3";
+            else if (PALETTE_MODE === "ceps") baseColor = "#207164";
+            else baseColor = fallbackPalette[i % fallbackPalette.length];
+            groupColors[g] = baseColor;
+        });
+
+        const activeGroups = new Set(groups);
+
+        function getGroupColor(parent) {
+            var c = groupColors[parent];
+            if (!c && (PALETTE_MODE === "aiw" || PALETTE_MODE === "ceps")) {
+                return PALETTE_MODE === "aiw" ? "#2756d3" : "#207164";
+            }
+            return c || "#666666";
+        }
+
+        let legendInitialized = false;
+
+        function getLegendElement() {
+            var legend = document.getElementById("legend");
+            if (legend) return legend;
+            var legendContainer = document.getElementById("container2");
+            if (!legendContainer) return null;
+            legend = document.createElement("div");
+            legend.id = "legend";
+            legend.className = "custom-legend";
+            legendContainer.appendChild(legend);
+            return legend;
+        }
+
+        function buildLegend() {
+            if (legendInitialized) return;
+            var legend = getLegendElement();
+            if (!legend) return;
+            legend.innerHTML = "";
+            groups.forEach(function (g) {
+                var item = document.createElement("div");
+                item.className = "legend-item active";
+                item.setAttribute("data-group", g);
+                item.setAttribute("role", "button");
+                item.setAttribute("tabindex", "0");
+                item.setAttribute("aria-pressed", "true");
+
+                var square = document.createElement("div");
+                square.className = "legend-square";
+                square.style.backgroundColor = getGroupColor(g);
+                square.style.borderRadius = TREEMAP_BORDER_RADIUS + "px";
+
+                var label = document.createElement("span");
+                label.textContent = g;
+
+                item.appendChild(square);
+                item.appendChild(label);
+
+                var toggleGroup = function () {
+                    if (activeGroups.has(g)) {
+                        activeGroups.delete(g);
+                    } else {
+                        activeGroups.add(g);
+                    }
+                    updateVisualization();
+                };
+
+                item.addEventListener("click", toggleGroup);
+                item.addEventListener("keydown", function (e) {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleGroup();
+                    }
+                });
+
+                legend.appendChild(item);
+            });
+            legendInitialized = true;
+        }
+
+        function updateLegendStyles() {
+            var legend = document.getElementById("legend");
+            if (!legend) return;
+            var items = legend.querySelectorAll(".legend-item");
+            items.forEach(function (item) {
+                var grp = item.getAttribute("data-group");
+                var isActive = activeGroups.has(grp);
+                item.classList.toggle("inactive", !isActive);
+                item.classList.toggle("active", isActive);
+                item.setAttribute("aria-pressed", isActive ? "true" : "false");
+            });
+        }
+
+        let treemapInstance = null;
+
+        function ensureTreemapInstance(width, height) {
+            if (!vizContainer) return null;
+            if (!treemapInstance) {
+                treemapInstance = new d3plus.Treemap()
+                    .select("#" + VIZ_CONTAINER_ID)
+                    .data(treemapData)
+                    .groupBy(["parent", "name"])
+                    .tooltip(!!SHOW_TOOLTIP)
+                    .tooltipConfig({
+                        title: function (d) { return d.name; },
+                        body: function (d) {
+                            var sector = d.parent || d.id;
+                            var count = d.value || 0;
+                            return "<strong>Sector:</strong> " + sector + "<br><strong>Count:</strong> " + count;
+                        }
+                    })
+                    .sum("value")
+                    .layoutPadding(2)
+                    .legend(false)
+                    .color(function (d) {
+                        return getGroupColor(d.parent || d.id);
+                    })
+                    .shapeConfig({
+                        rx: TREEMAP_BORDER_RADIUS,
+                        ry: TREEMAP_BORDER_RADIUS,
+                        stroke: function (d) {
+                            if (d.depth === 0) return getGroupColor(d.id);
+                            return "transparent";
+                        },
+                        strokeWidth: function (d) {
+                            if (d.depth === 0) return 3;
+                            return 0;
+                        }
+                    })
+                    .config({
+                        label: function (d) {
+                            if (!TREEMAP_SHOW_VALUES) return d.name;
+                            var value = (d && typeof d.value === "number") ? d.value : (d && d.value != null ? +d.value : 0);
+                            return d.name + " (" + value + ")";
+                        }
+                    });
+            }
+
+            if (typeof treemapInstance.width === "function" && width) {
+                treemapInstance.width(width);
+            }
+            if (typeof treemapInstance.height === "function" && height) {
+                treemapInstance.height(height);
+            }
+
+            return treemapInstance;
+        }
+
+        function updateVisualization(width, height) {
+            treemapData = normalizeData(originalData).filter(function (d) {
+                return activeGroups.has(d.parent);
+            });
+
+            var instance = ensureTreemapInstance(width, height);
+            if (!instance) return;
+            instance.data(treemapData).render();
+
+            updateLegendStyles();
+        }
+
+        const renderVisualization = function (currentData, width, height) {
+            buildLegend();
+            updateVisualization(width, height);
+        };
+
+        const renderVisualizationForContainer = function () {
+            if (!vizContainer) {
+                return
+            }
+            const rect = vizContainer.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+            renderVisualization(null, width, height);
+        };
+
+        let resizeTimer;
+
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(renderVisualizationForContainer, 120);
+        });
+
+        if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+            const resizeObserver = new ResizeObserver(function () {
+                renderVisualizationForContainer();
+            });
+            resizeObserver.observe(vizContainer);
+        }
+
+        renderVisualizationForContainer();
+    </script>
+</body>
+
+</html>
