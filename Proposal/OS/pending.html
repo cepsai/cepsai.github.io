@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AI share NVIDIA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <style>
+:root{
+  --fs-control:clamp(9px,1.4vw,13px);
+  --fs-legend:clamp(0.625rem,1.4vw,1rem);
+  --fs-meta:clamp(10px,1.6vw,16px);
+  --breakpoint-compact:500px;
+}
+html,body{height:100%;}
+
+body{
+    margin: 0;
+    overflow: hidden;
+    height: 100vh;
+    font-family: 'NVIDIA Sans','Helvetica Neue',Helvetica,Arial,sans-serif;
+    background: #fff;
+}
+
+.viz-grid{
+    display: grid;
+    grid-template-rows: 16fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    padding-bottom: clamp(8px, 2vh, 18px);
+}
+#container1{
+    grid-row: 1;
+    grid-column: 1 / span 2;
+    overflow: hidden; 
+    min-height: 0;
+}
+#container2{
+    grid-row: 2;
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+}
+#container3{
+    grid-row: 3;
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width:0;
+}
+#container4{
+    grid-row: 3;
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+#container4 a{
+    height: 100%;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+#viz{
+    width: 100%;
+    height: 100%; min-height: 0;
+    min-width: 0;
+}
+
+.selector-group{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(2px, 0.5vw, 6px);
+    padding: clamp(2px, 0.4vw, 4px);
+    border-radius: 6px;
+    border: 1px solid rgba(17,24,39,.15);
+    background: #f8fafc;
+    max-width: 100%;
+    flex-shrink: 1;
+    min-width: 0;
+}
+.selector-button{
+    border: none;
+    background: transparent;
+    padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+    border-radius: 6px;
+    font-size: var(--fs-control);
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+}
+.selector-button.active{
+    background: #76B900;
+    color: #1a1a1a;
+}
+.selector-dropdown{
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+.selector-dropdown-toggle{
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: clamp(6px, 1vw, 10px);
+    padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+    border: 1px solid rgba(17, 24, 39, .15);
+    border-radius: 6px;
+    background: #f8fafc;
+    font-size: var(--fs-control);
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: background .2s, color .2s, border-color .2s;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+.selector-dropdown-toggle:hover{
+    border-color: rgba(17,24,39,.3);
+}
+.selector-dropdown-toggle:focus-visible{
+    outline: 2px solid #76B900;
+    outline-offset: 1px;
+}
+.selector-dropdown-toggle::after{
+    content:''; 
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid #475569;
+    border-bottom: 2px solid #475569;
+    transform: rotate(45deg);
+    flex-shrink: 0;
+    margin-top: -2px;
+    transition: transform .2s;
+}
+.selector-dropdown-toggle[aria-expanded="true"]::after{
+    transform: rotate(-135deg);margin-top:2px;}
+.selector-dropdown-menu{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);min-width:100%;width:max-content;max-width:min(92vw,440px);max-height:clamp(180px,30vh,320px);overflow-y:auto;overflow-x:hidden;background:#f8fafc;border:1px solid rgba(17,24,39,.15);border-radius:6px;padding:clamp(2px,0.4vw,4px);display:none;z-index:10;box-shadow:0 4px 12px rgba(0,0,0,.08);}
+.selector-dropdown-menu.open{display:block;}
+.selector-dropdown-option{display:flex;align-items:center;gap:14px;width:100%;box-sizing:border-box;border:none;background:transparent;text-align:left;padding:clamp(4px,0.8vh,8px) clamp(8px,1.5vw,14px);border-radius:6px;font-size:var(--fs-control);font-weight:600;color:#475569;cursor:pointer;transition:background .2s,color .2s;}
+.selector-dropdown-option .opt-name{flex:1 1 auto;text-align:left;}
+.selector-dropdown-option input[type=checkbox]{flex:0 0 auto;width:14px;height:14px;margin:0;accent-color:#76B900;cursor:pointer;}
+.selector-dropdown-option input[type=checkbox]:disabled{cursor:not-allowed;opacity:.85;}
+.selector-dropdown-option:hover,.selector-dropdown-option:focus{background:rgba(118,185,0,.14);outline:none;}
+.selector-dropdown-option.active{background:#76B900;color:#1a1a1a;}
+/* ─── SOURCE ─── */
+.source-text{font-size:var(--fs-meta);font-weight:600;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.source-text a{color:#2756d3;text-decoration:underline;cursor:pointer;}
+.source-text a:visited{color:#2756d3;}
+/* ─── LOGO ─── */
+.logo{height:100%;width:auto;max-height:100%;max-width:100%;pointer-events:auto;object-fit:contain;}
+/* ─── CHART ELEMENTS (D3) ─── */
+.axis path,.axis line{stroke:#cfd2d7;}
+.tick text{font-weight:600;fill:#4b5563;}
+.grid-lines line{stroke:#DBDBDB;stroke-dasharray:2,3;}
+.grid-lines path{stroke:none;}
+#tooltip{position:fixed;pointer-events:none;background:#fff;color:#0f172a;border:1px solid rgba(17,24,39,.08);padding:8px 12px;border-radius:6px;font-size:12px;line-height:1.4;font-family:'NVIDIA Sans','Helvetica Neue',Helvetica,Arial,sans-serif;opacity:0;transition:opacity .12s;z-index:50;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.12);}
+/* ─── RESPONSIVE ─── */
+@media (max-height:500px){
+  .viz-grid{grid-template-rows:1fr !important;grid-template-columns:1fr !important;padding-bottom:0;}
+  #container1{grid-row:1 !important;grid-column:1 !important;}
+  #container2,#container3,#container4{display:none !important;}
+  .logo{display:none !important;}
+}
+  </style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1" class="container viz-container">
+    <div id="viz"></div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div style="display:flex;align-items:center;gap:clamp(8px,2vw,20px);flex-wrap:wrap;justify-content:center;">
+      <div class="selector-dropdown" id="industry-dd">
+        <button class="selector-dropdown-toggle" aria-expanded="false" id="industry-toggle">Energy</button>
+        <div class="selector-dropdown-menu" id="industry-menu"></div>
+      </div>
+      <div class="selector-group" id="source-group">
+        <button class="selector-button active" data-source="patents">Patents</button>
+        <button class="selector-button" data-source="investments">Investments</button>
+        <button class="selector-button" data-source="openalex">Publications</button>
+      </div>
+      <div class="selector-group" id="mode-group">
+        <button class="selector-button" data-mode="proportion">Proportion</button>
+        <button class="selector-button active" data-mode="absolute">Absolute</button>
+      </div>
+    </div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text">Source: <a href="https://patentscope.wipo.int/" target="_blank" rel="noopener">PatentScope</a></div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+    </a>
+  </div>
+</div>
+<script>
+let DATA = null;
+
+const LINE_CURVE = "straight";
+const LINE_SHOW_DOTS = 1;
+const LINE_SHOW_AREA = 1;
+const SHOW_TOOLTIP = 1;
+const BREAKPOINT_COMPACT = 500;
+const COLOR = "#76B900";
+
+const SHOW_CONTAINER_2 = 1, SHOW_CONTAINER_3 = 1, SHOW_CONTAINER_4 = 1;
+
+(function applyContainerVisibility(){
+  const vizGrid=document.querySelector('.viz-grid');
+  const c2=document.getElementById('container2'),c3=document.getElementById('container3'),c4=document.getElementById('container4');
+  if(!SHOW_CONTAINER_2&&c2)c2.style.display='none';
+  if(!SHOW_CONTAINER_3&&c3)c3.style.display='none';
+  if(!SHOW_CONTAINER_4&&c4)c4.style.display='none';
+  const row3Visible=SHOW_CONTAINER_2, row4Visible=SHOW_CONTAINER_3||SHOW_CONTAINER_4;
+  let gridRows=[]; let currentRow=1;
+  const chartHeight=20-(row3Visible?1:0)-(row4Visible?1:0); gridRows.push(`${chartHeight}fr`);
+  if(row3Visible){gridRows.push('1fr');currentRow++;if(c2)c2.style.gridRow=String(currentRow);}
+  if(row4Visible){gridRows.push('1fr');currentRow++;
+    if(SHOW_CONTAINER_3&&c3)c3.style.gridRow=String(currentRow);
+    if(SHOW_CONTAINER_4&&c4)c4.style.gridRow=String(currentRow);
+    if(SHOW_CONTAINER_3&&!SHOW_CONTAINER_4&&c3)c3.style.gridColumn='1 / span 2';
+    if(!SHOW_CONTAINER_3&&SHOW_CONTAINER_4&&c4)c4.style.gridColumn='1 / span 2';
+  }
+  vizGrid.style.gridTemplateRows=gridRows.join(' ');
+  document.getElementById('container1').style.gridRow='1';
+})();
+
+let source = "patents";
+const NOUN = {patents:"patents", investments:"investments", openalex:"publications"};
+const MONTH = {patents:"June", investments:"June", openalex:"March"};
+let INDUSTRIES = [];
+let currentIndustry = null;
+let checked = new Set();
+let mode = "absolute";
+
+const PALETTE = ["#2756d3","#f59e0b","#ef4444","#8b5cf6","#14b8a6","#ec4899","#0ea5e9","#9333ea","#e11d48","#0891b2"];
+function colorOf(ind){
+  if(ind===currentIndustry) return COLOR;
+  const i=INDUSTRIES.indexOf(ind);
+  return PALETTE[i % PALETTE.length];
+}
+
+let D, years, xOrder;
+const vizContainer = document.getElementById("viz");
+
+function smartFormat(v){
+  if(!isFinite(v))return"N/A";
+  if(Math.abs(v)>=1e9)return d3.format(".1f")(v/1e9)+"B";
+  if(Math.abs(v)>=1e6)return d3.format(".1f")(v/1e6)+"M";
+  if(Math.abs(v)>=1e3)return d3.format(",")(v);
+  return d3.format(",")(Math.round(v));
+}
+const fmtY   = v => mode==="proportion" ? d3.format(".0%")(v) : smartFormat(v);
+const fmtVal = v => mode==="proportion" ? d3.format(".1%")(v) : smartFormat(v);
+
+function seriesFor(ind){
+  const A=D.ai[ind]||[], T=D.all[ind]||[];
+  return years.map((y,i)=>{
+    const a=A[i]||0, t=T[i]||0;
+    let v = mode==="proportion" ? (t? a/t : NaN) : a;
+    return {x:String(y), value:v, ai:a, all:t};
+  });
+}
+
+let lineTooltip=null;
+
+let built=false, svg, gRoot, gridG, xAxisG, yAxisG, yTitle, areaPath, linesG, dotsG, labelsG, monthLabel, crosshair, hitRect;
+const DUR=650;
+const FF="'NVIDIA Sans','Helvetica Neue',Helvetica,Arial,sans-serif";
+
+function renderLineChart(animate){
+  if(!DATA)return;   // CSVs not loaded yet
+  const rect=vizContainer.getBoundingClientRect();
+  const width=Math.max(320,rect.width), height=Math.max(220,rect.height);
+  const compact=window.matchMedia(`(max-height:${BREAKPOINT_COMPACT}px)`).matches;
+
+  checked.add(currentIndustry);
+  const drawn=INDUSTRIES.filter(n=>checked.has(n));
+  const showLabels=drawn.length>1;
+  const seriesMap={}; drawn.forEach(n=>seriesMap[n]=seriesFor(n));
+  const sd=seriesMap[currentIndustry];
+
+  let maxValue=0;
+  drawn.forEach(n=>{const m=d3.max(seriesMap[n].filter(d=>!isNaN(d.value)),d=>d.value)||0;if(m>maxValue)maxValue=m;});
+  maxValue=maxValue||(mode==="proportion"?0.1:10);
+
+  const tickYears=years.filter(y=>y%5===0);
+  if(tickYears[tickYears.length-1]!==years[years.length-1])tickYears.push(years[years.length-1]);
+  const xLabels=tickYears.map(String);
+
+  const yMaxStr=fmtY(maxValue);
+  const yLabelWidth=Math.max(yMaxStr.length*7.5,28)+16;
+  let rightMargin, labelFont=12;
+  if(showLabels){
+    const maxChars=d3.max(drawn,d=>d.length); const maxZone=width*0.34;
+    let labelW=maxChars*12*0.58;
+    if(labelW>maxZone){labelFont=Math.max(7,maxZone/(maxChars*0.58));labelW=maxZone;}
+    rightMargin=Math.max(24,labelW+12);
+  }else rightMargin=Math.max(24,width*0.04);
+  const bottomMargin=Math.max(40,height*0.085);   // room for the (month) line under 2026
+  const margin={top:18,right:rightMargin,bottom:bottomMargin,left:yLabelWidth+32};
+  const innerWidth=Math.max(40,width-margin.left-margin.right);
+  const innerHeight=Math.max(40,height-margin.top-margin.bottom);
+  const axisFont=Math.max(9,Math.min(13,innerWidth/Math.max(5,xLabels.length)*0.5));
+
+  const xScale=d3.scalePoint().domain(xOrder).range([0,innerWidth]).padding(0.1);
+  const yScale=d3.scaleLinear().domain([0,maxValue*1.05]).nice().range([innerHeight,0]);
+  const curveFn=LINE_CURVE==="straight"?d3.curveLinear:d3.curveMonotoneX;
+  const dotR=Math.max(2.5,Math.min(5,innerWidth/Math.max(6,xOrder.length)*0.18));
+  const lineGen=d3.line().x(d=>xScale(d.x)).y(d=>yScale(d.value)).curve(curveFn).defined(d=>d.x!=null&&!isNaN(d.value));
+  const areaGen=d3.area().x(d=>xScale(d.x)).y0(innerHeight).y1(d=>yScale(d.value)).curve(curveFn).defined(d=>d.x!=null&&!isNaN(d.value));
+
+  if(!built){
+    if(SHOW_TOOLTIP&&!lineTooltip){lineTooltip=document.createElement("div");lineTooltip.id="tooltip";document.body.appendChild(lineTooltip);}
+    svg=d3.select(vizContainer).append("svg").style("width","100%").style("height","100%");
+    gRoot=svg.append("g").attr("transform",`translate(${margin.left},${margin.top})`);
+    gridG=gRoot.append("g").attr("class","grid-lines");
+    xAxisG=gRoot.append("g").attr("class","axis");
+    yAxisG=gRoot.append("g").attr("class","axis");
+    yTitle=gRoot.append("text").attr("class","ytitle").attr("transform","rotate(-90)").attr("dy","0.71em")
+      .attr("text-anchor","middle").style("fill","#000").style("font-weight","700")
+      .style("font-size","clamp(12px,1.5vw,18px)").style("font-family",FF);
+    areaPath=gRoot.append("path").attr("class","areafill").attr("fill",COLOR).attr("opacity",0);
+    linesG=gRoot.append("g").attr("class","lines-group");
+    dotsG=gRoot.append("g").attr("class","dots-group");
+    labelsG=gRoot.append("g").attr("class","labels-group");
+    monthLabel=gRoot.append("text").attr("class","monthlbl").attr("text-anchor","middle").style("fill","#4b5563").style("font-family",FF).attr("opacity",0);
+    crosshair=gRoot.append("line").attr("stroke","#aaa").attr("stroke-width",1).attr("stroke-dasharray","3,3").attr("opacity",0).attr("pointer-events","none");
+    hitRect=gRoot.append("rect").attr("fill","none").attr("pointer-events","all");
+    built=true; animate=false;
+  }
+  const T=animate?DUR:0;
+  const anim=sel=>sel.transition().duration(T).ease(d3.easeCubicInOut);
+
+  svg.attr("width",width).attr("height",height).attr("viewBox",`0 0 ${width} ${height}`);
+  anim(gRoot).attr("transform",`translate(${margin.left},${margin.top})`);
+
+  anim(gridG).call(d3.axisLeft(yScale).ticks(compact?4:5).tickSize(-innerWidth).tickFormat(""));
+  gridG.select(".domain").remove();
+  anim(xAxisG).attr("transform",`translate(0,${innerHeight})`).call(d3.axisBottom(xScale).tickValues(xLabels));
+  anim(yAxisG).call(d3.axisLeft(yScale).ticks(compact?4:5).tickFormat(fmtY));
+  gRoot.selectAll(".axis .tick text").style("font-size",`${axisFont}px`).style("font-family",FF);
+  const has2026=xOrder.includes("2026")&&MONTH[source];
+  monthLabel.style("font-size",`${axisFont*0.85}px`).text(has2026?("("+MONTH[source]+")"):"");
+  anim(monthLabel).attr("x",has2026?xScale("2026"):0).attr("y",innerHeight+axisFont+16).attr("opacity",has2026?0.7:0);
+  yTitle.text(mode==="proportion"?("AI share of "+NOUN[source]):("AI "+NOUN[source]));
+  anim(yTitle).attr("y",-margin.left+16).attr("x",-(innerHeight/2));
+
+  anim(areaPath).attr("d",areaGen(sd)).attr("opacity",LINE_SHOW_AREA?0.13:0);
+
+  const lineSel=linesG.selectAll("path.iline").data(drawn,d=>d);
+  anim(lineSel.exit()).attr("opacity",0).remove();
+  const lineEnter=lineSel.enter().append("path").attr("class","iline").attr("fill","none")
+    .attr("stroke-linejoin","round").attr("stroke-linecap","round").attr("opacity",0).attr("d",n=>lineGen(seriesMap[n]));
+  const lineAll=lineEnter.merge(lineSel).attr("stroke",n=>colorOf(n)).attr("stroke-width",n=>n===currentIndustry?2.5:2);
+  anim(lineAll).attr("opacity",n=>n===currentIndustry?1:0.9).attr("d",n=>lineGen(seriesMap[n]));
+  lineAll.filter(n=>n===currentIndustry).raise();
+
+  const dotData=[];
+  if(LINE_SHOW_DOTS)drawn.forEach(n=>seriesMap[n].forEach(d=>{if(!isNaN(d.value))dotData.push({n,x:d.x,value:d.value});}));
+  const dotSel=dotsG.selectAll("circle.dot").data(dotData,d=>d.n+"|"+d.x);
+  anim(dotSel.exit()).attr("opacity",0).remove();
+  const dotEnter=dotSel.enter().append("circle").attr("class","dot").attr("stroke","#fff").attr("stroke-width",1.5)
+    .attr("r",dotR).attr("opacity",0).attr("cx",d=>xScale(d.x)).attr("cy",d=>yScale(d.value));
+  const dotAll=dotEnter.merge(dotSel).attr("fill",d=>colorOf(d.n));
+  anim(dotAll).attr("cx",d=>xScale(d.x)).attr("cy",d=>yScale(d.value)).attr("r",dotR).attr("opacity",d=>d.n===currentIndustry?1:0.9);
+  dotAll.filter(d=>d.n===currentIndustry).raise();
+
+  let labelData=[];
+  if(showLabels){
+    labelData=drawn.map(n=>{const s=seriesMap[n];let last=null;for(let i=s.length-1;i>=0;i--){if(!isNaN(s[i].value)){last=s[i];break;}}
+      return last?{name:n,color:colorOf(n),x:xScale(last.x),y:yScale(last.value)}:null;}).filter(Boolean);
+    labelData.sort((a,b)=>a.y-b.y);
+    const minGap=labelFont*1.25;
+    for(let i=1;i<labelData.length;i++){if(labelData[i].y-labelData[i-1].y<minGap)labelData[i].y=labelData[i-1].y+minGap;}
+    for(let i=labelData.length-1;i>0;i--){if(labelData[i].y>innerHeight){labelData[i].y=innerHeight;if(labelData[i].y-labelData[i-1].y<minGap)labelData[i-1].y=labelData[i].y-minGap;}}
+  }
+  const labSel=labelsG.selectAll("text").data(labelData,d=>d.name);
+  anim(labSel.exit()).attr("opacity",0).remove();
+  const labEnter=labSel.enter().append("text").attr("dy","0.32em").attr("text-anchor","start").attr("opacity",0)
+    .style("font-family",FF).attr("x",d=>d.x+6).attr("y",d=>d.y);
+  const labAll=labEnter.merge(labSel).attr("fill",d=>d.color)
+    .style("font-size",labelFont+"px").style("font-weight",d=>d.name===currentIndustry?"700":"600").text(d=>d.name);
+  anim(labAll).attr("x",d=>d.x+6).attr("y",d=>d.y).attr("opacity",1);
+
+  crosshair.attr("y1",0).attr("y2",innerHeight);
+  hitRect.attr("width",innerWidth).attr("height",innerHeight)
+    .on("mousemove",function(){
+      if(!SHOW_TOOLTIP)return;
+      const mx=d3.mouse(this)[0];
+      const closestX=xOrder.reduce((best,xv)=>Math.abs(xScale(xv)-mx)<Math.abs(xScale(best)-mx)?xv:best);
+      crosshair.attr("x1",xScale(closestX)).attr("x2",xScale(closestX)).attr("opacity",0.6);
+      let html="<strong>"+closestX+"</strong>";
+      drawn.forEach(n=>{
+        const pt=seriesMap[n].find(d=>d.x===closestX);
+        if(!pt||isNaN(pt.value))return;
+        html+="<br/><span style='color:"+colorOf(n)+";font-weight:"+(n===currentIndustry?700:600)+"'>"+n+": "+fmtVal(pt.value)+"</span>";
+      });
+      if(drawn.length===1){
+        const pt=sd.find(d=>d.x===closestX);
+        if(pt&&!isNaN(pt.value))html+="<br/><span style='color:#64748b'>"+smartFormat(pt.ai)+" of "+smartFormat(pt.all)+" "+NOUN[source]+"</span>";
+      }
+      lineTooltip.innerHTML=html;
+      const leftHalf=d3.event.clientX<window.innerWidth/2;
+      lineTooltip.style.left=leftHalf?(d3.event.clientX+14)+"px":(d3.event.clientX-14-lineTooltip.offsetWidth)+"px";
+      lineTooltip.style.top=(d3.event.clientY-24)+"px";
+      lineTooltip.style.opacity="1";
+    })
+    .on("mouseleave",function(){if(lineTooltip)lineTooltip.style.opacity="0";crosshair.attr("opacity",0);});
+}
+function refreshDropdownStates(){
+  document.getElementById("industry-toggle").textContent=currentIndustry;
+  document.querySelectorAll("#industry-menu .selector-dropdown-option").forEach(row=>{
+    const nm=row.querySelector(".opt-name").textContent;
+    row.classList.toggle("active",nm===currentIndustry);
+    const cb=row.querySelector("input");
+    cb.checked=checked.has(nm);
+    cb.disabled=(nm===currentIndustry);
+  });
+}
+function buildDropdown(){
+  const menu=document.getElementById("industry-menu");
+  const toggle=document.getElementById("industry-toggle");
+  menu.innerHTML="";
+  INDUSTRIES.forEach(name=>{
+    const row=document.createElement("div");
+    row.className="selector-dropdown-option";
+    row.setAttribute("role","button");
+    const lbl=document.createElement("span");
+    lbl.className="opt-name"; lbl.textContent=name;
+    const cb=document.createElement("input");
+    cb.type="checkbox";
+    cb.addEventListener("click",e=>e.stopPropagation()); 
+    cb.addEventListener("change",()=>{
+      if(cb.checked)checked.add(name); else checked.delete(name);
+      renderLineChart(true);
+    });
+    row.appendChild(lbl); row.appendChild(cb);
+    row.addEventListener("click",()=>{
+      currentIndustry=name; checked.add(name);
+      refreshDropdownStates();
+      renderLineChart(true);
+    });
+    menu.appendChild(row);
+  });
+  refreshDropdownStates();
+  toggle.onclick=e=>{e.stopPropagation();const open=menu.classList.toggle("open");toggle.setAttribute("aria-expanded",String(open));};
+  document.addEventListener("click",e=>{if(!document.getElementById("industry-dd").contains(e.target)){menu.classList.remove("open");toggle.setAttribute("aria-expanded","false");}});
+}
+document.getElementById("mode-group").addEventListener("click",e=>{
+  const btn=e.target.closest(".selector-button"); if(!btn)return;
+  mode=btn.dataset.mode;
+  document.querySelectorAll("#mode-group .selector-button").forEach(b=>b.classList.toggle("active",b===btn));
+  renderLineChart(true);
+});
+document.getElementById("source-group").addEventListener("click",e=>{
+  const btn=e.target.closest(".selector-button"); if(!btn)return;
+  source=btn.dataset.source;
+  D=DATA[source]; years=D.years; xOrder=years.map(String);
+  document.querySelectorAll("#source-group .selector-button").forEach(b=>b.classList.toggle("active",b===btn));
+  const CITE={patents:["PatentScope","https://patentscope.wipo.int/"],investments:["Crunchbase","https://www.crunchbase.com/"],openalex:["OpenAlex","https://openalex.org/"]};
+  const src=document.querySelector(".source-text");
+  if(src){const[nm,href]=CITE[source];src.innerHTML='Source: <a href="'+href+'" target="_blank" rel="noopener">'+nm+'</a>';}
+  renderLineChart(true);
+});
+
+const CSV_SOURCES = {patents:"patentscope.csv", investments:"crunchbase.csv", openalex:"openalex.csv"};
+function buildSource(rows){
+  const years=Array.from(new Set(rows.map(r=>+r.year))).sort((a,b)=>a-b);
+  const industries=Array.from(new Set(rows.map(r=>r.industry)));
+  const yi={}; years.forEach((y,i)=>yi[y]=i);
+  const ai={}, all={};
+  industries.forEach(n=>{ai[n]=Array(years.length).fill(0);all[n]=Array(years.length).fill(0);});
+  rows.forEach(r=>{ai[r.industry][yi[+r.year]]=+r.ai;all[r.industry][yi[+r.year]]=+r.all;});
+  return {years, industries, ai, all};
+}
+Promise.all(Object.values(CSV_SOURCES).map(f=>d3.csv("../data/"+f)))
+  .then(loaded=>{
+    DATA={};
+    Object.keys(CSV_SOURCES).forEach((k,i)=>DATA[k]=buildSource(loaded[i]));
+    INDUSTRIES=Array.from(new Set([...DATA.patents.industries,...DATA.investments.industries,...DATA.openalex.industries])).sort((a,b)=>a.localeCompare(b));
+    currentIndustry=INDUSTRIES.includes("Energy")?"Energy":INDUSTRIES[0];
+    checked=new Set([currentIndustry]);
+    D=DATA[source]; years=D.years; xOrder=years.map(String);
+    buildDropdown();
+    renderLineChart();
+    let resizeTimer;
+    window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(renderLineChart,120);});
+    if(typeof ResizeObserver!=="undefined")new ResizeObserver(()=>renderLineChart()).observe(vizContainer);
+  })
+  .catch(err=>{
+    console.error(err);
+    vizContainer.innerHTML='<p style="padding:24px;font-family:sans-serif;color:#475569">Could not load data CSVs. Serve over http (e.g. <code>python3 -m http.server</code> from the project root), not file://.</p>';
+  });
+</script>
+</body>
+</html>
