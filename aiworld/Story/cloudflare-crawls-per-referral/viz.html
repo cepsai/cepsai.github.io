@@ -1,0 +1,275 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI crawlers take far more than they give back</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  :root { --breakpoint-compact: 500px; }
+  html,body { margin:0; height:100vh; width:100vw; overflow:hidden; color:#0f172a;
+    font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Helvetica,Arial,sans-serif; }
+  .viz-grid { display:grid; height:100vh; box-sizing:border-box; padding-bottom:clamp(8px,2vh,18px);
+    grid-template-rows:16fr 2fr 1fr; grid-template-columns:1fr 1fr; }
+  #container1 { grid-column:1 / -1; } #viz { width:100%; height:100%; }
+  #container2 { grid-column:1 / -1; overflow:hidden; }
+  #legend { display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
+    gap:clamp(3px,0.7vw,10px); padding:0 14px; height:100%; }
+  .lg-head { font-size:clamp(8px,1.15vw,12px); font-weight:700; color:#475569; margin:0 2px 0 8px;
+    text-transform:uppercase; letter-spacing:0.03em; }
+  .lg-item { display:inline-flex; align-items:center; gap:4px; cursor:pointer; user-select:none;
+    font-size:clamp(8px,1.2vw,13px); font-weight:600; padding:1px 3px; border-radius:4px; }
+  .lg-item[aria-pressed="false"] { opacity:0.32; }
+  .lg-item svg { display:block; }
+  #container3 { font-size:clamp(5px,1.6vw,16px); display:flex; align-items:center; justify-content:flex-start;
+    padding:0 20px; overflow:hidden; min-width:0; }
+  #container3 #source-text { font-weight:600; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  #container3 #source-text a { color:#2756d3; text-decoration:underline; }
+  #container4 { display:flex; justify-content:flex-end; align-items:center; padding:0 20px; overflow:hidden; min-width:0; }
+  #container4 a { height:100%; display:flex; align-items:center; }
+  #container4 img { height:100%; width:auto; max-height:100%; max-width:100%; object-fit:contain; }
+  #tooltip { position:fixed; pointer-events:none; display:none; background:#fff;
+    border:1px solid #DBDBDB; padding:7px 9px; font-size:12px; border-radius:4px; box-shadow:0 2px 8px rgba(0,0,0,0.08);
+    max-width:260px; z-index:10; }
+  #tooltip .tt-date { font-weight:700; margin-bottom:4px; }
+  #tooltip .tt-row { display:flex; align-items:center; gap:6px; line-height:1.5; }
+  #tooltip .tt-sw { width:9px; height:9px; border-radius:2px; flex:0 0 auto; }
+  #tooltip .tt-val { margin-left:auto; font-variant-numeric:tabular-nums; font-weight:600; }
+  @media (max-height:500px){
+    .viz-grid { grid-template-rows:1fr !important; grid-template-columns:1fr !important; padding-bottom:0; }
+    #container1 { grid-row:1 !important; grid-column:1 / -1 !important; }
+    #container2,#container3,#container4,#container5 { display:none !important; }
+  }
+</style></head><body>
+<div class="viz-grid">
+  <div id="container1"><div id="viz"></div></div>
+  <div id="container2"><div id="legend"></div></div>
+  <div id="container3"><span id="source-text"></span></div>
+  <div id="container4"><a href="https://aiworld.eu/" target="_blank" rel="noopener"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></div>
+</div>
+<div id="tooltip"></div>
+<script>
+// ---- CONFIG ----
+const SHOW_CONTAINER_2 = 1, SHOW_CONTAINER_3 = 1, SHOW_CONTAINER_4 = 1, SHOW_CONTAINER_5 = 0;
+const BREAKPOINT_COMPACT = 500;
+const TITLE = "AI crawlers take far more than they give back";
+const SUBTITLE = "Crawl requests per referral sent back, by operator (weekly data)";
+const Y_AXIS_TITLE = "Crawl requests per referral (log scale)";
+const SOURCE_NAME = "Cloudflare Radar";
+const SOURCE_HREF = "https://radar.cloudflare.com/";
+
+const GROUPS = [
+  { label: "AI-only crawlers", ops: ["Anthropic","OpenAI","Perplexity","Mistral"] },
+  { label: "Search engines",   ops: ["Google","Microsoft","Baidu","Yandex","DuckDuckGo"] },
+  { label: "Other",            ops: ["ByteDance"] },
+];
+const SERIES_ORDER = GROUPS.flatMap(g => g.ops);
+const COLORS = {
+  Anthropic:"#dc2626", OpenAI:"#ea580c", Perplexity:"#db2777", Mistral:"#9333ea",
+  Google:"#2563eb", Microsoft:"#0891b2", Baidu:"#0d9488", Yandex:"#16a34a", DuckDuckGo:"#65a30d",
+  ByteDance:"#64748b",
+};
+const DATA = [{"date":"2025-01-06","Anthropic":238916.91,"OpenAI":1567.79,"Perplexity":54.75,"Mistral":null,"Google":3.68,"Microsoft":37.89,"Baidu":0.5,"Yandex":17.22,"DuckDuckGo":0.14,"ByteDance":19.13},{"date":"2025-01-13","Anthropic":292964.71,"OpenAI":1131.99,"Perplexity":44.27,"Mistral":null,"Google":3.78,"Microsoft":34.72,"Baidu":0.57,"Yandex":16.58,"DuckDuckGo":0.13,"ByteDance":17.31},{"date":"2025-01-20","Anthropic":356520.5,"OpenAI":1397.68,"Perplexity":53.64,"Mistral":null,"Google":3.75,"Microsoft":42.13,"Baidu":0.64,"Yandex":14.36,"DuckDuckGo":0.17,"ByteDance":17.26},{"date":"2025-01-27","Anthropic":368964.83,"OpenAI":843.82,"Perplexity":72.8,"Mistral":null,"Google":4.05,"Microsoft":43.26,"Baidu":0.61,"Yandex":11.85,"DuckDuckGo":0.15,"ByteDance":17.43},{"date":"2025-02-03","Anthropic":375078.17,"OpenAI":1459.65,"Perplexity":40.66,"Mistral":null,"Google":5.56,"Microsoft":45.87,"Baidu":0.64,"Yandex":13.02,"DuckDuckGo":0.17,"ByteDance":17.72},{"date":"2025-02-10","Anthropic":606654.67,"OpenAI":1776.36,"Perplexity":46.48,"Mistral":null,"Google":4.87,"Microsoft":41.52,"Baidu":0.78,"Yandex":14.31,"DuckDuckGo":0.17,"ByteDance":16.56},{"date":"2025-02-17","Anthropic":194801.5,"OpenAI":1630.95,"Perplexity":52.14,"Mistral":null,"Google":7.08,"Microsoft":44.56,"Baidu":0.78,"Yandex":12.64,"DuckDuckGo":0.18,"ByteDance":15.56},{"date":"2025-02-24","Anthropic":138500.62,"OpenAI":2383.23,"Perplexity":84.34,"Mistral":null,"Google":9.86,"Microsoft":45.44,"Baidu":0.69,"Yandex":14.46,"DuckDuckGo":0.18,"ByteDance":15.2},{"date":"2025-03-03","Anthropic":81117.0,"OpenAI":2699.31,"Perplexity":117.88,"Mistral":null,"Google":11.95,"Microsoft":44.06,"Baidu":0.8,"Yandex":12.82,"DuckDuckGo":0.19,"ByteDance":3.01},{"date":"2025-03-10","Anthropic":132117.89,"OpenAI":2402.16,"Perplexity":75.79,"Mistral":null,"Google":13.97,"Microsoft":43.66,"Baidu":0.8,"Yandex":13.91,"DuckDuckGo":0.2,"ByteDance":4.16},{"date":"2025-03-17","Anthropic":146627.53,"OpenAI":1911.91,"Perplexity":216.22,"Mistral":null,"Google":15.55,"Microsoft":40.14,"Baidu":0.87,"Yandex":11.92,"DuckDuckGo":0.21,"ByteDance":3.66},{"date":"2025-03-24","Anthropic":118777.31,"OpenAI":1969.37,"Perplexity":389.9,"Mistral":null,"Google":16.56,"Microsoft":39.17,"Baidu":0.8,"Yandex":12.85,"DuckDuckGo":0.21,"ByteDance":2.87},{"date":"2025-03-31","Anthropic":182212.58,"OpenAI":1451.75,"Perplexity":434.41,"Mistral":null,"Google":18.08,"Microsoft":38.24,"Baidu":1.2,"Yandex":12.73,"DuckDuckGo":0.19,"ByteDance":2.62},{"date":"2025-04-07","Anthropic":113267.25,"OpenAI":1053.76,"Perplexity":334.11,"Mistral":null,"Google":20.41,"Microsoft":44.48,"Baidu":1.19,"Yandex":15.37,"DuckDuckGo":0.21,"ByteDance":2.62},{"date":"2025-04-14","Anthropic":133241.82,"OpenAI":967.54,"Perplexity":275.08,"Mistral":null,"Google":25.03,"Microsoft":44.42,"Baidu":1.82,"Yandex":16.47,"DuckDuckGo":0.22,"ByteDance":2.2},{"date":"2025-04-21","Anthropic":99292.56,"OpenAI":1320.13,"Perplexity":215.89,"Mistral":null,"Google":26.58,"Microsoft":45.24,"Baidu":2.44,"Yandex":17.87,"DuckDuckGo":0.25,"ByteDance":2.08},{"date":"2025-04-28","Anthropic":178853.53,"OpenAI":628.34,"Perplexity":265.33,"Mistral":null,"Google":20.52,"Microsoft":48.37,"Baidu":1.59,"Yandex":16.55,"DuckDuckGo":0.28,"ByteDance":1.88},{"date":"2025-05-05","Anthropic":123349.21,"OpenAI":544.67,"Perplexity":207.06,"Mistral":0.25,"Google":22.43,"Microsoft":46.49,"Baidu":1.36,"Yandex":15.66,"DuckDuckGo":0.28,"ByteDance":1.74},{"date":"2025-05-12","Anthropic":145830.38,"OpenAI":914.47,"Perplexity":187.48,"Mistral":null,"Google":20.41,"Microsoft":42.27,"Baidu":1.01,"Yandex":12.88,"DuckDuckGo":0.27,"ByteDance":1.58},{"date":"2025-05-19","Anthropic":146754.33,"OpenAI":1397.93,"Perplexity":181.79,"Mistral":null,"Google":11.22,"Microsoft":43.41,"Baidu":1.12,"Yandex":14.45,"DuckDuckGo":0.27,"ByteDance":1.57},{"date":"2025-05-26","Anthropic":71184.77,"OpenAI":1395.99,"Perplexity":189.63,"Mistral":null,"Google":11.97,"Microsoft":45.38,"Baidu":1.07,"Yandex":14.82,"DuckDuckGo":0.26,"ByteDance":1.52},{"date":"2025-06-02","Anthropic":73820.46,"OpenAI":1620.57,"Perplexity":176.39,"Mistral":24.0,"Google":21.02,"Microsoft":44.37,"Baidu":1.15,"Yandex":12.76,"DuckDuckGo":0.27,"ByteDance":1.76},{"date":"2025-06-09","Anthropic":72401.33,"OpenAI":1643.27,"Perplexity":218.15,"Mistral":4.25,"Google":13.24,"Microsoft":44.69,"Baidu":1.26,"Yandex":14.81,"DuckDuckGo":0.3,"ByteDance":1.86},{"date":"2025-06-16","Anthropic":65296.68,"OpenAI":1806.24,"Perplexity":189.71,"Mistral":2.0,"Google":11.25,"Microsoft":40.19,"Baidu":1.02,"Yandex":18.06,"DuckDuckGo":0.3,"ByteDance":1.33},{"date":"2025-06-23","Anthropic":69555.72,"OpenAI":1530.1,"Perplexity":208.64,"Mistral":2.0,"Google":6.95,"Microsoft":38.67,"Baidu":0.83,"Yandex":19.0,"DuckDuckGo":0.31,"ByteDance":1.46},{"date":"2025-06-30","Anthropic":42550.11,"OpenAI":1537.69,"Perplexity":225.83,"Mistral":14.0,"Google":9.05,"Microsoft":40.67,"Baidu":0.94,"Yandex":22.06,"DuckDuckGo":0.32,"ByteDance":1.11},{"date":"2025-07-07","Anthropic":40342.89,"OpenAI":1149.99,"Perplexity":216.34,"Mistral":7.5,"Google":7.61,"Microsoft":38.45,"Baidu":0.96,"Yandex":22.37,"DuckDuckGo":0.29,"ByteDance":0.89},{"date":"2025-07-14","Anthropic":32597.91,"OpenAI":1111.67,"Perplexity":206.14,"Mistral":4.0,"Google":3.53,"Microsoft":40.5,"Baidu":0.9,"Yandex":22.73,"DuckDuckGo":0.29,"ByteDance":0.86},{"date":"2025-07-21","Anthropic":42900.22,"OpenAI":815.59,"Perplexity":205.38,"Mistral":14.5,"Google":3.13,"Microsoft":42.39,"Baidu":0.73,"Yandex":20.31,"DuckDuckGo":0.34,"ByteDance":0.83},{"date":"2025-07-28","Anthropic":43252.49,"OpenAI":893.37,"Perplexity":99.79,"Mistral":67.0,"Google":3.61,"Microsoft":44.24,"Baidu":0.65,"Yandex":18.49,"DuckDuckGo":0.37,"ByteDance":0.85},{"date":"2025-08-04","Anthropic":45719.78,"OpenAI":954.97,"Perplexity":154.03,"Mistral":null,"Google":3.75,"Microsoft":47.81,"Baidu":0.61,"Yandex":19.11,"DuckDuckGo":0.38,"ByteDance":0.87},{"date":"2025-08-11","Anthropic":44458.51,"OpenAI":737.75,"Perplexity":217.6,"Mistral":null,"Google":3.89,"Microsoft":47.07,"Baidu":0.8,"Yandex":17.4,"DuckDuckGo":0.43,"ByteDance":0.96},{"date":"2025-08-18","Anthropic":36394.68,"OpenAI":895.46,"Perplexity":237.84,"Mistral":23.0,"Google":3.72,"Microsoft":44.94,"Baidu":0.84,"Yandex":17.37,"DuckDuckGo":0.49,"ByteDance":1.07},{"date":"2025-08-25","Anthropic":40579.89,"OpenAI":808.36,"Perplexity":197.56,"Mistral":null,"Google":4.1,"Microsoft":40.74,"Baidu":0.85,"Yandex":20.95,"DuckDuckGo":0.41,"ByteDance":1.46},{"date":"2025-09-01","Anthropic":26466.64,"OpenAI":738.86,"Perplexity":152.67,"Mistral":null,"Google":4.52,"Microsoft":36.36,"Baidu":0.9,"Yandex":20.62,"DuckDuckGo":0.56,"ByteDance":1.26},{"date":"2025-09-08","Anthropic":35394.44,"OpenAI":909.69,"Perplexity":133.02,"Mistral":19.5,"Google":4.92,"Microsoft":35.37,"Baidu":0.78,"Yandex":18.89,"DuckDuckGo":0.53,"ByteDance":1.32},{"date":"2025-09-15","Anthropic":39195.2,"OpenAI":703.37,"Perplexity":135.25,"Mistral":19.0,"Google":5.48,"Microsoft":39.81,"Baidu":0.97,"Yandex":22.35,"DuckDuckGo":0.52,"ByteDance":1.35},{"date":"2025-09-22","Anthropic":22743.7,"OpenAI":619.13,"Perplexity":121.79,"Mistral":17.75,"Google":5.8,"Microsoft":38.61,"Baidu":1.0,"Yandex":23.12,"DuckDuckGo":0.59,"ByteDance":0.96},{"date":"2025-09-29","Anthropic":27472.09,"OpenAI":875.72,"Perplexity":103.06,"Mistral":17.5,"Google":5.84,"Microsoft":40.89,"Baidu":1.19,"Yandex":20.98,"DuckDuckGo":0.51,"ByteDance":1.06},{"date":"2025-10-06","Anthropic":28795.2,"OpenAI":784.87,"Perplexity":111.59,"Mistral":21.0,"Google":4.96,"Microsoft":39.57,"Baidu":1.35,"Yandex":21.44,"DuckDuckGo":0.64,"ByteDance":0.97},{"date":"2025-10-13","Anthropic":27606.9,"OpenAI":800.1,"Perplexity":102.29,"Mistral":16.4,"Google":7.22,"Microsoft":41.51,"Baidu":2.61,"Yandex":21.06,"DuckDuckGo":1.45,"ByteDance":1.9},{"date":"2025-10-20","Anthropic":20558.04,"OpenAI":821.19,"Perplexity":84.58,"Mistral":21.75,"Google":6.4,"Microsoft":35.19,"Baidu":2.87,"Yandex":19.09,"DuckDuckGo":1.59,"ByteDance":2.0},{"date":"2025-10-27","Anthropic":27736.72,"OpenAI":778.18,"Perplexity":85.69,"Mistral":40.0,"Google":7.44,"Microsoft":36.72,"Baidu":3.08,"Yandex":20.57,"DuckDuckGo":1.5,"ByteDance":1.97},{"date":"2025-11-03","Anthropic":34758.99,"OpenAI":815.35,"Perplexity":83.24,"Mistral":26.67,"Google":7.06,"Microsoft":33.04,"Baidu":4.05,"Yandex":20.81,"DuckDuckGo":1.5,"ByteDance":2.0},{"date":"2025-11-10","Anthropic":37531.79,"OpenAI":905.0,"Perplexity":80.45,"Mistral":22.0,"Google":8.14,"Microsoft":30.28,"Baidu":3.24,"Yandex":21.07,"DuckDuckGo":1.49,"ByteDance":1.93},{"date":"2025-11-17","Anthropic":34189.76,"OpenAI":1092.99,"Perplexity":74.82,"Mistral":20.33,"Google":8.32,"Microsoft":35.64,"Baidu":3.16,"Yandex":21.13,"DuckDuckGo":1.5,"ByteDance":1.84},{"date":"2025-11-24","Anthropic":25528.76,"OpenAI":1038.0,"Perplexity":78.51,"Mistral":19.75,"Google":6.9,"Microsoft":40.67,"Baidu":3.45,"Yandex":22.36,"DuckDuckGo":1.55,"ByteDance":1.98},{"date":"2025-12-01","Anthropic":28428.03,"OpenAI":914.95,"Perplexity":90.81,"Mistral":29.5,"Google":6.51,"Microsoft":37.39,"Baidu":4.23,"Yandex":20.87,"DuckDuckGo":1.53,"ByteDance":2.07},{"date":"2025-12-08","Anthropic":45121.03,"OpenAI":1096.08,"Perplexity":88.11,"Mistral":19.0,"Google":7.11,"Microsoft":37.19,"Baidu":2.68,"Yandex":20.25,"DuckDuckGo":1.59,"ByteDance":2.2},{"date":"2025-12-15","Anthropic":60558.3,"OpenAI":1851.1,"Perplexity":94.29,"Mistral":25.33,"Google":5.37,"Microsoft":39.23,"Baidu":2.98,"Yandex":19.28,"DuckDuckGo":1.45,"ByteDance":2.4},{"date":"2025-12-22","Anthropic":92183.06,"OpenAI":1793.29,"Perplexity":117.62,"Mistral":37.0,"Google":5.04,"Microsoft":46.51,"Baidu":3.01,"Yandex":21.9,"DuckDuckGo":1.55,"ByteDance":2.74},{"date":"2025-12-29","Anthropic":82096.92,"OpenAI":1638.22,"Perplexity":126.88,"Mistral":25.0,"Google":4.74,"Microsoft":42.74,"Baidu":3.27,"Yandex":23.09,"DuckDuckGo":1.4,"ByteDance":2.33},{"date":"2026-01-05","Anthropic":46552.33,"OpenAI":1277.75,"Perplexity":98.39,"Mistral":13.8,"Google":4.72,"Microsoft":36.93,"Baidu":3.6,"Yandex":21.06,"DuckDuckGo":1.48,"ByteDance":2.53},{"date":"2026-01-12","Anthropic":53086.0,"OpenAI":1353.47,"Perplexity":117.01,"Mistral":74.0,"Google":4.63,"Microsoft":34.78,"Baidu":3.45,"Yandex":19.9,"DuckDuckGo":1.43,"ByteDance":2.89},{"date":"2026-01-19","Anthropic":41065.76,"OpenAI":1222.2,"Perplexity":112.3,"Mistral":19.0,"Google":4.69,"Microsoft":34.48,"Baidu":4.17,"Yandex":16.43,"DuckDuckGo":1.4,"ByteDance":2.83},{"date":"2026-01-26","Anthropic":32826.6,"OpenAI":1156.37,"Perplexity":105.89,"Mistral":24.0,"Google":4.93,"Microsoft":31.41,"Baidu":4.3,"Yandex":11.39,"DuckDuckGo":1.45,"ByteDance":2.45},{"date":"2026-02-02","Anthropic":40675.93,"OpenAI":1355.96,"Perplexity":118.63,"Mistral":15.43,"Google":5.21,"Microsoft":33.85,"Baidu":4.88,"Yandex":15.17,"DuckDuckGo":1.47,"ByteDance":2.3},{"date":"2026-02-09","Anthropic":27343.16,"OpenAI":1615.41,"Perplexity":114.94,"Mistral":10.8,"Google":5.32,"Microsoft":34.36,"Baidu":5.65,"Yandex":21.41,"DuckDuckGo":1.47,"ByteDance":3.42},{"date":"2026-02-16","Anthropic":22332.58,"OpenAI":1287.85,"Perplexity":116.79,"Mistral":52.5,"Google":5.4,"Microsoft":35.32,"Baidu":7.38,"Yandex":26.93,"DuckDuckGo":1.5,"ByteDance":5.87},{"date":"2026-02-23","Anthropic":16313.25,"OpenAI":1032.56,"Perplexity":106.62,"Mistral":14.62,"Google":5.32,"Microsoft":33.37,"Baidu":6.2,"Yandex":21.2,"DuckDuckGo":1.5,"ByteDance":6.1},{"date":"2026-03-02","Anthropic":13478.85,"OpenAI":1001.18,"Perplexity":105.74,"Mistral":98.5,"Google":5.29,"Microsoft":25.34,"Baidu":4.91,"Yandex":27.73,"DuckDuckGo":1.52,"ByteDance":5.32},{"date":"2026-03-09","Anthropic":10534.24,"OpenAI":1333.1,"Perplexity":107.89,"Mistral":21.83,"Google":4.78,"Microsoft":29.59,"Baidu":6.35,"Yandex":25.59,"DuckDuckGo":1.52,"ByteDance":5.57},{"date":"2026-03-16","Anthropic":10805.0,"OpenAI":1437.16,"Perplexity":133.88,"Mistral":48.0,"Google":4.77,"Microsoft":28.97,"Baidu":6.86,"Yandex":22.42,"DuckDuckGo":1.4,"ByteDance":7.37},{"date":"2026-03-23","Anthropic":13828.27,"OpenAI":996.07,"Perplexity":98.69,"Mistral":30.17,"Google":5.1,"Microsoft":25.62,"Baidu":8.14,"Yandex":22.76,"DuckDuckGo":1.49,"ByteDance":7.46},{"date":"2026-03-30","Anthropic":13736.11,"OpenAI":1090.19,"Perplexity":125.23,"Mistral":187.0,"Google":5.5,"Microsoft":29.43,"Baidu":9.26,"Yandex":19.38,"DuckDuckGo":1.49,"ByteDance":7.53},{"date":"2026-04-06","Anthropic":6720.17,"OpenAI":740.44,"Perplexity":151.18,"Mistral":24.73,"Google":5.32,"Microsoft":31.24,"Baidu":9.57,"Yandex":18.85,"DuckDuckGo":1.5,"ByteDance":8.33},{"date":"2026-04-13","Anthropic":14429.76,"OpenAI":1263.43,"Perplexity":99.03,"Mistral":51.0,"Google":5.12,"Microsoft":29.5,"Baidu":9.63,"Yandex":18.23,"DuckDuckGo":1.56,"ByteDance":9.59},{"date":"2026-04-20","Anthropic":12116.7,"OpenAI":983.62,"Perplexity":121.86,"Mistral":36.0,"Google":5.06,"Microsoft":29.22,"Baidu":7.86,"Yandex":19.85,"DuckDuckGo":1.52,"ByteDance":8.15},{"date":"2026-04-27","Anthropic":17430.6,"OpenAI":1133.8,"Perplexity":129.64,"Mistral":17.33,"Google":4.72,"Microsoft":31.43,"Baidu":9.44,"Yandex":24.52,"DuckDuckGo":1.68,"ByteDance":8.61},{"date":"2026-05-04","Anthropic":17961.03,"OpenAI":1242.64,"Perplexity":114.9,"Mistral":100.0,"Google":4.7,"Microsoft":34.96,"Baidu":10.47,"Yandex":22.35,"DuckDuckGo":1.66,"ByteDance":8.73},{"date":"2026-05-11","Anthropic":14064.24,"OpenAI":1121.53,"Perplexity":139.24,"Mistral":58.5,"Google":5.06,"Microsoft":34.63,"Baidu":12.05,"Yandex":24.04,"DuckDuckGo":1.63,"ByteDance":9.04},{"date":"2026-05-18","Anthropic":8846.6,"OpenAI":1050.66,"Perplexity":143.52,"Mistral":123.0,"Google":4.98,"Microsoft":34.04,"Baidu":14.93,"Yandex":24.15,"DuckDuckGo":1.51,"ByteDance":9.01},{"date":"2026-05-25","Anthropic":10931.0,"OpenAI":857.25,"Perplexity":187.05,"Mistral":26.33,"Google":5.18,"Microsoft":34.14,"Baidu":11.97,"Yandex":23.84,"DuckDuckGo":1.52,"ByteDance":9.42},{"date":"2026-06-01","Anthropic":9690.03,"OpenAI":787.98,"Perplexity":205.2,"Mistral":109.0,"Google":5.03,"Microsoft":31.25,"Baidu":9.42,"Yandex":28.5,"DuckDuckGo":1.85,"ByteDance":9.06},{"date":"2026-06-08","Anthropic":4648.52,"OpenAI":1008.88,"Perplexity":150.81,"Mistral":62.0,"Google":5.05,"Microsoft":34.25,"Baidu":10.1,"Yandex":24.64,"DuckDuckGo":2.34,"ByteDance":9.43},{"date":"2026-06-15","Anthropic":2953.21,"OpenAI":1076.63,"Perplexity":232.65,"Mistral":null,"Google":5.45,"Microsoft":39.59,"Baidu":10.52,"Yandex":25.06,"DuckDuckGo":2.13,"ByteDance":10.72},{"date":"2026-06-22","Anthropic":1754.16,"OpenAI":254.1,"Perplexity":242.45,"Mistral":182.0,"Google":4.96,"Microsoft":34.53,"Baidu":11.14,"Yandex":26.42,"DuckDuckGo":2.16,"ByteDance":11.49}];
+
+document.getElementById("source-text").innerHTML =
+  'Source: <a href="'+SOURCE_HREF+'" target="_blank" rel="noopener">'+SOURCE_NAME;
+
+(function applyContainerVisibility(){
+  const grid = document.querySelector(".viz-grid"), c = n => document.getElementById("container"+n);
+  const c2=c(2), c3=c(3), c4=c(4), c5=c(5);
+  if (c2 && !SHOW_CONTAINER_2) c2.style.display="none";
+  if (c3 && !SHOW_CONTAINER_3) c3.style.display="none";
+  if (c4 && !SHOW_CONTAINER_4) c4.style.display="none";
+  if (c5 && !SHOW_CONTAINER_5) c5.style.display="none";
+  const rowCtrl=SHOW_CONTAINER_5, rowLegend=SHOW_CONTAINER_2, rowFooter=SHOW_CONTAINER_3||SHOW_CONTAINER_4;
+  const rows=[]; let r=1;
+  rows.push((20-(rowCtrl?1:0)-(rowLegend?2:0)-(rowFooter?1:0))+"fr");  // legend gets 2 rows of weight
+  if (rowCtrl)   { rows.push("1fr"); r++; if (c5) c5.style.gridRow=r; }
+  if (rowLegend) { rows.push("2fr"); r++; if (c2) c2.style.gridRow=r; }
+  if (rowFooter) { rows.push("1fr"); r++;
+    if (SHOW_CONTAINER_3 && c3) c3.style.gridRow=r;
+    if (SHOW_CONTAINER_4 && c4) c4.style.gridRow=r;
+    if (SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn="1 / span 2";
+    if (!SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn="1 / span 2";
+  }
+  grid.style.gridTemplateRows = rows.join(" ");
+  c(1).style.gridRow = "1";
+})();
+
+const parseDate = d3.timeParse("%Y-%m-%d");
+const dates = DATA.map(d => parseDate(d.date));
+const activeSeries = new Set(SERIES_ORDER);
+const tooltip = d3.select("#tooltip");
+const vizContainer = document.getElementById("viz");
+let firstRender = true;
+
+const fmtTick = v => {
+  if (v >= 1000) return d3.format("~s")(v).replace("G","B");
+  if (v >= 1) return d3.format("d")(v);
+  return d3.format("~g")(v);
+};
+const fmtVal = v => v >= 1000 ? d3.format(",.0f")(v) : d3.format("~g")(v);
+
+// per-series: points within its active window (first..last non-null), and the valid subset
+function seriesPoints(op){
+  const pts = DATA.map((d,i) => ({ date: dates[i], v: d[op] }));
+  let lo = pts.findIndex(p => p.v != null);
+  let hi = pts.length - 1; while (hi >= 0 && pts[hi].v == null) hi--;
+  if (lo < 0) return { active: [], valid: [] };
+  const active = pts.slice(lo, hi+1);
+  return { active, valid: active.filter(p => p.v != null) };
+}
+
+function buildLegend(){
+  const legend = d3.select("#legend"); legend.html("");
+  GROUPS.forEach(g => {
+    legend.append("span").attr("class","lg-head").text(g.label);
+    g.ops.forEach(op => {
+      const on = activeSeries.has(op);
+      const item = legend.append("div").attr("class","lg-item")
+        .attr("role","button").attr("tabindex",0).attr("aria-pressed", on)
+        .on("click", () => toggle(op))
+        .on("keydown", (e) => { if (e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(op); } });
+      const svg = item.append("svg").attr("width",18).attr("height",10);
+      svg.append("line").attr("x1",1).attr("y1",5).attr("x2",17).attr("y2",5)
+        .attr("stroke",COLORS[op]).attr("stroke-width",2.5);
+      svg.append("circle").attr("cx",9).attr("cy",5).attr("r",2.6).attr("fill",COLORS[op]);
+      item.append("span").text(op);
+    });
+  });
+}
+function toggle(op){
+  if (activeSeries.has(op)) activeSeries.delete(op); else activeSeries.add(op);
+  buildLegend(); render();
+}
+
+function render(){
+  d3.select("#viz").selectAll("*").remove();
+  const rect = vizContainer.getBoundingClientRect();
+  const W = rect.width, H = rect.height;
+  if (W < 10 || H < 10) return;
+  const compact = window.matchMedia(`(max-height:${BREAKPOINT_COMPACT}px)`).matches;
+
+  const m = { top: compact ? 16 : 64, right: compact ? 16 : 116, bottom: 30, left: 58 };
+  const innerW = Math.max(10, W - m.left - m.right);
+  const innerH = Math.max(10, H - m.top - m.bottom);
+
+  const svg = d3.select("#viz").append("svg").attr("width", W).attr("height", H);
+  const g = svg.append("g").attr("transform", `translate(${m.left},${m.top})`);
+
+  // y-domain from all active, valid, positive values
+  const vals = [];
+  SERIES_ORDER.forEach(op => { if (activeSeries.has(op)) seriesPoints(op).valid.forEach(p => vals.push(p.v)); });
+  const yMin = vals.length ? d3.min(vals) : 1, yMax = vals.length ? d3.max(vals) : 10;
+  const x = d3.scaleTime().domain(d3.extent(dates)).range([0, innerW]);
+  const y = d3.scaleLog().domain([Math.max(0.1, yMin/1.6), yMax*1.4]).range([innerH, 0]).clamp(true);
+
+  // gridlines + y axis at powers of 10
+  const decades = [];
+  for (let e = Math.floor(Math.log10(y.domain()[0])); e <= Math.ceil(Math.log10(y.domain()[1])); e++) decades.push(Math.pow(10,e));
+  g.append("g").selectAll("line").data(decades).join("line")
+    .attr("x1",0).attr("x2",innerW).attr("y1",d=>y(d)).attr("y2",d=>y(d))
+    .attr("stroke","#DBDBDB").attr("stroke-dasharray","2,3");
+  g.append("g").call(d3.axisLeft(y).tickValues(decades).tickFormat(fmtTick).tickSize(0))
+    .call(s => s.select(".domain").remove())
+    .call(s => s.selectAll("text").attr("font-weight",600).attr("font-size",11).attr("fill","#475569"));
+
+  // x axis
+  g.append("g").attr("transform",`translate(0,${innerH})`)
+    .call(d3.axisBottom(x).ticks(W < 560 ? 4 : 7).tickFormat(d3.timeFormat("%b %y")).tickSizeOuter(0))
+    .call(s => s.selectAll("text").attr("font-weight",600).attr("font-size",11).attr("fill","#475569"));
+
+  // parity reference (y = 1) if in range
+  if (1 >= y.domain()[0] && 1 <= y.domain()[1]) {
+    g.append("line").attr("x1",0).attr("x2",innerW).attr("y1",y(1)).attr("y2",y(1))
+      .attr("stroke","#0f172a").attr("stroke-width",1).attr("stroke-dasharray","5,4").attr("opacity",0.55);
+    g.append("text").attr("x",innerW-4).attr("y",y(1)+13).attr("text-anchor","end").attr("font-size",10).attr("font-weight",700)
+      .attr("fill","#0f172a").attr("opacity",0.7).text("parity (crawls = referrals)");
+  }
+
+  // y-axis title
+  if (!compact) g.append("text").attr("transform","rotate(-90)").attr("x",-innerH/2).attr("y",-44)
+    .attr("text-anchor","middle").attr("font-size",11).attr("font-weight",700).attr("fill","#475569").text(Y_AXIS_TITLE);
+
+  const lineGen = d3.line().x(d=>x(d.date)).y(d=>y(d.v));
+  const solidGen = d3.line().defined(d=>d.v!=null).x(d=>x(d.date)).y(d=>y(d.v==null?yMin:d.v));
+
+  const plot = g.append("g");
+  const drawn = SERIES_ORDER.filter(op => activeSeries.has(op));
+  drawn.forEach(op => {
+    const { active, valid } = seriesPoints(op);
+    if (valid.length === 0) return;
+    const col = COLORS[op];
+    // dotted underlay through all valid points -> straight bridges across interior gaps
+    if (valid.length > 1)
+      plot.append("path").datum(valid).attr("fill","none").attr("stroke",col)
+        .attr("stroke-width",1.4).attr("stroke-dasharray","2,3").attr("opacity",0.9).attr("d",lineGen);
+    // solid overlay only across contiguous (defined) stretches
+    plot.append("path").datum(active).attr("fill","none").attr("stroke",col)
+      .attr("stroke-width",2).attr("stroke-linejoin","round").attr("d",solidGen);
+    // dot on the final value
+    const last = valid[valid.length-1];
+    plot.append("circle").attr("cx",x(last.date)).attr("cy",y(last.v)).attr("r",2.6).attr("fill",col);
+  });
+
+  // direct end-of-line labels (spread to avoid overlap)
+  if (!compact) {
+    const labels = drawn.map(op => {
+      const { valid } = seriesPoints(op);
+      if (!valid.length) return null;
+      const last = valid[valid.length-1];
+      return { op, y: y(last.v), color: COLORS[op] };
+    }).filter(Boolean).sort((a,b)=>a.y-b.y);
+    const gap = 13;
+    for (let i=1;i<labels.length;i++) if (labels[i].y - labels[i-1].y < gap) labels[i].y = labels[i-1].y + gap;
+    // pull back into frame if pushed past bottom
+    for (let i=labels.length-1;i>0;i--) if (labels[i].y > innerH) labels[i].y = labels[i-1].y; // rare
+    const lg = g.append("g");
+    labels.forEach(l => {
+      lg.append("text").attr("x", innerW+6).attr("y", l.y+3).attr("font-size",11).attr("font-weight",700)
+        .attr("fill", l.color).text(l.op);
+    });
+  }
+
+  // hover: vertical guide + multi-series tooltip at nearest week
+  const bisect = d3.bisector(d=>d).left;
+  const guide = g.append("line").attr("y1",0).attr("y2",innerH).attr("stroke","#94a3b8")
+    .attr("stroke-width",1).style("display","none");
+  g.append("rect").attr("width",innerW).attr("height",innerH).attr("fill","transparent")
+    .on("mousemove", (event) => {
+      const mx = d3.pointer(event)[0];
+      const t0 = x.invert(mx);
+      let i = bisect(dates, t0);
+      if (i>0 && (i>=dates.length || (t0-dates[i-1] < dates[i]-t0))) i--;
+      i = Math.max(0, Math.min(dates.length-1, i));
+      guide.attr("x1",x(dates[i])).attr("x2",x(dates[i])).style("display",null);
+      const rowsHtml = drawn.map(op => ({op, v:DATA[i][op]})).filter(d=>d.v!=null)
+        .sort((a,b)=>b.v-a.v)
+        .map(d => `<div class="tt-row"><span class="tt-sw" style="background:${COLORS[d.op]}"></span>${d.op}<span class="tt-val">${fmtVal(d.v)}</span></div>`).join("");
+      tooltip.style("display","block")
+        .style("left",(event.clientX+14)+"px").style("top",(event.clientY+14)+"px")
+        .html(`<div class="tt-date">${d3.timeFormat("%d %b %Y")(dates[i])}</div>${rowsHtml || "<div>no data</div>"}`);
+    })
+    .on("mouseleave", () => { guide.style("display","none"); tooltip.style("display","none"); });
+
+  // title
+  if (!compact) {
+    svg.append("text").attr("x",m.left).attr("y",24).attr("font-size",17).attr("font-weight",800)
+      .attr("fill","#0f172a").text(TITLE);
+    svg.append("text").attr("x",m.left).attr("y",43).attr("font-size",12).attr("font-weight",600)
+      .attr("fill","#475569").text(SUBTITLE);
+  }
+
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (firstRender && !reducedMotion) {
+    plot.style("opacity",0).transition().duration(850).ease(d3.easeCubicOut).style("opacity",1);
+  }
+  firstRender = false;
+}
+
+buildLegend();
+render();
+
+let resizeTimer = null;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 220); });
+if (typeof ResizeObserver !== "undefined")
+  new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 220); }).observe(vizContainer);
+</script></body></html>
