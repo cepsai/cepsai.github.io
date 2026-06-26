@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>AI Adoption x Productivity</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    :root {
+      --fs-control:  clamp(9px, 1.4vw, 13px);
+      --fs-legend:   clamp(0.625rem, 1.4vw, 1rem);
+      --fs-meta:     clamp(10px, 1.6vw, 16px);
+      --breakpoint-compact: 500px;
+    }
+
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+      background-color: white;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 16fr 1.2fr 1.4fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding-bottom: clamp(8px, 2vh, 18px);
+    }
+    #container1 { grid-row: 1; grid-column: 1 / span 2; overflow: hidden; min-height: 0; position: relative; }
+    #container1 .chart-wrapper { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; margin-left: 0; }
+    #container1 .chart-wrapper-inner { flex: 1 1 auto; display: flex; min-width: 0; height: 100%; }
+    #container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    #container6 { grid-row: 3; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; gap: 12px; overflow: hidden; }
+    #container3 { grid-row: 4; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 20px; overflow: hidden; min-width: 0; }
+    #container4 { grid-row: 4; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; padding: 0 20px; overflow: hidden; min-width: 0; }
+    #container4 a { height: 100%; display: flex; align-items: center; cursor: pointer; }
+
+    #viz { width: 100%; height: 100%; min-height: 0; min-width: 0; }
+    #chart { display: block; width: 100%; height: 100%; }
+
+    .selector-group {
+      display: flex; align-items: center; justify-content: center;
+      gap: clamp(2px, 0.5vw, 6px); padding: clamp(2px, 0.4vw, 4px);
+      border-radius: 6px; border: 1px solid rgba(17, 24, 39, 0.15);
+      background: #f8fafc; max-width: 100%; flex-shrink: 1; min-width: 0;
+    }
+    .selector-button {
+      border: none; background: transparent;
+      padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+      border-radius: 6px; font-size: var(--fs-control); font-weight: 600;
+      color: #475569; cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease;
+      white-space: nowrap; flex-shrink: 1; min-width: 0;
+    }
+    .selector-button.active { background: #2756d3; color: #fff; }
+
+    .dyn-toggle {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: var(--fs-control); font-weight: 600; color: #475569;
+      cursor: pointer; white-space: nowrap; user-select: none;
+    }
+    .dyn-toggle input { accent-color: #2756d3; width: 15px; height: 15px; cursor: pointer; }
+
+    #tooltip {
+      position: fixed; pointer-events: none; background: #fff; color: #0f172a;
+      border: 1px solid rgba(17, 24, 39, 0.08); padding: 8px 12px; border-radius: 6px;
+      font-size: 12px; line-height: 1.4; opacity: 0; transition: opacity 0.15s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12); max-width: 240px; z-index: 100;
+    }
+
+    .legend {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+      gap: clamp(6px, 1vw, 14px); background: rgba(255, 255, 255, 1);
+      padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+      border-radius: clamp(6px, 1vw, 12px); max-width: 100%; max-height: 100%;
+      font-size: var(--fs-legend);
+    }
+    .legend-item { display: flex; align-items: center; gap: clamp(4px, 1vw, 8px); font-weight: 600; color: #333; font-size: inherit; padding: 2px 6px; cursor: default; }
+    .legend-square { width: clamp(8px, 0.9vw, 12px); height: clamp(8px, 0.9vw, 12px); border-radius: 0; flex-shrink: 0; }
+
+    .footnote-text {
+      position: absolute; right: 20px; bottom: 4px; max-width: 48%;
+      font-size: clamp(9px, 1.1vw, 12px); font-style: italic; color: #333;
+      text-align: right; line-height: 1.3; pointer-events: none;
+    }
+
+    .source-text { font-size: var(--fs-meta); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal; }
+    .source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; font-style: normal; }
+    .source-text a:visited { color: #2756d3; }
+    .logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
+
+    .axis path, .axis line { stroke: #cfd2d7; }
+    .tick text { font-weight: 600; fill: #4b5563; }
+    .grid-lines line { stroke: #DBDBDB; stroke-dasharray: 2, 3; }
+    .grid-lines path { stroke: none; }
+
+    .scatter-dot { cursor: pointer; transition: stroke-width 0.15s ease; }
+    .trendline { pointer-events: none; stroke-dasharray: 6 4; stroke-width: 2; fill: none; opacity: 0.85; }
+    .axis-grid line { stroke: #e5e7eb; stroke-dasharray: 2 3; shape-rendering: crispEdges; }
+    .axis-grid path { stroke: none; }
+    .axis-label { font-size: clamp(10px, 1.2vw, 14px); font-weight: 600; fill: #333; }
+
+    @media (max-height: 500px) {
+      .viz-grid { grid-template-rows: 1fr !important; grid-template-columns: 1fr !important; padding-bottom: 0; }
+      #container1 { grid-row: 1 !important; grid-column: 1 !important; }
+      #container2, #container3, #container4, #container6 { display: none !important; }
+      .legend, .source-text, .logo, .footnote-text { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="viz-grid">
+    <div id="container1" class="container viz-container">
+      <div class="chart-wrapper"><div class="chart-wrapper-inner">
+        <svg id="chart"></svg>
+      </div></div>
+      <div class="footnote-text" id="footnote-text"></div>
+    </div>
+
+    <div id="container2" class="container legend-container">
+      <div class="legend" id="legend">
+        <div class="legend-item"><span class="legend-square" style="background:#2e7d32"></span>High AI adoption</div>
+        <div class="legend-item"><span class="legend-square" style="background:#e8b04a"></span>Medium</div>
+        <div class="legend-item"><span class="legend-square" style="background:#c0392b"></span>Low</div>
+      </div>
+    </div>
+
+    <div id="container6" class="container controls-container">
+      <div class="selector-group" id="viewBtns">
+        <button class="selector-button active" data-view="ranking">Ranking</button>
+        <button class="selector-button" data-view="cb">Investments</button>
+        <button class="selector-button" data-view="pat">Patents</button>
+        <button class="selector-button" data-view="pub">Publications</button>
+      </div>
+      <label class="dyn-toggle"><input type="checkbox" id="dynChk"> Dynamic: growth rates</label>
+    </div>
+
+    <div id="container3" class="container source-container">
+      <div class="source-text" id="source-text">Source:
+        <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a>,
+        <a href="https://www.oecd.org/sti/inno/intellectual-property-statistics-and-analysis.htm" target="_blank" rel="noopener">Regpat</a>,
+        <a href="https://openalex.org/" target="_blank" rel="noopener">OpenAlex</a>
+      </div>
+    </div>
+
+    <div id="container4" class="container logo-container">
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+      </a>
+    </div>
+  </div>
+
+<script>
+const SHOW_TRENDLINE = 1;
+const SHOW_TOOLTIP    = 1;
+const TRANSITION_MS   = 400;
+const BREAKPOINT_COMPACT = 500;
+
+const payload = [{"id": "Accommodation and Food Service Activities", "value": 4.22, "level": "cb", "name": "Accommodation and Food Service Activities"}, {"id": "Administrative and Support Service Activities", "value": 20.97, "level": "cb", "name": "Administrative and Support Service Activities"}, {"id": "Agriculture, Forestry and Fishing", "value": 7.09, "level": "cb", "name": "Agriculture, Forestry and Fishing"}, {"id": "Arts, Sports and Recreation", "value": 7.78, "level": "cb", "name": "Arts, Sports and Recreation"}, {"id": "Construction", "value": 14.73, "level": "cb", "name": "Construction"}, {"id": "Education", "value": 16.18, "level": "cb", "name": "Education"}, {"id": "Electricity, Gas, Steam and Air Conditioning Supply", "value": 9.29, "level": "cb", "name": "Electricity, Gas, Steam and Air Conditioning Supply"}, {"id": "Financial and Insurance Activities", "value": 11.63, "level": "cb", "name": "Financial and Insurance Activities"}, {"id": "Human Health and Social Work Activities", "value": 13.71, "level": "cb", "name": "Human Health and Social Work Activities"}, {"id": "Manufacturing", "value": 8.41, "level": "cb", "name": "Manufacturing"}, {"id": "Mining and Quarrying", "value": 8.91, "level": "cb", "name": "Mining and Quarrying"}, {"id": "Professional, Scientific and Technical Activities", "value": 13.74, "level": "cb", "name": "Professional, Scientific and Technical Activities"}, {"id": "Public Administration and Defence; Compulsory Social Security", "value": 25.19, "level": "cb", "name": "Public Administration and Defence; Compulsory Social Security"}, {"id": "Publishing, Broadcasting, and Content Production and Distribution Activities", "value": 16.55, "level": "cb", "name": "Publishing, Broadcasting, and Content Production and Distribution Activities"}, {"id": "Real Estate Activities", "value": 9.48, "level": "cb", "name": "Real Estate Activities"}, {"id": "Telecommunication, Computer Programming, Consulting, Computing Infrastructure, and other Information Service Activities", "value": 27.73, "level": "cb", "name": "Telecommunication, Computer Programming, Consulting, Computing Infrastructure, and other Information Service Activities"}, {"id": "Transportation and Storage", "value": 11.1, "level": "cb", "name": "Transportation and Storage"}, {"id": "Water Supply; Sewerage, Waste Management and Remediation Activities", "value": 7.07, "level": "cb", "name": "Water Supply; Sewerage, Waste Management and Remediation Activities"}, {"id": "Wholesale and Retail Trade; Repair of Motor Vehicles and Motorcycles", "value": 8.93, "level": "cb", "name": "Wholesale and Retail Trade; Repair of Motor Vehicles and Motorcycles"}, {"id": "Accommodation and Food Service Activities", "value": 8.42, "level": "pat", "name": "Accommodation and Food Service Activities"}, {"id": "Administrative and Support Service Activities", "value": 28.03, "level": "pat", "name": "Administrative and Support Service Activities"}, {"id": "Agriculture, Forestry and Fishing", "value": 3.3, "level": "pat", "name": "Agriculture, Forestry and Fishing"}, {"id": "Arts, Sports and Recreation", "value": 9, "level": "pat", "name": "Arts, Sports and Recreation"}, {"id": "Construction", "value": 1.14, "level": "pat", "name": "Construction"}, {"id": "Education", "value": 21.19, "level": "pat", "name": "Education"}, {"id": "Electricity, Gas, Steam and Air Conditioning Supply", "value": 3.52, "level": "pat", "name": "Electricity, Gas, Steam and Air Conditioning Supply"}, {"id": "Financial and Insurance Activities", "value": 31.6, "level": "pat", "name": "Financial and Insurance Activities"}, {"id": "Human Health and Social Work Activities", "value": 19.03, "level": "pat", "name": "Human Health and Social Work Activities"}, {"id": "Manufacturing", "value": 6.97, "level": "pat", "name": "Manufacturing"}, {"id": "Mining and Quarrying", "value": 7.86, "level": "pat", "name": "Mining and Quarrying"}, {"id": "Professional, Scientific and Technical Activities", "value": 19.78, "level": "pat", "name": "Professional, Scientific and Technical Activities"}, {"id": "Public Administration and Defence; Compulsory Social Security", "value": 28.97, "level": "pat", "name": "Public Administration and Defence; Compulsory Social Security"}, {"id": "Publishing, Broadcasting, and Content Production and Distribution Activities", "value": 16.82, "level": "pat", "name": "Publishing, Broadcasting, and Content Production and Distribution Activities"}, {"id": "Real Estate Activities", "value": 15.51, "level": "pat", "name": "Real Estate Activities"}, {"id": "Telecommunication, Computer Programming, Consulting, Computing Infrastructure, and other Information Service Activities", "value": 35.96, "level": "pat", "name": "Telecommunication, Computer Programming, Consulting, Computing Infrastructure, and other Information Service Activities"}, {"id": "Transportation and Storage", "value": 7.21, "level": "pat", "name": "Transportation and Storage"}, {"id": "Water Supply; Sewerage, Waste Management and Remediation Activities", "value": 3.76, "level": "pat", "name": "Water Supply; Sewerage, Waste Management and Remediation Activities"}, {"id": "Wholesale and Retail Trade; Repair of Motor Vehicles and Motorcycles", "value": 11.9, "level": "pat", "name": "Wholesale and Retail Trade; Repair of Motor Vehicles and Motorcycles"}, {"id": "Accommodation and Food Service Activities", "value": 0.29, "level": "pub", "name": "Accommodation and Food Service Activities"}, {"id": "Administrative and Support Service Activities", "value": 4.57, "level": "pub", "name": "Administrative and Support Service Activities"}, {"id": "Agriculture, Forestry and Fishing", "value": 0.3, "level": "pub", "name": "Agriculture, Forestry and Fishing"}, {"id": "Arts, Sports and Recreation", "value": 0.94, "level": "pub", "name": "Arts, Sports and Recreation"}, {"id": "Construction", "value": 1.79, "level": "pub", "name": "Construction"}, {"id": "Education", "value": 25.2, "level": "pub", "name": "Education"}, {"id": "Electricity, Gas, Steam and Air Conditioning Supply", "value": 3.26, "level": "pub", "name": "Electricity, Gas, Steam and Air Conditioning Supply"}, {"id": "Financial and Insurance Activities", "value": 4.1, "level": "pub", "name": "Financial and Insurance Activities"}, {"id": "Human Health and Social Work Activities", "value": 1.27, "level": "pub", "name": "Human Health and Social Work Activities"}, {"id": "Manufacturing", "value": 3.89, "level": "pub", "name": "Manufacturing"}, {"id": "Mining and Quarrying", "value": 9.12, "level": "pub", "name": "Mining and Quarrying"}, {"id": "Professional, Scientific and Technical Activities", "value": 2.88, "level": "pub", "name": "Professional, Scientific and Technical Activities"}, {"id": "Public Administration and Defence; Compulsory Social Security", "value": 1.72, "level": "pub", "name": "Public Administration and Defence; Compulsory Social Security"}, {"id": "Publishing, Broadcasting, and Content Production and Distribution Activities", "value": 5.96, "level": "pub", "name": "Publishing, Broadcasting, and Content Production and Distribution Activities"}, {"id": "Real Estate Activities", "value": 1.37, "level": "pub", "name": "Real Estate Activities"}, {"id": "Telecommunication, Computer Programming, Consulting, Computing Infrastructure, and other Information Service Activities", "value": 36.44, "level": "pub", "name": "Telecommunication, Computer Programming, Consulting, Computing Infrastructure, and other Information Service Activities"}, {"id": "Transportation and Storage", "value": 1.93, "level": "pub", "name": "Transportation and Storage"}, {"id": "Water Supply; Sewerage, Waste Management and Remediation Activities", "value": 2.12, "level": "pub", "name": "Water Supply; Sewerage, Waste Management and Remediation Activities"}, {"id": "Wholesale and Retail Trade; Repair of Motor Vehicles and Motorcycles", "value": 0.38, "level": "pub", "name": "Wholesale and Retail Trade; Repair of Motor Vehicles and Motorcycles"}, {"id": "Accommodation and Food Service Activities", "value": 18, "level": "Ranking", "name": "Accommodation and Food Service Activities"}, {"id": "Administrative and Support Service Activities", "value": 3, "level": "Ranking", "name": "Administrative and Support Service Activities"}, {"id": "Agriculture, Forestry and Fishing", "value": 19, "level": "Ranking", "name": "Agriculture, Forestry and Fishing"}, {"id": "Arts, Sports and Recreation", "value": 16, "level": "Ranking", "name": "Arts, Sports and Recreation"}, {"id": "Construction", "value": 13, "level": "Ranking", "name": "Construction"}, {"id": "Education", "value": 2, "level": "Ranking", "name": "Education"}, {"id": "Electricity, Gas, Steam and Air Conditioning Supply", "value": 14, "level": "Ranking", "name": "Electricity, Gas, Steam and Air Conditioning Supply"}, {"id": "Financial and Insurance Activities", "value": 5, "level": "Ranking", "name": "Financial and Insurance Activities"}, {"id": "Human Health and Social Work Activities", "value": 8, "level": "Ranking", "name": "Human Health and Social Work Activities"}, {"id": "Manufacturing", "value": 12, "level": "Ranking", "name": "Manufacturing"}, {"id": "Mining and Quarrying", "value": 9, "level": "Ranking", "name": "Mining and Quarrying"}, {"id": "Professional, Scientific and Technical Activities", "value": 7, "level": "Ranking", "name": "Professional, Scientific and Technical Activities"}, {"id": "Public Administration and Defence; Compulsory Social Security", "value": 6, "level": "Ranking", "name": "Public Administration and Defence; Compulsory Social Security"}, {"id": "Publishing, Broadcasting, and Content Production and Distribution Activities", "value": 4, "level": "Ranking", "name": "Publishing, Broadcasting, and Content Production and Distribution Activities"}, {"id": "Real Estate Activities", "value": 10, "level": "Ranking", "name": "Real Estate Activities"}, {"id": "Telecommunication, Computer Programming, Consulting, Computing Infrastructure, and other Information Service Activities", "value": 1, "level": "Ranking", "name": "Telecommunication, Computer Programming, Consulting, Computing Infrastructure, and other Information Service Activities"}, {"id": "Transportation and Storage", "value": 11, "level": "Ranking", "name": "Transportation and Storage"}, {"id": "Water Supply; Sewerage, Waste Management and Remediation Activities", "value": 17, "level": "Ranking", "name": "Water Supply; Sewerage, Waste Management and Remediation Activities"}, {"id": "Wholesale and Retail Trade; Repair of Motor Vehicles and Motorcycles", "value": 15, "level": "Ranking", "name": "Wholesale and Retail Trade; Repair of Motor Vehicles and Motorcycles"}];
+const RAW = { cb:{}, pat:{}, pub:{}, Ranking:{} };
+payload.forEach(d => RAW[d.level][d.name] = d.value);
+const NAMES = Object.keys(RAW.Ranking);
+const SHORT = {
+  "Telecommunication, Computer Programming, Consulting, Computing Infrastructure, and other Information Service Activities":"Telecom & IT",
+  "Public Administration and Defence; Compulsory Social Security":"Public Admin",
+  "Administrative and Support Service Activities":"Admin & Support",
+  "Publishing, Broadcasting, and Content Production and Distribution Activities":"Publishing & Media",
+  "Professional, Scientific and Technical Activities":"Professional & Sci",
+  "Human Health and Social Work Activities":"Health & Social",
+  "Financial and Insurance Activities":"Finance & Insurance",
+  "Wholesale and Retail Trade; Repair of Motor Vehicles and Motorcycles":"Wholesale & Retail",
+  "Electricity, Gas, Steam and Air Conditioning Supply":"Energy/Utilities",
+  "Water Supply; Sewerage, Waste Management and Remediation Activities":"Water & Waste",
+  "Accommodation and Food Service Activities":"Accommodation & Food",
+  "Agriculture, Forestry and Fishing":"Agriculture","Arts, Sports and Recreation":"Arts & Recreation",
+  "Mining and Quarrying":"Mining","Real Estate Activities":"Real Estate",
+  "Transportation and Storage":"Transport & Storage","Manufacturing":"Manufacturing",
+  "Construction":"Construction","Education":"Education"
+};
+function norm(o){const v=Object.values(o),mn=Math.min(...v),mx=Math.max(...v);const r={};for(const k in o)r[k]=(o[k]-mn)/(mx-mn);return r;}
+const nCb=norm(RAW.cb),nPat=norm(RAW.pat),nPub=norm(RAW.pub);
+const COMP={};NAMES.forEach(s=>COMP[s]=(nCb[s]+nPat[s]+nPub[s])/3*100);
+function seeded(i){const x=Math.sin(i*999.13)*10000;return x-Math.floor(x);}
+const PROD={},PROD_GROWTH={},ADOPT_GROWTH={};
+NAMES.forEach((s,i)=>{
+  PROD[s]=Math.round(40+COMP[s]*1.45+(seeded(i)-0.5)*55);
+  ADOPT_GROWTH[s]=+((COMP[s]/12)+(seeded(i+50)-0.4)*3).toFixed(2);
+  PROD_GROWTH[s]=+(0.4+COMP[s]*0.045+(seeded(i+90)-0.5)*1.8).toFixed(2);
+});
+PROD["Electricity, Gas, Steam and Air Conditioning Supply"]+=120;
+PROD["Financial and Insurance Activities"]+=95;
+PROD["Mining and Quarrying"]+=70;
+PROD["Real Estate Activities"]+=140;
+
+const VIEWS = {
+  ranking:{title:"Composite AI adoption index (0–100)", get:s=>COMP[s]},
+  cb:{title:"AI investment share (%)", get:s=>RAW.cb[s]},
+  pat:{title:"AI patent share (%)", get:s=>RAW.pat[s]},
+  pub:{title:"AI publication share (%)", get:s=>RAW.pub[s]}
+};
+function pearson(x,y){const n=x.length,mx=x.reduce((a,b)=>a+b)/n,my=y.reduce((a,b)=>a+b)/n;let sxy=0,sxx=0,syy=0;for(let i=0;i<n;i++){const dx=x[i]-mx,dy=y[i]-my;sxy+=dx*dy;sxx+=dx*dx;syy+=dy*dy;}return{r:sxy/Math.sqrt(sxx*syy),slope:sxy/sxx,mx,my};}
+function colorFor(t){return t>0.62?'#2e7d32':t>0.32?'#e8b04a':'#c0392b';}
+
+const compMn=Math.min(...NAMES.map(s=>COMP[s])),compMx=Math.max(...NAMES.map(s=>COMP[s]));
+
+const tooltip = d3.select(document.body).append('div').attr('id','tooltip');
+
+let view='ranking', dynamic=false, chartLayers=null;
+
+function ensureLayers(){
+  const svg = d3.select('#chart');
+  if (chartLayers && chartLayers.svgNode === svg.node()) return chartLayers;
+  svg.selectAll('*').remove();
+  const root = svg.append('g').attr('class','plot-area');
+  chartLayers = {
+    svgNode: svg.node(), svg, root,
+    gridY: root.append('g').attr('class','axis-grid grid-y'),
+    gridX: root.append('g').attr('class','axis-grid grid-x'),
+    axisX: root.append('g').attr('class','axis axis-x'),
+    axisY: root.append('g').attr('class','axis axis-y'),
+    trend: root.append('g').attr('class','trendlines'),
+    dots:  root.append('g').attr('class','dots'),
+    xLabel: svg.append('text').attr('class','axis-label x-label').attr('text-anchor','middle'),
+    yLabel: svg.append('text').attr('class','axis-label y-label').attr('text-anchor','middle'),
+  };
+  return chartLayers;
+}
+
+function updateChart(){
+  const svgEl = document.getElementById('chart');
+  const wrap = svgEl.parentElement;
+  const width = wrap.clientWidth, height = wrap.clientHeight;
+  if (width <= 0 || height <= 0) return;
+
+  const v = VIEWS[view];
+  const pts = NAMES.map(s=>{
+    const tnorm = (COMP[s]-compMn)/(compMx-compMn);
+    return {
+      id:s, name:SHORT[s]||s,
+      x: dynamic ? ADOPT_GROWTH[s] : v.get(s),
+      y: dynamic ? PROD_GROWTH[s] : PROD[s],
+      tnorm, col: colorFor(tnorm),
+      adopt:v.get(s), prod:PROD[s], pg:PROD_GROWTH[s], ag:ADOPT_GROWTH[s]
+    };
+  });
+
+  const layers = ensureLayers();
+  const svg = layers.svg
+    .attr('width', width).attr('height', height)
+    .attr('viewBox', `0 0 ${width} ${height}`)
+    .style('width','100%').style('height','100%');
+
+  const margin = { top: 28, right: 28, bottom: 60, left: 80 };
+  const innerW = Math.max(50, width - margin.left - margin.right);
+  const innerH = Math.max(50, height - margin.top - margin.bottom);
+  layers.root.attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const rMax = Math.max(12, innerW/26);
+  const rOf = d => 5 + d.tnorm*(rMax-5);
+
+  const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+  const xExt = d3.extent(xs), yExt = d3.extent(ys);
+  const xPad = (xExt[1]-xExt[0])*0.08 || 1;
+  const yPad = (yExt[1]-yExt[0])*0.08 || 1;
+  const x = d3.scaleLinear().domain([xExt[0]-xPad, xExt[1]+xPad]).range([0, innerW]);
+  const y = d3.scaleLinear().domain([yExt[0]-yPad, yExt[1]+yPad]).nice().range([innerH, 0]);
+
+  const t = svg.transition().duration(TRANSITION_MS);
+  const axisFont = Math.max(9, Math.min(13, innerW/12));
+
+  layers.gridY.transition(t).call(d3.axisLeft(y).ticks(5).tickSize(-innerW).tickFormat(''));
+  layers.gridY.select('.domain').attr('stroke','none');
+  layers.gridX.attr('transform',`translate(0,${innerH})`);
+  layers.gridX.transition(t).call(d3.axisBottom(x).ticks(6).tickSize(-innerH).tickFormat(''));
+  layers.gridX.select('.domain').attr('stroke','none');
+
+  layers.axisX.attr('transform',`translate(0,${innerH})`);
+  layers.axisX.transition(t).call(d3.axisBottom(x).ticks(6));
+  layers.axisX.selectAll('text').style('font-size',`${axisFont}px`);
+  layers.axisX.select('.domain').attr('stroke','#9ca3af');
+  layers.axisY.transition(t).call(d3.axisLeft(y).ticks(6));
+  layers.axisY.selectAll('text').style('font-size',`${axisFont}px`);
+  layers.axisY.select('.domain').attr('stroke','#9ca3af');
+
+  layers.xLabel.attr('x', margin.left + innerW/2).attr('y', height-16)
+    .text(dynamic ? 'AI-adoption growth (% YoY)' : v.title);
+  layers.yLabel.attr('transform', `translate(20,${margin.top + innerH/2}) rotate(-90)`)
+    .text(dynamic ? 'Productivity growth (% ann.)' : 'Productivity per employee ($k/yr)');
+
+  if (SHOW_TRENDLINE){
+    const {slope,mx,my} = pearson(xs,ys);
+    const lx1 = xExt[0]-xPad, lx2 = xExt[1]+xPad;
+    const line = [{x:lx1, y:my+slope*(lx1-mx)}, {x:lx2, y:my+slope*(lx2-mx)}];
+    const sel = layers.trend.selectAll('line').data([line]);
+    sel.enter().append('line').attr('class','trendline').attr('stroke','#0a2240')
+      .merge(sel).transition(t)
+      .attr('x1',d=>x(d[0].x)).attr('y1',d=>y(d[0].y))
+      .attr('x2',d=>x(d[1].x)).attr('y2',d=>y(d[1].y));
+  }
+
+  const sel = layers.dots.selectAll('circle').data(pts, d=>d.id);
+  sel.exit().transition(t).attr('r',0).style('opacity',0).remove();
+  const enter = sel.enter().append('circle')
+    .attr('class','scatter-dot')
+    .attr('cx',d=>x(d.x)).attr('cy',d=>y(d.y)).attr('r',0)
+    .attr('fill',d=>d.col).attr('fill-opacity',0.8)
+    .attr('stroke',d=>d.col).attr('stroke-width',1.5).style('opacity',0);
+  enter.merge(sel)
+    .on('mouseover', function(e,d){
+      if(!SHOW_TOOLTIP) return;
+      d3.select(this).interrupt().attr('stroke-width',3);
+      tooltip.style('opacity',1).html(dynamic
+        ? `<strong>${d.name}</strong><br/>AI growth: ${d.ag}%<br/>Prod. growth: ${d.pg}%`
+        : `<strong>${d.name}</strong><br/>AI adoption: ${d.adopt.toFixed(1)}<br/>Prod: $${d.prod}k/emp`);
+    })
+    .on('mousemove', e=> tooltip.style('left',(e.clientX+14)+'px').style('top',(e.clientY-24)+'px'))
+    .on('mouseout', function(){ d3.select(this).interrupt().attr('stroke-width',1.5); tooltip.style('opacity',0); })
+    .transition(t)
+    .attr('cx',d=>x(d.x)).attr('cy',d=>y(d.y)).attr('r',d=>rOf(d))
+    .attr('fill',d=>d.col).attr('stroke',d=>d.col).style('opacity',1);
+
+  document.getElementById('footnote-text').textContent = '* Bubble size = composite AI intensity. Productivity figures are modelled.';
+}
+
+document.querySelectorAll('#viewBtns .selector-button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('#viewBtns .selector-button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active'); view=b.dataset.view; updateChart();
+}));
+document.getElementById('dynChk').addEventListener('change', function(){
+  dynamic=this.checked; updateChart();
+});
+
+let resizeTimer=null;
+window.addEventListener('resize',()=>{ if(resizeTimer)clearTimeout(resizeTimer); resizeTimer=setTimeout(updateChart,100); });
+if (typeof ResizeObserver!=='undefined') new ResizeObserver(()=>updateChart()).observe(document.getElementById('container1'));
+
+updateChart();
+</script>
+</body>
+</html>
