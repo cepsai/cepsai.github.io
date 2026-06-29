@@ -22,6 +22,14 @@
         padding:9px 12px;font-size:13.5px;font-weight:600;color:#334155;cursor:pointer;transition:.12s}
   .seg button:hover{border-color:#94a3b8}
   .seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .hint{font-weight:600;text-transform:none;letter-spacing:0;color:#94a3b8}
+  .donor-select{width:100%;border:1px solid var(--line);background:#fff;border-radius:10px;
+        padding:10px 12px;font-size:14px;font-weight:600;color:#334155;cursor:pointer;
+        font-family:inherit;-webkit-appearance:none;appearance:none;
+        background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat:no-repeat;background-position:right 12px center}
+  .donor-select:hover{border-color:#94a3b8}
+  .donor-select.on{border-color:var(--accent);color:var(--accent2);font-weight:700}
   details{margin:4px 0 22px;border-top:1px dashed var(--line);padding-top:14px}
   summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
   details .field{margin-top:16px;margin-bottom:14px}
@@ -42,13 +50,20 @@
   <h1>Treemap builder</h1>
   <p class="sub">Pick the parameters, then <b>Open</b> to launch the matching treemap in a new tab.</p>
   <div class="card">
-    <div class="field"><label>Region</label>
+    <div class="field"><label>Recipient region <span class="hint">(all providers)</span></label>
       <div class="seg" data-group="region">
         <button class="on" data-val="africa">Africa</button>
         <button data-val="asia">Asia</button>
         <button data-val="pacific">Pacific</button>
-        <button data-val="spain">Spain</button>
-        <button data-val="denmark">Denmark</button>
+        <button data-val="all">All regions</button>
+      </div>
+    </div>
+    <div class="field"><label>…or a single provider <span class="hint">(all recipients)</span></label>
+      <select id="donor" class="donor-select">
+        <option value="">— choose a European donor —</option>
+      </select>
+      <div class="seg" id="providerSeg" style="margin-top:8px">
+        <button data-val="Taiwan">Taiwan <span class="hint" style="font-weight:600">(non-DAC · sparse)</span></button>
       </div>
     </div>
     <div class="field"><label>Scope</label>
@@ -98,29 +113,90 @@
   </div>
 </div>
 <script>
-  var sel = {region:"africa", scope:"dig", metric:"disb", color:"type", class:"hard", top:"100"};
+  // European donors present in tm_donor_dig.js (alphabetical)
+  var DONORS = ["Austria","Belgium","Croatia","Czechia","Denmark","EU Institutions",
+    "Estonia","Finland","France","Germany","Hungary","Ireland","Italy","Latvia",
+    "Lithuania","Luxembourg","Malta","Netherlands","Poland","Portugal","Romania",
+    "Slovak Republic","Slovenia","Spain","Sweden"];
+
+  var sel = {region:"africa", donor:"", scope:"dig", metric:"disb", color:"type", class:"hard", top:"100"};
+
+  // populate the donor dropdown
+  var donorEl = document.getElementById("donor");
+  DONORS.forEach(function(d){
+    var o = document.createElement("option"); o.value = d; o.textContent = d; donorEl.appendChild(o);
+  });
 
   function buildUrl(){
-    var file = "treemap_" + sel.region + "_" + sel.scope + "_" + sel.metric + ".html";
     var qs = [];
-    if (sel.color !== "type")  qs.push("color=" + sel.color);
+    if (sel.color !== "type")     qs.push("color=" + sel.color);
     if (sel.class === "weighted") qs.push("class=weighted");
-    if (sel.top !== "100")     qs.push("top=" + sel.top);
+    if (sel.top !== "100")        qs.push("top=" + sel.top);
+
+    // single-donor view (all recipients) OR all-regions view → generic URL-driven page
+    if (sel.donor || sel.region === "all"){
+      var head = sel.donor
+        ? ["donors=" + encodeURIComponent(sel.donor), "recipients=all"]
+        : ["donors=all", "recipients=all"];
+      var tail = [];
+      if (sel.metric === "commit") tail.push("metric=commit");
+      if (sel.scope === "all")     tail.push("nd=1");
+      return "treemap_donor.html?" + head.concat(qs, tail).join("&");
+    }
+
+    // recipient-region view (all donors) → pre-baked region page
+    var file = "treemap_" + sel.region + "_" + sel.scope + "_" + sel.metric + ".html";
     return file + (qs.length ? "?" + qs.join("&") : "");
   }
 
   function refresh(){ document.getElementById("preview").textContent = buildUrl(); }
 
+  function clearRegionButtons(){
+    document.querySelectorAll('.seg[data-group="region"] button').forEach(function(x){ x.classList.remove("on"); });
+  }
+  function activateRegion(val){
+    document.querySelectorAll('.seg[data-group="region"] button').forEach(function(x){
+      x.classList.toggle("on", x.dataset.val === val);
+    });
+  }
+
   document.querySelectorAll(".seg").forEach(function(seg){
+    if (seg.id === "providerSeg") return;   // handled separately below
     var group = seg.dataset.group;
     seg.querySelectorAll("button").forEach(function(b){
       b.addEventListener("click", function(){
         seg.querySelectorAll("button").forEach(function(x){ x.classList.remove("on"); });
         b.classList.add("on");
         sel[group] = b.dataset.val;
+        // choosing a region clears any single-provider selection
+        if (group === "region"){
+          sel.donor = "";
+          donorEl.value = ""; donorEl.classList.remove("on");
+          provBtn.classList.remove("on");
+        }
         refresh();
       });
     });
+  });
+
+  // donor dropdown: picking a donor overrides the region; clearing it restores the region
+  donorEl.addEventListener("change", function(){
+    sel.donor = donorEl.value;
+    if (sel.donor){ donorEl.classList.add("on"); clearRegionButtons(); provBtn.classList.remove("on"); }
+    else { donorEl.classList.remove("on"); activateRegion(sel.region); }
+    refresh();
+  });
+
+  // Taiwan / non-DAC provider button (single provider, all recipients)
+  var provBtn = document.querySelector("#providerSeg button");
+  provBtn.addEventListener("click", function(){
+    if (provBtn.classList.contains("on")){
+      provBtn.classList.remove("on"); sel.donor = ""; activateRegion(sel.region);
+    } else {
+      provBtn.classList.add("on"); sel.donor = provBtn.dataset.val;
+      clearRegionButtons(); donorEl.value = ""; donorEl.classList.remove("on");
+    }
+    refresh();
   });
 
   document.getElementById("openBtn").addEventListener("click", function(){
