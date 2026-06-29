@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Taiwan's Digital ODA Projects</title>
+  <meta name="description" content="Every Taiwan (Chinese Taipei) aid project with a digital element in the OECD CRS, 2023–2024 — with verified links and sources.">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f8fafc; color: #0f172a; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 0 18px 60px; }
+
+    header { padding: 18px; background: #fff; border-bottom: 1px solid #e2e8f0; }
+    .header-inner { max-width: 1000px; margin: 0 auto; }
+    header h1 { margin: 0; font-size: 25px; font-weight: 800; letter-spacing: -0.5px; }
+    header h1 .sub { display: block; margin-top: 6px; font-size: 13px; font-weight: 600; color: #64748b; }
+    header .links { font-size: 12px; font-weight: 700; margin-top: 10px; }
+    header .links a { color: #2563eb; text-decoration: none; margin-right: 14px; }
+    header .links a:hover { text-decoration: underline; }
+
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px 22px; margin-top: 18px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+    .card h2 { margin: 0 0 10px; font-size: 17px; font-weight: 800; letter-spacing: -0.2px; }
+    .prose p { margin: 0 0 12px; font-size: 14px; line-height: 1.62; color: #334155; }
+    .prose p:last-child { margin-bottom: 0; }
+    .prose a { color: #2563eb; text-decoration: none; font-weight: 600; }
+    .prose a:hover { text-decoration: underline; }
+
+    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 18px; }
+    .stat { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+    .stat .label { font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat .value { margin-top: 6px; font-size: 23px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; font-variant-numeric: tabular-nums; }
+    .stat .note { margin-top: 4px; font-size: 12px; font-weight: 600; color: #64748b; line-height: 1.35; }
+    @media (max-width: 760px) { .stat-row { grid-template-columns: repeat(2, 1fr); } }
+
+    .filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 22px; }
+    .filterbar .ctl-label { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.4px; }
+    .button-group { display: flex; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+    .control-btn { padding: 6px 12px; font-size: 12px; font-weight: 700; border: none; background: #fff; color: #334155; cursor: pointer; font-family: inherit; }
+    .control-btn:not(:last-child) { border-right: 1px solid #cbd5e1; }
+    .control-btn:hover:not(.active) { background: #f1f5f9; }
+    .control-btn.active { background: #2563eb; color: #fff; }
+
+    .tier-head { margin: 26px 0 2px; font-size: 13px; font-weight: 800; color: #0f172a; letter-spacing: -0.1px; }
+    .tier-head .hint { font-weight: 600; color: #94a3b8; font-size: 12px; }
+
+    .proj { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin-top: 14px; box-shadow: 0 1px 2px rgba(15,23,42,0.04); }
+    .proj .top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }
+    .proj .ptitle { font-size: 15.5px; font-weight: 800; color: #0f172a; letter-spacing: -0.2px; line-height: 1.3; flex: 1 1 380px; }
+    .proj .amt { font-size: 14px; font-weight: 800; color: #0f766e; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .proj .amt .small { font-size: 11px; font-weight: 600; color: #94a3b8; }
+    .badges { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+    .badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; letter-spacing: 0.2px; }
+    .badge.recipient { background: #ecfeff; color: #0e7490; }
+    .badge.cat { background: #f1f5f9; color: #475569; }
+    .badge.years { background: #fef9c3; color: #854d0e; }
+    .badge.status { background: #f5f3ff; color: #6d28d9; }
+    .badge.led { background: #dcfce7; color: #15803d; }
+    .badge.component { background: #dbeafe; color: #1d4ed8; }
+    .badge.thread { background: #fee2e2; color: #b91c1c; }
+    .proj .dig { margin-top: 12px; font-size: 13px; line-height: 1.55; color: #334155; }
+    .proj .dig b { color: #0f172a; }
+    .proj .facts { margin-top: 8px; font-size: 12.5px; line-height: 1.55; color: #64748b; }
+    .proj .meta { margin-top: 9px; font-size: 12px; color: #94a3b8; line-height: 1.5; }
+    .proj .meta b { color: #64748b; font-weight: 700; }
+    .proj .linkrow { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .proj .linkrow a { font-size: 12px; font-weight: 700; text-decoration: none; color: #2563eb; background: #eff6ff; border: 1px solid #dbeafe; border-radius: 7px; padding: 5px 10px; }
+    .proj .linkrow a:hover { background: #dbeafe; }
+    .proj .linkrow a .ext { color: #93c5fd; font-weight: 600; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; font-size: 12px; font-weight: 600; color: #475569; }
+    .legend span b { font-weight: 800; }
+    .lg-led b { color: #15803d; } .lg-component b { color: #1d4ed8; } .lg-thread b { color: #b91c1c; }
+
+    table.dtab { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12.5px; }
+    table.dtab th { text-align: left; font-size: 10.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.4px; padding: 7px 9px; border-bottom: 1px solid #e2e8f0; }
+    table.dtab th.num, table.dtab td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    table.dtab td { padding: 9px 9px; border-bottom: 1px solid #f1f5f9; font-weight: 600; color: #334155; vertical-align: top; }
+    .tabscroll { overflow-x: auto; }
+
+    footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11.5px; color: #94a3b8; line-height: 1.6; }
+    footer b { color: #64748b; }
+    footer a { color: #2563eb; text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .note-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 13px 16px; margin-top: 14px; font-size: 12.5px; line-height: 1.55; color: #78350f; }
+    .note-box b { color: #92400e; }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>Taiwan's Digital ODA Projects
+        <span class="sub">Every Taiwan (Chinese Taipei) aid project with a digital element in the OECD Creditor Reporting System, 2023–2024</span>
+      </h1>
+      <div class="links">
+        <a href="channels_explorer.html">← Who executes digital ODA?</a>
+        <a href="AID/treemap_donor.html?donors=Taiwan&amp;recipients=all">Taiwan treemap</a>
+        <a href="taiwan_digital_projects.csv" download>Download dataset (CSV)</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <div class="stat-row" id="statRow"></div>
+
+    <div class="card prose">
+      <h2>What this is</h2>
+      <p>Taiwan reports its development finance to the OECD as the provider <b>"Chinese Taipei"</b> — at the aggregate level since 2004 and, since 2023, partly at the project level. That activity-level reporting is what lets us see individual projects for the first time. We took <b>Taiwan's entire reported CRS portfolio for 2023–2024</b> — <span id="portfolioLine">540 funding lines across 218 projects, about US$885M disbursed</span> — and classified every line for digital content. This page is the result: <b>every project with a genuine digital element</b>, each with its authoritative TaiwanICDF page and corroborating sources. <b>Every link was opened and confirmed</b> to describe the project; none are guessed.</p>
+      <p>Almost all of Taiwan's aid is conventional — agriculture, livestock, scholarships, health equipment, loans. The digital slice is small but real, and it clusters in a few recognisable families: <b>government information systems</b> (health information systems in Paraguay, Somaliland and Honduras; e-government in Somaliland), <b>public-safety and disaster tech</b> (intelligent video analytics in St. Vincent; flood early-warning in Belize and Guatemala), <b>digital health</b> (Fiji's case-management app; medical imaging in Belize) and <b>digital skills &amp; smart agriculture</b> (ICT training in St. Lucia; IoT smart farming in Thailand).</p>
+      <div class="note-box">
+        <b>Read the numbers honestly — and mind the denominator.</b> Digital is <span id="shareLine">about 0.9%</span> of Taiwan's <span id="totalLine">~$885M</span> in reported ODA. But that total is misleading: <span id="pooledLine">about 85%</span> of it is a handful of pooled "Global Development Program" budget lines, not discrete projects. Measured against Taiwan's <b>identifiable bilateral project spending (~$80M)</b>, the digital share is closer to <span id="discShareLine">~10%</span>. We split the digital projects into two tiers — <b>Tier 1, digital projects</b> (digital tech is the core or a distinct workstream) and <b>Tier 2, a digital thread</b> (a conventional project with only a minor digital element) — so nothing is dressed up as more digital than it is. Figures are the 2023–2024 CRS slice; several projects run for more years and larger totals than shown.
+      </div>
+    </div>
+
+    <div class="filterbar">
+      <span class="ctl-label">Show</span>
+      <div class="button-group" id="filterGroup">
+        <button class="control-btn active" data-f="all" type="button">All</button>
+        <button class="control-btn" data-f="led" type="button">Digital-led</button>
+        <button class="control-btn" data-f="component" type="button">Component</button>
+        <button class="control-btn" data-f="thread" type="button">Thread</button>
+      </div>
+      <span class="ctl-label" style="margin-left:6px">Sort</span>
+      <div class="button-group" id="sortGroup">
+        <button class="control-btn active" data-s="depth" type="button">By tier &amp; depth</button>
+        <button class="control-btn" data-s="amount" type="button">By amount</button>
+      </div>
+    </div>
+    <div class="legend">
+      <span class="lg-led"><b>● Digital-led</b> — digital is the core of the project</span>
+      <span class="lg-component"><b>● Component</b> — a distinct digital workstream</span>
+      <span class="lg-thread"><b>● Thread</b> — digital supports a non-digital project</span>
+    </div>
+
+    <div id="projects"></div>
+
+    <div class="card">
+      <h2>The dataset at a glance</h2>
+      <div class="tabscroll">
+        <table class="dtab" id="dtab">
+          <thead>
+            <tr>
+              <th>Project</th><th>Recipient</th><th>Years</th>
+              <th class="num">Disbursed&nbsp;$M</th><th class="num">Committed&nbsp;$M</th>
+              <th>Tier</th><th>Digital depth</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card prose">
+      <h2>How we identified these</h2>
+      <p>We pulled the OECD CRS bulk file (via <code>oda_reader</code>), filtered to provider <b>Chinese Taipei</b> — <span id="rowsLine">540 activity rows / 218 unique projects across 40 recipients</span> for 2023–2024 — and classified <b>every</b> project for digital content against a four-way scheme: digital governance &amp; public services, digital inclusion / human development, hard digital infrastructure, and non-digital. <b>15 projects</b> carry a genuine digital element. We deliberately did <b>not</b> count projects where "technology" just means farm machinery or medical devices, or where a digital term is only a buzzword (e.g. conventional rice, livestock or "smart storage" projects).</p>
+      <p>We then researched each digital project on the open web, prioritising the TaiwanICDF site and the recipient government, and kept only links we could fetch and confirm. Durations, partners and outcome figures come from those confirmed pages. Note the dollar figures are the 2023–2024 CRS slice — several projects (e.g. Paraguay's health system, St. Vincent's video analytics) run longer and larger; TaiwanICDF does not publish per-project budgets. One project (Honduras) has no surviving ICDF page because Honduras switched diplomatic recognition to the PRC in March 2023; it is documented via the Honduran press.</p>
+    </div>
+
+    <footer>
+      <p><b>Sources.</b> Monetary data: OECD Creditor Reporting System, provider "Chinese Taipei", 2023–2024, via <code>oda_reader</code>. Project detail &amp; links: <a href="https://www.icdf.org.tw/wSite/mp?mp=2" target="_blank" rel="noopener">TaiwanICDF</a> project pages and annual reports (<a href="https://www.icdf.org.tw/wSite/lp?BaseDSD=7&amp;CtUnit=148&amp;ctNode=31575&amp;mp=2" target="_blank" rel="noopener">2024 Annual Report</a>), plus recipient-government and partner sources cited per project. Provider context: <a href="https://www.oecd.org/content/dam/oecd/en/publications/reports/2025/06/development-co-operation-profiles_02ffa45c/chinese-taipei_efd7b737/a6401e1c-en.pdf" target="_blank" rel="noopener">OECD Development Co-operation Profiles — Chinese Taipei</a>.</p>
+      <p><b>Caveats.</b> Amounts in US$ millions; "digital" reflects a project-by-project classification of CRS project text, hand-reviewed and source-checked for this set. Figures cover only what Taiwan reported to the OECD CRS for 2023–2024 and will grow as more years are published. CEPS · viz.aiworld.eu</p>
+    </footer>
+
+  </div>
+
+  <script id="data" type="application/json">{"scope":"Chinese Taipei (Taiwan) projects with a digital element in the OECD CRS, 2023-2024","total_portfolio_disbursed_usd_m":885.3803,"total_portfolio_projects":218,"total_portfolio_rows":540,"pooled_programme_disbursed_usd_m":751.6289,"pooled_programme_share_pct":85.0,"discrete_project_disbursed_usd_m":80.1887,"digital_disbursed_usd_m":8.1004,"digital_share_pct":0.91,"digital_share_of_discrete_pct":10.1,"n_digital_projects":15,"n_tier1":12,"n_tier2":3,"n_recipients":12,"anchors":{"icdf_home":"https://www.icdf.org.tw/wSite/mp?mp=2","icdf_about":"https://www.icdf.org.tw/wSite/ct?xItem=4470&ctNode=31511&mp=2","icdf_reports":"https://www.icdf.org.tw/wSite/lp?BaseDSD=7&CtUnit=148&ctNode=31575&mp=2","icdf_2024_report_pdf":"https://www.icdf.org.tw/wSite/DownloadFile?type=attach&file=f1750730377181.pdf&realname=2024+Annual+Report+(Single+page).pdf","oecd_profile_pdf":"https://www.oecd.org/content/dam/oecd/en/publications/reports/2025/06/development-co-operation-profiles_02ffa45c/chinese-taipei_efd7b737/a6401e1c-en.pdf"},"projects":[{"project":"Health Information Management Efficiency Enhancement Project (Paraguay)","recipient":"Paraguay","tier":1,"tier_label":"Digital project","digital_category":"Digital governance & public services","cat":"gov","intensity":"led","years_in_crs":"2023/2024","crs_rows":7,"usd_disbursement_m":1.846,"usd_commitment_m":0.6305,"crs_sector":"I.2.a. Health, General","duration":"2016 to 2024 (Phases 1–3)","status":"In operation","implementing_partners":"TaiwanICDF; Cathay General Hospital; Paraguay Ministry of Public Health & Social Welfare; Paraguay Ministry of ICT","digital_component":"Digital-led. A national health information system (HIS) replacing handwritten hospital records.","key_facts":"The HIS is now in 1,000 public healthcare facilities, covering health data for over 70% of Paraguay's population; the goal is all 1,592 public medical institutions.","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?ctNode=31549&mp=2&xItem=58289","more_links":"TaiwanICDF project page (Phase 2): https://www.icdf.org.tw/wSite/ct?ctNode=31549&mp=2&xItem=58289 | TaiwanICDF project page (Phase 1): https://www.icdf.org.tw/wSite/ct?ctNode=31765&mp=2&xItem=33764 | ICDF news: HIS now in 1,000 public hospitals: https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=73589","links":[{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31549&mp=2&xItem=58289","label":"TaiwanICDF project page (Phase 2)","kind":"icdf"},{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31765&mp=2&xItem=33764","label":"TaiwanICDF project page (Phase 1)","kind":"icdf"},{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=73589","label":"ICDF news: HIS now in 1,000 public hospitals","kind":"icdf_news"}]},{"project":"Enhancing Public Safety with Intelligent Video Analytics (St. Vincent & the Grenadines)","recipient":"St. Vincent & the Grenadines","tier":1,"tier_label":"Digital project","digital_category":"Digital governance & public services","cat":"gov","intensity":"led","years_in_crs":"2023/2024","crs_rows":4,"usd_disbursement_m":1.2384,"usd_commitment_m":0.3331,"crs_sector":"II.2. Communications","duration":"2023 to 2025","status":"Completed","implementing_partners":"Taiwan Technical Mission in SVG; SVG IT Services Division; Royal St. Vincent & the Grenadines Police Force","digital_component":"Digital-led. A nationwide smart video-surveillance and analytics system for public safety.","key_facts":"300+ cameras at 20+ locations incl. Union Island and Bequia; AI licence-plate recognition; a centralised video-sharing platform; cybersecurity training for 200+ Vincentians. Investigation time in covered areas cut by ~50%.","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?ctNode=31539&mp=2&xItem=69786","more_links":"TaiwanICDF project page: https://www.icdf.org.tw/wSite/ct?ctNode=31539&mp=2&xItem=69786 | Searchlight (SVG): 300+ cameras installed: https://www.searchlight.vc/news/2025/08/14/police-receive-bucket-truck-taiwan-funded-video-analytics-project/","links":[{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31539&mp=2&xItem=69786","label":"TaiwanICDF project page","kind":"icdf"},{"url":"https://www.searchlight.vc/news/2025/08/14/police-receive-bucket-truck-taiwan-funded-video-analytics-project/","label":"Searchlight (SVG): 300+ cameras installed","kind":"partner"}]},{"project":"Flood Warning Capacity Improvement for the Belize River Basin","recipient":"Belize","tier":1,"tier_label":"Digital project","digital_category":"Digital governance & public services","cat":"gov","intensity":"led","years_in_crs":"2023/2024","crs_rows":4,"usd_disbursement_m":0.6873,"usd_commitment_m":0.2769,"crs_sector":"IV.2. Other Multisector","duration":"2023 to 2025","status":"Completed","implementing_partners":"TaiwanICDF; National Taiwan University; Belize Ministry of Sustainable Development, Climate Change & DRM; NEMO; National Met & Hydrological Services","digital_component":"Digital-led. A hydrological-sensor flood early-warning system for the Belize River Basin.","key_facts":"Five hydrological monitoring stations; flood-potential maps for Belmopan, San Ignacio and Belize City. San Ignacio — previously with no alert mechanism — can now receive flood warnings up to three hours in advance.","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=74183","more_links":"ICDF news: NTU flood-warning project concludes: https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=74183 | Govt of Belize: disaster-management training: https://www.pressoffice.gov.bz/ministry-of-sustainable-development-and-taiwanicdf-host-closing-ceremony-for-disaster-management-training/","links":[{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=74183","label":"ICDF news: NTU flood-warning project concludes","kind":"icdf_news"},{"url":"https://www.pressoffice.gov.bz/ministry-of-sustainable-development-and-taiwanicdf-host-closing-ceremony-for-disaster-management-training/","label":"Govt of Belize: disaster-management training","kind":"partner"}]},{"project":"Health Information Management Efficiency Enhancement Project (Somaliland)","recipient":"Somaliland (CRS: Eastern Africa, regional)","tier":1,"tier_label":"Digital project","digital_category":"Digital governance & public services","cat":"gov","intensity":"led","years_in_crs":"2023/2024","crs_rows":4,"usd_disbursement_m":0.6466,"usd_commitment_m":0.3117,"crs_sector":"I.2.a. Health, General","duration":"2022 to 2027","status":"In operation","implementing_partners":"TaiwanICDF; Somaliland Ministry of Health Development; Kaohsiung Medical University Chung-Ho Memorial Hospital","digital_component":"Digital-led. An integrated hospital health information system (SHIS) with electronic medical records.","key_facts":"SHIS deployed at 6 hospitals; 394,374 electronic medical records accumulated; 60 training sessions / 1,497 participants; automated daily uploads to the Ministry's central server.","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?ctNode=31549&mp=2&xItem=68951","more_links":"TaiwanICDF project page: https://www.icdf.org.tw/wSite/ct?ctNode=31549&mp=2&xItem=68951 | Somaliland Chronicle: HIS launched at Hargeisa: https://somalilandchronicle.com/2023/03/29/the-first-somaliland-health-information-system-at-hargeisa-group-hospital-launched/","links":[{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31549&mp=2&xItem=68951","label":"TaiwanICDF project page","kind":"icdf"},{"url":"https://somalilandchronicle.com/2023/03/29/the-first-somaliland-health-information-system-at-hargeisa-group-hospital-launched/","label":"Somaliland Chronicle: HIS launched at Hargeisa","kind":"partner"}]},{"project":"Application of ICT in Digital Capacity Building Project (Saint Lucia)","recipient":"Saint Lucia","tier":1,"tier_label":"Digital project","digital_category":"Digital inclusion / human development","cat":"inc","intensity":"led","years_in_crs":"2023/2024","crs_rows":5,"usd_disbursement_m":0.6277,"usd_commitment_m":0.1615,"crs_sector":"I.5.a. Government & Civil Society-general","duration":"2023 to 2027","status":"In operation","implementing_partners":"TaiwanICDF; St. Lucia Ministry of Public Service; Ministry of Education; Taiwan Technical Mission","digital_component":"Digital-led. Builds national ICT-training capacity and Digital Development Centres.","key_facts":"Converting government buildings (Laborie, then Gros Islet, Dennery, Soufrière) into Digital Development Centres; target +54% training capacity (up to 1,440 trainees/year). Total value US$2.01M (Taiwan US$1.52M + St. Lucia US$0.49M).","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?ctNode=31539&mp=2&xItem=70201","more_links":"TaiwanICDF project page: https://www.icdf.org.tw/wSite/ct?ctNode=31539&mp=2&xItem=70201 | The Voice (St. Lucia): project launched: https://thevoiceslu.com/2023/10/taiwan-saint-lucia-sponsored-ict-capacity-building-project-launched/","links":[{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31539&mp=2&xItem=70201","label":"TaiwanICDF project page","kind":"icdf"},{"url":"https://thevoiceslu.com/2023/10/taiwan-saint-lucia-sponsored-ict-capacity-building-project-launched/","label":"The Voice (St. Lucia): project launched","kind":"partner"}]},{"project":"Early Warning and Disaster Management System Project (Guatemala)","recipient":"Guatemala","tier":1,"tier_label":"Digital project","digital_category":"Digital governance & public services","cat":"gov","intensity":"led","years_in_crs":"2023/2024","crs_rows":4,"usd_disbursement_m":0.547,"usd_commitment_m":0.2091,"crs_sector":"IV.2. Other Multisector","duration":"2023 to 2025","status":"Completed","implementing_partners":"TaiwanICDF; Guatemala CONRED; National Taiwan University civil-engineering team; Taiwan Investment & Trade Mission in Central America","digital_component":"Digital-led. An IoT-sensor flood early-warning and disaster-management system. The CRS line shown is the preparatory tranche.","key_facts":"Three IoT monitoring stations in the Cahabón river basin; a flood-simulation model (50/150/300mm scenarios); a disaster risk map; 4 community response plans; targeting a 30% reduction in response time.","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?xItem=71011&ctNode=31531&mp=2","more_links":"TaiwanICDF project page: https://www.icdf.org.tw/wSite/ct?xItem=71011&ctNode=31531&mp=2","links":[{"url":"https://www.icdf.org.tw/wSite/ct?xItem=71011&ctNode=31531&mp=2","label":"TaiwanICDF project page","kind":"icdf"}]},{"project":"Strengthening Coastal Fisheries Resource Management Project (Palau)","recipient":"Palau","tier":1,"tier_label":"Digital project","digital_category":"Digital inclusion / human development","cat":"inc","intensity":"component","years_in_crs":"2023/2024","crs_rows":3,"usd_disbursement_m":0.3185,"usd_commitment_m":0.0435,"crs_sector":"III.1.c. Fishing","duration":"2024 to 2027","status":"In operation","implementing_partners":"Taiwan Technical Mission in Palau; Palau Ministry of Agriculture, Fisheries & Environment / Bureau of Fisheries","digital_component":"Digital component. Procures an information-integration platform to digitise fisheries-resource data management.","key_facts":"Coastal catch-reporting points and an information-integration platform; target of 80% of catch across Palau's three states under the new monitoring mechanism. Aligned to SDG 14.","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?ctNode=31665&mp=2&xItem=71819","more_links":"TaiwanICDF project page: https://www.icdf.org.tw/wSite/ct?ctNode=31665&mp=2&xItem=71819 | ICDF news: Taiwan–Palau blue economy: https://www.icdf.org.tw/wSite/ct?xItem=72093&ctNode=31572&mp=2","links":[{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31665&mp=2&xItem=71819","label":"TaiwanICDF project page","kind":"icdf"},{"url":"https://www.icdf.org.tw/wSite/ct?xItem=72093&ctNode=31572&mp=2","label":"ICDF news: Taiwan–Palau blue economy","kind":"icdf_news"}]},{"project":"Somaliland E-government Capability Enhancement Project","recipient":"Somaliland (CRS: Eastern Africa, regional)","tier":1,"tier_label":"Digital project","digital_category":"Digital governance & public services","cat":"gov","intensity":"led","years_in_crs":"2023/2024","crs_rows":4,"usd_disbursement_m":0.3106,"usd_commitment_m":0.1615,"crs_sector":"II.2. Communications","duration":"2021 to 2023","status":"Completed","implementing_partners":"TaiwanICDF; Somaliland Ministry of ICT; Taiwan Technical Mission","digital_component":"Digital-led. Built the 'S-Road' intra-government data-exchange platform and a government portal.","key_facts":"Deployed the 'S-Road' data-exchange system and a government portal; 52 ICT training programmes for 1,096+ participants; supports the Somaliland e-Government Strategy 2020-2024 Action Plan.","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?xItem=62522&ctNode=31626&mp=2","more_links":"TaiwanICDF project page: https://www.icdf.org.tw/wSite/ct?xItem=62522&ctNode=31626&mp=2 | Somaliland Reporter: digital-transformation phase II: https://somalilandreporter.com/2024/05/24/taiwans-to-boost-somalilands-digital-transformation-in-phase-ii-partnership/","links":[{"url":"https://www.icdf.org.tw/wSite/ct?xItem=62522&ctNode=31626&mp=2","label":"TaiwanICDF project page","kind":"icdf"},{"url":"https://somalilandreporter.com/2024/05/24/taiwans-to-boost-somalilands-digital-transformation-in-phase-ii-partnership/","label":"Somaliland Reporter: digital-transformation phase II","kind":"partner"}]},{"project":"Strengthening Digital Healthcare for NCDs and COVID-19 in Fiji","recipient":"Fiji","tier":1,"tier_label":"Digital project","digital_category":"Digital inclusion / human development","cat":"inc","intensity":"led","years_in_crs":"2024","crs_rows":2,"usd_disbursement_m":0.3058,"usd_commitment_m":0.0,"crs_sector":"I.2.a. Health, General","duration":"2024 to 2025","status":"Completed","implementing_partners":"TaiwanICDF; USAID; Fiji Ministry of Health & Medical Services; National Taiwan University Hospital Hsin-Chu Branch","digital_component":"Digital-led. Built the 'Sova Ni Bula' app, replacing paper records with digital case management for NCD, COVID-19 and long-COVID patient tracking.","key_facts":"9,000+ patient records digitised; 4,100+ clinical consultations supported; 88 healthcare professionals trained. TaiwanICDF's first public-health project in Fiji.","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?ctNode=31680&mp=2&xItem=72267","more_links":"TaiwanICDF project page: https://www.icdf.org.tw/wSite/ct?ctNode=31680&mp=2&xItem=72267 | ICDF news: ICDF–USAID–Fiji MHMS app: https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=72053 | Islands Business: Taiwan–Fiji digital health: https://islandsbusiness.com/partner-advertorials/building-a-more-resilient-pacific-taiwan-and-fijis-partnership-in-digital-health-and-medical-capacity/","links":[{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31680&mp=2&xItem=72267","label":"TaiwanICDF project page","kind":"icdf"},{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=72053","label":"ICDF news: ICDF–USAID–Fiji MHMS app","kind":"icdf_news"},{"url":"https://islandsbusiness.com/partner-advertorials/building-a-more-resilient-pacific-taiwan-and-fijis-partnership-in-digital-health-and-medical-capacity/","label":"Islands Business: Taiwan–Fiji digital health","kind":"partner"}]},{"project":"Smart Farming Systems for Horticulture (Thailand)","recipient":"Thailand","tier":1,"tier_label":"Digital project","digital_category":"Digital inclusion / human development","cat":"inc","intensity":"led","years_in_crs":"2023/2024","crs_rows":4,"usd_disbursement_m":0.247,"usd_commitment_m":0.1053,"crs_sector":"III.1.a. Agriculture","duration":"2023 to 2026","status":"In operation","implementing_partners":"Taiwan Technical Mission in Thailand; Royal Project Foundation (RPF), Chiang Mai","digital_component":"Digital-led. Introduces sensing, decision and environmental-control (IoT) systems for precision agriculture at RPF stations.","key_facts":"10 smart-agriculture demonstration sites; block-program modules for 4 target crops; 146+ RPF personnel trained (to Mar 2026). Targets: +10% yield, −15% pesticide use.","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?xItem=70877&ctNode=31677&mp=2","more_links":"TaiwanICDF project page: https://www.icdf.org.tw/wSite/ct?xItem=70877&ctNode=31677&mp=2 | ICDF quarterly: 'When AI Enters the Fields': https://www.icdf.org.tw/wSite/ct?ctNode=31929&mp=1&xItem=74033 | ICDF news: 5th RPF cooperation MOU: https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=70632","links":[{"url":"https://www.icdf.org.tw/wSite/ct?xItem=70877&ctNode=31677&mp=2","label":"TaiwanICDF project page","kind":"icdf"},{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31929&mp=1&xItem=74033","label":"ICDF quarterly: 'When AI Enters the Fields'","kind":"icdf_news"},{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=70632","label":"ICDF news: 5th RPF cooperation MOU","kind":"icdf_news"}]},{"project":"Strengthening Medical Imaging System in Belize","recipient":"Belize","tier":1,"tier_label":"Digital project","digital_category":"Digital inclusion / human development","cat":"inc","intensity":"led","years_in_crs":"2023","crs_rows":2,"usd_disbursement_m":0.0917,"usd_commitment_m":0.0917,"crs_sector":"I.2.a. Health, General","duration":"2019 to 2023","status":"Completed","implementing_partners":"TaiwanICDF; Far Eastern Memorial Hospital (Taiwan); Belize Ministry of Health & Wellness","digital_component":"Digital-led. Strengthens digital medical-imaging services with software, equipment and IT-personnel training.","key_facts":"Digital imaging at Karl Heusner Memorial Hospital plus Western, Northern (later Southern) regional hospitals; trained two Belizean radiologists via a three-year Taiwan residency.","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=57351","more_links":"ICDF news: Far Eastern Memorial Hospital partnership: https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=57351 | ICDF news: training Belize's first radiologists: https://www.icdf.org.tw/wSite/ct?xItem=69307&ctNode=31572&mp=2 | Govt of Belize: imaging project concluded: https://www.pressoffice.gov.bz/mohw-and-taiwan-sign-public-health-projects-agreement/","links":[{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=57351","label":"ICDF news: Far Eastern Memorial Hospital partnership","kind":"icdf_news"},{"url":"https://www.icdf.org.tw/wSite/ct?xItem=69307&ctNode=31572&mp=2","label":"ICDF news: training Belize's first radiologists","kind":"icdf_news"},{"url":"https://www.pressoffice.gov.bz/mohw-and-taiwan-sign-public-health-projects-agreement/","label":"Govt of Belize: imaging project concluded","kind":"partner"}]},{"project":"Hospital Health Information Management Efficiency Enhancement Project (Honduras)","recipient":"Honduras","tier":1,"tier_label":"Digital project","digital_category":"Digital governance & public services","cat":"gov","intensity":"led","years_in_crs":"2023","crs_rows":2,"usd_disbursement_m":0.0143,"usd_commitment_m":0.0143,"crs_sector":"I.2.a. Health, General","duration":"to 2023","status":"Discontinued","implementing_partners":"Taiwan Technical Mission in Honduras; Taipei Municipal Wanfang Hospital; Honduras Secretaría de Salud","digital_component":"Digital-led. Developed a hospital health information system for two public hospitals.","key_facts":"HIS for Puerto Cortés and Gabriela Alvarado (Danlí) hospitals; trained doctors and IT staff. No TaiwanICDF page survives — Honduras switched diplomatic recognition to the PRC in March 2023, after which ICDF wound down; documented here via the Honduran press.","icdf_project_page":"https://www.elheraldo.hn/honduras/gestion-hospitales-capacitacion-taiwan-honduras-HQEH1496735","more_links":"El Heraldo (Honduras): Taiwan trains hospital staff: https://www.elheraldo.hn/honduras/gestion-hospitales-capacitacion-taiwan-honduras-HQEH1496735","links":[{"url":"https://www.elheraldo.hn/honduras/gestion-hospitales-capacitacion-taiwan-honduras-HQEH1496735","label":"El Heraldo (Honduras): Taiwan trains hospital staff","kind":"partner"}]},{"project":"Maternal and Infant Health Care Improvement Project (Eswatini, Phase 2)","recipient":"Eswatini","tier":2,"tier_label":"Project with a digital thread","digital_category":"Digital inclusion / human development","cat":"inc","intensity":"thread","years_in_crs":"2023/2024","crs_rows":4,"usd_disbursement_m":0.5711,"usd_commitment_m":0.5511,"crs_sector":"I.3. Population Policies/Programmes & Reproductive Health","duration":"2019 to 2023","status":"Completed","implementing_partners":"Chiayi Christian Hospital; Hualien Tzu Chi Hospital; Eswatini Ministry of Health; Swaziland Nazarene Health Institution","digital_component":"Digital thread. A conventional maternal-health project; the digital element is strengthening health-data analysis capacity.","key_facts":"Scaled to ~85 health facilities nationwide; E9.5M of medical equipment donated. Postnatal-care coverage within 7–14 days in target areas reported rising from 22% (2016) to 90% (2019).","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?ctNode=31623&mp=2&xItem=53647","more_links":"TaiwanICDF project page: https://www.icdf.org.tw/wSite/ct?ctNode=31623&mp=2&xItem=53647 | Eswatini Independent News: E9.5M equipment: https://independentnews.co.sz/7433/news/taiwan-donates-e9-5-million-worth-of-medical-equipment-towards-maternal-health-care/","links":[{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31623&mp=2&xItem=53647","label":"TaiwanICDF project page","kind":"icdf"},{"url":"https://independentnews.co.sz/7433/news/taiwan-donates-e9-5-million-worth-of-medical-equipment-towards-maternal-health-care/","label":"Eswatini Independent News: E9.5M equipment","kind":"partner"}]},{"project":"Technical and Vocational Skills Certification Enhancement Project (Eswatini)","recipient":"Eswatini","tier":2,"tier_label":"Project with a digital thread","digital_category":"Digital inclusion / human development","cat":"inc","intensity":"thread","years_in_crs":"2023/2024","crs_rows":4,"usd_disbursement_m":0.5658,"usd_commitment_m":0.245,"crs_sector":"I.1.c. Secondary Education","duration":"2021 to 2025","status":"Completed","implementing_partners":"Taiwan Technical Mission in Eswatini; Eswatini Ministry of Labour & Social Security; Ministry of Education & Training","digital_component":"Digital thread. A skills-certification (TVET) project; the digital element is ICT labs and an upgraded certification information system.","key_facts":"High-Demand trade test for 1,138 people; 44 upskilling classes with 606 graduates (to June 2025). Beneficiary institutions ECOT and Gwamile VOCTIM received upgraded electrical-engineering and ICT labs.","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?ctNode=31623&mp=2&xItem=63477","more_links":"TaiwanICDF project page: https://www.icdf.org.tw/wSite/ct?ctNode=31623&mp=2&xItem=63477 | Eswatini DIVT: TVET projects: https://www.divt.org.sz/tvet-projects/","links":[{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31623&mp=2&xItem=63477","label":"TaiwanICDF project page","kind":"icdf"},{"url":"https://www.divt.org.sz/tvet-projects/","label":"Eswatini DIVT: TVET projects","kind":"partner"}]},{"project":"Expanding High-Quality Rice Seed Production in South Sulawesi (Indonesia)","recipient":"Indonesia","tier":2,"tier_label":"Project with a digital thread","digital_category":"Digital inclusion / human development","cat":"inc","intensity":"thread","years_in_crs":"2023","crs_rows":2,"usd_disbursement_m":0.0826,"usd_commitment_m":0.0826,"crs_sector":"III.1.a. Agriculture","duration":"2021 to 2023","status":"Completed","implementing_partners":"Taiwan Technical Mission in Indonesia; Hasanuddin University (UNHAS); Indonesian Cereals Research Institute (ICERI); IRRI","digital_component":"Digital thread. Primarily a rice-seed agronomy project; the digital element is meteorological stations and climate-monitoring technology.","key_facts":"~400 ha of rice-farming promotion, training workshops, meteorological stations. Extension of a phase-1 project that aimed to make UNHAS a certified-seed technology centre.","icdf_project_page":"https://www.icdf.org.tw/wSite/ct?xItem=63091&ctNode=31668&mp=2","more_links":"TaiwanICDF project page: https://www.icdf.org.tw/wSite/ct?xItem=63091&ctNode=31668&mp=2 | ICDF news: phase-1 launch: https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=44606","links":[{"url":"https://www.icdf.org.tw/wSite/ct?xItem=63091&ctNode=31668&mp=2","label":"TaiwanICDF project page","kind":"icdf"},{"url":"https://www.icdf.org.tw/wSite/ct?ctNode=31572&mp=2&xItem=44606","label":"ICDF news: phase-1 launch","kind":"icdf_news"}]}]}</script>
+  <script>
+    var PAYLOAD = JSON.parse(document.getElementById("data").textContent);
+    var RANK = { led: 0, component: 1, thread: 2 };
+    var LABEL = { led: "Digital-led", component: "Digital component", thread: "Digital thread" };
+    var state = { filter: "all", sort: "depth" };
+
+    function fmtM(v) { return "$" + (v < 1 ? v.toFixed(3) : v.toFixed(2)) + "M"; }
+    function esc(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : s; return d.innerHTML; }
+    function shortSector(s) { return (s || "").replace(/^[IVX]+\.[0-9]+\.?[a-z]?\.?\s*/i, "") || "—"; }
+
+    // headline stats from the payload (so they never drift from the data)
+    function stats() {
+      var P = PAYLOAD;
+      var cards = [
+        ["Digital projects", P.n_digital_projects, P.n_tier1 + " digital-led/component · " + P.n_tier2 + " thread"],
+        ["Disbursed", fmtM(P.digital_disbursed_usd_m), "2023–2024, digital projects only"],
+        ["Share of project spend", "~" + P.digital_share_of_discrete_pct + "%", "of ~$" + Math.round(P.discrete_project_disbursed_usd_m) + "M discrete projects (" + P.digital_share_pct + "% of $" + Math.round(P.total_portfolio_disbursed_usd_m) + "M total)"],
+        ["Recipients", P.n_recipients, "across Africa, the Pacific, Asia & the Americas"]
+      ];
+      document.getElementById("statRow").innerHTML = cards.map(function (c) {
+        return '<div class="stat"><div class="label">' + c[0] + '</div><div class="value">' + c[1] + '</div><div class="note">' + c[2] + '</div></div>';
+      }).join("");
+      document.getElementById("portfolioLine").textContent =
+        P.total_portfolio_rows + " funding lines across " + P.total_portfolio_projects + " projects, about $" + Math.round(P.total_portfolio_disbursed_usd_m) + "M disbursed";
+      document.getElementById("shareLine").textContent = "about " + P.digital_share_pct + "%";
+      document.getElementById("totalLine").textContent = "~$" + Math.round(P.total_portfolio_disbursed_usd_m) + "M";
+      document.getElementById("pooledLine").textContent = "about " + P.pooled_programme_share_pct + "%";
+      document.getElementById("discShareLine").textContent = "~" + P.digital_share_of_discrete_pct + "%";
+      document.getElementById("rowsLine").textContent =
+        P.total_portfolio_rows + " activity rows / " + P.total_portfolio_projects + " unique projects across " + P.n_recipients + "+ recipients";
+    }
+
+    function ordered() {
+      var list = PAYLOAD.projects.slice();
+      if (state.sort === "amount") {
+        list.sort(function (a, b) { return b.usd_disbursement_m - a.usd_disbursement_m; });
+      } else {
+        list.sort(function (a, b) {
+          if (a.tier !== b.tier) return a.tier - b.tier;
+          var d = RANK[a.intensity] - RANK[b.intensity];
+          return d !== 0 ? d : b.usd_disbursement_m - a.usd_disbursement_m;
+        });
+      }
+      if (state.filter !== "all") list = list.filter(function (p) { return p.intensity === state.filter; });
+      return list;
+    }
+
+    function projCard(p) {
+      var links = p.links.map(function (l) {
+        return '<a href="' + esc(l.url) + '" target="_blank" rel="noopener">' + esc(l.label) + ' <span class="ext">↗</span></a>';
+      }).join("");
+      var commit = p.usd_commitment_m > 0 ? ' <span class="small">/ ' + fmtM(p.usd_commitment_m) + ' committed</span>' : '';
+      return '<div class="proj">' +
+        '<div class="top">' +
+          '<div class="ptitle">' + esc(p.project) + '</div>' +
+          '<div class="amt">' + fmtM(p.usd_disbursement_m) + ' disbursed' + commit + '</div>' +
+        '</div>' +
+        '<div class="badges">' +
+          '<span class="badge ' + p.intensity + '">' + LABEL[p.intensity] + '</span>' +
+          '<span class="badge recipient">' + esc(p.recipient) + '</span>' +
+          '<span class="badge cat">' + esc(p.digital_category) + '</span>' +
+          '<span class="badge years">CRS ' + esc(p.years_in_crs) + '</span>' +
+          '<span class="badge status">' + esc(p.status) + '</span>' +
+        '</div>' +
+        '<div class="dig">' + esc(p.digital_component) + '</div>' +
+        '<div class="facts">' + esc(p.key_facts) + '</div>' +
+        '<div class="meta"><b>Duration:</b> ' + esc(p.duration) + ' &nbsp;·&nbsp; <b>Partners:</b> ' + esc(p.implementing_partners) + '</div>' +
+        '<div class="linkrow">' + links + '</div>' +
+      '</div>';
+    }
+
+    function render() {
+      var list = ordered();
+      var host = document.getElementById("projects");
+      var html = "", lastTier = null;
+      var grouping = (state.sort === "depth" && state.filter === "all");
+      list.forEach(function (p) {
+        if (grouping && p.tier !== lastTier) {
+          lastTier = p.tier;
+          html += p.tier === 1
+            ? '<div class="tier-head">Tier 1 — Digital projects <span class="hint">· digital tech is the core or a distinct workstream</span></div>'
+            : '<div class="tier-head">Tier 2 — Projects with a digital thread <span class="hint">· a conventional project with a minor digital element</span></div>';
+        }
+        html += projCard(p);
+      });
+      host.innerHTML = html;
+
+      var tb = document.querySelector("#dtab tbody");
+      tb.innerHTML = PAYLOAD.projects.slice().sort(function (a, b) {
+        if (a.tier !== b.tier) return a.tier - b.tier;
+        return b.usd_disbursement_m - a.usd_disbursement_m;
+      }).map(function (p) {
+        return '<tr>' +
+          '<td>' + esc(p.project) + '</td>' +
+          '<td>' + esc(p.recipient) + '</td>' +
+          '<td>' + esc(p.years_in_crs) + '</td>' +
+          '<td class="num">' + p.usd_disbursement_m.toFixed(3) + '</td>' +
+          '<td class="num">' + p.usd_commitment_m.toFixed(3) + '</td>' +
+          '<td>' + p.tier + '</td>' +
+          '<td>' + LABEL[p.intensity] + '</td>' +
+          '<td>' + esc(p.status) + '</td>' +
+        '</tr>';
+      }).join("");
+    }
+
+    document.getElementById("filterGroup").addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      state.filter = b.dataset.f;
+      this.querySelectorAll("button").forEach(function (x) { x.classList.toggle("active", x === b); });
+      render();
+    });
+    document.getElementById("sortGroup").addEventListener("click", function (e) {
+      var b = e.target.closest("button"); if (!b) return;
+      state.sort = b.dataset.s;
+      this.querySelectorAll("button").forEach(function (x) { x.classList.toggle("active", x === b); });
+      render();
+    });
+
+    stats();
+    render();
+  </script>
+</body>
+
+</html>
