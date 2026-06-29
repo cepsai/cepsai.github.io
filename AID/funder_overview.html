@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Funder overview — pick donors, see recipients</title>
+<style>
+  :root {
+    --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f6f8fb;
+    --accent:#0d9488; --accent2:#0f766e;
+    --gov:#2563eb; --inc:#d97706; --inf:#16a34a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.4}
+
+  /* ── Layout ─────────────────────────────────────────────── */
+  .layout{display:flex;height:100vh}
+  .sidebar{width:248px;min-width:248px;height:100vh;overflow-y:auto;
+    background:#fff;border-right:1px solid var(--line);padding:14px 14px 20px;
+    display:flex;flex-direction:column;gap:12px}
+  .main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden}
+  .topbar{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+    gap:12px;padding:8px 12px;border-bottom:1px solid var(--line);background:#fff;flex-wrap:wrap}
+  .grid-wrap{flex:1;overflow-y:auto;padding:10px}
+  .grid{display:grid;gap:10px;
+    grid-template-columns:repeat(auto-fill,minmax(248px,1fr))}
+
+  /* ── Sidebar elements ────────────────────────────────────── */
+  .sidebar h1{font-size:15px;font-weight:800;margin:0}
+  .sidebar .sub{font-size:11.5px;color:var(--muted);margin:2px 0 0}
+  /* region dot on recipient rows */
+  .rdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;flex-shrink:0}
+  hr{border:none;border-top:1px solid var(--line);margin:0}
+  .slabel{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+    color:var(--muted);margin-bottom:5px}
+  .seg{display:flex;gap:4px;flex-wrap:wrap}
+  .seg button{flex:1 1 auto;border:1px solid var(--line);background:#fff;border-radius:8px;
+    padding:6px 8px;font-size:11.5px;font-weight:600;color:#334155;cursor:pointer;transition:.1s}
+  .seg button:hover{border-color:#94a3b8}
+  .seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  /* Donor chips */
+  .quick{display:flex;gap:5px;margin-bottom:6px}
+  .quick button{flex:1;border:1px solid var(--line);background:#fff;border-radius:7px;
+    padding:4px 6px;font-size:11px;font-weight:700;color:#475569;cursor:pointer}
+  .quick button:hover{border-color:#94a3b8;color:var(--ink)}
+  .donor-chips{display:flex;flex-direction:column;gap:3px}
+  .donor-chip{display:flex;align-items:center;gap:7px;padding:5px 9px;
+    border:1px solid var(--line);border-radius:7px;cursor:pointer;
+    font-size:12px;font-weight:600;color:#334155;background:#fff;
+    transition:.1s;user-select:none}
+  .donor-chip:hover{border-color:#94a3b8}
+  .donor-chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .chk{font-size:9px;margin-left:auto;opacity:0}
+  .donor-chip.on .chk{opacity:1}
+
+  /* ── Top bar ─────────────────────────────────────────────── */
+  .legend{display:flex;gap:12px;font-size:11px;color:#475569}
+  .legend span{display:flex;align-items:center;gap:4px}
+  .legend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:2px}
+  .leg-gov::before{background:var(--gov)}
+  .leg-inc::before{background:var(--inc)}
+  .leg-inf::before{background:var(--inf)}
+  .statline{font-size:11.5px;color:var(--muted)}
+  .statline b{color:var(--ink)}
+
+  /* ── Cards ───────────────────────────────────────────────── */
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;
+    padding:12px 14px;overflow:hidden;display:flex;flex-direction:column}
+  .chead{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+  .cname{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pill{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+    color:#fff;border-radius:7px;padding:2px 7px;white-space:nowrap}
+  .cstats{font-size:11px;color:var(--muted);margin:2px 0 7px}
+  .cstats b{color:var(--ink)}
+  .drow{display:grid;grid-template-columns:88px 1fr auto;align-items:center;
+    gap:6px;margin:2px 0;font-size:11px}
+  .dname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#334155}
+  .bar{display:flex;height:11px;border-radius:4px;overflow:hidden}
+  .bar.trk{background:#eef2f6}
+  .bar .s{height:100%}
+  .dval{font-variant-numeric:tabular-nums;color:#475569;text-align:right;white-space:nowrap}
+  .more{font-size:10px;color:#94a3b8;margin-top:4px}
+
+  /* ── Empty states ────────────────────────────────────────── */
+  .no-data{display:flex;align-items:center;justify-content:center;
+    height:220px;color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ── Sidebar ─────────────────────────────────────────── -->
+  <div class="sidebar">
+    <div>
+      <h1>Funder overview</h1>
+      <p class="sub">Pick donors → one card per funder<br>showing the countries they support</p>
+    </div>
+    <hr>
+
+    <div>
+      <div class="slabel">Recipient region</div>
+      <div class="seg" id="regionSeg">
+        <button class="on" data-val="all">All</button>
+        <button data-val="africa">Africa</button>
+        <button data-val="asia">Asia</button>
+        <button data-val="pacific">Pacific</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="slabel">Metric</div>
+      <div class="seg" id="metricSeg">
+        <button class="on" data-val="commit">Commitments</button>
+        <button data-val="disb">Disbursements</button>
+      </div>
+    </div>
+
+    <hr>
+
+    <div>
+      <div class="slabel">Donors</div>
+      <div class="quick">
+        <button id="allBtn">All</button>
+        <button id="noneBtn">None</button>
+        <button id="top5Btn">Top 5</button>
+        <button id="top10Btn">Top 10</button>
+      </div>
+      <div class="donor-chips" id="donorChips"></div>
+    </div>
+  </div>
+
+  <!-- ── Main ────────────────────────────────────────────── -->
+  <div class="main">
+    <div class="topbar">
+      <div class="legend">
+        <span class="leg-gov">Digital Governance</span>
+        <span class="leg-inc">Digital Inclusion</span>
+        <span class="leg-inf">Infrastructure</span>
+      </div>
+      <div class="statline" id="statLine"></div>
+    </div>
+    <div class="grid-wrap">
+      <div class="grid" id="grid"></div>
+      <div class="no-data" id="noData" style="display:none">No data for selected donors / region</div>
+    </div>
+  </div>
+
+</div>
+
+<script src="../donor_profiles_data.js"></script>
+<script src="../tm_regions.js"></script>
+<script>
+var EU_DONORS = [
+  "Austria","Belgium","Croatia","Czechia","Denmark","EU Institutions",
+  "Estonia","Finland","France","Germany","Hungary","Ireland","Italy","Latvia",
+  "Lithuania","Luxembourg","Malta","Netherlands","Poland","Portugal","Romania",
+  "Slovak Republic","Slovenia","Spain","Sweden"
+];
+
+// Top donors by digital commitments (from tm_donor_dig totals)
+var TOP5  = ["EU Institutions","Germany","France","Netherlands","Sweden"];
+var TOP10 = ["EU Institutions","Germany","France","Netherlands","Sweden",
+             "Belgium","Finland","Denmark","Norway-ish","Ireland"];
+
+// Recompute top10 from DONOR_DATA at runtime
+function getTop10() {
+  return EU_DONORS
+    .map(function(d) {
+      var dd = DONOR_DATA[d];
+      return { name: d, val: dd ? (dd.commit || 0) : 0 };
+    })
+    .sort(function(a,b){ return b.val - a.val; })
+    .slice(0,10)
+    .map(function(x){ return x.name; });
+}
+
+var PRIORITY = Object.keys(window.TM_REGION);
+
+var state = {
+  selected: new Set(EU_DONORS),
+  metric: "commit",
+  region: "all"
+};
+
+/* ── Build donor chips ──────────────────────────────────── */
+var chipsEl = document.getElementById("donorChips");
+EU_DONORS.forEach(function(d) {
+  var btn = document.createElement("button");
+  btn.className = "donor-chip on";
+  btn.dataset.donor = d;
+  btn.innerHTML = d + '<span class="chk">✓</span>';
+  btn.addEventListener("click", function() {
+    if (state.selected.has(d)) {
+      state.selected.delete(d);
+      btn.classList.remove("on");
+    } else {
+      state.selected.add(d);
+      btn.classList.add("on");
+    }
+    render();
+  });
+  chipsEl.appendChild(btn);
+});
+
+function setSelection(names) {
+  state.selected = new Set(names);
+  document.querySelectorAll(".donor-chip").forEach(function(c) {
+    c.classList.toggle("on", state.selected.has(c.dataset.donor));
+  });
+  render();
+}
+
+document.getElementById("allBtn").addEventListener("click",  function(){ setSelection(EU_DONORS); });
+document.getElementById("noneBtn").addEventListener("click", function(){ setSelection([]); });
+document.getElementById("top5Btn").addEventListener("click", function(){ setSelection(TOP5); });
+document.getElementById("top10Btn").addEventListener("click",function(){ setSelection(getTop10()); });
+
+/* ── Segment controls ───────────────────────────────────── */
+function bindSeg(id, key) {
+  document.getElementById(id).querySelectorAll("button").forEach(function(b) {
+    b.addEventListener("click", function() {
+      document.getElementById(id).querySelectorAll("button")
+        .forEach(function(x){ x.classList.remove("on"); });
+      b.classList.add("on");
+      state[key] = b.dataset.val;
+      render();
+    });
+  });
+}
+bindSeg("regionSeg",  "region");
+bindSeg("metricSeg",  "metric");
+
+/* ── Helpers ────────────────────────────────────────────── */
+function fmtUsd(v) {
+  if (v >= 1000) return "$" + (v / 1000).toFixed(1) + "b";
+  if (v >= 1)    return "$" + Math.round(v) + "m";
+  if (v > 0)     return "<$1m";
+  return "$0";
+}
+function pct(a, tot) {
+  if (!tot) return 0;
+  return Math.min(100, (a / tot) * 100);
+}
+function regionColor(country) {
+  var r = (window.TM_REGION[country] || "").toLowerCase();
+  if (r === "africa")  return "#d97706";
+  if (r === "asia")    return "#0891b2";
+  if (r === "pacific") return "#0284c7";
+  return "#64748b";
+}
+
+/* ── Compute ────────────────────────────────────────────── */
+function compute() {
+  var result = [];
+
+  state.selected.forEach(function(donor) {
+    var dd = window.DONOR_DATA && window.DONOR_DATA[donor];
+    if (!dd || !dd.recipients) return;
+
+    var recs = dd.recipients
+      .filter(function(rec) {
+        if (!PRIORITY.includes(rec.name)) return false;
+        if (state.region !== "all")
+          return (window.TM_REGION[rec.name] || "").toLowerCase() === state.region;
+        return true;
+      })
+      .map(function(rec) {
+        return {
+          name: rec.name,
+          val:  rec[state.metric]              || 0,
+          gov:  rec[state.metric + "_gov"]     || 0,
+          inc:  rec[state.metric + "_inc"]     || 0,
+          inf:  rec[state.metric + "_inf"]     || 0
+        };
+      })
+      .filter(function(r) { return r.val > 0; })
+      .sort(function(a, b) { return b.val - a.val; });
+
+    var total = recs.reduce(function(s, r) { return s + r.val; }, 0);
+    if (total > 0) result.push({ name: donor, total: total, recipients: recs });
+  });
+
+  return result.sort(function(a, b) { return b.total - a.total; });
+}
+
+/* ── Render ─────────────────────────────────────────────── */
+function render() {
+  var entries = compute();
+  var grid    = document.getElementById("grid");
+  var noData  = document.getElementById("noData");
+  var statEl  = document.getElementById("statLine");
+
+  if (!entries.length) {
+    grid.innerHTML = "";
+    noData.style.display = "flex";
+    statEl.innerHTML = "";
+    return;
+  }
+  noData.style.display = "none";
+
+  var totalVal = entries.reduce(function(s, e) { return s + e.total; }, 0);
+  var metLabel = state.metric === "commit" ? "commitments" : "disbursements";
+  statEl.innerHTML =
+    "<b>" + fmtUsd(totalVal) + "</b> digital " + metLabel +
+    " · <b>" + entries.length + "</b> donors · <b>" + state.selected.size + "</b> selected";
+
+  grid.innerHTML = entries.map(function(e) {
+    var topMax = e.recipients.length ? e.recipients[0].val : 1;
+    var show   = e.recipients.slice(0, 10);
+    var extra  = e.recipients.length - show.length;
+
+    var rows = show.map(function(rec) {
+      var barW  = Math.max(3, pct(rec.val, topMax));
+      var gPct  = pct(rec.gov, rec.val);
+      var iPct  = pct(rec.inc, rec.val);
+      var nPct  = pct(rec.inf, rec.val);
+      var segs  = "";
+      if (gPct > 0) segs += '<span class="s" style="width:' + gPct.toFixed(1) + '%;background:#2563eb"></span>';
+      if (iPct > 0) segs += '<span class="s" style="width:' + iPct.toFixed(1) + '%;background:#d97706"></span>';
+      if (nPct > 0) segs += '<span class="s" style="width:' + nPct.toFixed(1) + '%;background:#16a34a"></span>';
+      var rColor = regionColor(rec.name);
+      return '<div class="drow">' +
+        '<div class="dname"><span class="rdot" style="background:' + rColor + '"></span>' + rec.name + '</div>' +
+        '<div class="bar trk" style="width:' + barW.toFixed(2) + '%">' + segs + '</div>' +
+        '<div class="dval">' + fmtUsd(rec.val) + '</div>' +
+        '</div>';
+    }).join("");
+
+    var moreHtml = extra > 0
+      ? '<div class="more">+ ' + extra + ' more countr' + (extra > 1 ? "ies" : "y") + '</div>'
+      : "";
+
+    return '<div class="card">' +
+      '<div class="chead"><span class="cname">' + e.name + '</span></div>' +
+      '<div class="cstats"><b>' + fmtUsd(e.total) + '</b> digital · <b>' + e.recipients.length + '</b> countries</div>' +
+      rows + moreHtml +
+      '</div>';
+  }).join("");
+}
+
+render();
+</script>
+</body>
+</html>
