@@ -150,7 +150,7 @@
 
 </div>
 
-<script src="../donor_profiles_data.js"></script>
+<script src="../tm_donor_dig.js"></script>
 <script src="../tm_regions.js"></script>
 <script>
 var EU_DONORS = [
@@ -165,16 +165,20 @@ var TOP5  = ["EU Institutions","Germany","France","Netherlands","Sweden"];
 var TOP10 = ["EU Institutions","Germany","France","Netherlands","Sweden",
              "Belgium","Finland","Denmark","Norway-ish","Ireland"];
 
-// Recompute top10 from DONOR_DATA at runtime
+// Top-10 by total commit from TM_DONOR_DIG
 function getTop10() {
   return EU_DONORS
     .map(function(d) {
-      var dd = DONOR_DATA[d];
-      return { name: d, val: dd ? (dd.commit || 0) : 0 };
+      var projects = window.TM_DONOR_DIG && window.TM_DONOR_DIG[d];
+      var total = 0;
+      if (projects) projects.forEach(function(p) {
+        (p[3] || []).forEach(function(y) { total += (y[1] || 0); });
+      });
+      return { name: d, val: total };
     })
-    .sort(function(a,b){ return b.val - a.val; })
-    .slice(0,10)
-    .map(function(x){ return x.name; });
+    .sort(function(a, b) { return b.val - a.val; })
+    .slice(0, 10)
+    .map(function(x) { return x.name; });
 }
 
 var PRIORITY = Object.keys(window.TM_REGION);
@@ -253,31 +257,43 @@ function regionColor(country) {
 }
 
 /* ── Compute ────────────────────────────────────────────── */
+// TM_DONOR_DIG structure per project: [title, cat, recipient, [[yr,commit,disb],...], [wGov,wInc,wInf], reason]
 function compute() {
   var result = [];
 
   state.selected.forEach(function(donor) {
-    var dd = window.DONOR_DATA && window.DONOR_DATA[donor];
-    if (!dd || !dd.recipients) return;
+    var projects = window.TM_DONOR_DIG && window.TM_DONOR_DIG[donor];
+    if (!projects || !projects.length) return;
 
-    var recs = dd.recipients
-      .filter(function(rec) {
-        if (!PRIORITY.includes(rec.name)) return false;
-        if (state.region !== "all")
-          return (window.TM_REGION[rec.name] || "").toLowerCase() === state.region;
-        return true;
-      })
-      .map(function(rec) {
-        return {
-          name: rec.name,
-          val:  rec[state.metric]              || 0,
-          gov:  rec[state.metric + "_gov"]     || 0,
-          inc:  rec[state.metric + "_inc"]     || 0,
-          inf:  rec[state.metric + "_inf"]     || 0
-        };
-      })
-      .filter(function(r) { return r.val > 0; })
-      .sort(function(a, b) { return b.val - a.val; });
+    var byRec = {};
+    projects.forEach(function(p) {
+      var cat = p[1];   // "gov" | "inc" | "inf"
+      var rec = p[2];   // recipient name
+      if (!PRIORITY.includes(rec)) return;
+      if (state.region !== "all" &&
+          (window.TM_REGION[rec] || "").toLowerCase() !== state.region) return;
+
+      var commit = 0, disb = 0;
+      (p[3] || []).forEach(function(y) { commit += (y[1] || 0); disb += (y[2] || 0); });
+
+      if (!byRec[rec]) byRec[rec] = { commit:0, disb:0, commit_gov:0, commit_inc:0, commit_inf:0,
+                                                          disb_gov:0,   disb_inc:0,   disb_inf:0 };
+      byRec[rec].commit           += commit;
+      byRec[rec].disb             += disb;
+      byRec[rec]["commit_" + cat] += commit;
+      byRec[rec]["disb_"   + cat] += disb;
+    });
+
+    var recs = Object.keys(byRec).map(function(name) {
+      var d = byRec[name];
+      var val = d[state.metric] || 0;
+      return { name: name, val: val,
+               gov: d[state.metric + "_gov"] || 0,
+               inc: d[state.metric + "_inc"] || 0,
+               inf: d[state.metric + "_inf"] || 0 };
+    })
+    .filter(function(r) { return r.val > 0; })
+    .sort(function(a, b) { return b.val - a.val; });
 
     var total = recs.reduce(function(s, r) { return s + r.val; }, 0);
     if (total > 0) result.push({ name: donor, total: total, recipients: recs });
