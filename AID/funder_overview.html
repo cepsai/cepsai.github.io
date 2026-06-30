@@ -8,7 +8,7 @@
   :root {
     --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f6f8fb;
     --accent:#0d9488; --accent2:#0f766e;
-    --gov:#2563eb; --inc:#d97706; --inf:#16a34a;
+    --gov:#2563eb; --inc:#d97706; --inf:#16a34a; --nd:#94a3b8;
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hidden;
@@ -63,6 +63,7 @@
   .leg-gov::before{background:var(--gov)}
   .leg-inc::before{background:var(--inc)}
   .leg-inf::before{background:var(--inf)}
+  .leg-nd::before{background:var(--nd)}
   .statline{font-size:11.5px;color:var(--muted)}
   .statline b{color:var(--ink)}
 
@@ -118,6 +119,14 @@
       </div>
     </div>
 
+    <div>
+      <div class="slabel">Scope</div>
+      <div class="seg" id="scopeSeg">
+        <button class="on" data-val="dig">Digital only</button>
+        <button data-val="all">All ODA</button>
+      </div>
+    </div>
+
     <hr>
 
     <div>
@@ -135,7 +144,7 @@
   <!-- ── Main ────────────────────────────────────────────── -->
   <div class="main">
     <div class="topbar">
-      <div class="legend">
+      <div class="legend" id="legend">
         <span class="leg-gov">Digital Governance</span>
         <span class="leg-inc">Digital Inclusion</span>
         <span class="leg-inf">Infrastructure</span>
@@ -151,6 +160,7 @@
 </div>
 
 <script src="../tm_donor_dig.js"></script>
+<script src="../tm_donor_nd.js"></script>
 <script src="../tm_regions.js"></script>
 <script>
 var EU_DONORS = [
@@ -186,7 +196,8 @@ var PRIORITY = Object.keys(window.TM_REGION);
 var state = {
   selected: new Set(EU_DONORS),
   metric: "commit",
-  region: "all"
+  region: "all",
+  scope: "dig"
 };
 
 /* ── Build donor chips ──────────────────────────────────── */
@@ -236,6 +247,7 @@ function bindSeg(id, key) {
 }
 bindSeg("regionSeg",  "region");
 bindSeg("metricSeg",  "metric");
+bindSeg("scopeSeg",   "scope");
 
 /* ── Helpers ────────────────────────────────────────────── */
 function fmtUsd(v) {
@@ -276,21 +288,43 @@ function compute() {
       var commit = 0, disb = 0;
       (p[3] || []).forEach(function(y) { commit += (y[1] || 0); disb += (y[2] || 0); });
 
-      if (!byRec[rec]) byRec[rec] = { commit:0, disb:0, commit_gov:0, commit_inc:0, commit_inf:0,
-                                                          disb_gov:0,   disb_inc:0,   disb_inf:0 };
+      if (!byRec[rec]) byRec[rec] = { commit:0, disb:0,
+        commit_gov:0, commit_inc:0, commit_inf:0, commit_nd:0,
+        disb_gov:0,   disb_inc:0,   disb_inf:0,   disb_nd:0 };
       byRec[rec].commit           += commit;
       byRec[rec].disb             += disb;
       byRec[rec]["commit_" + cat] += commit;
       byRec[rec]["disb_"   + cat] += disb;
     });
 
+    // non-digital projects (only when scope=all)
+    if (state.scope === "all") {
+      var ndProjects = window.TM_DONOR_ND && window.TM_DONOR_ND[donor];
+      if (ndProjects) ndProjects.forEach(function(p) {
+        var rec = p[2];
+        if (!PRIORITY.includes(rec)) return;
+        if (state.region !== "all" &&
+            (window.TM_REGION[rec] || "").toLowerCase() !== state.region) return;
+        var commit = 0, disb = 0;
+        (p[3] || []).forEach(function(y) { commit += (y[1] || 0); disb += (y[2] || 0); });
+        if (!byRec[rec]) byRec[rec] = { commit:0, disb:0,
+          commit_gov:0, commit_inc:0, commit_inf:0, commit_nd:0,
+          disb_gov:0,   disb_inc:0,   disb_inf:0,   disb_nd:0 };
+        byRec[rec].commit    += commit;
+        byRec[rec].disb      += disb;
+        byRec[rec].commit_nd += commit;
+        byRec[rec].disb_nd   += disb;
+      });
+    }
+
     var recs = Object.keys(byRec).map(function(name) {
       var d = byRec[name];
-      var val = d[state.metric] || 0;
+      var val = (d[state.metric] || 0);
       return { name: name, val: val,
                gov: d[state.metric + "_gov"] || 0,
                inc: d[state.metric + "_inc"] || 0,
-               inf: d[state.metric + "_inf"] || 0 };
+               inf: d[state.metric + "_inf"] || 0,
+               nd:  d[state.metric + "_nd"]  || 0 };
     })
     .filter(function(r) { return r.val > 0; })
     .sort(function(a, b) { return b.val - a.val; });
@@ -319,9 +353,19 @@ function render() {
 
   var totalVal = entries.reduce(function(s, e) { return s + e.total; }, 0);
   var metLabel = state.metric === "commit" ? "commitments" : "disbursements";
+  var scopeLabel = state.scope === "all" ? "total" : "digital";
   statEl.innerHTML =
-    "<b>" + fmtUsd(totalVal) + "</b> digital " + metLabel +
+    "<b>" + fmtUsd(totalVal) + "</b> " + scopeLabel + " " + metLabel +
     " · <b>" + entries.length + "</b> donors · <b>" + state.selected.size + "</b> selected";
+
+  var legendEl = document.getElementById("legend");
+  var ndEntry = legendEl.querySelector(".leg-nd");
+  if (state.scope === "all" && !ndEntry) {
+    var sp = document.createElement("span"); sp.className = "leg-nd"; sp.textContent = "Non-digital";
+    legendEl.appendChild(sp);
+  } else if (state.scope === "dig" && ndEntry) {
+    legendEl.removeChild(ndEntry);
+  }
 
   grid.innerHTML = entries.map(function(e) {
     var topMax = e.recipients.length ? e.recipients[0].val : 1;
@@ -333,10 +377,12 @@ function render() {
       var gPct  = pct(rec.gov, rec.val);
       var iPct  = pct(rec.inc, rec.val);
       var nPct  = pct(rec.inf, rec.val);
+      var dPct  = pct(rec.nd,  rec.val);
       var segs  = "";
       if (gPct > 0) segs += '<span class="s" style="width:' + gPct.toFixed(1) + '%;background:#2563eb"></span>';
       if (iPct > 0) segs += '<span class="s" style="width:' + iPct.toFixed(1) + '%;background:#d97706"></span>';
       if (nPct > 0) segs += '<span class="s" style="width:' + nPct.toFixed(1) + '%;background:#16a34a"></span>';
+      if (dPct > 0) segs += '<span class="s" style="width:' + dPct.toFixed(1) + '%;background:#94a3b8"></span>';
       var rColor = regionColor(rec.name);
       return '<div class="drow">' +
         '<div class="dname"><span class="rdot" style="background:' + rColor + '"></span>' + rec.name + '</div>' +
@@ -351,7 +397,7 @@ function render() {
 
     return '<div class="card">' +
       '<div class="chead"><span class="cname">' + e.name + '</span></div>' +
-      '<div class="cstats"><b>' + fmtUsd(e.total) + '</b> digital · <b>' + e.recipients.length + '</b> countries</div>' +
+      '<div class="cstats"><b>' + fmtUsd(e.total) + '</b> ' + scopeLabel + ' · <b>' + e.recipients.length + '</b> countries</div>' +
       rows + moreHtml +
       '</div>';
   }).join("");
