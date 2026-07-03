@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Digital ODA — all EU funders (small multiples)</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f6f8fb; color: #0f172a; line-height: 1.5; }
+
+    header.top { padding: 20px clamp(16px, 3vw, 36px) 6px; }
+    header.top h1 { font-size: clamp(18px, 2.4vw, 26px); font-weight: 800; margin: 0; }
+    header.top .sub { color: #64748b; font-size: 13.5px; margin: 4px 0 0; }
+    header.top .sub b { color: #334155; }
+    header.top .back { font-size: 13px; font-weight: 600; color: #0f766e; text-decoration: none; }
+    header.top .back:hover { text-decoration: underline; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 14px; padding: 14px clamp(16px, 3vw, 36px) 8px; }
+    .cell { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;
+      box-shadow: 0 1px 2px rgba(15,23,42,.04); cursor: pointer; transition: box-shadow .12s, border-color .12s; }
+    .cell:hover { border-color: #94a3b8; box-shadow: 0 3px 10px rgba(15,23,42,.10); }
+    .cell.empty { cursor: default; opacity: .85; }
+    .cell.empty:hover { border-color: #e2e8f0; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+    .cell-hd { display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+      padding: 10px 12px 8px; border-bottom: 1px solid #f1f5f9; }
+    .cell-name { font-size: 13.5px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cell-tot { font-size: 12px; font-weight: 700; color: #475569; white-space: nowrap; }
+    .cell-tot.zero { color: #cbd5e1; }
+    .cell svg { display: block; width: 100%; height: 150px; }
+    .cell .none { display: flex; align-items: center; justify-content: center; height: 150px;
+      font-size: 12px; font-weight: 600; color: #cbd5e1; text-align: center; padding: 0 16px; }
+    .cell .tile-label { fill: #fff; font-size: 9px; font-weight: 600; pointer-events: none; }
+
+    .legend { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px;
+      padding: 8px 16px 26px; }
+    .legend-item { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: #334155; }
+    .legend-square { width: 13px; height: 13px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(0,0,0,.12) inset; }
+
+    #tip { position: fixed; z-index: 50; pointer-events: none; display: none; max-width: 300px;
+      background: #0f172a; color: #fff; font-size: 12px; line-height: 1.5; padding: 9px 11px;
+      border-radius: 8px; box-shadow: 0 6px 20px rgba(15,23,42,.28); }
+    #tip b { color: #fff; }
+    #tip .muted { color: #cbd5e1; }
+  </style>
+  <script src="https://d3js.org/d3.v5.min.js"></script>
+</head>
+
+<body>
+  <header class="top">
+    <a class="back" href="treemap_builder.html">← Treemap builder</a>
+    <h1>Digital ODA — all EU funders at a glance</h1>
+    <p class="sub" id="sub"></p>
+  </header>
+  <div class="grid" id="grid"></div>
+  <div class="legend" id="legend"></div>
+  <div id="tip"></div>
+
+  <script src="../tm_donor_dig.js"></script>
+  <script src="../tm_regions.js"></script>
+  <script>
+    "use strict";
+    // ── Small-multiples grid: one mini-treemap per EU funder, all in one view.
+    //    Lightweight raw d3.treemap rects (NOT 28 d3plus widgets) so it paints
+    //    fast. Each cell click-throughs to the full treemap_donor.html.
+    //    URL params mirror treemap_donor.html: metric · class · color · nd ·
+    //    recipients(region keyword) · years.
+
+    // EU-27 member states (data key spellings) + EU Institutions. Cells with no
+    // digital projects in scope (Bulgaria/Cyprus/Greece) are shown, marked empty.
+    var EU27 = ["Austria","Belgium","Bulgaria","Croatia","Cyprus","Czechia","Denmark",
+      "Estonia","Finland","France","Germany","Greece","Hungary","Ireland","Italy",
+      "Latvia","Lithuania","Luxembourg","Malta","Netherlands","Poland","Portugal",
+      "Romania","Slovak Republic","Slovenia","Spain","Sweden"];
+    var EU_INST = "EU Institutions";
+    var FUNDERS = [EU_INST].concat(EU27);   // 28 cells
+
+    var CAT_COLOR = { gov: "#2563eb", inc: "#16a34a", inf: "#d97706", nd: "#94a3b8" };
+    var CAT_LABEL = { gov: "Digital Governance", inc: "Digital Inclusion", inf: "Hard Infrastructure", nd: "Non-digital" };
+    var CAT_ORDER = ["gov", "inc", "inf", "nd"];
+    var WCATS = ["gov", "inc", "inf"];
+    var T = { TITLE: 0, CAT: 1, OTHER: 2, YRS: 3, W: 4, DESC: 5 };
+    var REC_PALETTE = ["#2563eb", "#16a34a", "#d97706", "#7c3aed", "#db2777", "#0891b2",
+      "#dc2626", "#65a30d", "#0d9488", "#9333ea", "#ea580c", "#0369a1", "#4d7c0f"];
+    var TILE_CAP = 40;   // tiles rendered per mini-map (header total is the true full sum)
+
+    function esc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+    var DIG = window.TM_DONOR_DIG || {};
+    var REGION = window.TM_REGION || {};
+    var YEARS = window.TM_YEARS || [2019, 2020, 2021, 2022, 2023, 2024];
+    var ALL_RECIPS = Object.keys(REGION);
+    var ND = null;
+
+    var state = {
+      recips: new Set(ALL_RECIPS),
+      recipKey: "all",
+      years: new Set(YEARS),
+      metric: "disb",
+      classMode: "hard",
+      colorBy: "type",       // "type" | "recipient"  (funder coloring is meaningless per-cell)
+      includeND: false
+    };
+
+    function recipsForGroup(key) {
+      key = String(key || "").toLowerCase().trim().replace(/[\s_\-]+/g, "+");
+      if (key === "all" || key === "") return ALL_RECIPS.slice();
+      var regs = null;
+      if (key === "africa") regs = ["Africa"];
+      else if (key === "asia") regs = ["Asia"];
+      else if (key === "pacific") regs = ["Pacific"];
+      else if (key === "asia+pacific" || key === "pacific+asia") regs = ["Asia", "Pacific"];
+      if (!regs) return null;
+      return ALL_RECIPS.filter(function (r) { return regs.indexOf(REGION[r]) !== -1; });
+    }
+
+    function tileVal(t, metric) {
+      var yrs = t[T.YRS], col = metric === "commit" ? 2 : 1, s = 0, i;
+      for (i = 0; i < yrs.length; i++) if (state.years.has(yrs[i][0])) s += yrs[i][col];
+      return s;
+    }
+    function tileYears(t) {
+      var yrs = t[T.YRS], lo = null, hi = null, i, y;
+      for (i = 0; i < yrs.length; i++) {
+        y = yrs[i][0];
+        if (!state.years.has(y)) continue;
+        if (yrs[i][1] || yrs[i][2]) { if (lo === null || y < lo) lo = y; if (hi === null || y > hi) hi = y; }
+      }
+      return [lo, hi];
+    }
+    function recipOK(r) { return state.recips.has(r); }
+
+    function fmtUSD(m) {
+      m = +m || 0;
+      if (m >= 1000) return "$" + (m / 1000).toFixed(2) + "B";
+      if (m >= 1) return "$" + m.toFixed(1) + "M";
+      if (m > 0) return "$" + (m * 1000).toFixed(0) + "K";
+      return "$0";
+    }
+
+    function colorOf(row) {
+      if (state.colorBy === "recipient") {
+        var i = ALL_RECIPS.indexOf(row.other);
+        return REC_PALETTE[(i < 0 ? 0 : i) % REC_PALETTE.length];
+      }
+      return CAT_COLOR[row.cat] || "#999";
+    }
+
+    // build the row list for one funder (respecting recip / scope / metric / class)
+    function rowsFor(donor) {
+      var rows = [];
+      function pushTile(t) {
+        if (!recipOK(t[T.OTHER])) return;
+        var disb = tileVal(t, "disb"), commit = tileVal(t, "commit");
+        var v = state.metric === "commit" ? commit : disb;
+        if (!(v > 0)) return;
+        var yr = tileYears(t), hardcat = t[T.CAT];
+        if (state.classMode === "weighted" && hardcat !== "nd" && t[T.W]) {
+          var W = t[T.W], k, c, w, vv;
+          for (k = 0; k < 3; k++) {
+            c = WCATS[k]; w = W[k]; if (!(w > 0)) continue;
+            vv = v * w; if (!(vv > 0)) continue;
+            rows.push({ cat: c, title: t[T.TITLE], value: vv, other: t[T.OTHER], donor: donor,
+              disb: disb * w, commit: commit * w, y0: yr[0], y1: yr[1], wpct: Math.round(w * 100), desc: t[T.DESC] });
+          }
+          return;
+        }
+        rows.push({ cat: hardcat, title: t[T.TITLE], value: v, other: t[T.OTHER], donor: donor,
+          disb: disb, commit: commit, y0: yr[0], y1: yr[1], desc: t[T.DESC] });
+      }
+      (DIG[donor] || []).forEach(pushTile);
+      if (state.includeND && ND && ND[donor]) ND[donor].forEach(pushTile);
+      return rows;
+    }
+
+    // ── tooltip ──────────────────────────────────────────────────────────
+    var tip = document.getElementById("tip");
+    function showTip(html, x, y) {
+      tip.innerHTML = html; tip.style.display = "block";
+      var w = tip.offsetWidth, h = tip.offsetHeight;
+      var nx = x + 14, ny = y + 14;
+      if (nx + w > window.innerWidth - 8) nx = x - w - 14;
+      if (ny + h > window.innerHeight - 8) ny = y - h - 14;
+      tip.style.left = Math.max(8, nx) + "px"; tip.style.top = Math.max(8, ny) + "px";
+    }
+    function hideTip() { tip.style.display = "none"; }
+
+    function rowTip(r) {
+      return '<b>' + esc(r.title) + '</b><br>' +
+        '<span class="muted">' + (CAT_LABEL[r.cat] || r.cat) +
+        (r.wpct != null ? ' · ' + r.wpct + '% of project' : '') + '</span><br>' +
+        '<span class="muted">Recipient:</span> ' + esc(r.other) + '<br>' +
+        '<span class="muted">' + (r.wpct != null ? 'Allocated' : 'Disbursed') + ':</span> <b>' + fmtUSD(r.disb) + '</b>' +
+        ' · <span class="muted">Committed:</span> ' + fmtUSD(r.commit) + '<br>' +
+        '<span class="muted">Years:</span> ' + (r.y0 == null ? '—' : (r.y0 === r.y1 ? r.y0 : r.y0 + '–' + r.y1));
+    }
+
+    // carry the current selection into a single-funder treemap_donor.html link
+    function donorLink(donor) {
+      var qs = ["donors=" + encodeURIComponent(donor), "recipients=" + state.recipKey, "top=all"];
+      if (state.metric === "commit") qs.push("metric=commit");
+      if (state.classMode === "weighted") qs.push("class=weighted");
+      if (state.colorBy !== "type") qs.push("color=" + state.colorBy);
+      if (state.includeND) qs.push("nd=1");
+      return "treemap_donor.html?" + qs.join("&");
+    }
+
+    // ── render one cell ──────────────────────────────────────────────────
+    var CELL_W = 230, CELL_H = 150;
+    function renderCell(donor) {
+      var cell = document.createElement("div");
+      cell.className = "cell";
+      var rows = (donor === EU_INST || DIG[donor]) ? rowsFor(donor) : [];
+      var total = rows.reduce(function (s, r) { return s + r.value; }, 0);
+      var hasData = rows.length > 0 && total > 0;
+
+      var hd = document.createElement("div"); hd.className = "cell-hd";
+      var nm = document.createElement("div"); nm.className = "cell-name"; nm.textContent = donor;
+      var tot = document.createElement("div"); tot.className = "cell-tot" + (hasData ? "" : " zero");
+      tot.textContent = fmtUSD(total);
+      hd.appendChild(nm); hd.appendChild(tot); cell.appendChild(hd);
+
+      if (!hasData) {
+        cell.classList.add("empty");
+        var none = document.createElement("div"); none.className = "none";
+        none.textContent = (donor in DIG) ? "no projects for this filter" : "no digital projects in scope";
+        cell.appendChild(none);
+        return { el: cell, total: total };
+      }
+
+      // top-N tiles by value, rest summed into the header total but not drawn
+      rows.sort(function (a, b) { return b.value - a.value; });
+      var draw = rows.slice(0, TILE_CAP);
+
+      var svg = d3.select(cell).append("svg")
+        .attr("viewBox", "0 0 " + CELL_W + " " + CELL_H)
+        .attr("preserveAspectRatio", "none");
+      var root = d3.hierarchy({ children: draw }).sum(function (d) { return d.value; })
+        .sort(function (a, b) { return b.value - a.value; });
+      d3.treemap().size([CELL_W, CELL_H]).paddingInner(1)(root);
+
+      var leaf = svg.selectAll("g").data(root.leaves()).enter().append("g")
+        .attr("transform", function (d) { return "translate(" + d.x0 + "," + d.y0 + ")"; });
+      leaf.append("rect")
+        .attr("width", function (d) { return Math.max(0, d.x1 - d.x0); })
+        .attr("height", function (d) { return Math.max(0, d.y1 - d.y0); })
+        .attr("fill", function (d) { return colorOf(d.data); })
+        .attr("stroke", "rgba(255,255,255,0.65)").attr("stroke-width", 0.5)
+        .on("mousemove", function (d) { showTip(rowTip(d.data), d3.event.clientX, d3.event.clientY); })
+        .on("mouseleave", hideTip);
+      // label only the tiles big enough to read
+      leaf.filter(function (d) { return (d.x1 - d.x0) > 46 && (d.y1 - d.y0) > 16; })
+        .append("text").attr("class", "tile-label").attr("x", 3).attr("y", 12)
+        .text(function (d) {
+          var s = d.data.title || "", w = d.x1 - d.x0;
+          var max = Math.floor(w / 5.2);
+          return s.length > max ? s.slice(0, Math.max(1, max - 1)) + "…" : s;
+        });
+
+      cell.addEventListener("click", function () { window.open(donorLink(donor), "_blank"); });
+      return { el: cell, total: total };
+    }
+
+    function buildLegend() {
+      var legend = document.getElementById("legend"); legend.innerHTML = "";
+      var items;
+      if (state.colorBy === "recipient") {
+        items = ALL_RECIPS.filter(function (r) { return state.recips.has(r); })
+          .map(function (r) { var i = ALL_RECIPS.indexOf(r); return { c: REC_PALETTE[i % REC_PALETTE.length], l: r }; });
+      } else {
+        items = CAT_ORDER.filter(function (c) { return c !== "nd" || state.includeND; })
+          .map(function (c) { return { c: CAT_COLOR[c], l: CAT_LABEL[c] }; });
+      }
+      items.forEach(function (it) {
+        var d = document.createElement("div"); d.className = "legend-item";
+        var sq = document.createElement("div"); sq.className = "legend-square"; sq.style.background = it.c;
+        var sp = document.createElement("span"); sp.textContent = it.l;
+        d.appendChild(sq); d.appendChild(sp); legend.appendChild(d);
+      });
+    }
+
+    function renderAll() {
+      var grid = document.getElementById("grid"); grid.innerHTML = "";
+      var cells = FUNDERS.map(renderCell);
+      // sort cells by total $ desc (empties fall to the end)
+      cells.sort(function (a, b) { return b.total - a.total; });
+      cells.forEach(function (c) { grid.appendChild(c.el); });
+      buildLegend();
+
+      var withData = cells.filter(function (c) { return c.total > 0; }).length;
+      var sub = document.getElementById("sub");
+      var scopeTxt = state.includeND ? "all ODA (incl. non-digital)" : "digital ODA only";
+      var metricTxt = state.metric === "commit" ? "commitments" : "disbursements";
+      var recipTxt = state.recipKey === "all" ? "all recipients"
+        : (state.recipKey.charAt(0).toUpperCase() + state.recipKey.slice(1)) + " recipients";
+      sub.innerHTML = "OECD CRS 2019–2024 · <b>" + scopeTxt + "</b> · " + metricTxt + " · " + recipTxt +
+        " · <b>" + withData + "</b> of 28 funders have projects in scope · click a funder to open its full treemap";
+    }
+
+    // ── URL params ───────────────────────────────────────────────────────
+    function applyQuery(p) {
+      var rv = p.get("recipients");
+      if (rv != null) {
+        var grp = recipsForGroup(rv);
+        if (grp) { state.recips = new Set(grp); state.recipKey = rv.toLowerCase(); }
+        else {
+          var list = rv.split("~").filter(function (x) { return REGION[x]; });
+          if (list.length) { state.recips = new Set(list); state.recipKey = rv; }
+        }
+      }
+      var mv = p.get("metric");
+      if (mv === "commit" || mv === "committed") state.metric = "commit";
+      if ((p.get("class") || "") === "weighted") state.classMode = "weighted";
+      var cby = p.get("color");
+      if (cby === "recipient") state.colorBy = "recipient";  // "funder" ignored (per-cell monochrome)
+      var yv = p.get("years");
+      if (yv != null && yv.toLowerCase() !== "all") {
+        var ys = yv.split("~").map(function (x) { return parseInt(x, 10); }).filter(function (x) { return YEARS.indexOf(x) !== -1; });
+        if (ys.length) state.years = new Set(ys);
+      }
+      if (p.get("nd") === "1") state.includeND = true;
+    }
+
+    function loadND(cb) {
+      var s = document.createElement("script");
+      s.src = "../tm_donor_nd.js";
+      s.onload = function () { ND = window.TM_DONOR_ND || {}; cb(); };
+      s.onerror = function () { ND = {}; cb(); };
+      document.head.appendChild(s);
+    }
+
+    function init() {
+      applyQuery(new URLSearchParams(window.location.search));
+      if (state.includeND) loadND(renderAll); else renderAll();
+    }
+    init();
+
+    var rt;
+    window.addEventListener("resize", function () { clearTimeout(rt); rt = setTimeout(renderAll, 200); });
+  </script>
+</body>
+
+</html>
