@@ -106,6 +106,13 @@
       "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland",
       "Portugal", "Romania", "Slovak Republic", "Slovenia", "Spain", "Sweden"]);
     var FG_COLOR = { "EU Institutions": "#1d4ed8", "EU member states": "#f59e0b", "Non-Team Europe": "#7c3aed" };
+    // The builder labels the non-DAC provider "Taiwan", but OECD CRS records it
+    // as "Chinese Taipei". Map the URL token to the data key on the way in, and
+    // back to the friendly label on the way out (title/legend).
+    var DONOR_ALIAS = { "Taiwan": "Chinese Taipei" };
+    var DONOR_DISPLAY = { "Chinese Taipei": "Taiwan" };
+    function canonDonor(name) { return DONOR_ALIAS[name] || name; }
+    function displayDonor(name) { return DONOR_DISPLAY[name] || name; }
     var REC_PALETTE = ["#2563eb", "#16a34a", "#d97706", "#7c3aed", "#db2777", "#0891b2",
       "#dc2626", "#65a30d", "#0d9488", "#9333ea", "#ea580c", "#0369a1", "#4d7c0f"];
     function fgroupOf(donor) { if (donor === EU_INST) return "EU Institutions"; if (EU27.has(donor)) return "EU member states"; return "Non-Team Europe"; }
@@ -348,8 +355,10 @@
       ndLoading = true;
       loadScript("../tm_donor_nd.js", function () {
         ND = window.TM_DONOR_ND || {}; ndLoading = false;
-        // when showing all providers, also fold in non-EU non-digital tiles
-        if (state.allProviders && !noneuNDLoaded) {
+        // whenever non-EU digital tiles are in play (all providers, or a named
+        // non-EU donor such as Taiwan), fold in the matching non-EU non-digital
+        // tiles too — render() filters both by the selected donors.
+        if ((state.allProviders || NONEU) && !noneuNDLoaded) {
           loadScript("../tm_donor_noneu_nd.js", function () {
             var extra = window.TM_DONOR_NONEU_ND || {};
             for (var k in extra) ND[k] = extra[k];
@@ -383,7 +392,7 @@
       var dv = p.get("donors");
       if (dv != null) {
         if (dv.toLowerCase() === "all") { state.donorsAll = true; state.donorTokens = null; }
-        else { state.donorsAll = false; state.donorTokens = dv.split("~"); }
+        else { state.donorsAll = false; state.donorTokens = dv.split("~").map(canonDonor); }
       }
       var rv = p.get("recipients");
       if (rv != null) {
@@ -409,12 +418,27 @@
       if (p.get("chrome") === "0") document.body.classList.add("no-chrome");
     }
 
+    // Non-EU digital data is loaded lazily. We need it when the user asked for
+    // all providers, OR named a specific donor that isn't in the eager
+    // Team-Europe set (e.g. Taiwan) — otherwise that donor would find no match
+    // in DIG and silently fall back to "all European donors".
+    function needsNonEU() {
+      if (state.allProviders) return true;
+      if (state.donorTokens) {
+        for (var i = 0; i < state.donorTokens.length; i++) {
+          if (!DIG[state.donorTokens[i]]) return true;
+        }
+      }
+      return false;
+    }
+
     // ---- init ------------------------------------------------------------
     function init() {
       applyQuery(new URLSearchParams(BAKED));
       applyQuery(new URLSearchParams(window.location.search));
-      // merge non-EU donors first (if requested) so donors=all sees them
-      if (state.allProviders && !NONEU) { loadNonEU(finishInit); return; }
+      // merge non-EU donors first (if needed) so donors=all and named non-EU
+      // providers both resolve against the full set
+      if (needsNonEU() && !NONEU) { loadNonEU(finishInit); return; }
       finishInit();
     }
     function finishInit() {
@@ -427,7 +451,7 @@
       // title reflects the chosen donor(s), metric and scope
       var dlist = Array.from(state.donors);
       var allLabel = state.allProviders ? "all providers (incl. non-EU)" : "all European donors";
-      var dlabel = dlist.length === Object.keys(DIG).length ? allLabel : dlist.join(", ");
+      var dlabel = dlist.length === Object.keys(DIG).length ? allLabel : dlist.map(displayDonor).join(", ");
       document.title = "Digital ODA — " + dlabel + " · " +
         (state.metric === "commit" ? "committed" : "disbursed") +
         (state.includeND ? " · incl. non-digital" : " · digital only");
