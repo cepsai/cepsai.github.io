@@ -67,8 +67,14 @@
         <button class="on" data-val="africa">Africa</button>
         <button data-val="asia">Asia</button>
         <button data-val="pacific">Pacific</button>
+        <button data-val="asia-pacific">Asia-Pacific</button>
         <button data-val="all">All regions</button>
       </div>
+    </div>
+    <div class="field"><label>…or a single recipient country <span class="hint">(all providers)</span></label>
+      <select id="recipient" class="donor-select">
+        <option value="">— choose a recipient country —</option>
+      </select>
     </div>
     <div class="field single-only"><label>…or a single provider <span class="hint">(all recipients)</span></label>
       <select id="donor" class="donor-select">
@@ -76,6 +82,12 @@
       </select>
       <div class="seg" id="providerSeg" style="margin-top:8px">
         <button data-val="Taiwan">Taiwan <span class="hint" style="font-weight:600">(non-DAC · sparse)</span></button>
+      </div>
+    </div>
+    <div class="field single-only"><label>Providers <span class="hint">(who funded it)</span></label>
+      <div class="seg" data-group="providers" data-default="eu">
+        <button class="on" data-val="eu">Team Europe</button>
+        <button data-val="all">All (incl. non-EU)</button>
       </div>
     </div>
     <div class="field"><label>Scope</label>
@@ -131,7 +143,14 @@
     "Lithuania","Luxembourg","Malta","Netherlands","Poland","Portugal","Romania",
     "Slovak Republic","Slovenia","Spain","Sweden"];
 
-  var sel = {view:"single", region:"africa", donor:"", scope:"dig", metric:"disb", color:"type", class:"hard", top:"100"};
+  // The 13 priority recipients, grouped by region as in tm_regions.js
+  var RECIPIENTS = {
+    Africa:  ["Côte d'Ivoire","Eswatini","Kenya","Mozambique","Nigeria","Uganda"],
+    Asia:    ["Indonesia","Philippines","Thailand","Timor-Leste","Viet Nam"],
+    Pacific: ["Fiji","Palau"]
+  };
+
+  var sel = {view:"single", region:"africa", recipient:"", donor:"", providers:"eu", scope:"dig", metric:"disb", color:"type", class:"hard", top:"100"};
 
   // populate the donor dropdown
   var donorEl = document.getElementById("donor");
@@ -139,11 +158,22 @@
     var o = document.createElement("option"); o.value = d; o.textContent = d; donorEl.appendChild(o);
   });
 
+  // populate the recipient-country dropdown (grouped by region via <optgroup>)
+  var recEl = document.getElementById("recipient");
+  Object.keys(RECIPIENTS).forEach(function(reg){
+    var og = document.createElement("optgroup"); og.label = reg;
+    RECIPIENTS[reg].forEach(function(c){
+      var o = document.createElement("option"); o.value = c; o.textContent = c; og.appendChild(o);
+    });
+    recEl.appendChild(og);
+  });
+
   function buildUrl(){
     // grid view: all EU funders as small multiples (single-provider/top-N ignored)
     if (sel.view === "grid"){
       var g = [];
-      if (sel.region !== "all")      g.push("recipients=" + sel.region);
+      if (sel.recipient)             g.push("recipients=" + encodeURIComponent(sel.recipient));
+      else if (sel.region !== "all") g.push("recipients=" + sel.region);
       if (sel.metric === "commit")   g.push("metric=commit");
       if (sel.scope === "all")       g.push("nd=1");
       if (sel.color === "recipient") g.push("color=recipient");
@@ -156,18 +186,31 @@
     if (sel.class === "weighted") qs.push("class=weighted");
     if (sel.top !== "100")        qs.push("top=" + sel.top);
 
-    // single-donor view (all recipients) OR all-regions view → generic URL-driven page
-    if (sel.donor || sel.region === "all"){
-      var head = sel.donor
-        ? ["donors=" + encodeURIComponent(sel.donor), "recipients=all"]
-        : ["donors=all", "recipients=all"];
-      var tail = [];
-      if (sel.metric === "commit") tail.push("metric=commit");
-      if (sel.scope === "all")     tail.push("nd=1");
-      return "treemap_donor.html?" + head.concat(qs, tail).join("&");
+    // "All providers" folds in non-EU donors. It only applies when showing all
+    // donors (donors=all); picking a single European provider overrides it.
+    var allProv = (sel.providers === "all" && !sel.donor);
+
+    function tail(){
+      var t = [];
+      if (sel.metric === "commit") t.push("metric=commit");
+      if (sel.scope === "all")     t.push("nd=1");
+      if (allProv)                 t.push("providers=all");
+      return t;
     }
 
-    // recipient-region view (all donors) → pre-baked region page
+    // single-donor (all recipients) · single-country · all-regions ·
+    // asia-pacific (no pre-baked file) · any all-providers
+    // → generic URL-driven page
+    if (sel.donor || sel.recipient || sel.region === "all" || sel.region === "asia-pacific" || allProv){
+      var head = sel.donor
+        ? ["donors=" + encodeURIComponent(sel.donor), "recipients=all"]
+        : sel.recipient
+          ? ["donors=all", "recipients=" + encodeURIComponent(sel.recipient)]
+          : ["donors=all", "recipients=" + (sel.region === "all" ? "all" : sel.region)];
+      return "treemap_donor.html?" + head.concat(qs, tail()).join("&");
+    }
+
+    // recipient-region view (Team Europe) → pre-baked region page
     var file = "treemap_" + sel.region + "_" + sel.scope + "_" + sel.metric + ".html";
     return file + (qs.length ? "?" + qs.join("&") : "");
   }
@@ -191,11 +234,12 @@
         seg.querySelectorAll("button").forEach(function(x){ x.classList.remove("on"); });
         b.classList.add("on");
         sel[group] = b.dataset.val;
-        // choosing a region clears any single-provider selection
+        // choosing a region clears any single-provider or single-country selection
         if (group === "region"){
           sel.donor = "";
           donorEl.value = ""; donorEl.classList.remove("on");
           provBtn.classList.remove("on");
+          sel.recipient = ""; recEl.value = ""; recEl.classList.remove("on");
         }
         refresh();
       });
@@ -205,8 +249,23 @@
   // donor dropdown: picking a donor overrides the region; clearing it restores the region
   donorEl.addEventListener("change", function(){
     sel.donor = donorEl.value;
-    if (sel.donor){ donorEl.classList.add("on"); clearRegionButtons(); provBtn.classList.remove("on"); }
+    if (sel.donor){
+      donorEl.classList.add("on"); clearRegionButtons(); provBtn.classList.remove("on");
+      sel.recipient = ""; recEl.value = ""; recEl.classList.remove("on");
+    }
     else { donorEl.classList.remove("on"); activateRegion(sel.region); }
+    refresh();
+  });
+
+  // recipient-country dropdown: picking a country overrides the region (all providers,
+  // that recipient); clearing it restores the region
+  recEl.addEventListener("change", function(){
+    sel.recipient = recEl.value;
+    if (sel.recipient){
+      recEl.classList.add("on"); clearRegionButtons();
+      sel.donor = ""; donorEl.value = ""; donorEl.classList.remove("on"); provBtn.classList.remove("on");
+    }
+    else { recEl.classList.remove("on"); activateRegion(sel.region); }
     refresh();
   });
 
@@ -218,6 +277,7 @@
     } else {
       provBtn.classList.add("on"); sel.donor = provBtn.dataset.val;
       clearRegionButtons(); donorEl.value = ""; donorEl.classList.remove("on");
+      sel.recipient = ""; recEl.value = ""; recEl.classList.remove("on");
     }
     refresh();
   });
@@ -233,6 +293,7 @@
         // an "all funders" overview defaults to all recipients; drop any single provider
         sel.region = "all"; activateRegion("all");
         sel.donor = ""; donorEl.value = ""; donorEl.classList.remove("on"); provBtn.classList.remove("on");
+        sel.recipient = ""; recEl.value = ""; recEl.classList.remove("on");
       }
       refresh();
     });

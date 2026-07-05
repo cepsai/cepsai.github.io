@@ -98,12 +98,17 @@
     function esc(s){ return String(s == null ? "" : s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
     var WCATS = ["gov", "inc", "inf"];   // index order of the weight vector W
 
-    // funder-group colouring (Team Europe = EU Institutions + EU member states)
+    // funder-group colouring (Team Europe = EU Institutions + EU member states;
+    // everything else is Non-Team Europe, shown when providers=all)
     var EU_INST = "EU Institutions";
-    var FG_COLOR = { "EU Institutions": "#1d4ed8", "EU member states": "#f59e0b" };
+    var EU27 = new Set(["Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus", "Czechia",
+      "Denmark", "Estonia", "Finland", "France", "Germany", "Greece", "Hungary", "Ireland",
+      "Italy", "Latvia", "Lithuania", "Luxembourg", "Malta", "Netherlands", "Poland",
+      "Portugal", "Romania", "Slovak Republic", "Slovenia", "Spain", "Sweden"]);
+    var FG_COLOR = { "EU Institutions": "#1d4ed8", "EU member states": "#f59e0b", "Non-Team Europe": "#7c3aed" };
     var REC_PALETTE = ["#2563eb", "#16a34a", "#d97706", "#7c3aed", "#db2777", "#0891b2",
       "#dc2626", "#65a30d", "#0d9488", "#9333ea", "#ea580c", "#0369a1", "#4d7c0f"];
-    function fgroupOf(donor) { return donor === EU_INST ? "EU Institutions" : "EU member states"; }
+    function fgroupOf(donor) { if (donor === EU_INST) return "EU Institutions"; if (EU27.has(donor)) return "EU member states"; return "Non-Team Europe"; }
     function colorCatOf(r) {
       if (state.colorBy === "funder") return fgroupOf(r.donor);
       if (state.colorBy === "recipient") return r.other;
@@ -120,10 +125,13 @@
       return !state.hidden.has(r.grp);
     }
 
-    var DIG = window.TM_DONOR_DIG || {};
+    var DIG = window.TM_DONOR_DIG || {};      // Team Europe donors (eager)
     var REGION = window.TM_REGION || {};
-    var ND = null;                // lazy-loaded
+    var ND = null;                // lazy-loaded (Team Europe non-digital)
     var ndLoading = false;
+    var NONEU = null;             // lazy-loaded non-EU digital (providers=all)
+    var noneuLoading = false;
+    var noneuNDLoaded = false;    // non-EU non-digital merged into ND?
     var YEARS = window.TM_YEARS || [2019, 2020, 2021, 2022, 2023, 2024];
 
     // every recipient that appears in the donor tiles, grouped by region
@@ -138,6 +146,9 @@
       classMode: "hard",          // "hard" = argmax category · "weighted" = split $ by ensemble %
       colorBy: "type",            // "type" | "funder" | "recipient"
       includeND: false,
+      allProviders: false,        // providers=all → merge non-EU donors too
+      donorsAll: false,           // donors=all requested (re-expand after non-EU merge)
+      donorTokens: null,          // explicit ~-separated donor list (resolved after merge)
       activeCats: new Set(["gov", "inc", "inf", "nd"]),
       hidden: new Set()           // hidden colour categories in funder/recipient mode
     };
@@ -322,23 +333,57 @@
       treemap.data(shown).render();
     }
 
-    // ---- non-digital lazy load ------------------------------------------
+    // ---- lazy script loader ---------------------------------------------
+    function loadScript(src, cb) {
+      var s = document.createElement("script");
+      s.src = src;
+      s.onload = function () { cb(true); };
+      s.onerror = function () { cb(false); };
+      document.head.appendChild(s);
+    }
+
+    // ---- non-digital lazy load (Team Europe + optional non-EU) -----------
     function loadND(cb) {
       if (ND || ndLoading) { if (ND && cb) cb(); return; }
       ndLoading = true;
-      var s = document.createElement("script");
-      s.src = "../tm_donor_nd.js";
-      s.onload = function () { ND = window.TM_DONOR_ND || {}; ndLoading = false; if (cb) cb(); };
-      s.onerror = function () { ndLoading = false; ND = {}; if (cb) cb(); };
-      document.head.appendChild(s);
+      loadScript("../tm_donor_nd.js", function () {
+        ND = window.TM_DONOR_ND || {}; ndLoading = false;
+        // when showing all providers, also fold in non-EU non-digital tiles
+        if (state.allProviders && !noneuNDLoaded) {
+          loadScript("../tm_donor_noneu_nd.js", function () {
+            var extra = window.TM_DONOR_NONEU_ND || {};
+            for (var k in extra) ND[k] = extra[k];
+            noneuNDLoaded = true; if (cb) cb();
+          });
+          return;
+        }
+        if (cb) cb();
+      });
+    }
+
+    // ---- non-EU digital lazy load (providers=all) -----------------------
+    function loadNonEU(cb) {
+      if (NONEU || noneuLoading) { if (NONEU && cb) cb(); return; }
+      noneuLoading = true;
+      loadScript("../tm_donor_noneu_dig.js", function () {
+        NONEU = window.TM_DONOR_NONEU_DIG || {};
+        // donor keys are disjoint (EU vs non-EU), so a shallow merge is safe
+        for (var k in NONEU) DIG[k] = NONEU[k];
+        noneuLoading = false; if (cb) cb();
+      });
     }
 
     // ---- read settings from the URL query string -------------------------
     function applyQuery(p) {
+      // providers=all (alias: noneu=1) pulls in donors outside Team Europe.
+      var pv = (p.get("providers") || "").toLowerCase();
+      if (pv === "all" || pv === "noneu" || p.get("noneu") === "1") state.allProviders = true;
+      // Donor selection is resolved after any non-EU merge (see finishInit), so
+      // that donors=all and explicit non-EU donor names both see the full set.
       var dv = p.get("donors");
       if (dv != null) {
-        if (dv.toLowerCase() === "all") state.donors = new Set(Object.keys(DIG));
-        else state.donors = new Set(dv.split("~").filter(function (x) { return DIG[x]; }));
+        if (dv.toLowerCase() === "all") { state.donorsAll = true; state.donorTokens = null; }
+        else { state.donorsAll = false; state.donorTokens = dv.split("~"); }
       }
       var rv = p.get("recipients");
       if (rv != null) {
@@ -368,12 +413,21 @@
     function init() {
       applyQuery(new URLSearchParams(BAKED));
       applyQuery(new URLSearchParams(window.location.search));
+      // merge non-EU donors first (if requested) so donors=all sees them
+      if (state.allProviders && !NONEU) { loadNonEU(finishInit); return; }
+      finishInit();
+    }
+    function finishInit() {
+      // resolve donor selection now that DIG holds every requested provider
+      if (state.donorsAll) state.donors = new Set(Object.keys(DIG));
+      else if (state.donorTokens) state.donors = new Set(state.donorTokens.filter(function (x) { return DIG[x]; }));
       // sensible defaults when a param is omitted: everything.
       if (state.donors.size === 0) state.donors = new Set(Object.keys(DIG));
       if (state.recips.size === 0) state.recips = new Set(ALL_RECIPS);
       // title reflects the chosen donor(s), metric and scope
       var dlist = Array.from(state.donors);
-      var dlabel = dlist.length === Object.keys(DIG).length ? "all European donors" : dlist.join(", ");
+      var allLabel = state.allProviders ? "all providers (incl. non-EU)" : "all European donors";
+      var dlabel = dlist.length === Object.keys(DIG).length ? allLabel : dlist.join(", ");
       document.title = "Digital ODA — " + dlabel + " · " +
         (state.metric === "commit" ? "committed" : "disbursed") +
         (state.includeND ? " · incl. non-digital" : " · digital only");
