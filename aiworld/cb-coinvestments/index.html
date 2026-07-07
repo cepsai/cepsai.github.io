@@ -1,0 +1,657 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>AI Co-Investment Network</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background: #ffffff;
+            color: #1f2933;
+        }
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 1fr auto auto auto;
+            grid-template-columns: 1fr 1fr;
+            gap: clamp(8px, 1vh, 12px);
+            height: 100vh;
+            width: 100vw;
+            padding: clamp(12px, 2vh, 24px);
+            box-sizing: border-box;
+        }
+
+        .container { background: transparent; }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            position: relative;
+            overflow: visible;
+        }
+
+        #container5 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 clamp(4px, 1vw, 8px);
+            min-height: 0;
+        }
+
+        .footnote-text {
+            font-size: clamp(10px, 1.4vw, 14px);
+            color: #555;
+            font-style: italic;
+            text-align: right;
+        }
+
+        #container2 {
+            grid-row: 3;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 0;
+        }
+
+        .custom-legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1vw, 14px);
+            padding: clamp(4px, 1vh, 10px) 0;
+            font-size: clamp(0.625rem, 1.4vw, 0.95rem);
+        }
+
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+
+        .legend-square {
+            width: 13px;
+            height: 13px;
+            border-radius: 4px;
+            flex-shrink: 0;
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset;
+        }
+
+        #container3 {
+            grid-row: 4;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            padding: 0 clamp(4px, 1vw, 8px);
+            height: 40px;
+        }
+
+        #container4 {
+            grid-row: 4;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 clamp(4px, 1vw, 8px);
+            height: 40px;
+        }
+
+        #container4 a { display: flex; align-items: center; height: 100%; }
+        .logo { height: 34px; width: auto; }
+
+        .source-text { font-size: clamp(10px, 1.3vw, 13px); color: #777; }
+        .source-text a { color: #2756d3; text-decoration: none; }
+        .source-text a:hover { text-decoration: underline; }
+
+        #viz { width: 100%; height: 100%; flex: 1; min-height: 0; min-width: 0; position: relative; }
+        #graph { width: 100%; height: 100%; display: block; cursor: grab; }
+        #graph:active { cursor: grabbing; }
+
+        /* ---- filter bar (adapted from the CEPS sankey reference) ---- */
+        #filter-bar {
+            display: flex;
+            gap: 10px;
+            padding: 8px 4px 4px;
+            position: relative;
+            z-index: 60;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group { position: relative; }
+
+        .filter-toggle, .toggle-btn {
+            font: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            color: #1f2933;
+            background: #f4f6f9;
+            border: 1px solid #d4dae2;
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .filter-toggle:hover, .toggle-btn:hover { background: #e9edf2; }
+
+        .toggle-btn { display: flex; align-items: center; gap: 7px; }
+        .toggle-btn input { cursor: pointer; margin: 0; }
+        .toggle-btn.active { background: #e7edfb; border-color: #b9c8ee; }
+
+        .filter-panel {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            z-index: 100;
+            width: 240px;
+            max-height: 360px;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+            border: 1px solid #d4dae2;
+            border-radius: 8px;
+            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+            overflow: hidden;
+        }
+
+        .filter-panel[hidden] { display: none; }
+
+        .filter-actions {
+            display: flex;
+            gap: 6px;
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .filter-actions button {
+            font: inherit;
+            font-size: 12px;
+            flex: 1;
+            padding: 4px 0;
+            border: 1px solid #d4dae2;
+            border-radius: 5px;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .filter-actions button:hover { background: #f0f3f7; }
+
+        .filter-list { overflow-y: auto; padding: 4px 0; }
+
+        .filter-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .filter-option:hover { background: #f4f6f9; }
+        .filter-option .name { flex: 1; }
+        .filter-option input { cursor: pointer; }
+
+        .eu-tag { font-size: 10px; font-weight: 700; color: #2756d3; background: #e7edfb; padding: 1px 5px; border-radius: 4px; }
+        .us-tag { font-size: 10px; font-weight: 700; color: #b5460f; background: #fbe7dd; padding: 1px 5px; border-radius: 4px; }
+
+        .slider-group { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #1f2933; }
+        .slider-group input { cursor: pointer; }
+
+        .tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: rgba(31, 41, 51, 0.95);
+            color: #fff;
+            padding: 7px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            line-height: 1.4;
+            opacity: 0;
+            transition: opacity 0.12s;
+            z-index: 200;
+            max-width: 260px;
+        }
+
+        .node-label {
+            font-size: 11px;
+            font-weight: 600;
+            fill: #1f2933;
+            pointer-events: none;
+            paint-order: stroke;
+            stroke: #fff;
+            stroke-width: 3px;
+            stroke-linejoin: round;
+        }
+
+        @media (max-height: 500px) {
+            .viz-grid { grid-template-rows: 1fr; grid-template-columns: 1fr; }
+            #container2, #container3, #container4, #container5 { display: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1" class="container">
+            <div id="filter-bar">
+                <div class="filter-group" data-side="year">
+                    <button type="button" class="filter-toggle" data-side="year">Years: All ▾</button>
+                    <div class="filter-panel" data-side="year" hidden>
+                        <div class="filter-actions">
+                            <button type="button" data-act="all">All</button>
+                            <button type="button" data-act="none">None</button>
+                        </div>
+                        <div class="filter-list" data-side="year"></div>
+                    </div>
+                </div>
+                <div class="filter-group" data-side="round">
+                    <button type="button" class="filter-toggle" data-side="round">Rounds: All ▾</button>
+                    <div class="filter-panel" data-side="round" hidden>
+                        <div class="filter-actions">
+                            <button type="button" data-act="all">All</button>
+                            <button type="button" data-act="none">None</button>
+                        </div>
+                        <div class="filter-list" data-side="round"></div>
+                    </div>
+                </div>
+                <div class="filter-group" data-side="country">
+                    <button type="button" class="filter-toggle" data-side="country">Countries: All ▾</button>
+                    <div class="filter-panel" data-side="country" hidden>
+                        <div class="filter-actions">
+                            <button type="button" data-act="all">All</button>
+                            <button type="button" data-act="eu">EU</button>
+                            <button type="button" data-act="us">US</button>
+                            <button type="button" data-act="none">None</button>
+                        </div>
+                        <div class="filter-list" data-side="country"></div>
+                    </div>
+                </div>
+                <label class="toggle-btn active" id="combine-us-toggle">
+                    <input type="checkbox" id="combine-us" checked> Combine US states
+                </label>
+                <span class="slider-group">
+                    Min co-investments: <span id="min-coinv-val">5</span>
+                    <input type="range" id="min-coinv" min="1" max="25" value="5" step="1">
+                </span>
+            </div>
+            <div id="viz">
+                <svg id="graph"></svg>
+            </div>
+        </div>
+
+        <div id="container5" class="container">
+            <div class="footnote-text" id="footnote-text"></div>
+        </div>
+
+        <div id="container2" class="container">
+            <div id="legend" class="custom-legend"></div>
+        </div>
+
+        <div id="container3" class="container">
+            <div class="source-text" id="source-text"></div>
+        </div>
+        <div id="container4" class="container">
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo" />
+            </a>
+        </div>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="coinvestment_data.js"></script>
+    <script>
+        const FOOTNOTE_TEXT = "Each link is a co-investment: investors from both countries backed the same AI funding round (2020–2026). Link thickness = number of co-investment rounds; node size = total co-investments. USD apportioned equally across a round's investors.";
+        const SOURCE_HTML = 'Source: Crunchbase via CEPS-DST. Network is undirected (co-investment).';
+
+        // adapt COINV_STATES / NODE_TAG (from coinvestment_data.js) to what this page uses
+        const tagOf = id => NODE_TAG[id] || (String(id).endsWith(' (US)') ? 'US' : 'Else');
+        const isUSState = id => tagOf(id) === 'US' && id !== 'United States (US)';
+        const isUS = id => tagOf(id) === 'US';
+
+        const COINV_DATA = COINV_STATES;
+        const COINV_COMBINED = (() => {
+            const map = new Map();
+            for (const d of COINV_STATES) {
+                const f = isUS(d.from) ? 'United States (US)' : d.from;
+                const t = isUS(d.to) ? 'United States (US)' : d.to;
+                const [a, b] = f <= t ? [f, t] : [t, f];
+                const key = [a, b, d.round, d.year].join('|');
+                const e = map.get(key) || { from: a, to: b, round: d.round, year: d.year, deals: 0, value: 0 };
+                e.deals += d.deals; e.value += d.value;
+                map.set(key, e);
+            }
+            return [...map.values()];
+        })();
+
+        const US_COLOR = '#E1701A';
+        const EU_COLOR = '#2756d3';
+        const OTHER_COLOR = '#bab0ac';
+
+        function groupOf(id) {
+            const t = tagOf(id);
+            return t === 'US' ? 'United States' : t === 'EU' ? 'Europe' : 'Other';
+        }
+        function colorOf(id) {
+            const t = tagOf(id);
+            return t === 'US' ? US_COLOR : t === 'EU' ? EU_COLOR : OTHER_COLOR;
+        }
+
+        const svg = d3.select('#graph');
+        const vizContainer = document.getElementById('viz');
+        const tooltip = d3.select('body').append('div').attr('class', 'tooltip');
+
+        document.getElementById('footnote-text').textContent = FOOTNOTE_TEXT;
+        document.getElementById('source-text').innerHTML = SOURCE_HTML;
+
+        // ---- state ----
+        const selected = { year: new Set(), round: new Set(), country: new Set() };
+        let combineUS = true;
+        let minDeals = 5;
+        let width = 0, height = 0;
+        const posCache = new Map();   // id -> {x,y} to keep layout stable across updates
+        let simulation = null;
+
+        const activeData = () => combineUS ? COINV_COMBINED : COINV_DATA;
+
+        function allNodes(data) {
+            const s = new Set();
+            data.forEach(d => { s.add(d.from); s.add(d.to); });
+            return [...s].sort((x, y) => x.localeCompare(y));
+        }
+        function allValues(data, key) {
+            return [...new Set(data.map(d => d[key]))];
+        }
+
+        // ---- build graph from current filters ----
+        function buildGraph() {
+            const data = activeData();
+            const linkMap = new Map();   // "a|b" -> {coinv, value}
+            const nodeTotal = new Map(); // id -> coinv (incl self)
+            for (const d of data) {
+                if (!selected.year.has(d.year)) continue;
+                if (!selected.round.has(d.round)) continue;
+                const aSel = selected.country.has(d.from);
+                const bSel = selected.country.has(d.to);
+                if (!aSel || !bSel) continue;
+                nodeTotal.set(d.from, (nodeTotal.get(d.from) || 0) + d.deals);
+                if (d.to !== d.from) nodeTotal.set(d.to, (nodeTotal.get(d.to) || 0) + d.deals);
+                if (d.from === d.to) continue;          // self-pair: sizing only, no link
+                const key = d.from + '|' + d.to;
+                const e = linkMap.get(key) || { source: d.from, target: d.to, deals: 0, value: 0 };
+                e.deals += d.deals; e.value += d.value;
+                linkMap.set(key, e);
+            }
+            let links = [...linkMap.values()].filter(e => e.deals >= minDeals);
+            const keep = new Set();
+            links.forEach(e => { keep.add(e.source); keep.add(e.target); });
+            const nodes = [...keep].map(id => ({
+                id,
+                total: nodeTotal.get(id) || 0,
+                group: groupOf(id),
+                color: colorOf(id),
+            }));
+            return { nodes, links };
+        }
+
+        // ---- scales ----
+        function radiusScale(nodes) {
+            const max = d3.max(nodes, d => d.total) || 1;
+            return d3.scaleSqrt().domain([0, max]).range([4, 34]);
+        }
+        function widthScale(links) {
+            const max = d3.max(links, d => d.deals) || 1;
+            return d3.scaleSqrt().domain([0, max]).range([0.6, 9]);
+        }
+
+        const fmtUSD = v => v >= 1e9 ? '$' + (v / 1e9).toFixed(2) + 'B'
+            : v >= 1e6 ? '$' + (v / 1e6).toFixed(1) + 'M'
+                : '$' + d3.format(',')(Math.round(v));
+
+        function render() {
+            const { nodes, links } = buildGraph();
+            // seed positions from cache
+            nodes.forEach(n => {
+                const p = posCache.get(n.id);
+                if (p) { n.x = p.x; n.y = p.y; }
+            });
+
+            const r = radiusScale(nodes);
+            const w = widthScale(links);
+
+            svg.selectAll('*').remove();
+            const g = svg.append('g');
+
+            // zoom / pan
+            svg.call(d3.zoom().scaleExtent([0.2, 6]).on('zoom', (ev) => g.attr('transform', ev.transform)));
+
+            const link = g.append('g')
+                .attr('stroke-linecap', 'round')
+                .selectAll('line')
+                .data(links)
+                .join('line')
+                .attr('stroke', d => colorOf(d.source))
+                .attr('stroke-opacity', 0.35)
+                .attr('stroke-width', d => w(d.deals))
+                .on('mousemove', (ev, d) => showTip(ev,
+                    `<b>${nm(d.source)} — ${nm(d.target)}</b><br>${d.deals} co-investment${d.deals === 1 ? '' : 's'}<br>${fmtUSD(d.value)} (apportioned)`))
+                .on('mouseout', hideTip);
+
+            const node = g.append('g')
+                .selectAll('circle')
+                .data(nodes)
+                .join('circle')
+                .attr('r', d => r(d.total))
+                .attr('fill', d => d.color)
+                .attr('stroke', '#fff')
+                .attr('stroke-width', 1.2)
+                .style('cursor', 'pointer')
+                .on('mousemove', (ev, d) => showTip(ev,
+                    `<b>${nm(d.id)}</b><br>${d.total} co-investments<br><span style="opacity:.7">${d.group}</span>`))
+                .on('mouseout', hideTip)
+                .call(drag());
+
+            // label the larger nodes to avoid clutter
+            const labelThreshold = nodes.length ? d3.quantile(nodes.map(d => d.total).sort(d3.ascending), 0.7) : 0;
+            const label = g.append('g')
+                .selectAll('text')
+                .data(nodes.filter(d => d.total >= labelThreshold))
+                .join('text')
+                .attr('class', 'node-label')
+                .attr('text-anchor', 'middle')
+                .attr('dy', d => -r(d.total) - 3)
+                .text(d => nm(d.id));
+
+            simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d => d.id)
+                    .distance(d => 40 + 120 / Math.sqrt(d.deals + 1))
+                    .strength(d => Math.min(1, 0.04 + d.deals / 400)))
+                .force('charge', d3.forceManyBody().strength(-180))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collide', d3.forceCollide(d => r(d.total) + 3))
+                .on('tick', () => {
+                    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+                        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+                    node.attr('cx', d => d.x).attr('cy', d => d.y);
+                    label.attr('x', d => d.x).attr('y', d => d.y);
+                })
+                .on('end', () => nodes.forEach(n => posCache.set(n.id, { x: n.x, y: n.y })));
+
+            buildLegend(nodes);
+            updateCountLabel(nodes.length, links.length);
+        }
+
+        const nm = id => String(id).replace(/ \((US|EU|Else)\)$/, '');
+
+        function drag() {
+            return d3.drag()
+                .on('start', (ev, d) => { if (!ev.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+                .on('drag', (ev, d) => { d.fx = ev.x; d.fy = ev.y; })
+                .on('end', (ev, d) => { if (!ev.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; });
+        }
+
+        function showTip(ev, html) {
+            tooltip.html(html).style('opacity', 1)
+                .style('left', (ev.pageX + 14) + 'px')
+                .style('top', (ev.pageY + 14) + 'px');
+        }
+        const hideTip = () => tooltip.style('opacity', 0);
+
+        function buildLegend(nodes) {
+            const groups = [...new Set(nodes.map(d => d.group))];
+            const order = ['United States', 'European Union', 'Europe', 'Asia', 'North America', 'South America', 'Africa', 'Oceania', 'Other'];
+            groups.sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99));
+            const c = d3.select('#legend');
+            c.selectAll('*').remove();
+            groups.forEach(grp => {
+                const color = grp === 'United States' ? US_COLOR : grp === 'Europe' ? EU_COLOR : OTHER_COLOR;
+                const item = c.append('div').attr('class', 'legend-item');
+                item.append('div').attr('class', 'legend-square').style('background', color);
+                item.append('span').text(grp);
+            });
+        }
+
+        function updateCountLabel(nNodes, nLinks) {
+            d3.select('#source-text').html(`${SOURCE_HTML} &nbsp;·&nbsp; ${nNodes} countries, ${nLinks} links shown.`);
+        }
+
+        // ---- filter UI ----
+        function buildFilters() {
+            const data = activeData();
+            // year
+            const years = allValues(data, 'year').sort((a, b) => a - b);
+            const rounds = allValues(data, 'round').sort();
+            const countries = allNodes(data);
+            if (!selected.year.size) years.forEach(y => selected.year.add(y));
+            if (!selected.round.size) rounds.forEach(r => selected.round.add(r));
+            // countries reset whenever dataset changes (state<->combined)
+            selected.country = new Set(countries);
+
+            fillList('year', years, y => ({ value: y, label: y, tag: '' }));
+            fillList('round', rounds, r => ({ value: r, label: r, tag: '' }));
+            fillList('country', countries, c => ({
+                value: c,
+                label: nm(c),
+                tag: isUS(c) ? 'us' : tagOf(c) === 'EU' ? 'eu' : ''
+            }));
+            updateToggleLabels();
+        }
+
+        function fillList(side, items, mapper) {
+            const list = document.querySelector(`.filter-list[data-side="${side}"]`);
+            list.innerHTML = '';
+            items.forEach(it => {
+                const m = mapper(it);
+                const label = document.createElement('label');
+                label.className = 'filter-option';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = m.value;
+                cb.checked = selected[side].has(side === 'year' ? +m.value : m.value);
+                cb.addEventListener('change', () => {
+                    const v = side === 'year' ? +cb.value : cb.value;
+                    if (cb.checked) selected[side].add(v); else selected[side].delete(v);
+                    updateToggleLabels();
+                    render();
+                });
+                const name = document.createElement('span');
+                name.className = 'name';
+                name.textContent = m.label;
+                label.appendChild(cb);
+                label.appendChild(name);
+                if (m.tag === 'eu') { const t = document.createElement('span'); t.className = 'eu-tag'; t.textContent = 'EU'; label.appendChild(t); }
+                if (m.tag === 'us') { const t = document.createElement('span'); t.className = 'us-tag'; t.textContent = 'US'; label.appendChild(t); }
+                list.appendChild(label);
+            });
+        }
+
+        function updateToggleLabels() {
+            const set = (side, noun) => {
+                const list = document.querySelector(`.filter-list[data-side="${side}"]`);
+                const total = list.querySelectorAll('input').length;
+                const on = selected[side].size;
+                const btn = document.querySelector(`.filter-toggle[data-side="${side}"]`);
+                btn.textContent = `${noun}: ${on === total ? 'All' : on + '/' + total} ▾`;
+            };
+            set('year', 'Years');
+            set('round', 'Rounds');
+            set('country', 'Countries');
+        }
+
+        // panel open/close
+        document.querySelectorAll('.filter-toggle').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const side = btn.dataset.side;
+                const panel = document.querySelector(`.filter-panel[data-side="${side}"]`);
+                const wasHidden = panel.hidden;
+                document.querySelectorAll('.filter-panel').forEach(p => p.hidden = true);
+                panel.hidden = !wasHidden;
+            });
+        });
+        document.addEventListener('click', () => document.querySelectorAll('.filter-panel').forEach(p => p.hidden = true));
+        document.querySelectorAll('.filter-panel').forEach(p => p.addEventListener('click', e => e.stopPropagation()));
+
+        // quick-select actions
+        document.querySelectorAll('.filter-actions button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const side = btn.closest('.filter-panel').dataset.side;
+                const act = btn.dataset.act;
+                const list = document.querySelector(`.filter-list[data-side="${side}"]`);
+                list.querySelectorAll('input').forEach(cb => {
+                    const v = side === 'year' ? +cb.value : cb.value;
+                    let on;
+                    if (act === 'all') on = true;
+                    else if (act === 'none') on = false;
+                    else if (act === 'us') on = isUS(cb.value);
+                    else if (act === 'eu') on = tagOf(cb.value) === 'EU';
+                    cb.checked = on;
+                    if (on) selected[side].add(v); else selected[side].delete(v);
+                });
+                updateToggleLabels();
+                render();
+            });
+        });
+
+        // combine US toggle
+        const combineCb = document.getElementById('combine-us');
+        combineCb.addEventListener('change', () => {
+            combineUS = combineCb.checked;
+            document.getElementById('combine-us-toggle').classList.toggle('active', combineUS);
+            posCache.clear();
+            buildFilters();
+            render();
+        });
+
+        // min co-investments slider
+        const slider = document.getElementById('min-coinv');
+        slider.addEventListener('input', () => {
+            minDeals = +slider.value;
+            document.getElementById('min-coinv-val').textContent = minDeals;
+            render();
+        });
+
+        // ---- resize ----
+        function resize() {
+            const rect = vizContainer.getBoundingClientRect();
+            width = rect.width || window.innerWidth;
+            height = rect.height || window.innerHeight;
+            svg.attr('width', width).attr('height', height).attr('viewBox', [0, 0, width, height]);
+            if (simulation) { simulation.force('center', d3.forceCenter(width / 2, height / 2)); simulation.alpha(0.3).restart(); }
+        }
+        window.addEventListener('resize', resize);
+
+        // ---- init ----
+        buildFilters();
+        resize();
+        render();
+    </script>
+</body>
+
+</html>

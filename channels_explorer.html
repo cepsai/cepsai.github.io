@@ -99,7 +99,8 @@
       <div class="links">
         <a href="donor_treemaps.html">Donors</a> ·
         <a href="recipient_treemaps.html">Recipients</a> ·
-        <a href="donor_recipient_treemaps.html">Donor × Recipient</a>
+        <a href="donor_recipient_treemaps.html">Donor × Recipient</a> ·
+        <a href="channels_builder.html">Builder</a>
       </div>
       <h1>Digital ODA — Who Executes It?
         <span class="sub">Channels of delivery: the organisations that implement digital ODA, and the share of US$ each one delivers.</span>
@@ -121,8 +122,17 @@
         <button class="control-btn" data-fg="inst" type="button">· EU INSTITUTIONS</button>
         <button class="control-btn" data-fg="mem" type="button">· EU MEMBER STATES</button>
         <button class="control-btn" data-fg="oth" type="button">NON-TEAM EUROPE</button>
+        <button class="control-btn" data-fg="twn" type="button">TAIWAN</button>
+      </div>
+      <span class="ctl-label">Region</span>
+      <div class="button-group" id="region-group">
+        <button class="control-btn active" data-region="all" type="button">ALL</button>
+        <button class="control-btn" data-region="af" type="button">AFRICA</button>
+        <button class="control-btn" data-region="ap" type="button">ASIA-PACIFIC</button>
       </div>
       <label class="toggle"><input type="checkbox" id="nd-toggle"> Include non-digital</label>
+      <button class="control-btn" id="export-btn" type="button" style="border:1px solid #cbd5e1;border-radius:6px;margin-left:auto"
+        title="Download the treemap for the current setting as a standalone HTML file">⬇ EXPORT HTML</button>
     </div>
   </div>
 
@@ -203,24 +213,36 @@
 
     var state = { metric: "d", includeND: false };
     var FG = "all";
+    var REGION = "all";
 
     var FG_LABEL = {
       all: "All funders",
       te: "Team Europe",
       inst: "EU Institutions",
       mem: "EU member states",
-      oth: "Non-Team Europe"
+      oth: "Non-Team Europe",
+      twn: "Taiwan"
     };
+    var REGION_LABEL = { all: "all regions", af: "Africa", ap: "Asia-Pacific" };
 
-    // per-type value for a channel, respecting the current metric + funder group.
-    // cat in {gov,inc,inf,nd}; suffix matches the page metric ("d"|"c").
+    // per-type value for a channel, respecting the current metric + funder group
+    // + recipient region. cat in {gov,inc,inf,nd}; suffix matches the metric ("d"|"c").
     function tval(ch, cat) {
       var suf = "_" + state.metric;       // state.metric is "d" (disbursed) or "c" (committed)
       var key = cat + suf;
-      if (FG === "all") return +ch[key] || 0;
-      if (!ch.fg) return 0;
-      if (FG === "te") return (+ch.fg.inst[key] || 0) + (+ch.fg.mem[key] || 0);
-      return (ch.fg[FG] && +ch.fg[FG][key]) || 0;
+      if (REGION === "all") {
+        if (FG === "all") return +ch[key] || 0;
+        if (!ch.fg) return 0;
+        if (FG === "te") return (+ch.fg.inst[key] || 0) + (+ch.fg.mem[key] || 0);
+        return (ch.fg[FG] && +ch.fg[FG][key]) || 0;
+      }
+      var r = ch.fgr && ch.fgr[REGION];
+      if (!r) return 0;
+      // every recipient belongs to exactly one region, so "all funders" within a
+      // region is the sum of the three disjoint funder groups (twn ⊂ oth).
+      if (FG === "all") return (+r.inst[key] || 0) + (+r.mem[key] || 0) + (+r.oth[key] || 0);
+      if (FG === "te") return (+r.inst[key] || 0) + (+r.mem[key] || 0);
+      return (r[FG] && +r[FG][key]) || 0;
     }
 
     // ---- helpers ---------------------------------------------------------
@@ -268,12 +290,14 @@
       var topShare = (top && total) ? (chanVal(top) / total * 100) : 0;
       var topFamShare = total ? (topFamV / total * 100) : 0;
       var fgWord = FG_LABEL[FG] || "All funders";
+      var regWord = REGION === "all" ? "" : " · " + REGION_LABEL[REGION] + " recipients";
       var acrossNote = FG === "all" ? "across all channels of delivery" : "delivered for " + fgWord;
+      if (REGION !== "all") acrossNote += " in " + REGION_LABEL[REGION];
 
       // dynamic showing line under the controls
       var sl = document.getElementById("showing-line");
       if (sl) {
-        sl.textContent = "Showing: " + fgWord + " · " + fmtUSD(total) + " " + metricWord +
+        sl.textContent = "Showing: " + fgWord + regWord + " · " + fmtUSD(total) + " " + metricWord +
           " (" + scopeWord + ") across " + nChan + " channels";
       }
 
@@ -336,6 +360,7 @@
         }
       });
 
+    var lastTreeRows = [];
     function renderTreemap() {
       var ts = activeTypes();
       var rows = [];
@@ -346,8 +371,74 @@
         ts.forEach(function (t) { row["v_" + t] = typeVal(ch, t); });
         rows.push(row);
       });
+      lastTreeRows = rows;
       treemap.data(rows).render();
     }
+
+    // ---- export current treemap as standalone HTML ------------------------
+    // Snapshot of the treemap for the active setting (funder group, region,
+    // metric, non-digital toggle), embedded data + CDN d3plus, downloadable.
+    // __EXPORT_FN_START__
+    function buildExportDoc(rows) {
+      var metricWord = state.metric === "c" ? "committed" : "disbursed";
+      var scopeWord = state.includeND ? "all ODA" : "digital ODA";
+      var title = "Digital ODA channels of delivery — " + (FG_LABEL[FG] || "All funders") +
+        (REGION === "all" ? "" : " · " + REGION_LABEL[REGION] + " recipients");
+      var total = 0;
+      rows.forEach(function (r) { total += r.value; });
+      var sub = fmtUSD(total) + " " + metricWord + " (" + scopeWord + ") across " +
+        rows.length + " channels · 13 priority recipient countries · OECD CRS";
+      var payload = JSON.stringify({
+        rows: rows, famColor: FAM_COLOR, typeColor: TYPE_COLOR, typeLabel: TYPE_LABEL,
+        types: activeTypes(), title: title, sub: sub
+      }).replace(/</g, "\\u003c");
+      return [
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">',
+        '<meta name="viewport" content="width=device-width, initial-scale=1">',
+        '<title>' + esc(title) + '</title>',
+        '<style>',
+        '*{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:#fff;color:#0f172a;height:100vh;display:flex;flex-direction:column}',
+        '#treemap{flex:1;min-height:0}',
+        '.legend{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;padding:10px 18px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}',
+        '.li{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#334155}',
+        '.sq{width:11px;height:11px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.12) inset}',
+        '</style>',
+        '<script src="https://d3js.org/d3.v5.min.js" integrity="sha384-M06Cb6r/Yrkprjr7ngOrJlzgekrkkdmGZDES/SUnkUpUol0/qjsaQWQfLzq0mcfg" crossorigin="anonymous"><\/script>',
+        '<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1.0.1" integrity="sha384-+W6NXBbslxnJQ4c4zr/o1Rga99PWp72fbuini4EP9XZNIPtshQIiNZiMcvJT9k6X" crossorigin="anonymous"><\/script>',
+        '</head><body>',
+        '<div id="treemap"></div>',
+        '<div class="legend" id="legend"></div>',
+        '<script>',
+        'var P = ' + payload + ';',
+        'function fmtUSD(m){m=+m||0;if(m>=1000)return "$"+(m/1000).toFixed(2)+"B";if(m>=1)return "$"+m.toFixed(1)+"M";if(m>0)return "$"+(m*1000).toFixed(0)+"K";return "$0"}',
+        'var fams=[];P.rows.forEach(function(r){if(fams.indexOf(r.fam)<0)fams.push(r.fam)});',
+        'var lg=document.getElementById("legend");',
+        'fams.forEach(function(f){var d=document.createElement("div");d.className="li";var s=document.createElement("span");s.className="sq";s.style.background=P.famColor[f]||"#94a3b8";var t=document.createElement("span");t.textContent=f;d.appendChild(s);d.appendChild(t);lg.appendChild(d)});',
+        'var tm=new d3plus.Treemap().select("#treemap").groupBy(["fam","name"]).sum("value").layoutPadding(1).legend(false)',
+        '.label(function(d){if(d.depth===0)return d.fam||d.id;return (d.name||"")+"\\n"+fmtUSD(d.value)})',
+        '.color(function(d){return P.famColor[d.fam]||"#94a3b8"})',
+        '.shapeConfig({stroke:function(d){return d.depth===0?(P.famColor[d.fam||d.id]||"#94a3b8"):"rgba(255,255,255,0.65)"},strokeWidth:function(d){return d.depth===0?2:0.5},labelConfig:{fontColor:"#ffffff",fontSize:11,fontWeight:600}})',
+        '.tooltipConfig({title:function(d){return d.name||d.fam||d.id},body:function(d){if(!d.name)return "";var rows=P.types.map(function(t){return \'<div style="display:flex;align-items:center;gap:6px"><span style="width:9px;height:9px;border-radius:2px;background:\'+P.typeColor[t]+\';display:inline-block"></span>\'+P.typeLabel[t]+\': <b>\'+fmtUSD(d["v_"+t]||0)+"</b></div>"}).join("");return \'<div style="font-size:12px;line-height:1.55">Family: <b>\'+(d.fam||"—")+"</b><br>Total: <b>"+fmtUSD(d.value)+\'</b><div style="margin-top:5px">\'+rows+"</div></div>"}})',
+        '.data(P.rows);',
+        'tm.render();',
+        'var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(function(){tm.render()},150)});',
+        '<\/script></body></html>'
+      ].join("\n");
+    }
+    // __EXPORT_FN_END__
+
+    document.getElementById("export-btn").addEventListener("click", function () {
+      if (!lastTreeRows.length) return;
+      var doc = buildExportDoc(lastTreeRows);
+      var blob = new Blob([doc], { type: "text/html" });
+      var a = document.createElement("a");
+      a.download = "channels_treemap_" + FG + "_" + REGION + "_" + state.metric +
+        (state.includeND ? "_all" : "_dig") + ".html";
+      a.href = URL.createObjectURL(blob);
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    });
 
     // ---- stacked bars (top 15) ------------------------------------------
     function renderBars() {
@@ -539,10 +630,12 @@
       FAM_ORDER.forEach(function (f) { agg[f] = 0; });
       CHANNELS.forEach(function (ch) {
         if (!ch.fg || agg[ch.fam] === undefined) return;
+        var src = REGION === "all" ? ch.fg : (ch.fgr && ch.fgr[REGION]);
+        if (!src) return;
         var v = 0;
         ["gov_d", "inc_d", "inf_d"].forEach(function (k) {
-          if (grp === "te") v += (+ch.fg.inst[k] || 0) + (+ch.fg.mem[k] || 0);
-          else v += (+ch.fg.oth[k] || 0);
+          if (grp === "te") v += (+src.inst[k] || 0) + (+src.mem[k] || 0);
+          else v += (+src.oth[k] || 0);
         });
         agg[ch.fam] += v;
       });
@@ -651,12 +744,36 @@
         renderAll();
       });
     });
+    document.querySelectorAll("#region-group .control-btn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#region-group .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        this.classList.add("active");
+        REGION = this.getAttribute("data-region");
+        renderAll();
+      });
+    });
     document.getElementById("nd-toggle").addEventListener("change", function () {
       state.includeND = this.checked;
       renderAll();
     });
 
     // ---- init ------------------------------------------------------------
+    // Deep links: ?fg=inst|mem|oth|te|twn&region=af|ap&metric=c|d&nd=1
+    // e.g. channels_explorer.html?fg=inst&region=af opens the EU-Institutions ×
+    // Africa treemap directly, so each combination is separately linkable.
+    (function () {
+      var q = new URLSearchParams(window.location.search);
+      function press(groupId, attr, val) {
+        var btn = document.querySelector("#" + groupId + " .control-btn[data-" + attr + '="' + val + '"]');
+        if (!btn) return;
+        document.querySelectorAll("#" + groupId + " .control-btn").forEach(function (x) { x.classList.remove("active"); });
+        btn.classList.add("active");
+      }
+      if (q.get("fg") && FG_LABEL[q.get("fg")]) { FG = q.get("fg"); press("fg-group", "fg", FG); }
+      if (q.get("region") && REGION_LABEL[q.get("region")]) { REGION = q.get("region"); press("region-group", "region", REGION); }
+      if (q.get("metric") === "c" || q.get("metric") === "d") { state.metric = q.get("metric"); press("metric-group", "metric", state.metric); }
+      if (q.get("nd") === "1") { state.includeND = true; document.getElementById("nd-toggle").checked = true; }
+    })();
     renderAll();
 
     var rt;

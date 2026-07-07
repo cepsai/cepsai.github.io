@@ -22,6 +22,14 @@
         padding:9px 12px;font-size:13.5px;font-weight:600;color:#334155;cursor:pointer;transition:.12s}
   .seg button:hover{border-color:#94a3b8}
   .seg button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .hint{font-weight:600;text-transform:none;letter-spacing:0;color:#94a3b8}
+  .donor-select{width:100%;border:1px solid var(--line);background:#fff;border-radius:10px;
+        padding:10px 12px;font-size:14px;font-weight:600;color:#334155;cursor:pointer;
+        font-family:inherit;-webkit-appearance:none;appearance:none;
+        background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat:no-repeat;background-position:right 12px center}
+  .donor-select:hover{border-color:#94a3b8}
+  .donor-select.on{border-color:var(--accent);color:var(--accent2);font-weight:700}
   details{margin:4px 0 22px;border-top:1px dashed var(--line);padding-top:14px}
   summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
   details .field{margin-top:16px;margin-bottom:14px}
@@ -35,6 +43,14 @@
   .btn.copy:hover{border-color:#94a3b8}
   .copied{color:var(--accent);font-size:12.5px;margin-left:4px;visibility:hidden}
   .copied.show{visibility:visible}
+  /* view tabs */
+  .tabs{display:flex;gap:6px;margin-bottom:22px;background:#eef2f7;border-radius:12px;padding:4px}
+  .tabs button{flex:1;border:0;background:transparent;border-radius:9px;padding:9px 10px;
+        font-size:13.5px;font-weight:700;color:#64748b;cursor:pointer;transition:.12s}
+  .tabs button:hover{color:#334155}
+  .tabs button.on{background:#fff;color:var(--accent2);box-shadow:0 1px 2px rgba(15,23,42,.08)}
+  /* grid view hides the single-treemap-only controls */
+  body.view-grid .single-only{display:none}
 </style>
 </head>
 <body>
@@ -42,13 +58,36 @@
   <h1>Treemap builder</h1>
   <p class="sub">Pick the parameters, then <b>Open</b> to launch the matching treemap in a new tab.</p>
   <div class="card">
-    <div class="field"><label>Region</label>
+    <div class="tabs" id="viewTabs">
+      <button class="on" data-view="single">Single treemap</button>
+      <button data-view="grid">All EU funders (grid)</button>
+    </div>
+    <div class="field"><label>Recipient region <span class="hint">(all providers)</span></label>
       <div class="seg" data-group="region">
         <button class="on" data-val="africa">Africa</button>
         <button data-val="asia">Asia</button>
         <button data-val="pacific">Pacific</button>
-        <button data-val="spain">Spain</button>
-        <button data-val="denmark">Denmark</button>
+        <button data-val="asia-pacific">Asia-Pacific</button>
+        <button data-val="all">All regions</button>
+      </div>
+    </div>
+    <div class="field"><label>…or a single recipient country <span class="hint">(all providers)</span></label>
+      <select id="recipient" class="donor-select">
+        <option value="">— choose a recipient country —</option>
+      </select>
+    </div>
+    <div class="field single-only"><label>…or a single provider <span class="hint">(all recipients)</span></label>
+      <select id="donor" class="donor-select">
+        <option value="">— choose a European donor —</option>
+      </select>
+      <div class="seg" id="providerSeg" style="margin-top:8px">
+        <button data-val="Taiwan">Taiwan <span class="hint" style="font-weight:600">(non-DAC · sparse)</span></button>
+      </div>
+    </div>
+    <div class="field single-only"><label>Providers <span class="hint">(who funded it)</span></label>
+      <div class="seg" data-group="providers" data-default="eu">
+        <button class="on" data-val="eu">Team Europe</button>
+        <button data-val="all">All (incl. non-EU)</button>
       </div>
     </div>
     <div class="field"><label>Scope</label>
@@ -79,7 +118,7 @@
           <button data-val="weighted">Weighted %</button>
         </div>
       </div>
-      <div class="field"><label>Show top</label>
+      <div class="field single-only"><label>Show top</label>
         <div class="seg" data-group="top" data-default="100">
           <button data-val="25">25</button>
           <button data-val="50">50</button>
@@ -98,28 +137,165 @@
   </div>
 </div>
 <script>
-  var sel = {region:"africa", scope:"dig", metric:"disb", color:"type", class:"hard", top:"100"};
+  // European donors present in tm_donor_dig.js (alphabetical)
+  var DONORS = ["Austria","Belgium","Croatia","Czechia","Denmark","EU Institutions",
+    "Estonia","Finland","France","Germany","Hungary","Ireland","Italy","Latvia",
+    "Lithuania","Luxembourg","Malta","Netherlands","Poland","Portugal","Romania",
+    "Slovak Republic","Slovenia","Spain","Sweden"];
+
+  // The 13 priority recipients, grouped by region as in tm_regions.js
+  var RECIPIENTS = {
+    Africa:  ["Côte d'Ivoire","Eswatini","Kenya","Mozambique","Nigeria","Uganda"],
+    Asia:    ["Indonesia","Philippines","Thailand","Timor-Leste","Viet Nam"],
+    Pacific: ["Fiji","Palau"]
+  };
+
+  var sel = {view:"single", region:"africa", recipient:"", donor:"", providers:"eu", scope:"dig", metric:"disb", color:"type", class:"hard", top:"100"};
+
+  // populate the donor dropdown
+  var donorEl = document.getElementById("donor");
+  DONORS.forEach(function(d){
+    var o = document.createElement("option"); o.value = d; o.textContent = d; donorEl.appendChild(o);
+  });
+
+  // populate the recipient-country dropdown (grouped by region via <optgroup>)
+  var recEl = document.getElementById("recipient");
+  Object.keys(RECIPIENTS).forEach(function(reg){
+    var og = document.createElement("optgroup"); og.label = reg;
+    RECIPIENTS[reg].forEach(function(c){
+      var o = document.createElement("option"); o.value = c; o.textContent = c; og.appendChild(o);
+    });
+    recEl.appendChild(og);
+  });
 
   function buildUrl(){
-    var file = "treemap_" + sel.region + "_" + sel.scope + "_" + sel.metric + ".html";
+    // grid view: all EU funders as small multiples (single-provider/top-N ignored)
+    if (sel.view === "grid"){
+      var g = [];
+      if (sel.recipient)             g.push("recipients=" + encodeURIComponent(sel.recipient));
+      else if (sel.region !== "all") g.push("recipients=" + sel.region);
+      if (sel.metric === "commit")   g.push("metric=commit");
+      if (sel.scope === "all")       g.push("nd=1");
+      if (sel.color === "recipient") g.push("color=recipient");
+      if (sel.class === "weighted")  g.push("class=weighted");
+      return "treemap_grid.html" + (g.length ? "?" + g.join("&") : "");
+    }
+
     var qs = [];
-    if (sel.color !== "type")  qs.push("color=" + sel.color);
+    if (sel.color !== "type")     qs.push("color=" + sel.color);
     if (sel.class === "weighted") qs.push("class=weighted");
-    if (sel.top !== "100")     qs.push("top=" + sel.top);
+    if (sel.top !== "100")        qs.push("top=" + sel.top);
+
+    // "All providers" folds in non-EU donors. It only applies when showing all
+    // donors (donors=all); picking a single European provider overrides it.
+    var allProv = (sel.providers === "all" && !sel.donor);
+
+    function tail(){
+      var t = [];
+      if (sel.metric === "commit") t.push("metric=commit");
+      if (sel.scope === "all")     t.push("nd=1");
+      if (allProv)                 t.push("providers=all");
+      return t;
+    }
+
+    // single-donor (all recipients) · single-country · all-regions ·
+    // asia-pacific (no pre-baked file) · any all-providers
+    // → generic URL-driven page
+    if (sel.donor || sel.recipient || sel.region === "all" || sel.region === "asia-pacific" || allProv){
+      var head = sel.donor
+        ? ["donors=" + encodeURIComponent(sel.donor), "recipients=all"]
+        : sel.recipient
+          ? ["donors=all", "recipients=" + encodeURIComponent(sel.recipient)]
+          : ["donors=all", "recipients=" + (sel.region === "all" ? "all" : sel.region)];
+      return "treemap_donor.html?" + head.concat(qs, tail()).join("&");
+    }
+
+    // recipient-region view (Team Europe) → pre-baked region page
+    var file = "treemap_" + sel.region + "_" + sel.scope + "_" + sel.metric + ".html";
     return file + (qs.length ? "?" + qs.join("&") : "");
   }
 
   function refresh(){ document.getElementById("preview").textContent = buildUrl(); }
 
+  function clearRegionButtons(){
+    document.querySelectorAll('.seg[data-group="region"] button').forEach(function(x){ x.classList.remove("on"); });
+  }
+  function activateRegion(val){
+    document.querySelectorAll('.seg[data-group="region"] button').forEach(function(x){
+      x.classList.toggle("on", x.dataset.val === val);
+    });
+  }
+
   document.querySelectorAll(".seg").forEach(function(seg){
+    if (seg.id === "providerSeg") return;   // handled separately below
     var group = seg.dataset.group;
     seg.querySelectorAll("button").forEach(function(b){
       b.addEventListener("click", function(){
         seg.querySelectorAll("button").forEach(function(x){ x.classList.remove("on"); });
         b.classList.add("on");
         sel[group] = b.dataset.val;
+        // choosing a region clears any single-provider or single-country selection
+        if (group === "region"){
+          sel.donor = "";
+          donorEl.value = ""; donorEl.classList.remove("on");
+          provBtn.classList.remove("on");
+          sel.recipient = ""; recEl.value = ""; recEl.classList.remove("on");
+        }
         refresh();
       });
+    });
+  });
+
+  // donor dropdown: picking a donor overrides the region; clearing it restores the region
+  donorEl.addEventListener("change", function(){
+    sel.donor = donorEl.value;
+    if (sel.donor){
+      donorEl.classList.add("on"); clearRegionButtons(); provBtn.classList.remove("on");
+      sel.recipient = ""; recEl.value = ""; recEl.classList.remove("on");
+    }
+    else { donorEl.classList.remove("on"); activateRegion(sel.region); }
+    refresh();
+  });
+
+  // recipient-country dropdown: picking a country overrides the region (all providers,
+  // that recipient); clearing it restores the region
+  recEl.addEventListener("change", function(){
+    sel.recipient = recEl.value;
+    if (sel.recipient){
+      recEl.classList.add("on"); clearRegionButtons();
+      sel.donor = ""; donorEl.value = ""; donorEl.classList.remove("on"); provBtn.classList.remove("on");
+    }
+    else { recEl.classList.remove("on"); activateRegion(sel.region); }
+    refresh();
+  });
+
+  // Taiwan / non-DAC provider button (single provider, all recipients)
+  var provBtn = document.querySelector("#providerSeg button");
+  provBtn.addEventListener("click", function(){
+    if (provBtn.classList.contains("on")){
+      provBtn.classList.remove("on"); sel.donor = ""; activateRegion(sel.region);
+    } else {
+      provBtn.classList.add("on"); sel.donor = provBtn.dataset.val;
+      clearRegionButtons(); donorEl.value = ""; donorEl.classList.remove("on");
+      sel.recipient = ""; recEl.value = ""; recEl.classList.remove("on");
+    }
+    refresh();
+  });
+
+  // view tabs: Single treemap ↔ All EU funders (grid)
+  document.querySelectorAll("#viewTabs button").forEach(function(b){
+    b.addEventListener("click", function(){
+      document.querySelectorAll("#viewTabs button").forEach(function(x){ x.classList.remove("on"); });
+      b.classList.add("on");
+      sel.view = b.dataset.view;
+      document.body.classList.toggle("view-grid", sel.view === "grid");
+      if (sel.view === "grid"){
+        // an "all funders" overview defaults to all recipients; drop any single provider
+        sel.region = "all"; activateRegion("all");
+        sel.donor = ""; donorEl.value = ""; donorEl.classList.remove("on"); provBtn.classList.remove("on");
+        sel.recipient = ""; recEl.value = ""; recEl.classList.remove("on");
+      }
+      refresh();
     });
   });
 

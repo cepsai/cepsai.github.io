@@ -360,6 +360,35 @@
       height: 100%;
     }
 
+    #map-loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #e0f2fe;
+      z-index: 1200;
+    }
+
+    #map-loading.hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid rgba(39, 86, 211, 0.2);
+      border-top-color: #2756d3;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     .leaflet-container {
       background: #e0f2fe;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
@@ -447,6 +476,7 @@
     <div id="container1" class="container viz-container">
       <div id="viz">
         <div id="map"></div>
+        <div id="map-loading"><div class="spinner"></div></div>
       </div>
       <div class="floating-panel">
         <div id="slider-container">
@@ -917,8 +947,12 @@
         map.fitBounds(EUROPE_BOUNDS, { padding: [10, 10] });
         updateLabels();
         map.on("zoomend", updateLabels);
+
+        document.getElementById("map-loading").classList.add("hidden");
+        initAnimation();
       })
       .catch((err) => {
+        document.getElementById("map-loading").classList.add("hidden");
         const box = document.createElement("div");
         box.style.cssText =
           "position:fixed;top:12px;left:12px;z-index:9999;background:#fff;" +
@@ -996,13 +1030,11 @@
       else startPlay();
     });
 
-    // User dragging the slider stops playback
     slider.addEventListener("mousedown", stopPlay);
     slider.addEventListener("touchstart", stopPlay, { passive: true });
     slider.addEventListener("keydown", stopPlay);
 
-    // Query param: anim=1 (default) auto-plays from first year, anim=0 starts at 2025
-    (function initAnimation() {
+    function initAnimation() {
       const params = new URLSearchParams(window.location.search);
       const animParam = params.get("anim");
       const autoPlay = animParam !== "0";
@@ -1012,7 +1044,7 @@
       } else {
         setSliderYear(MAX_YEAR);
       }
-    })();
+    }
 
     document.querySelectorAll("#mode-toggle .selector-button").forEach((btn) => {
       btn.addEventListener("click", () => {

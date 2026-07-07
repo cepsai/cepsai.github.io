@@ -24,6 +24,7 @@
     .ref-lab { font-size: 12px; font-weight: 700; fill: #94a3b8; }
     .tick-lab { font-size: 12px; fill: #64748b; font-variant-numeric: tabular-nums; }
     .axis-title { font-size: 14px; font-weight: 800; fill: #475569; }
+    .chart-title { font-size: clamp(14px, 2vw, 18px); font-weight: 800; fill: #0f172a; }
 
     /* ─── BOTTOM BAR: source (left) · legend (centre) · CEPS logo (right) ───── */
     .bottom { background: #fff; border-top: 1px solid #e2e8f0; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: clamp(10px, 2vw, 28px); padding: clamp(8px, 1.5vh, 16px) clamp(14px, 2.5vw, 28px); min-height: clamp(44px, 7vh, 80px); }
@@ -51,6 +52,7 @@
     .tip.show { opacity: 1; }
   </style>
   <script src="tm_eu_funder.js"></script>
+  <script src="tm_eu_funder_rec.js"></script>
 </head>
 
 <body>
@@ -79,13 +81,59 @@
   </div>
 
   <script>
-    var D = window.TM_EU_FUNDER || {};
+    var ALL = window.TM_EU_FUNDER || {};
+    var REC = window.TM_EU_FUNDER_REC || {};
+    var REGION = window.TM_EU_FUNDER_REGION || {};
     var YEARS = window.TM_EU_FUNDER_YEARS || [2019, 2020, 2021, 2022, 2023, 2024];
     var TYPES = [["g", "Digital Governance", "#2563eb"], ["i", "Digital Inclusion", "#16a34a"], ["f", "Hard Infrastructure", "#d97706"]];
 
-    // ---- config via URL params (?metric=c ?years=2022,2023 ?legend=0 ?source=0 ?chrome=0) ----
+    // ---- config via URL params (?recipient= ?metric=c ?years=2022,2023 ?legend=0 ?source=0 ?chrome=0) ----
     var P = new URLSearchParams(location.search);
     var metric = P.get("metric") === "c" ? "c" : "d";
+
+    // ---- recipient scope: a single recipient country, a region, or all recipients ----
+    // ?recipient=Kenya | africa | asia | pacific | asiapac | all (default all)
+    function recipientsInRegion(region) {
+      return Object.keys(REGION).filter(function (r) { return REGION[r] === region; });
+    }
+    function sumInto(dst, src) {           // dst[year] += src[year] (per field)
+      Object.keys(src).forEach(function (y) {
+        var s = src[y], d = dst[y] || (dst[y] = { td: 0, tc: 0, gd: 0, gc: 0, id: 0, ic: 0, fd: 0, fc: 0 });
+        for (var k in d) d[k] += (+s[k] || 0);
+      });
+    }
+    function mergeRecipients(list) {       // combine several recipients -> donor -> year records
+      var out = {};
+      list.forEach(function (recip) {
+        var donors = REC[recip] || {};
+        Object.keys(donors).forEach(function (donor) {
+          sumInto(out[donor] || (out[donor] = {}), donors[donor]);
+        });
+      });
+      return out;
+    }
+
+    var recParam = (P.get("recipient") || "all").trim();
+    var recKey = recParam.toLowerCase();
+    var scopeLabel, D;
+    if (recKey === "" || recKey === "all") {
+      D = ALL; scopeLabel = "all 13 priority recipients";
+    } else if (recKey === "africa") {
+      D = mergeRecipients(recipientsInRegion("Africa")); scopeLabel = "Africa";
+    } else if (recKey === "asia") {
+      D = mergeRecipients(recipientsInRegion("Asia")); scopeLabel = "Asia";
+    } else if (recKey === "pacific") {
+      D = mergeRecipients(recipientsInRegion("Pacific")); scopeLabel = "the Pacific";
+    } else if (recKey === "asiapac" || recKey === "asia-pacific" || recKey === "asiapacific") {
+      D = mergeRecipients(recipientsInRegion("Asia").concat(recipientsInRegion("Pacific")));
+      scopeLabel = "Asia-Pacific";
+    } else {
+      // single recipient — match case-insensitively against the data keys
+      var match = Object.keys(REC).filter(function (r) { return r.toLowerCase() === recKey; })[0];
+      if (match) { D = REC[match]; scopeLabel = match; }
+      else { D = ALL; scopeLabel = "all 13 priority recipients"; }
+    }
+    document.title = "Digital ODA — EU providers to " + scopeLabel;
     var years = new Set(YEARS);
     if (P.get("years") && P.get("years") !== "all") {
       var ys = P.get("years").split(/[,~]/).map(function (s) { return parseInt(s, 10); }).filter(function (n) { return !isNaN(n); });
@@ -136,8 +184,18 @@
 
       var wrap = document.getElementById("chartwrap");
       var W = wrap.clientWidth, H = wrap.clientHeight;
-      var mL = 86, mR = 36, mT = 30, mB = 60;
+      var mL = 86, mR = 36, mT = 46, mB = 60;
       var pw = W - mL - mR, ph = H - mT - mB;
+
+      var svgEarly = document.getElementById("chart");
+      svgEarly.setAttribute("viewBox", "0 0 " + W + " " + H);
+      if (!rows.length) {                     // no digital ODA in this scope
+        while (svgEarly.firstChild) svgEarly.removeChild(svgEarly.firstChild);
+        var msg = el("text", { x: W / 2, y: H / 2, "text-anchor": "middle", class: "axis-title" });
+        msg.textContent = "No digital ODA from EU providers to " + scopeLabel + " in the selected years.";
+        svgEarly.appendChild(msg);
+        return;
+      }
 
       var minDig = rows.reduce(function (m, r) { return Math.min(m, r.dig); }, Infinity);
       var maxDig = rows.reduce(function (m, r) { return Math.max(m, r.dig); }, 0);
@@ -175,29 +233,69 @@
       var pcts = rows.map(function (r) { return r.pct; }).sort(function (a, b) { return a - b; });
       var med = pcts.length ? (pcts.length % 2 ? pcts[(pcts.length - 1) / 2] : (pcts[pcts.length / 2 - 1] + pcts[pcts.length / 2]) / 2) : 0;
       svg.appendChild(el("line", { class: "ref-line", x1: mL, y1: yS(med), x2: mL + pw, y2: yS(med) }));
-      var ml = el("text", { class: "ref-lab", x: mL + pw - 4, y: yS(med) - 6, "text-anchor": "end" });
-      ml.textContent = "median " + med.toFixed(1) + "%"; svg.appendChild(ml);
 
       var xttl = el("text", { class: "axis-title", x: mL + pw / 2, y: H - 16, "text-anchor": "middle" });
       xttl.textContent = "Digital ODA (log scale)"; svg.appendChild(xttl);
+      var isAll = (scopeLabel === "all 13 priority recipients");
       var yttl = el("text", { class: "axis-title", x: 20, y: mT + ph / 2, "text-anchor": "middle", transform: "rotate(-90 20 " + (mT + ph / 2) + ")" });
-      yttl.textContent = "Digital share of own ODA"; svg.appendChild(yttl);
+      yttl.textContent = isAll ? "Digital share of own ODA" : "Digital share of ODA to " + scopeLabel; svg.appendChild(yttl);
 
       rows.sort(function (a, b) { return b.tot - a.tot; });
+
+      // ---- first pass: draw bubbles, remember geometry ----
       rows.forEach(function (a) {
         var dt = domType(a);
-        var cx = xS(a.dig), cy = yS(a.pct), r = rS(a.tot);
-        var c = el("circle", { class: "dot", cx: cx, cy: cy, r: r, fill: dt[2], "fill-opacity": 0.62, stroke: dt[2], "stroke-width": 1 });
+        a._cx = xS(a.dig); a._cy = yS(a.pct); a._r = rS(a.tot); a._dt = dt;
+        var c = el("circle", { class: "dot", cx: a._cx, cy: a._cy, r: a._r, fill: dt[2], "fill-opacity": 0.62, stroke: dt[2], "stroke-width": 1 });
         c.addEventListener("mousemove", function (e) {
-          showTip("<b>" + a.donor + "</b><br>" + a.pct.toFixed(1) + "% of own ODA is digital<br>" +
+          var denom = isAll ? "own ODA" : "ODA to " + scopeLabel;
+          showTip("<b>" + a.donor + "</b><br>" + a.pct.toFixed(1) + "% of " + denom + " is digital<br>" +
             fmtUSD(a.dig) + " digital of " + fmtUSD(a.tot) + " total<br>Mostly " + dt[1], e);
         });
         c.addEventListener("mouseleave", hideTip);
         svg.appendChild(c);
-        // place label right of bubble, flipping left near the right edge
-        var estW = a.donor.length * 7.2 + 8;
-        var right = cx + r + 6 + estW <= mL + pw;
-        var t = el("text", { class: "dot-lab", x: right ? cx + r + 6 : cx - r - 6, y: cy + 4, "text-anchor": right ? "start" : "end" });
+      });
+
+      // ---- second pass: greedy non-overlapping labels ----
+      // Try right → left → above → below; keep the first placement that clears all
+      // already-placed labels AND every bubble, else the one with least overlap.
+      var LH = 15;                                   // label box height (13px bold)
+      function overlapArea(A, B) {
+        var ox = Math.min(A.x2, B.x2) - Math.max(A.x1, B.x1);
+        var oy = Math.min(A.y2, B.y2) - Math.max(A.y1, B.y1);
+        return (ox > 0 && oy > 0) ? ox * oy : 0;
+      }
+      function boxFor(cx, cy, r, w, pos) {
+        var g = 6, d = r * 0.71, tx, ty, anchor, x1;
+        if (pos === "right")      { tx = cx + r + g; ty = cy + 4;          anchor = "start";  x1 = tx; }
+        else if (pos === "left")  { tx = cx - r - g; ty = cy + 4;          anchor = "end";    x1 = tx - w; }
+        else if (pos === "above") { tx = cx;         ty = cy - r - g - 2;  anchor = "middle"; x1 = cx - w / 2; }
+        else if (pos === "below") { tx = cx;         ty = cy + r + g + LH; anchor = "middle"; x1 = cx - w / 2; }
+        else if (pos === "ur")    { tx = cx + d + g; ty = cy - d - 2;      anchor = "start";  x1 = tx; }
+        else if (pos === "dr")    { tx = cx + d + g; ty = cy + d + LH - 4; anchor = "start";  x1 = tx; }
+        else if (pos === "ul")    { tx = cx - d - g; ty = cy - d - 2;      anchor = "end";    x1 = tx - w; }
+        else                      { tx = cx - d - g; ty = cy + d + LH - 4; anchor = "end";    x1 = tx - w; }
+        return { tx: tx, ty: ty, anchor: anchor, x1: x1, x2: x1 + w, y1: ty - 11, y2: ty + 4 };
+      }
+
+      // obstacles start as every bubble's bounding box, then grow with each label
+      var obstacles = rows.map(function (a) {
+        return { x1: a._cx - a._r, x2: a._cx + a._r, y1: a._cy - a._r, y2: a._cy + a._r };
+      });
+      // right → left → above → below, then the four diagonals as fallback slots
+      var POS = ["right", "left", "above", "below", "ur", "dr", "ul", "dl"];
+      rows.forEach(function (a) {
+        var w = a.donor.length * 7.2 + 8;
+        var best = null, bestScore = Infinity;
+        POS.forEach(function (pos) {
+          var b = boxFor(a._cx, a._cy, a._r, w, pos), score = 0;
+          if (b.x1 < mL || b.x2 > mL + pw) score += 1e7;   // off the plot horizontally
+          if (b.y1 < mT || b.y2 > mT + ph) score += 1e7;   // off the plot vertically
+          for (var i = 0; i < obstacles.length; i++) score += overlapArea(b, obstacles[i]);
+          if (score < bestScore) { bestScore = score; best = b; }
+        });
+        obstacles.push(best);                              // later labels avoid this one
+        var t = el("text", { class: "dot-lab", x: best.tx, y: best.ty, "text-anchor": best.anchor });
         t.textContent = a.donor; svg.appendChild(t);
       });
     }

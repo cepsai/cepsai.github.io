@@ -23,5 +23,56 @@
   .bar .s{height:100%}
   .dval{font-variant-numeric:tabular-nums;color:#475569;text-align:right;white-space:nowrap}
   .empty{font-size:12px;color:#94a3b8;font-style:italic}
+
+/* centralize-report-mode */
+.toolbar{position:fixed;top:12px;right:12px;z-index:50;display:flex;gap:8px}
+.toolbar button{font:600 12.5px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  border:1px solid var(--line);background:#fff;color:#334155;border-radius:9px;padding:7px 13px;cursor:pointer;
+  box-shadow:0 1px 3px rgba(15,23,42,.10);transition:.12s}
+.toolbar button:hover{border-color:#94a3b8}
+.toolbar button.on{background:#0d9488;border-color:#0d9488;color:#fff}
+body.report{overflow:auto;height:auto}
+body.report .grid{height:auto;width:auto;display:flex;flex-wrap:wrap;justify-content:center;
+  align-content:flex-start;align-items:flex-start;gap:18px 12px;padding:20px;
+  max-width:calc(var(--rcols,4) * 312px + 40px);margin:0 auto;
+  background:#fff;border:1px solid var(--line);border-radius:14px}
+body.report .card{flex:0 0 300px;height:auto;border:none;box-shadow:none;background:transparent}
+body.report .cstats{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.report .pill{display:none}
+@media print{.toolbar{display:none}}
 </style></head>
-<body><div class="grid"><div class="card"><div class="chead"><span class="cname">Fiji</span><span class="pill" style="background:#0284c7">PACIFIC</span></div><div class="cstats"><b>$4m</b> digital · <b>4</b> donors</div><div class="drow"><div class="dname" title="United Kingdom">United Kingdom</div><div class="bar trk" style="width:100.00%"><span class="s" style="width:13.174%;background:#2563eb"></span><span class="s" style="width:32.335%;background:#d97706"></span><span class="s" style="width:54.491%;background:#16a34a"></span></div><div class="dval">$3m</div></div><div class="drow"><div class="dname" title="France">France</div><div class="bar trk" style="width:7.49%"><span class="s" style="width:100.000%;background:#16a34a"></span></div><div class="dval">$0m</div></div><div class="drow"><div class="dname" title="Germany">Germany</div><div class="bar trk" style="width:3.00%"><span class="s" style="width:100.000%;background:#2563eb"></span></div><div class="dval">$0m</div></div><div class="drow"><div class="dname" title="Ireland">Ireland</div><div class="bar trk" style="width:3.00%"><span class="s" style="width:66.667%;background:#2563eb"></span><span class="s" style="width:33.333%;background:#16a34a"></span></div><div class="dval">$0m</div></div></div><div class="card"><div class="chead"><span class="cname">Palau</span><span class="pill" style="background:#0284c7">PACIFIC</span></div><div class="cstats"><b>$0m</b> digital · <b>0</b> donors</div><div class="empty">No data in this view.</div></div></div></body></html>
+<body><div class="grid"><div class="card"><div class="chead"><span class="cname">Fiji</span><span class="pill" style="background:#0284c7">PACIFIC</span></div><div class="cstats"><b>$4m</b> digital · <b>4</b> donors</div><div class="drow"><div class="dname" title="United Kingdom">United Kingdom</div><div class="bar trk" style="width:100.00%"><span class="s" style="width:13.174%;background:#2563eb"></span><span class="s" style="width:32.335%;background:#d97706"></span><span class="s" style="width:54.491%;background:#16a34a"></span></div><div class="dval">$3m</div></div><div class="drow"><div class="dname" title="France">France</div><div class="bar trk" style="width:7.49%"><span class="s" style="width:100.000%;background:#16a34a"></span></div><div class="dval">$250k</div></div><div class="drow"><div class="dname" title="Germany">Germany</div><div class="bar trk" style="width:3.00%"><span class="s" style="width:100.000%;background:#2563eb"></span></div><div class="dval">$60k</div></div><div class="drow"><div class="dname" title="Ireland">Ireland</div><div class="bar trk" style="width:3.00%"><span class="s" style="width:66.667%;background:#2563eb"></span><span class="s" style="width:33.333%;background:#16a34a"></span></div><div class="dval">$30k</div></div></div><div class="card"><div class="chead"><span class="cname">Palau</span><span class="pill" style="background:#0284c7">PACIFIC</span></div><div class="cstats"><b>$0</b> digital · <b>0</b> donors</div><div class="empty">No data in this view.</div></div></div>
+<script>/* centralize-report-mode */
+(function(){
+  var grid=document.querySelector('.grid');
+  if(!grid)return;
+  var cols=(getComputedStyle(grid).gridTemplateColumns||'').trim().split(/\s+/).filter(Boolean).length||4;
+  grid.style.setProperty('--rcols',cols);
+  var bar=document.createElement('div');bar.className='toolbar';
+  var t=document.createElement('button');t.textContent='Report view';
+  var d=document.createElement('button');d.textContent='Download HTML';
+  bar.appendChild(t);bar.appendChild(d);document.body.appendChild(bar);
+  t.addEventListener('click',function(){
+    var on=document.body.classList.toggle('report');
+    t.classList.toggle('on',on);
+  });
+  d.addEventListener('click',function(){
+    var wasReport=document.body.classList.contains('report');
+    document.body.classList.add('report');
+    var clone=document.documentElement.cloneNode(true);
+    clone.querySelectorAll('.toolbar,script').forEach(function(n){n.remove();});
+    var b=clone.querySelector('body');
+    if(b&&b.className.indexOf('report')<0)b.className=(b.className+' report').trim();
+    var g=clone.querySelector('.grid');if(g)g.style.setProperty('--rcols',cols);
+    var html='<!DOCTYPE html>\n'+clone.outerHTML;
+    if(!wasReport){document.body.classList.remove('report');t.classList.remove('on');}
+    var blob=new Blob([html],{type:'text/html'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;
+    a.download=((document.title||'overview').replace(/[^\w]+/g,'_').replace(/^_+|_+$/g,''))+'_report.html';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  });
+})();
+</script>
+</body></html>
