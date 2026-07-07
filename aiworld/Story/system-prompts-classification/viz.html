@@ -1,0 +1,222 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is inside a system prompt</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  :root { --breakpoint-compact: 500px; }
+  html,body { margin:0; height:100vh; width:100vw; overflow:hidden; color:#0f172a;
+    font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Helvetica,Arial,sans-serif; }
+  .viz-grid { display:grid; height:100vh; box-sizing:border-box; padding-bottom:clamp(8px,2vh,18px);
+    grid-template-rows:16fr 1fr 1fr; grid-template-columns:1fr 1fr; }
+  #container1 { grid-column:1 / -1; } #viz { width:100%; height:100%; }
+  #container5 { grid-column:1 / -1; display:flex; align-items:center; justify-content:center; gap:clamp(6px,1.5vw,16px); flex-wrap:wrap; }
+  #container2 { grid-column:1 / -1; }
+  #legend { display:flex; align-items:center; justify-content:center; gap:clamp(6px,1.4vw,16px); height:100%;
+    font-size:clamp(8px,1.3vw,12px); font-weight:600; color:#333; flex-wrap:wrap; }
+  .lg-item { display:inline-flex; align-items:center; gap:5px; }
+  .lg-swatch { width:11px; height:11px; border-radius:2px; display:inline-block; }
+  #container3 { font-size:clamp(5px,1.6vw,16px); display:flex; align-items:center; justify-content:flex-start;
+    padding:0 20px; overflow:hidden; min-width:0; }
+  #container3 #source-text { font-weight:600; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  #container3 #source-text a { color:#2756d3; text-decoration:underline; }
+  #container4 { display:flex; justify-content:flex-end; align-items:center; padding:0 20px; overflow:hidden; min-width:0; }
+  #container4 a { height:100%; display:flex; align-items:center; }
+  #container4 img { height:100%; width:auto; max-height:100%; max-width:100%; object-fit:contain; }
+  #tooltip { position:fixed; pointer-events:none; display:none; background:#fff;
+    border:1px solid #DBDBDB; padding:6px 8px; font-size:12px; border-radius:4px; z-index:5; }
+  .selector-group { display:flex; align-items:center; justify-content:center;
+    gap:clamp(2px,0.5vw,6px); padding:clamp(2px,0.4vw,4px);
+    border-radius:6px; border:1px solid rgba(17,24,39,0.15); background:#f8fafc;
+    max-width:100%; flex-shrink:1; min-width:0; }
+  .selector-button { border:none; background:transparent; border-radius:6px;
+    padding:clamp(4px,0.8vh,8px) clamp(8px,1.5vw,14px);
+    font-size:clamp(9px,1.4vw,13px); font-weight:600; color:#475569;
+    cursor:pointer; white-space:nowrap; min-width:0;
+    transition:background 0.2s ease, color 0.2s ease; }
+  .selector-button.active { background:#2756d3; color:#fff; }
+  @media (max-height:500px){
+    .viz-grid { grid-template-rows:1fr !important; grid-template-columns:1fr !important; padding-bottom:0; }
+    #container1 { grid-row:1 !important; grid-column:1 / -1 !important; }
+    #container2,#container3,#container4,#container5 { display:none !important; }
+  }
+</style></head><body>
+<div class="viz-grid">
+  <div id="container1"><div id="viz"></div></div>
+  <div id="container5">
+    <div class="selector-group" id="provider-switch"></div>
+    <div class="selector-group" id="scope-switch"></div>
+    <div class="selector-group" id="unit-switch"></div>
+  </div>
+  <div id="container2"><div id="legend"></div></div>
+  <div id="container3"><span id="source-text"></span></div>
+  <div id="container4"><a href="https://aiworld.eu/" target="_blank" rel="noopener"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></div>
+</div>
+<div id="tooltip"></div>
+<script>
+// ---- CONFIG ----
+const SHOW_CONTAINER_2 = 1, SHOW_CONTAINER_3 = 1, SHOW_CONTAINER_4 = 1, SHOW_CONTAINER_5 = 1;
+const BREAKPOINT_COMPACT = 500;
+const METHOD_LABEL = "LLM-judge classification";
+const CAT_ORDER = ["schema_part","tools_rest","pers","prod","safety","wellb","copyr","conduct_o","voice"];
+const CATS = {
+  schema_part: { label:"Tool definitions (machine-readable)", color:"#0d3b8f" },
+  tools_rest:  { label:"Tool usage instructions",             color:"#2756d3" },
+  pers:        { label:"Personalization & memory",            color:"#8B5CF6" },
+  prod:        { label:"Product info",                        color:"#9ecae1" },
+  safety:      { label:"Safety & harm avoidance",             color:"#E53229" },
+  wellb:       { label:"User wellbeing",                      color:"#C51B8A" },
+  copyr:       { label:"Copyright & IP",                      color:"#f59e0b" },
+  conduct_o:   { label:"Other conduct rules",                 color:"#475569" },
+  voice:       { label:"Style, voice & identity",             color:"#74c476" },
+};
+const PROVIDERS = ["Anthropic","OpenAI","Google","xAI","Latest per provider"];
+const FLAGSHIP = {Anthropic:"Claude Fable 5", OpenAI:"GPT-5.5 Thinking", Google:"Gemini 3.1 Pro",
+  xAI:"Grok 4.3 beta", Meta:"Meta AI", Mistral:"Le Chat", Qwen:"Qwen 3.6 Plus"};
+const SOURCE_NAME = "asgeirtj (GitHub)";
+const SOURCE_HREF = "https://github.com/asgeirtj/system_prompts_leaks";
+const DATA = [{"provider": "Anthropic", "model": "Claude 3.7 Sonnet", "order": 0, "date": "2025-02", "total": 15823, "schema": 1700, "tools": 11230, "pers": 1043, "prod": 206, "safety": 586, "wellb": 100, "copyr": 568, "conduct_o": 685, "voice": 1405}, {"provider": "Anthropic", "model": "Claude Sonnet 4", "order": 1, "date": "2025-05", "total": 14442, "schema": 1721, "tools": 9951, "pers": 1043, "prod": 298, "safety": 919, "wellb": 97, "copyr": 489, "conduct_o": 301, "voice": 1344}, {"provider": "Anthropic", "model": "Claude Opus 4.1", "order": 2, "date": "2025-08", "total": 14666, "schema": 1728, "tools": 9611, "pers": 860, "prod": 299, "safety": 898, "wellb": 290, "copyr": 489, "conduct_o": 474, "voice": 1745}, {"provider": "Anthropic", "model": "Claude Sonnet 4.5", "order": 3, "date": "2025-09", "total": 18937, "schema": 1997, "tools": 12913, "pers": 1894, "prod": 197, "safety": 759, "wellb": 279, "copyr": 372, "conduct_o": 677, "voice": 1846}, {"provider": "Anthropic", "model": "Claude Opus 4.5", "order": 4, "date": "2025-11", "total": 12638, "schema": 711, "tools": 7736, "pers": 1054, "prod": 444, "safety": 492, "wellb": 367, "copyr": 1055, "conduct_o": 635, "voice": 855}, {"provider": "Anthropic", "model": "Claude Opus 4.6", "order": 5, "date": "2026-02", "total": 23697, "schema": 2774, "tools": 14926, "pers": 3736, "prod": 405, "safety": 845, "wellb": 978, "copyr": 1025, "conduct_o": 718, "voice": 1064}, {"provider": "Anthropic", "model": "Claude Opus 4.7", "order": 6, "date": "2026-04", "total": 24167, "schema": 2736, "tools": 14912, "pers": 3771, "prod": 388, "safety": 942, "wellb": 1302, "copyr": 1103, "conduct_o": 662, "voice": 1087}, {"provider": "Anthropic", "model": "Claude Opus 4.8", "order": 7, "date": "2026-05", "total": 24358, "schema": 4183, "tools": 15074, "pers": 3512, "prod": 566, "safety": 1200, "wellb": 1309, "copyr": 1025, "conduct_o": 635, "voice": 1037}, {"provider": "Anthropic", "model": "Claude Fable 5", "order": 8, "date": "2026-06", "total": 25095, "schema": 4200, "tools": 15636, "pers": 3512, "prod": 665, "safety": 1077, "wellb": 1387, "copyr": 1148, "conduct_o": 831, "voice": 839}, {"provider": "OpenAI", "model": "GPT-4o", "order": 9, "date": "2026-02*", "total": 4469, "schema": 293, "tools": 3923, "pers": 36, "prod": 0, "safety": 0, "wellb": 254, "copyr": 0, "conduct_o": 191, "voice": 65}, {"provider": "OpenAI", "model": "GPT-4.5", "order": 10, "date": "2026-06*", "total": 4432, "schema": 259, "tools": 3693, "pers": 36, "prod": 408, "safety": 0, "wellb": 0, "copyr": 0, "conduct_o": 0, "voice": 295}, {"provider": "OpenAI", "model": "GPT-5 Thinking", "order": 11, "date": "2025-08", "total": 11992, "schema": 294, "tools": 9500, "pers": 930, "prod": 0, "safety": 349, "wellb": 0, "copyr": 166, "conduct_o": 215, "voice": 832}, {"provider": "OpenAI", "model": "GPT-5.2 Thinking", "order": 12, "date": "2026-03", "total": 10246, "schema": 913, "tools": 8070, "pers": 311, "prod": 508, "safety": 205, "wellb": 0, "copyr": 105, "conduct_o": 354, "voice": 693}, {"provider": "OpenAI", "model": "GPT-5.4 Thinking", "order": 13, "date": "2026-04", "total": 14564, "schema": 1964, "tools": 12893, "pers": 91, "prod": 502, "safety": 291, "wellb": 0, "copyr": 164, "conduct_o": 117, "voice": 506}, {"provider": "OpenAI", "model": "GPT-5.5 Thinking", "order": 14, "date": "2026-05", "total": 16719, "schema": 1140, "tools": 14026, "pers": 778, "prod": 553, "safety": 233, "wellb": 0, "copyr": 166, "conduct_o": 225, "voice": 738}, {"provider": "Google", "model": "Gemini 2.0 Flash", "order": 15, "date": null, "total": 354, "schema": 0, "tools": 31, "pers": 9, "prod": 0, "safety": 0, "wellb": 0, "copyr": 0, "conduct_o": 0, "voice": 314}, {"provider": "Google", "model": "Gemini 2.5 Pro", "order": 16, "date": null, "total": 292, "schema": 0, "tools": 220, "pers": 0, "prod": 0, "safety": 0, "wellb": 0, "copyr": 0, "conduct_o": 0, "voice": 72}, {"provider": "Google", "model": "Gemini 3 Pro", "order": 17, "date": null, "total": 2165, "schema": 0, "tools": 722, "pers": 0, "prod": 0, "safety": 536, "wellb": 0, "copyr": 0, "conduct_o": 105, "voice": 802}, {"provider": "Google", "model": "Gemini 3.1 Pro", "order": 18, "date": null, "total": 3688, "schema": 0, "tools": 1688, "pers": 565, "prod": 229, "safety": 103, "wellb": 0, "copyr": 197, "conduct_o": 87, "voice": 819}, {"provider": "Google", "model": "Gemini 3.5 Flash", "order": 19, "date": null, "total": 1680, "schema": 56, "tools": 761, "pers": 188, "prod": 0, "safety": 0, "wellb": 0, "copyr": 0, "conduct_o": 178, "voice": 553}, {"provider": "xAI", "model": "Grok 3", "order": 20, "date": "2025-02", "total": 704, "schema": 0, "tools": 108, "pers": 94, "prod": 382, "safety": 0, "wellb": 0, "copyr": 0, "conduct_o": 0, "voice": 120}, {"provider": "xAI", "model": "Grok 4", "order": 21, "date": "2025-07", "total": 1651, "schema": 0, "tools": 1291, "pers": 0, "prod": 199, "safety": 0, "wellb": 0, "copyr": 0, "conduct_o": 76, "voice": 85}, {"provider": "xAI", "model": "Grok 4.1 beta", "order": 22, "date": "2025-12", "total": 2019, "schema": 0, "tools": 1647, "pers": 0, "prod": 186, "safety": 111, "wellb": 0, "copyr": 0, "conduct_o": 75, "voice": 0}, {"provider": "xAI", "model": "Grok 4.2", "order": 23, "date": null, "total": 2304, "schema": 1265, "tools": 1837, "pers": 0, "prod": 0, "safety": 98, "wellb": 0, "copyr": 0, "conduct_o": 109, "voice": 260}, {"provider": "xAI", "model": "Grok 4.3 beta", "order": 24, "date": "2026", "total": 3579, "schema": 479, "tools": 3001, "pers": 47, "prod": 0, "safety": 103, "wellb": 0, "copyr": 0, "conduct_o": 274, "voice": 154}, {"provider": "Meta", "model": "Meta AI", "order": 25, "date": "2026", "total": 7437, "schema": 3349, "tools": 5552, "pers": 44, "prod": 13, "safety": 290, "wellb": 107, "copyr": 0, "conduct_o": 283, "voice": 1148}, {"provider": "Mistral", "model": "Le Chat", "order": 26, "date": "2025-08", "total": 2487, "schema": 290, "tools": 2060, "pers": 35, "prod": 0, "safety": 0, "wellb": 0, "copyr": 0, "conduct_o": 22, "voice": 370}, {"provider": "Qwen", "model": "Qwen 3.6 Plus", "order": 27, "date": "2026-04", "total": 715, "schema": 699, "tools": 699, "pers": 0, "prod": 0, "safety": 0, "wellb": 0, "copyr": 0, "conduct_o": 0, "voice": 16}];
+
+document.getElementById("source-text").innerHTML =
+  'Source: <a href="'+SOURCE_HREF+'" target="_blank" rel="noopener">'+SOURCE_NAME+'</a>';
+(function applyContainerVisibility(){
+  const grid=document.querySelector(".viz-grid"), c=n=>document.getElementById("container"+n);
+  const rows=["17fr"];let r=1;
+  rows.push("1fr");r++;c(5).style.gridRow=r;
+  rows.push("1fr");r++;c(2).style.gridRow=r;
+  rows.push("1fr");r++;c(3).style.gridRow=r;c(4).style.gridRow=r;
+  grid.style.gridTemplateRows=rows.join(" ");
+  c(1).style.gridRow="1";
+})();
+
+const tooltip=d3.select("#tooltip");
+const vizContainer=document.getElementById("viz");
+let firstRender=true;
+let currentProvider="Anthropic", currentScope="all", currentUnit="share";
+const fmt=d3.format(",");
+
+function seriesData(){
+  if(currentProvider==="Latest per provider")
+    return Object.entries(FLAGSHIP).map(([p,m])=>DATA.find(d=>d.provider===p&&d.model===m)).filter(Boolean);
+  return DATA.filter(d=>d.provider===currentProvider).sort((a,b)=>a.order-b.order);
+}
+function parts(d){
+  const schema=Math.min(d.schema,d.tools), rest=d.tools-schema;
+  const all={schema_part:schema, tools_rest:rest, pers:d.pers, prod:d.prod,
+             safety:d.safety, wellb:d.wellb, copyr:d.copyr, conduct_o:d.conduct_o, voice:d.voice};
+  if(currentScope==="noschema") all.schema_part=0;
+  if(currentScope==="notools"){ all.schema_part=0; all.tools_rest=0; }
+  return all;
+}
+function activeCats(){
+  if(currentScope==="notools") return CAT_ORDER.filter(k=>k!=="schema_part"&&k!=="tools_rest");
+  if(currentScope==="noschema") return CAT_ORDER.filter(k=>k!=="schema_part");
+  return CAT_ORDER;
+}
+function buildSwitch(id, options, get, set){
+  const el=document.getElementById(id); el.innerHTML="";
+  options.forEach(([v,label])=>{
+    const b=document.createElement("button");
+    b.type="button"; b.className="selector-button"+(v===get()?" active":"");
+    b.textContent=label; b.dataset.value=v; b.title=label; b.setAttribute("aria-label",label);
+    b.addEventListener("click",()=>{ if(get()===v)return; set(v);
+      el.querySelectorAll(".selector-button").forEach(x=>x.classList.toggle("active",x.dataset.value===v));
+      render(); });
+    el.appendChild(b);
+  });
+}
+buildSwitch("provider-switch", PROVIDERS.map(p=>[p,p==="Latest per provider"?"Latest, all providers":p]),
+  ()=>currentProvider, v=>currentProvider=v);
+buildSwitch("scope-switch", [["all","All content"],["noschema","Hide tool definitions"],["notools","Hide all tool content"]],
+  ()=>currentScope, v=>currentScope=v);
+buildSwitch("unit-switch", [["share","Share %"],["words","Words"]],
+  ()=>currentUnit, v=>currentUnit=v);
+
+function buildLegend(){
+  const el=document.getElementById("legend"); el.innerHTML="";
+  activeCats().forEach(k=>{
+    const s=document.createElement("span"); s.className="lg-item";
+    s.innerHTML='<span class="lg-swatch" style="background:'+CATS[k].color+'"></span>'+CATS[k].label;
+    el.appendChild(s);
+  });
+}
+
+function shortName(m){
+  return m.replace("Claude ","").replace("Gemini ","").replace(" Thinking","")
+          .replace(" beta","").replace(" Plus","");
+}
+
+function render(){
+  buildLegend();
+  d3.select("#viz").selectAll("*").remove();
+  const rect=vizContainer.getBoundingClientRect();
+  const compact=window.matchMedia(`(max-height:${BREAKPOINT_COMPACT}px)`).matches;
+  const W=Math.max(rect.width,320), H=Math.max(rect.height,220);
+  const rows=seriesData(), cats=activeCats();
+  const latest=currentProvider==="Latest per provider";
+  const share=currentUnit==="share";
+  const stackRows=rows.map(d=>{
+    const p=parts(d), tot=d3.sum(cats,k=>p[k])||1;
+    const o={m:d, tot};
+    cats.forEach(k=>o[k]=share?100*p[k]/tot:p[k]);
+    return o;
+  });
+  const stack=d3.stack().keys(cats)(stackRows);
+  const margin={top:compact?26:44, right:24, bottom:34, left:compact?86:118};
+  const iw=W-margin.left-margin.right, ih=H-margin.top-margin.bottom;
+  const svg=d3.select("#viz").append("svg").attr("width",W).attr("height",H);
+  const g=svg.append("g").attr("transform",`translate(${margin.left},${margin.top})`);
+  const yd=stackRows.map(r=>latest?r.m.provider:shortName(r.m.model));
+  const y=d3.scaleBand().domain(yd).range([0,ih]).padding(0.28);
+  const xMax=share?100:d3.max(stackRows,r=>d3.sum(cats,k=>r[k]))*1.02;
+  const x=d3.scaleLinear().domain([0,xMax]).range([0,iw]).nice();
+
+  g.append("g").call(d3.axisTop(x).ticks(compact?4:6)
+      .tickFormat(d=>share?d+"%":(d>=1000?(d/1000)+"k":d)).tickSize(-ih))
+    .call(s=>{s.select(".domain").remove();
+      s.selectAll("line").attr("stroke","#DBDBDB").attr("stroke-dasharray","2,3");
+      s.selectAll("text").style("font-weight",600).style("font-size","clamp(9px,1.2vw,12px)");});
+  g.append("g").call(d3.axisLeft(y).tickSize(0))
+    .call(s=>{s.select(".domain").attr("stroke","#111");
+      s.selectAll("text").style("font-weight",600).style("font-size","clamp(9px,1.2vw,12px)");});
+  if(!compact) svg.append("text").attr("x",margin.left).attr("y",20)
+    .style("font-weight",700).style("font-size","clamp(11px,1.7vw,16px)").attr("fill","#0f172a")
+    .text((latest?"Prompt content by type, latest flagship prompts"
+                 :"Prompt content by type: "+currentProvider)
+          +(share?" (share of words)":" (words)")+" · "+METHOD_LABEL);
+
+  const reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const layers=g.selectAll(".layer").data(stack).join("g").attr("fill",d=>CATS[d.key].color);
+  const bars=layers.selectAll("rect").data(d=>d.map(v=>({v,key:d.key}))).join("rect")
+    .attr("y",d=>y(latest?d.v.data.m.provider:shortName(d.v.data.m.model)))
+    .attr("height",y.bandwidth())
+    .attr("x",d=>x(d.v[0])).attr("width",d=>Math.max(0,x(d.v[1])-x(d.v[0])))
+    .attr("stroke","#fff").attr("stroke-width",0.6)
+    .on("mousemove",(e,d)=>{
+      const m=d.v.data.m, p=parts(m), tot=d3.sum(activeCats(),k=>p[k])||1;
+      tooltip.style("display","block")
+        .style("left",Math.min(e.clientX+12,window.innerWidth-240)+"px")
+        .style("top",Math.min(e.clientY+12,window.innerHeight-140)+"px")
+        .html(`<b>${m.model}</b>${m.date?" · "+m.date:""}<br>`+
+          `<span style="color:${CATS[d.key].color}">■</span> ${CATS[d.key].label}: `+
+          `<b>${(100*p[d.key]/tot).toFixed(1)}%</b> (${fmt(p[d.key])} words)<br>`+
+          `<span style="color:#475569">${fmt(Math.round(tot))} words in scope</span>`);
+    })
+    .on("mouseleave",()=>tooltip.style("display","none"));
+  if(firstRender&&!reduced){
+    bars.attr("width",0).attr("x",x(0))
+      .transition().duration(850).ease(d3.easeCubicOut)
+      .attr("x",d=>x(d.v[0])).attr("width",d=>Math.max(0,x(d.v[1])-x(d.v[0])));
+  }
+  firstRender=false;
+}
+try{ render(); }catch(err){
+  const box=document.createElement("div");
+  box.style.cssText="position:fixed;top:8px;left:8px;background:#fee;border:1px solid #E53229;color:#900;padding:6px 10px;font-size:12px;border-radius:4px;";
+  box.textContent="Render error: "+err.message; document.body.appendChild(box);
+}
+let resizeTimer=null;
+window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(render,220);});
+if(typeof ResizeObserver!=="undefined")
+  new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(render,220);}).observe(vizContainer);
+</script></body></html>
