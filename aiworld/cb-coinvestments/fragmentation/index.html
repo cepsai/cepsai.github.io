@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EU vs US · Co-investment, syndication & fragmentation</title>
+<style>
+  :root{
+    --ink:#1f2933; --muted:#6b7785; --line:#e2e7ee; --bg:#f6f8fb; --card:#fff;
+    --us:#E1701A; --eu:#2756d3;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Helvetica,Arial,sans-serif;
+       color:var(--ink);background:var(--bg);line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1220px;margin:0 auto;padding:clamp(20px,4vw,44px) clamp(16px,3vw,28px) 60px;}
+
+  header{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;
+         padding-bottom:22px;margin-bottom:28px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+  header h1{font-size:clamp(22px,3vw,32px);margin:0 0 8px;letter-spacing:-.01em;font-weight:800;}
+  header h1 .us{color:var(--us)} header h1 .eu{color:var(--eu)}
+  header p{margin:0;max-width:70ch;color:#3b4653;font-size:clamp(14px,1.5vw,16px);}
+  .logo-link{flex-shrink:0;display:flex;align-items:center;height:40px;}
+  .logo-link img{height:100%;width:auto;}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:22px;}
+  .card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);
+        border-radius:14px;overflow:hidden;text-decoration:none;color:inherit;
+        transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;box-shadow:0 1px 2px rgba(16,24,40,.04);}
+  .card:hover{transform:translateY(-3px);box-shadow:0 14px 34px rgba(16,24,40,.13);border-color:#c9d4e6;}
+  .thumb{position:relative;overflow:hidden;background:#fff;border-bottom:1px solid var(--line);}
+  .thumb iframe{border:0;width:1200px;height:750px;transform-origin:top left;pointer-events:none;}
+  .thumb .veil{position:absolute;inset:0;}
+  .meta{padding:14px 16px 16px;}
+  .meta .k{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+           padding:2px 8px;border-radius:999px;margin-bottom:9px;}
+  .k.flow{color:var(--eu);background:#e9eefb} .k.time{color:#0f7b6c;background:#e4f4f0}
+  .k.geo{color:var(--us);background:#fbe9dd} .k.struct{color:#6b3fa0;background:#efe8fa}
+  .meta h3{margin:0 0 5px;font-size:16px;font-weight:700;display:flex;align-items:center;gap:6px;}
+  .meta h3 .arw{color:var(--muted);font-weight:600;transition:transform .16s ease;}
+  .card:hover .meta h3 .arw{transform:translate(2px,-2px);}
+  .meta p{margin:0;font-size:13.5px;color:var(--muted);}
+
+  footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);font-size:13px;color:var(--muted);}
+  footer a{color:var(--eu);}
+  @media (max-width:480px){.grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1><span class="eu">EU</span> vs <span class="us">US</span> — co-investment, syndication &amp; fragmentation</h1>
+      <p>Nine standalone charts from Crunchbase funding rounds (all sectors, 2015–2025), asking whether Europe's
+         investment market is more fragmented than America's. Company-anchored; a jurisdiction is a US state or an
+         EU member state. Click any panel to open the full interactive chart.</p>
+    </div>
+    <a class="logo-link" href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" alt="AI World">
+    </a>
+  </header>
+
+  <div class="grid" id="grid"></div>
+
+  <footer>
+    Source: <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a> funding rounds ·
+    company-anchored, equal-USD-split investor attribution · two Europe definitions (EU-27, EU-27 + UK + EFTA).
+    Built by <a href="https://aiworld.eu/" target="_blank" rel="noopener">AI World</a>.
+  </footer>
+</div>
+
+<script>
+  const CARDS = [
+    {f:'sankey.html', k:'flow', t:'Syndicate → capital flow',
+     d:'Single- vs multi-jurisdiction syndicates, and whether they keep capital at home or send it across internal borders — by rounds or dollars.'},
+    {f:'funding_origin.html', k:'flow', t:'Where the funding comes from',
+     d:'Each market’s capital split by investor origin: domestic, elsewhere in the bloc, or from outside it.'},
+    {f:'syndication_fragmentation.html', k:'time', t:'Syndication & fragmentation over time',
+     d:'The headline gap, year by year — multi-jurisdiction syndication and internal cross-border reach, US vs EU.'},
+    {f:'chord.html', k:'struct', t:'Co-investment network',
+     d:'Who co-invests with whom. The US collapses onto a California–New York hub; the EU spreads out with no comparable centre.'},
+    {f:'maps.html', k:'geo', t:'Cross-border reach, mapped',
+     d:'Share of each jurisdiction’s funding that comes from elsewhere in the bloc — deep across US states, pale across the EU.'},
+    {f:'concentration.html', k:'struct', t:'Market concentration (Lorenz + Gini)',
+     d:'How few jurisdictions do most of the investing. The US is more concentrated, yet more integrated — concentration ≠ fragmentation.'},
+    {f:'syndicate_size.html', k:'time', t:'Syndicate size over time',
+     d:'Rounds by number of distinct in-bloc investor jurisdictions (none / 1 / 2 / 3+).'},
+    {f:'stage_bars.html', k:'flow', t:'Fragmentation by stage',
+     d:'Multi-jurisdiction syndication across funding stages, pooled 2015–2025.'},
+    {f:'stage_trends.html', k:'time', t:'By stage, over time',
+     d:'Pick a funding stage and watch the US–EU gap evolve; thin (low-data) years are flagged.'},
+  ];
+  const grid = document.getElementById('grid');
+  CARDS.forEach(c => {
+    const a = document.createElement('a');
+    a.className = 'card'; a.href = 'viz/' + c.f; a.target = '_blank'; a.rel = 'noopener';
+    a.innerHTML =
+      '<div class="thumb"><iframe scrolling="no" src="viz/' + c.f + '"></iframe><span class="veil"></span></div>' +
+      '<div class="meta"><span class="k ' + c.k + '">' + ({flow:'Flow',time:'Over time',geo:'Geographic',struct:'Structure'}[c.k]) + '</span>' +
+      '<h3>' + c.t + ' <span class="arw">↗</span></h3><p>' + c.d + '</p></div>';
+    grid.appendChild(a);
+  });
+  function fit(){
+    document.querySelectorAll('.thumb').forEach(t => {
+      const s = t.clientWidth / 1200;
+      t.querySelector('iframe').style.transform = 'scale(' + s + ')';
+      t.style.height = (750 * s) + 'px';
+    });
+  }
+  window.addEventListener('resize', fit);
+  window.addEventListener('load', fit);
+  fit(); setTimeout(fit, 300);
+</script>
+</body>
+</html>

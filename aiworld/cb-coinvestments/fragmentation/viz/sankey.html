@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VC Capital Flow</title>
+<link rel="stylesheet" href="viz.css">
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1">
+    <div class="chart-area">
+      <div class="duo">
+        <div class="col" id="colUS"><div class="col-cap us" id="capUS">US states</div><div class="chart-fit" id="sankey-US"></div></div>
+        <div class="col" id="colEU"><div class="col-cap eu" id="capEU">EU-27 member states</div><div class="chart-fit" id="sankey-EU"></div></div>
+      </div>
+    </div>
+  </div>
+  <div id="container2">
+    <div class="ctrl-left">
+      <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a></div>
+    </div>
+    <div class="ctrl-center">
+      <div class="top-filter" id="regpills">
+        <button data-reg="BOTH" class="active">Both</button>
+        <button data-reg="US">US</button>
+        <button data-reg="EU">EU</button>
+      </div>
+      <div class="top-filter" id="wpills">
+        <button data-w="rounds" class="active">Rounds</button>
+        <button data-w="usd">$</button>
+      </div>
+      <div class="top-filter" id="eupills">
+        <button data-eu="EU27" class="active">EU-27</button>
+        <button data-eu="EUWIDE">EU+</button>
+      </div>
+      <div id="yrpick"></div>
+    </div>
+    <div class="ctrl-right">
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener" class="logo-link">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+      </a>
+    </div>
+  </div>
+</div>
+<script src="../data/data.js"></script>
+<script src="viz-lib.js"></script>
+<script>
+(function(){
+  const M=VL.M; let eu='EU27', w='rounds', years=[], region='BOTH';
+  // URL settings: ?region=US|EU|BOTH & weight=rounds|usd & eu=EU27|EUWIDE
+  //   & years=2020 | 2015-2025 | 2018,2020 | all
+  //   & hide=region,weight,eu,years (any subset) | hide=controls (all buttons) | hide=bar (whole bottom bar)
+  const Q=new URLSearchParams(location.search);
+  const qr=(Q.get('region')||'').toUpperCase(); if(['US','EU','BOTH'].includes(qr)) region=qr;
+  const qw=(Q.get('weight')||'').toLowerCase(); if(qw==='usd'||qw==='$') w='usd'; else if(qw==='rounds') w='rounds';
+  const qe=(Q.get('eu')||'').toUpperCase().trim(); if(qe==='EU27') eu='EU27'; else if(qe==='EUWIDE'||qe==='EU+'||qe==='EUPLUS') eu='EUWIDE';
+  const hidden=new Set((Q.get('hide')||'').toLowerCase().split(',').map(t=>t.trim()).filter(Boolean));
+  if(hidden.has('controls')||hidden.has('all')||hidden.has('buttons')) ['region','weight','eu','years'].forEach(t=>hidden.add(t));
+  function parseYears(str, avail){
+    if(!str) return null;
+    if(str.toLowerCase()==='all') return avail.slice();
+    const out=new Set();
+    str.split(',').forEach(t=>{ t=t.trim();
+      const m=t.match(/^(\d{4})\s*[-–]\s*(\d{4})$/);
+      if(m){ for(let y=+m[1];y<=+m[2];y++) if(avail.includes(y)) out.add(y); }
+      else if(/^\d{4}$/.test(t) && avail.includes(+t)) out.add(+t);
+    });
+    return out.size ? [...out].sort((a,b)=>a-b) : null;
+  }
+  // sum the per-year 2x2 cells for the selected years
+  function agg(mk){
+    const acc={};
+    years.forEach(y=>{(M.sankey_year[mk][String(y)]||[]).forEach(c=>{
+      const k=c.source+'|'+c.target;
+      (acc[k]=acc[k]||{source:c.source,target:c.target,rounds:0,usd:0});
+      acc[k].rounds+=c.rounds; acc[k].usd+=c.usd;
+    });});
+    return Object.values(acc);
+  }
+  function draw(){
+    document.getElementById('capEU').textContent = VL.euLabel(eu) + ' member states';
+    VL.sankey('sankey-US', agg('US'), {weight:w});
+    VL.sankey('sankey-EU', agg(eu), {weight:w});
+  }
+  function applyRegion(){
+    document.getElementById('colUS').classList.toggle('hidden', region==='EU');
+    document.getElementById('colEU').classList.toggle('hidden', region==='US');
+    document.querySelector('.duo').classList.toggle('single', region!=='BOTH');
+    document.getElementById('eupills').style.display = (region==='US'||hidden.has('eu')) ? 'none' : '';
+  }
+  function setActive(id, attr, val){
+    document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('active', b.dataset[attr]===val));
+  }
+  setActive('regpills','reg',region); setActive('wpills','w',w); setActive('eupills','eu',eu);
+  const hideMap={region:'regpills', weight:'wpills', eu:'eupills', years:'yrpick'};
+  Object.keys(hideMap).forEach(t=>{ if(hidden.has(t)) document.getElementById(hideMap[t]).style.display='none'; });
+  if(hidden.has('bar')) document.getElementById('container2').style.display='none';
+  VL.pills('regpills', v=>{region=v;applyRegion();draw();});
+  VL.pills('wpills', v=>{w=v;draw();});
+  VL.pills('eupills', v=>{eu=v;draw();});
+  applyRegion();
+  // offer 2010–2026; default to the 2015–2025 stable window (matches the pooled view)
+  const avail=[]; for(let y=2010;y<=2026;y++) avail.push(y);
+  VL.yearDropdown('yrpick',{years:avail, initial:parseYears(Q.get('years'),avail)||avail.filter(y=>y>=2015&&y<=2025),
+    recent:[2015,2025], onChange:ys=>{years=ys;draw();}});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Syndication & fragmentation over time</title>
+<link rel="stylesheet" href="viz.css">
+</head>
+<body>
+<div class="viz-grid has-foot">
+  <div id="container1">
+    <div class="chart-area"><div class="chart-fit" id="chart"></div></div>
+  </div>
+  <div id="container2">
+    <div class="ctrl-left">
+      <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a></div>
+    </div>
+    <div class="ctrl-center">
+      <div class="custom-legend">
+        <span class="legend-item"><span class="legend-square" style="background:var(--us)"></span>US (across states)</span>
+        <span class="legend-item"><span class="legend-square" style="background:var(--eu)"></span>EU (across member states)</span>
+      </div>
+    </div>
+    <div class="ctrl-right">
+      <div class="top-filter" id="metpills">
+        <button data-met="synd" class="active">Syndication</button>
+        <button data-met="frag">Fragmentation</button>
+      </div>
+      <div class="top-filter" id="wpills">
+        <button data-w="rounds" class="active">Rounds</button>
+        <button data-w="usd">$</button>
+      </div>
+      <div class="top-filter" id="eupills">
+        <button data-eu="EU27" class="active">EU-27</button>
+        <button data-eu="EUWIDE">EU+</button>
+      </div>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener" class="logo-link">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+      </a>
+    </div>
+  </div>
+  <div class="viz-foot" id="note"></div>
+</div>
+<script src="../data/data.js"></script>
+<script src="viz-lib.js"></script>
+<script>
+(function(){
+  const M=VL.M; let met='synd', w='rounds', eu='EU27';
+  const yf=arr=>arr.filter(d=>d.key>=2008&&d.key<=2025);
+  const FIELD={
+    synd:{rounds:'multi_share_rounds', usd:'multi_share_usd'},
+    frag:{rounds:'xborder_share_rounds', usd:'ib_share_usd'}
+  };
+  const NOTE={
+  };
+
+  // ---- read settings + chrome flags from the URL (query string) ----
+  // settings:  ?met=synd|frag  &w=rounds|usd  &eu=EU27|EUWIDE
+  // hide chrome: ?buttons=0 (&source=0 &legend=0 &logo=0 &chrome=0)  or  ?hide=buttons,logo
+  const P=new URLSearchParams(location.search);
+  if(['synd','frag'].includes(P.get('met'))) met=P.get('met');
+  if(['rounds','usd'].includes(P.get('w'))) w=P.get('w');
+  if(['EU27','EUWIDE'].includes(P.get('eu'))) eu=P.get('eu');
+  const hideSet=new Set((P.get('hide')||'').split(',').map(s=>s.trim()).filter(Boolean));
+  ['buttons','source','legend','logo','chrome'].forEach(k=>{
+    const v=P.get(k);
+    if(hideSet.has(k)||v==='0'||v==='false'||v==='no'||v==='hide') document.body.classList.add('hide-'+k);
+  });
+  const setActive=(id,attr,val)=>{const g=document.getElementById(id); if(g)[...g.querySelectorAll('button')].forEach(b=>b.classList.toggle('active',b.dataset[attr]===val));};
+  setActive('metpills','met',met); setActive('wpills','w',w); setActive('eupills','eu',eu);
+
+  function draw(){
+    const f=FIELD[met][w];
+    document.getElementById('note').textContent=NOTE[met]||'';
+    VL.lineChart('chart',[
+      {label:'US',color:'var(--us)',pts:yf(M.timeseries.US).map(d=>({x:d.key,y:d[f],n:d.n_rounds}))},
+      {label:'EU',color:'var(--eu)',pts:yf(M.timeseries[eu]).map(d=>({x:d.key,y:d[f],n:d.n_rounds}))},
+    ],{tipLabel: met==='synd'?'Multi-jurisdiction share':'Internal cross-border share', W:960,H:360});
+  }
+  VL.pills('metpills', v=>{met=v;draw();});
+  VL.pills('wpills', v=>{w=v;draw();});
+  VL.pills('eupills', v=>{eu=v;draw();});
+  draw();
+})();
+</script>
+</body>
+</html>

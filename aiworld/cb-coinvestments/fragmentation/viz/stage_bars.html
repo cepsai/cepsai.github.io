@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fragmentation by stage</title>
+<link rel="stylesheet" href="viz.css">
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1">
+    <div class="chart-area"><div class="chart-fit" id="chart"></div></div>
+  </div>
+  <div id="container2">
+    <div class="ctrl-left">
+      <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a></div>
+    </div>
+    <div class="ctrl-center">
+      <div class="custom-legend">
+        <span class="legend-item"><span class="legend-square" style="background:var(--us)"></span>US</span>
+        <span class="legend-item"><span class="legend-square" style="background:var(--eu)"></span>EU</span>
+      </div>
+    </div>
+    <div class="ctrl-right">
+      <div class="top-filter" id="mpills">
+        <button data-m="multi" class="active">Syndication</button>
+        <button data-m="xb">Fragmentation</button>
+      </div>
+      <div class="top-filter" id="wpills">
+        <button data-w="rounds" class="active">Rounds</button>
+        <button data-w="usd">$</button>
+      </div>
+      <div class="top-filter" id="eupills">
+        <button data-eu="EU27" class="active">EU-27</button>
+        <button data-eu="EUWIDE">EU+</button>
+      </div>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener" class="logo-link">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+      </a>
+    </div>
+  </div>
+</div>
+<script src="../data/data.js"></script>
+<script src="viz-lib.js"></script>
+<script>
+(function(){
+  const M=VL.M; let m='multi', w='rounds', eu='EU27';
+  const field=()=> m==='multi' ? (w==='usd'?'multi_share_usd':'multi_share_rounds')
+                                : (w==='usd'?'ib_share_usd':'xborder_share_rounds');
+  const tipLabel=()=> m==='multi' ? (w==='usd'?'Multi-jurisdiction $':'Multi-jurisdiction rounds')
+                                   : (w==='usd'?'Internal cross-border $':'Cross-border rounds');
+  function draw(){
+    const f=field();
+    const cats=M.bucket_order.filter(b=>b!=='Other'&&b!=='Series (unknown)');
+    const us=Object.fromEntries(M.by_bucket.US.map(d=>[d.key,d]));
+    const ee=Object.fromEntries(M.by_bucket[eu].map(d=>[d.key,d]));
+    const present=cats.filter(c=>us[c]&&ee[c]);
+    VL.groupedBar('chart',present,[
+      {label:'US',color:'var(--us)',values:present.map(c=>us[c][f])},
+      {label:'EU',color:'var(--eu)',values:present.map(c=>ee[c][f])},
+    ],{tipLabel:tipLabel()});
+  }
+  VL.pills('mpills', v=>{m=v;draw();});
+  VL.pills('wpills', v=>{w=v;draw();});
+  VL.pills('eupills', v=>{eu=v;draw();});
+  draw();
+})();
+</script>
+</body>
+</html>
