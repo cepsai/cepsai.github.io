@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where funding crosses internal borders</title>
+<link rel="stylesheet" href="viz.css">
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1">
+    <div class="chart-area">
+      <div class="duo">
+        <div class="col"><div class="col-cap us">US · states</div><div class="chart-fit" id="map-US"></div></div>
+        <div class="col"><div class="col-cap eu" id="capEU">EU-27 · member states</div><div class="chart-fit" id="map-EU"></div></div>
+      </div>
+    </div>
+  </div>
+  <div id="container2">
+    <div class="ctrl-left">
+      <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a> · % of a jurisdiction's funding $ from investors elsewhere in the bloc, 2015–2025</div>
+    </div>
+    <div class="ctrl-center">
+      <div class="custom-legend">
+        <span class="legend-item">0%</span>
+        <span class="legend-square" style="width:120px;height:12px;border-radius:3px;background:linear-gradient(90deg,#eef2f7,#2756d3)"></span>
+        <span class="legend-item">75%+ from elsewhere in bloc</span>
+      </div>
+    </div>
+    <div class="ctrl-right">
+      <div class="top-filter" id="eupills">
+        <button data-eu="EU27" class="active">EU-27</button>
+        <button data-eu="EUWIDE">EU+</button>
+      </div>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener" class="logo-link">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+      </a>
+    </div>
+  </div>
+</div>
+<script src="data.js"></script>
+<script src="geo.js"></script>
+<script src="viz-lib.js"></script>
+<script>
+(function(){
+  const M=VL.M; let eu='EU27';
+  const DOMAIN=[0,0.75];
+  const inbound=mk=>{const o={};M.by_jur[mk].forEach(d=>{const t=d.in_dom+d.in_ib+d.in_intl;if(t>0)o[d.jur]=d.in_ib/t;});return o;};
+  function draw(){
+    document.getElementById('capEU').textContent = VL.euLabel(eu) + ' · member states';
+    VL.geoMap('map-US', GEO.US, inbound('US'), {domain:DOMAIN,tipLabel:'From elsewhere in bloc',fmt:VL.fmtPct1,W:480,H:360});
+    VL.geoMap('map-EU', GEO.EU, inbound(eu), {domain:DOMAIN,tipLabel:'From elsewhere in bloc',fmt:VL.fmtPct1,W:480,H:360});
+  }
+  VL.pills('eupills', v=>{eu=v;draw();});
+  draw();
+})();
+</script>
+</body>
+</html>
