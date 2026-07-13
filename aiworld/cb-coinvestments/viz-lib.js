@@ -65,23 +65,26 @@
     box.appendChild(s);
   }
 
-  // ---- sankey 2x2  (weight = 'rounds' | 'usd')
+  // ---- sankey (weight = 'rounds' | 'usd'); node sets/colors/labels overridable via opts
   function sankey(id, links, opts) {
     opts = opts || {}; const weight = opts.weight || 'rounds';
     const box = document.getElementById(id); box.innerHTML = '';
     const W = 460, H = 380, nodeW = 15, padY = 34;
     const s = svg(W, H);
-    const srcNames = ['Single-jurisdiction syndicate', 'Multi-jurisdiction syndicate'];
-    const tgtNames = ['Invests domestically', 'Invests cross-border'];
+    const srcNames = opts.srcNames || ['Single-jurisdiction syndicate', 'Multi-jurisdiction syndicate'];
+    const tgtNames = opts.tgtNames || ['Invests domestically', 'Invests cross-border'];
     const val = l => l[weight];
     const total = links.reduce((a, l) => a + val(l), 0) || 1;
     const gap = 16;
     function colTotals(key) { const m = {}; links.forEach(l => { m[l[key]] = (m[l[key]] || 0) + val(l); }); return m; }
     const srcTot = colTotals('source'), tgtTot = colTotals('target');
-    const availH = H - padY * 2 - gap;
-    function layout(names, tot) { let y = padY; const pos = {}; names.forEach(n => { const h = (tot[n] || 0) / total * availH; pos[n] = { y0: y, h }; y += h + gap; }); return pos; }
+    const nGaps = names => Math.max(names.filter(n => srcTot[n] || tgtTot[n]).length - 1, 1);
+    const availH = H - padY * 2 - gap * Math.max(nGaps(srcNames), nGaps(tgtNames));
+    function layout(names, tot) { let y = padY; const pos = {}; names.forEach(n => { const h = (tot[n] || 0) / total * availH; pos[n] = { y0: y, h }; y += h + (h ? gap : 0); }); return pos; }
     const L = layout(srcNames, srcTot), R = layout(tgtNames, tgtTot);
-    const colFor = t => t === 'Invests domestically' ? 'var(--dom)' : 'var(--ib)';
+    const colFor = opts.colorFor || (t => t === 'Invests domestically' ? 'var(--dom)' : 'var(--ib)');
+    const srcColor = opts.srcColor || (() => '#3d4753');
+    const lbl = opts.label || (n => n.replace(' syndicate', '').replace('Invests ', ''));
     const srcOff = {}, tgtOff = {};
     links.sort((a, b) => srcNames.indexOf(a.source) - srcNames.indexOf(b.source) || tgtNames.indexOf(a.target) - tgtNames.indexOf(b.target));
     links.forEach(l => {
@@ -91,7 +94,7 @@
       const x0 = nodeW, x1 = W - nodeW, xm = (x0 + x1) / 2;
       const y0a = sy, y0b = sy + h, y1a = ty, y1b = ty + h;
       const d = `M${x0} ${y0a} C${xm} ${y0a} ${xm} ${y1a} ${x1} ${y1a} L${x1} ${y1b} C${xm} ${y1b} ${xm} ${y0b} ${x0} ${y0b} Z`;
-      const p = el('path', { d, fill: colFor(l.target), opacity: .42 });
+      const p = el('path', { d, fill: opts.linkColor ? opts.linkColor(l) : colFor(l.target), opacity: .42 });
       hoverable(p, `<b>${l.source}</b><br>→ ${l.target}<br><span class="d">Rounds:</span> ${l.rounds.toLocaleString()} (${fmtPct1(l.rounds / links.reduce((a, x) => a + x.rounds, 0))})<br><span class="d">$:</span> ${money(l.usd)} (${fmtPct1(l.usd / links.reduce((a, x) => a + x.usd, 0))})`);
       p.addEventListener('mouseenter', () => p.setAttribute('opacity', .68));
       p.addEventListener('mouseleave', () => p.setAttribute('opacity', .42));
@@ -114,16 +117,21 @@
       const y1 = top ? 16 : o.y0 + o.h + 2, y2 = top ? o.y0 - 2 : H - 14;
       s.appendChild(el('line', { x1: cx, y1, x2: cx, y2, stroke: 'var(--muted)', 'stroke-width': 1 }));
     }
-    srcNames.forEach((n, i) => { const o = L[n]; if (!o.h) return;
-      s.appendChild(el('rect', { x: 0, y: o.y0, width: nodeW, height: o.h, fill: '#3d4753', rx: 2 }));
+    const srcAct = srcNames.filter(n => L[n].h), tgtAct = tgtNames.filter(n => R[n].h);
+    srcNames.forEach(n => { const o = L[n]; if (!o.h) return;
+      const ai = srcAct.indexOf(n), pct = fmtPct(srcTot[n] / total);
+      s.appendChild(el('rect', { x: 0, y: o.y0, width: nodeW, height: o.h, fill: srcColor(n), rx: 2 }));
       const t = el('text', { x: nodeW + 6, y: o.y0 + o.h / 2 + 4, 'font-weight': 600, fill: 'var(--ink)' });
-      t.textContent = n.replace(' syndicate', ''); t.style.fontSize = '10.5px'; s.appendChild(t);
-      nodeShare(o, i === 0, nodeW / 2, 0, 'start', fmtPct(srcTot[n] / total)); });
-    tgtNames.forEach((n, i) => { const o = R[n]; if (!o.h) return;
+      t.textContent = lbl(n); t.style.fontSize = '10.5px'; s.appendChild(t);
+      if (ai === 0 || ai === srcAct.length - 1) nodeShare(o, ai === 0, nodeW / 2, 0, 'start', pct);
+      else { const ts = el('tspan', { fill: 'var(--muted)' }, ' ' + pct); t.appendChild(ts); } });
+    tgtNames.forEach(n => { const o = R[n]; if (!o.h) return;
+      const ai = tgtAct.indexOf(n), pct = fmtPct(tgtTot[n] / total);
       s.appendChild(el('rect', { x: W - nodeW, y: o.y0, width: nodeW, height: o.h, fill: colFor(n), rx: 2 }));
       const t = el('text', { x: W - nodeW - 6, y: o.y0 + o.h / 2 + 4, 'text-anchor': 'end', 'font-weight': 600, fill: 'var(--ink)' });
-      t.textContent = n.replace('Invests ', ''); t.style.fontSize = '10.5px'; s.appendChild(t);
-      nodeShare(o, i === 0, W - nodeW / 2, W, 'end', fmtPct(tgtTot[n] / total)); });
+      t.textContent = lbl(n); t.style.fontSize = '10.5px'; s.appendChild(t);
+      if (ai === 0 || ai === tgtAct.length - 1) nodeShare(o, ai === 0, W - nodeW / 2, W, 'end', pct);
+      else { const ts = el('tspan', { fill: 'var(--muted)' }, pct + ' '); t.insertBefore(ts, t.firstChild); } });
     box.appendChild(s);
   }
 

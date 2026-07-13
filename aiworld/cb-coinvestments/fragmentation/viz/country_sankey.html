@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Where European VC Goes</title>
+<link rel="stylesheet" href="viz.css">
+<style>
+.csel{appearance:none;-webkit-appearance:none;border:1.5px solid var(--blue);border-radius:14px;
+  background:#fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="6"><path d="M0 0h8L4 6z" fill="%232756d3"/></svg>') no-repeat right 10px center;
+  color:var(--blue);font-weight:700;text-transform:uppercase;letter-spacing:.3px;
+  font-size:clamp(10px,1.2vw,14px);padding:clamp(5px,1vh,9px) clamp(24px,2.4vw,30px) clamp(5px,1vh,9px) clamp(11px,1.6vw,18px);
+  cursor:pointer;line-height:1.2;}
+.csel:focus-visible{outline:none;}
+.pair-x{font-weight:700;color:var(--muted);font-size:12px;}
+body.hide-buttons .csel{display:none!important;}
+</style>
+</head>
+<body>
+<div class="viz-grid has-foot">
+  <div id="container1">
+    <div class="chart-area">
+      <div class="duo single">
+        <div class="col"><div class="col-cap" id="cap" style="color:var(--ink)"></div><div class="chart-fit" id="sankey"></div></div>
+      </div>
+    </div>
+  </div>
+  <div id="container2">
+    <div class="ctrl-left">
+      <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a></div>
+    </div>
+    <div class="ctrl-center">
+      <select class="csel" id="selA" aria-label="Country A"></select>
+      <span class="pair-x">+</span>
+      <select class="csel" id="selB" aria-label="Country B"></select>
+      <div class="top-filter" id="wpills">
+        <button data-w="rounds" class="active">Rounds</button>
+        <button data-w="usd">$</button>
+      </div>
+      <div id="yrpick"></div>
+    </div>
+    <div class="ctrl-right">
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener" class="logo-link">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+      </a>
+    </div>
+  </div>
+  <div class="viz-foot">Round counts: a round backed by investors from both selected countries appears once
+    under each investor node. $ uses equal-split attribution across a round's located investors (no double counting).
+    Rest of Europe = EU-27 + UK + EFTA excluding the selected countries.</div>
+</div>
+<script src="../data/country_pairs.js"></script>
+<script src="viz-lib.js"></script>
+<script>
+(function(){
+  const C=window.CPAIR, VLS=VL;
+  const name=c=>C.countries[c].name, isEU=c=>!!(C.countries[c]&&C.countries[c].europe);
+  const COL_A='#2756d3', COL_B='#E1701A', COL_REST='#8a97a6', COL_BEYOND='#8e6bbf';
+  let a='DE', b='FR', w='rounds', years=[];
+
+  // URL settings: ?a=DE&b=FR (b=none for single-country view) &weight=rounds|usd
+  //   &years=2020 | 2015-2025 | 2018,2020 | all
+  //   &hide=countries,weight,years | hide=controls | hide=bar
+  const Q=new URLSearchParams(location.search);
+  const codes=Object.keys(C.countries).sort((x,y)=>name(x)<name(y)?-1:1);
+  const qa=(Q.get('a')||'').toUpperCase(); if(codes.includes(qa)) a=qa;
+  const qbRaw=(Q.get('b')||'').toUpperCase();
+  if(qbRaw==='NONE') b=''; else if(codes.includes(qbRaw)) b=qbRaw;
+  const qw=(Q.get('weight')||Q.get('w')||'').toLowerCase();
+  if(qw==='usd'||qw==='$') w='usd'; else if(qw==='rounds') w='rounds';
+  const hidden=new Set((Q.get('hide')||'').toLowerCase().split(',').map(t=>t.trim()).filter(Boolean));
+  if(hidden.has('controls')||hidden.has('all')||hidden.has('buttons')) ['countries','weight','years'].forEach(t=>hidden.add(t));
+  function parseYears(str, avail){
+    if(!str) return null;
+    if(str.toLowerCase()==='all') return avail.slice();
+    const out=new Set();
+    str.split(',').forEach(t=>{ t=t.trim();
+      const m=t.match(/^(\d{4})\s*[-–]\s*(\d{4})$/);
+      if(m){ for(let y=+m[1];y<=+m[2];y++) if(avail.includes(y)) out.add(y); }
+      else if(/^\d{4}$/.test(t) && avail.includes(+t)) out.add(+t);
+    });
+    return out.size ? [...out].sort((x,y)=>x-y) : null;
+  }
+
+  // country selects
+  const selA=document.getElementById('selA'), selB=document.getElementById('selB');
+  codes.forEach(c=>{ selA.appendChild(new Option(name(c),c)); });
+  selB.appendChild(new Option('— alone —',''));
+  codes.forEach(c=>{ selB.appendChild(new Option(name(c),c)); });
+  selA.value=a; selB.value=(b===a?'':b); if(b===a) b='';
+  selA.addEventListener('change',()=>{ a=selA.value; if(b===a){b='';selB.value='';} draw(); });
+  selB.addEventListener('change',()=>{ b=(selB.value===a?'':selB.value); if(selB.value===a) selB.value=''; draw(); });
+
+  // aggregate selected years into sankey links for one investor country
+  function sideLinks(X, other){
+    const buckets={self:[0,0], partner:[0,0], rest:[0,0], beyond:[0,0]};
+    years.forEach(y=>{
+      const ds=(C.flows[X]||{})[String(y)]||{};
+      for(const dest in ds){ const v=ds[dest];
+        const k = dest===X ? 'self' : (other && dest===other) ? 'partner'
+                : (dest!=='XX' && isEU(dest)) ? 'rest' : 'beyond';
+        buckets[k][0]+=v[0]; buckets[k][1]+=v[1];
+      }
+    });
+    const src=name(X)+' investors';
+    const tgt={self:name(X), partner:other?name(other):null, rest:'Rest of Europe', beyond:'Beyond Europe'};
+    return Object.keys(buckets).filter(k=>tgt[k]&&(buckets[k][0]||buckets[k][1]))
+      .map(k=>({source:src, target:tgt[k], rounds:buckets[k][0], usd:buckets[k][1]}));
+  }
+
+  function draw(){
+    const links=[...sideLinks(a,b), ...(b?sideLinks(b,a):[])];
+    const srcNames=[name(a)+' investors', ...(b?[name(b)+' investors']:[])];
+    const tgtNames=[name(a), ...(b?[name(b)]:[]), 'Rest of Europe', 'Beyond Europe'];
+    const nodeCol=n=>{
+      if(n===name(a)||n===name(a)+' investors') return COL_A;
+      if(b&&(n===name(b)||n===name(b)+' investors')) return COL_B;
+      return n==='Rest of Europe'?COL_REST:COL_BEYOND;
+    };
+    document.getElementById('cap').textContent =
+      b ? `Where ${name(a)} & ${name(b)} venture capital goes`
+        : `Where ${name(a)} venture capital goes`;
+    VLS.sankey('sankey', links, {weight:w, srcNames, tgtNames,
+      colorFor:nodeCol, srcColor:nodeCol, linkColor:l=>nodeCol(l.source), label:n=>n});
+  }
+
+  const setActive=(id,attr,val)=>{document.querySelectorAll('#'+id+' button').forEach(bt=>bt.classList.toggle('active',bt.dataset[attr]===val));};
+  setActive('wpills','w',w);
+  const hideMap={countries:null, weight:'wpills', years:'yrpick'};
+  if(hidden.has('countries')){ selA.style.display='none'; selB.style.display='none';
+    document.querySelector('.pair-x').style.display='none'; }
+  ['weight','years'].forEach(t=>{ if(hidden.has(t)) document.getElementById(hideMap[t]).style.display='none'; });
+  if(hidden.has('bar')) document.getElementById('container2').style.display='none';
+  if(hidden.has('note')) document.querySelector('.viz-foot').style.display='none';
+  VL.pills('wpills', v=>{w=v;draw();});
+  const avail=[]; for(let y=2010;y<=2026;y++) avail.push(y);
+  VL.yearDropdown('yrpick',{years:avail, initial:parseYears(Q.get('years'),avail)||avail.filter(y=>y>=2015&&y<=2025),
+    recent:[2015,2025], onChange:ys=>{years=ys;draw();}});
+})();
+</script>
+</body>
+</html>

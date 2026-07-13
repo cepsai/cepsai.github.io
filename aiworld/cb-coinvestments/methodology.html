@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Methodology — VC syndication &amp; fragmentation</title>
+<style>
+:root{
+  --ink:#1f2933; --muted:#6b7785; --line:#d4dae2; --bg:#fff;
+  --us:#E1701A; --eu:#2756d3; --blue:#2756d3;
+  --dom:#8a97a6; --ib:#2756d3; --intl:#E1701A;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Helvetica,Arial,sans-serif;
+  color:var(--ink); line-height:1.55;
+}
+.page{max-width:860px;margin:0 auto;padding:clamp(20px,4vw,48px) clamp(16px,4vw,32px) 80px;}
+h1{font-size:clamp(22px,3.2vw,30px);margin:0 0 4px;}
+.sub{color:var(--muted);font-size:15px;margin:0 0 28px;}
+h2{font-size:clamp(17px,2.2vw,21px);margin:36px 0 10px;padding-top:10px;border-top:1px solid var(--line);}
+h3{font-size:15px;margin:20px 0 6px;}
+p{margin:8px 0;font-size:15px;}
+li{font-size:15px;margin:4px 0;}
+code{background:#f1f4f8;border-radius:5px;padding:1px 6px;font-size:.88em;}
+a{color:var(--blue);}
+.pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  border:1.5px solid var(--blue);color:var(--blue);border-radius:12px;padding:2px 10px;margin-right:6px;}
+.us{color:var(--us);font-weight:700;} .eu{color:var(--eu);font-weight:700;}
+.formula{background:#f6f8fb;border-left:3px solid var(--blue);border-radius:0 8px 8px 0;
+  padding:10px 14px;margin:10px 0;font-size:14px;overflow-x:auto;}
+.formula b{font-weight:700;}
+table{border-collapse:collapse;width:100%;margin:12px 0;font-size:14px;}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);}
+.tablewrap{overflow-x:auto;}
+.note{background:#fff8f0;border-left:3px solid var(--us);border-radius:0 8px 8px 0;
+  padding:10px 14px;margin:12px 0;font-size:14px;}
+.figure{margin:18px 0;text-align:center;}
+.figure svg{max-width:100%;height:auto;}
+.figcap{font-size:12.5px;color:var(--muted);font-style:italic;margin-top:6px;text-align:center;}
+.foot{margin-top:44px;padding-top:14px;border-top:1px solid var(--line);
+  font-size:13px;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+@media (prefers-color-scheme: dark){
+  :root{--ink:#e8edf2; --muted:#98a4b3; --line:#3a4453; --bg:#12161c;}
+  code{background:#222a35;}
+  .formula{background:#1a2029;}
+  .note{background:#241d14;}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>How the numbers are computed</h1>
+  <p class="sub">Methodology for the <a href="sankey.html">VC capital-flow sankey</a> and the
+    <a href="syndication_fragmentation.html">syndication &amp; fragmentation</a> chart ·
+    Source: <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a></p>
+
+  <p>Both pages are views of the same pre-computed dataset. A single Python script
+  (<code>build_fragmentation.py</code>) classifies every funding round once and writes the
+  aggregates the pages display; no calculation beyond summing and normalising happens in the browser.</p>
+
+  <h2>1&ensp;Data and unit of analysis</h2>
+  <p>The unit of analysis is the <b>funding round</b>. For each round we know the funded
+  company's location, the round type, the amount raised (USD), and the list of participating
+  investors. Each investor is assigned a <b>jurisdiction</b>:</p>
+  <ul>
+    <li><span class="us">US investors</span> → their <b>state</b> (e.g. California, New York);</li>
+    <li>all other investors → their <b>country</b> (e.g. France, Germany).</li>
+  </ul>
+  <p>Investors whose location is unknown are excluded from that round's syndicate. Rounds with
+  no locatable investor at all are dropped.</p>
+
+  <h3>Company-anchored markets</h3>
+  <p>Rounds are assigned to a market by <b>where the funded company sits</b>, not where the
+  investors sit. A round belongs to the <span class="us">US market</span> if the company is
+  American, and to the <span class="eu">EU market</span> if the company is in the selected EU set:</p>
+  <ul>
+    <li><b>EU-27</b> — the 27 member states;</li>
+    <li><b>EU+</b> — EU-27 plus the United Kingdom and EFTA (Switzerland, Norway, Iceland, Liechtenstein).</li>
+  </ul>
+  <p>This makes the two blocs comparable as <i>internal markets</i>: US states play the same
+  role on the US side as member states do on the EU side.</p>
+
+  <h2>2&ensp;Two flags per round</h2>
+  <p>For each round, only investors <b>inside the bloc</b> (US investors for a US round,
+  EU-set investors for an EU round) define the two classifications:</p>
+
+  <div class="tablewrap"><table>
+    <tr><th>Flag</th><th>Definition</th></tr>
+    <tr>
+      <td><b>Single vs multi-jurisdiction syndicate</b></td>
+      <td>Count the <i>distinct</i> in-bloc jurisdictions among the round's investors
+      (distinct US states, or distinct member states). Two or more → <b>multi-jurisdiction</b>.</td>
+    </tr>
+    <tr>
+      <td><b>Invests domestically vs cross-border</b></td>
+      <td><b>Domestic</b> if at least one investor shares the company's own jurisdiction
+      (same state / same member state); otherwise <b>cross-border</b>.</td>
+    </tr>
+  </table></div>
+
+  <div class="note"><b>Edge case.</b> Investors from outside the bloc do not count toward either
+  flag. A round funded exclusively by out-of-bloc investors (e.g. a German company backed only
+  by US funds) therefore has zero in-bloc jurisdictions and is classified
+  <i>single-jurisdiction → cross-border</i>.</div>
+
+  <h2>3&ensp;The sankey</h2>
+  <p>Every round falls into exactly one cell of a 2×2 table: {single, multi} ×
+  {domestic, cross-border}. The four cells are the four ribbons of the sankey.</p>
+
+  <div class="figure">
+    <svg viewBox="0 0 460 200" role="img" aria-label="2 by 2 sankey schematic">
+      <rect x="30" y="20" width="12" height="70" fill="#98a4b3"/>
+      <rect x="30" y="110" width="12" height="70" fill="#98a4b3"/>
+      <rect x="418" y="20" width="12" height="90" fill="#98a4b3"/>
+      <rect x="418" y="130" width="12" height="50" fill="#98a4b3"/>
+      <path d="M42,20 C230,20 230,20 418,20 L418,60 C230,60 230,60 42,60 Z" fill="#2756d3" opacity=".45"/>
+      <path d="M42,60 C230,60 230,130 418,130 L418,155 C230,155 230,90 42,90 Z" fill="#2756d3" opacity=".2"/>
+      <path d="M42,110 C230,110 230,60 418,60 L418,110 C230,110 230,160 42,160 Z" fill="#E1701A" opacity=".35"/>
+      <path d="M42,160 C230,160 230,155 418,155 L418,180 C230,180 230,180 42,180 Z" fill="#E1701A" opacity=".18"/>
+      <text x="36" y="12" font-size="11" font-weight="600" fill="#6b7785" text-anchor="start">Single-jurisdiction</text>
+      <text x="36" y="105" font-size="11" font-weight="600" fill="#6b7785" text-anchor="start">Multi-jurisdiction</text>
+      <text x="424" y="12" font-size="11" font-weight="600" fill="#6b7785" text-anchor="end">domestically</text>
+      <text x="424" y="125" font-size="11" font-weight="600" fill="#6b7785" text-anchor="end">cross-border</text>
+    </svg>
+    <div class="figcap">Left nodes: syndicate composition. Right nodes: where the capital goes.
+    Ribbon size = rounds or $ in that cell.</div>
+  </div>
+
+  <ul>
+    <li><span class="pill">Rounds</span> each round counts as 1;</li>
+    <li><span class="pill">$</span> each round counts its full amount raised (the round total is
+    <i>not</i> split across investors in this view).</li>
+  </ul>
+  <p>Cells are stored per year, so the year picker simply sums the selected years. All
+  percentages on the page are normalisations of the same four cells:</p>
+  <ul>
+    <li><b>node %</b> (above/below each bar) = node total ÷ grand total;</li>
+    <li><b>flow % at the left end</b> = cell ÷ its source node's total outflow;</li>
+    <li><b>flow % at the right end</b> = cell ÷ its target node's total inflow.</li>
+  </ul>
+
+  <h2>4&ensp;Syndication &amp; fragmentation over time</h2>
+  <p>The line chart plots one value per market per year (2008–2025), toggling between four
+  definitions:</p>
+
+  <div class="tablewrap"><table>
+    <tr><th>Metric</th><th>Weight</th><th>Definition</th></tr>
+    <tr><td><b>Syndication</b></td><td>Rounds</td>
+      <td>share of rounds with a multi-jurisdiction syndicate</td></tr>
+    <tr><td><b>Syndication</b></td><td>$</td>
+      <td>USD raised in multi-jurisdiction rounds ÷ total USD raised (whole round amounts)</td></tr>
+    <tr><td><b>Fragmentation</b></td><td>Rounds</td>
+      <td>share of rounds with <i>no</i> investor from the company's own jurisdiction
+      (1 − domestic share)</td></tr>
+    <tr><td><b>Fragmentation</b></td><td>$</td>
+      <td>intra-bloc cross-border capital ÷ total attributed capital (equal-split attribution, below)</td></tr>
+  </table></div>
+
+  <h3>Equal-split $ attribution</h3>
+  <p>Round amounts are reported per round, not per investor, so for the dollar-based
+  fragmentation measure each round's USD is split <b>equally across its located investors</b>.
+  Each investor's slice is then labelled:</p>
+  <div class="formula">
+    slice = round&nbsp;USD ÷ number&nbsp;of&nbsp;located&nbsp;investors, labelled<br>
+    <b style="color:var(--dom)">domestic</b> — in-bloc investor, same jurisdiction as the company<br>
+    <b style="color:var(--ib)">intra-bloc cross-border</b> — in-bloc investor, different jurisdiction<br>
+    <b style="color:var(--intl)">international</b> — investor outside the bloc
+  </div>
+  <div class="formula">
+    <b>Fragmentation ($)</b> = intra-bloc cross-border $ ÷ (domestic $ + intra-bloc $ + international $)
+  </div>
+  <p>Because the split is a partition of each round's amount, summed slices reproduce the raw
+  round totals exactly — the build script verifies this conservation at the end of every run.</p>
+
+  <h2>5&ensp;Interpretation</h2>
+  <p>The two fragmentation definitions deliberately answer different questions.
+  The <b>rounds-based</b> measure asks: <i>did any local investor participate at all?</i>
+  The <b>dollar-based</b> measure asks: <i>what share of the capital crossed an internal
+  border?</i> Read together with syndication, they show how often — and how much — capital is
+  pooled across US states versus across EU member states.</p>
+
+  <div class="foot">
+    <span>Data: <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a> ·
+      built with <code>build_fragmentation.py</code></span>
+    <span><a href="https://aiworld.eu/" target="_blank" rel="noopener">aiworld.eu</a></span>
+  </div>
+</div>
+</body>
+</html>

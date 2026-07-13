@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Country Co-investment Over Time</title>
+<link rel="stylesheet" href="viz.css">
+<style>
+.csel{appearance:none;-webkit-appearance:none;border:1.5px solid var(--blue);border-radius:14px;
+  background:#fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="8" height="6"><path d="M0 0h8L4 6z" fill="%232756d3"/></svg>') no-repeat right 10px center;
+  color:var(--blue);font-weight:700;text-transform:uppercase;letter-spacing:.3px;
+  font-size:clamp(10px,1.2vw,13px);padding:clamp(4px,.9vh,8px) clamp(22px,2.2vw,28px) clamp(4px,.9vh,8px) clamp(10px,1.4vw,15px);
+  cursor:pointer;line-height:1.2;}
+.csel:focus-visible{outline:none;}
+.addbtn{border:1.5px solid var(--blue);background:#fff;color:var(--blue);border-radius:14px;
+  font-size:clamp(10px,1.2vw,13px);font-weight:700;text-transform:uppercase;letter-spacing:.3px;
+  padding:clamp(4px,.9vh,8px) clamp(10px,1.4vw,15px);cursor:pointer;line-height:1.2;}
+.addbtn:hover{background:var(--blue);color:#fff;}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:center;}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:12px;
+  padding:3px 8px;font-size:clamp(10px,1.2vw,13px);font-weight:700;color:var(--ink);background:#fff;}
+.chip .dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+.chip button{border:0;background:transparent;color:var(--muted);font-size:13px;font-weight:700;
+  cursor:pointer;padding:0 1px;line-height:1;}
+.chip button:hover{color:#c0392b;}
+body.hide-buttons .csel,body.hide-buttons .addbtn{display:none!important;}
+</style>
+</head>
+<body>
+<div class="viz-grid has-foot">
+  <div id="container1">
+    <div class="chart-area"><div class="chart-fit" id="chart"></div></div>
+  </div>
+  <div id="container2">
+    <div class="ctrl-left">
+      <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a></div>
+    </div>
+    <div class="ctrl-center">
+      <div class="chips" id="chips"></div>
+      <select class="csel" id="selA" aria-label="Country A"></select>
+      <select class="csel" id="selB" aria-label="Country B"></select>
+      <button class="addbtn" id="addPair" type="button">Add</button>
+      <div class="top-filter" id="wpills">
+        <button data-w="rounds" class="active">Rounds</button>
+        <button data-w="usd">$</button>
+      </div>
+    </div>
+    <div class="ctrl-right">
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener" class="logo-link">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+      </a>
+    </div>
+  </div>
+  <div class="viz-foot">Co-investment rate = funding rounds (or round $) in which investors from <i>both</i>
+    countries participate, as a share of rounds in which <i>either</i> participates. Hollow markers = fewer
+    than 10 joint rounds that year.</div>
+</div>
+<script src="../data/country_pairs.js"></script>
+<script src="viz-lib.js"></script>
+<script>
+(function(){
+  const C=window.CPAIR;
+  const name=c=>C.countries[c].name;
+  const codes=Object.keys(C.countries).sort((x,y)=>name(x)<name(y)?-1:1);
+  const PALETTE=['#2756d3','#E1701A','#2a9d8f','#8e6bbf','#d81b60','#6b7785','#b8860b','#264653'];
+  const Y0=2010, Y1=2025;
+  let w='rounds', pairs=[['DE','FR'],['NL','BE'],['FR','GB'],['FR','US']];
+
+  // URL settings: ?pairs=DE-FR,NL-BE,FR-US  &weight=rounds|usd
+  //   &hide=pairs,weight | hide=controls | hide=bar | hide=note
+  const Q=new URLSearchParams(location.search);
+  const qw=(Q.get('weight')||Q.get('w')||'').toLowerCase();
+  if(qw==='usd'||qw==='$') w='usd'; else if(qw==='rounds') w='rounds';
+  if(Q.get('pairs')){
+    const ps=Q.get('pairs').toUpperCase().split(',').map(t=>t.trim().split(/[-|]/))
+      .filter(p=>p.length===2&&codes.includes(p[0])&&codes.includes(p[1])&&p[0]!==p[1]);
+    if(ps.length) pairs=ps.slice(0,8);
+  }
+  const hidden=new Set((Q.get('hide')||'').toLowerCase().split(',').map(t=>t.trim()).filter(Boolean));
+  if(hidden.has('controls')||hidden.has('all')||hidden.has('buttons')) ['pairs','weight'].forEach(t=>hidden.add(t));
+
+  const key=(a,b)=>[a,b].sort().join('|');
+  function series(a,b,color){
+    const jk=key(a,b), pts=[];
+    for(let y=Y0;y<=Y1;y++){
+      const j=(C.joint[jk]||{})[String(y)]||[0,0];
+      const pa=(C.part[a]||{})[String(y)]||[0,0], pb=(C.part[b]||{})[String(y)]||[0,0];
+      const i=(w==='usd')?1:0;
+      const den=pa[i]+pb[i]-j[i];
+      if(den>0) pts.push({x:y, y:j[i]/den, n:j[0]});
+    }
+    return {label:name(a)+' × '+name(b), color, pts};
+  }
+  function draw(){
+    VL.lineChart('chart', pairs.map((p,i)=>series(p[0],p[1],PALETTE[i%PALETTE.length])),
+      {tipLabel:'Co-investment rate', W:960, H:360, loN:10});
+    renderChips();
+  }
+  function renderChips(){
+    const box=document.getElementById('chips'); box.innerHTML='';
+    pairs.forEach((p,i)=>{
+      const chip=document.createElement('span'); chip.className='chip';
+      const dot=document.createElement('span'); dot.className='dot';
+      dot.style.background=PALETTE[i%PALETTE.length]; chip.appendChild(dot);
+      chip.appendChild(document.createTextNode(p[0]+'–'+p[1]));
+      const x=document.createElement('button'); x.type='button'; x.textContent='×';
+      x.setAttribute('aria-label','Remove '+p[0]+'–'+p[1]);
+      x.addEventListener('click',()=>{ pairs.splice(i,1); draw(); });
+      chip.appendChild(x); box.appendChild(chip);
+    });
+  }
+
+  // pair picker
+  const selA=document.getElementById('selA'), selB=document.getElementById('selB');
+  codes.forEach(c=>{ selA.appendChild(new Option(name(c),c)); selB.appendChild(new Option(name(c),c)); });
+  selA.value='DE'; selB.value='FR';
+  document.getElementById('addPair').addEventListener('click',()=>{
+    const a=selA.value, b=selB.value;
+    if(a===b) return;
+    if(pairs.some(p=>key(p[0],p[1])===key(a,b))) return;
+    if(pairs.length>=8) pairs.shift();
+    pairs.push([a,b]); draw();
+  });
+
+  const setActive=(id,attr,val)=>{document.querySelectorAll('#'+id+' button').forEach(bt=>bt.classList.toggle('active',bt.dataset[attr]===val));};
+  setActive('wpills','w',w);
+  if(hidden.has('pairs')){ ['selA','selB','addPair'].forEach(id=>document.getElementById(id).style.display='none'); }
+  if(hidden.has('weight')) document.getElementById('wpills').style.display='none';
+  if(hidden.has('bar')) document.getElementById('container2').style.display='none';
+  if(hidden.has('note')) document.querySelector('.viz-foot').style.display='none';
+  VL.pills('wpills', v=>{w=v;draw();});
+  draw();
+})();
+</script>
+</body>
+</html>
