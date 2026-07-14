@@ -21,7 +21,7 @@ body.hide-buttons .csel{display:none!important;}
   <div id="container1">
     <div class="chart-area">
       <div class="duo single">
-        <div class="col"><div class="col-cap" id="cap" style="color:var(--ink)"></div><div class="chart-fit" id="sankey"></div></div>
+        <div class="col"><div class="col-cap" id="cap" style="display:none"></div><div class="chart-fit" id="sankey"></div></div>
       </div>
     </div>
   </div>
@@ -30,6 +30,10 @@ body.hide-buttons .csel{display:none!important;}
       <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a></div>
     </div>
     <div class="ctrl-center">
+      <div class="top-filter" id="vpills">
+        <button data-v="partners" class="active">Partners</button>
+        <button data-v="profile">Profile</button>
+      </div>
       <select class="csel" id="selA" aria-label="Investor country"></select>
       <span class="pair-x">with</span>
       <select class="csel" id="selB" aria-label="Highlighted partner country"></select>
@@ -63,13 +67,18 @@ body.hide-buttons .csel{display:none!important;}
   const AGG='EU27AGG';
   const COL_A='#2756d3', COL_B='#E1701A', COL_REST='#8a97a6', COL_BEYOND='#8e6bbf', COL_SOLO='#c3ccd5';
   const TOP_COLS=['#2a9d8f','#d81b60','#b8860b','#264653','#6b7785'];
-  let a='NL', b='', w='rounds', years=[], topN=5;
+  // profile-view colours: same-country=blue, foreign=orange, both=teal, solo=grey
+  const COL_DOM='#2756d3', COL_FOR='#E1701A', COL_BOTH='#2a9d8f';
+  let a='NL', b='', w='rounds', years=[], topN=5, mode='partners';
 
   // URL settings: ?a=NL | a=EU27 (aggregate)  &b=FR (force partner node; b=none)
+  //   &view=partners|profile  (partners = who they co-invest with; profile = 4-way mix)
   //   &weight=rounds|usd  &top=5 (how many partner countries get their own node; top=0 for none)
   //   &years=2020 | 2015-2025 | 2018,2020 | all
-  //   &hide=countries,weight,years | hide=controls | hide=bar | hide=note
+  //   &hide=countries,weight,years,view | hide=controls | hide=bar | hide=note
   const Q=new URLSearchParams(location.search);
+  const qv=(Q.get('view')||'').toLowerCase();
+  if(qv==='profile'||qv==='mix') mode='profile'; else if(qv==='partners') mode='partners';
   const qa=(Q.get('a')||'').toUpperCase();
   if(codes.includes(qa)) a=qa; else if(qa==='EU27'||qa===AGG) a=AGG;
   const qb=(Q.get('b')||'').toUpperCase();
@@ -115,6 +124,58 @@ body.hide-buttons .csel{display:none!important;}
     return {acc, same, solo};
   }
 
+  // 4-way syndication profile: sum the partition buckets over the selected years
+  // (and over EU-27 member states when the aggregate is picked).
+  function profileTotals(){
+    const sides = a===AGG ? EU27 : [a];
+    const acc=[[0,0],[0,0],[0,0],[0,0]];  // solo / same-only / foreign-only / both
+    sides.forEach(x=>{ const d=C.profile[x]||{};
+      years.forEach(y=>{ const v=d[String(y)]; if(v) for(let i=0;i<4;i++){acc[i][0]+=v[i][0];acc[i][1]+=v[i][1];} });
+    });
+    return acc;
+  }
+
+  function drawProfile(){
+    const buckets=profileTotals();
+    const wi = w==='usd'?1:0;
+    const who = a===AGG ? 'the same member state' : name(a);
+    const srcLbl = a===AGG ? 'EU-27 investors' : name(a)+' investors';
+    const labels = a===AGG
+      ? ['No co-investor','Same-country partners only','Foreign partners only','Same-country + foreign']
+      : ['No co-investor', who+' partners only','Foreign partners only', who+' + foreign partners'];
+    const cols=[COL_SOLO, COL_DOM, COL_FOR, COL_BOTH];
+    const links=[];
+    labels.forEach((t,i)=>{ const v=buckets[i]; if(v[0]||v[1]) links.push({source:srcLbl,target:t,rounds:v[0],usd:v[1]}); });
+    const tgtNames=labels.filter((t,i)=>buckets[i][0]||buckets[i][1]);
+    const colMap={}; labels.forEach((t,i)=>{ colMap[t]=cols[i]; });
+    const nodeCol=n=> n===srcLbl ? COL_A : (colMap[n]||COL_REST);
+    VL.sankey('sankey', links, {weight:w, srcNames:[srcLbl], tgtNames, noInflowLabels:true,
+      colorFor:nodeCol, srcColor:nodeCol, linkColor:l=>nodeCol(l.target), label:n=>n});
+  }
+
+  const FOOT={
+    partners:`Syndication view: each funding round is counted once under <i>every</i> co-investor
+      country in its syndicate (a round with Dutch, French and US backers appears under each), so flows measure
+      co-investment participations, not distinct rounds. $ = full size of the co-invested rounds.
+      "Same country" = rounds with ≥2 investors from the selected country. "No co-investor" = rounds where the
+      selected country's investor is the only located investor. Rest of Europe = EU-27 + UK + EFTA.`,
+    profile:`Profile view: every round the selected country participates in is placed in exactly <i>one</i> of
+      four mutually-exclusive buckets, so the shares add up to 100%. <b>No co-investor</b> = the selected
+      country's investor is the only located investor. <b>Same-country partners only</b> = ≥2 investors from the
+      selected country and none elsewhere. <b>Foreign partners only</b> = one home investor plus ≥1 investor from
+      another country. <b>Same-country + foreign</b> = ≥2 home investors and ≥1 foreign. $ = full round size.
+      For the EU-27 aggregate a round is counted once per participating member state.`
+  };
+
+  function render(){
+    const foot=document.querySelector('.viz-foot'); if(foot) foot.innerHTML=FOOT[mode];
+    // the partner selector only applies to the partners view
+    const showB = mode==='partners' && !hidden.has('countries');
+    document.getElementById('selB').style.display = showB ? '' : 'none';
+    document.querySelector('.pair-x').style.display = showB ? '' : 'none';
+    if(mode==='profile') drawProfile(); else draw();
+  }
+
   function draw(){
     const {acc, same, solo}=partnerTotals();
     const wi = w==='usd'?1:0;
@@ -142,8 +203,6 @@ body.hide-buttons .csel{display:none!important;}
     let ci=0; ownSorted.forEach(p=>{ colMap[name(p)+' co-investors'] = (b&&p===b) ? COL_B : TOP_COLS[ci++%TOP_COLS.length]; });
     colMap['Rest of Europe']=COL_REST; colMap['Beyond Europe']=COL_BEYOND; colMap['No co-investor']=COL_SOLO;
     const nodeCol=n=> n===srcLbl ? COL_A : (colMap[n]||COL_REST);
-    document.getElementById('cap').textContent =
-      (a===AGG ? 'Who EU-27 investors co-invest with' : 'Who '+name(a)+' investors co-invest with');
     VL.sankey('sankey', links, {weight:w, srcNames:[srcLbl], tgtNames, noInflowLabels:true,
       colorFor:nodeCol, srcColor:nodeCol, linkColor:l=>nodeCol(l.target), label:n=>n});
   }
@@ -155,21 +214,23 @@ body.hide-buttons .csel{display:none!important;}
   selB.appendChild(new Option('— top partners —',''));
   codes.forEach(c=>{ selB.appendChild(new Option(name(c),c)); });
   selA.value=a; selB.value=(b===a?'':b); if(b===a) b='';
-  selA.addEventListener('change',()=>{ a=selA.value; if(b===a){b='';selB.value='';} draw(); });
-  selB.addEventListener('change',()=>{ b=(selB.value===a?'':selB.value); if(selB.value===a) selB.value=''; draw(); });
+  selA.addEventListener('change',()=>{ a=selA.value; if(b===a){b='';selB.value='';} render(); });
+  selB.addEventListener('change',()=>{ b=(selB.value===a?'':selB.value); if(selB.value===a) selB.value=''; render(); });
 
   const setActive=(id,attr,val)=>{document.querySelectorAll('#'+id+' button').forEach(bt=>bt.classList.toggle('active',bt.dataset[attr]===val));};
   setActive('wpills','w',w);
-  if(hidden.has('countries')){ selA.style.display='none'; selB.style.display='none';
-    document.querySelector('.pair-x').style.display='none'; }
+  setActive('vpills','v',mode);
+  if(hidden.has('countries')) selA.style.display='none';
   if(hidden.has('weight')) document.getElementById('wpills').style.display='none';
   if(hidden.has('years')) document.getElementById('yrpick').style.display='none';
+  if(hidden.has('view')) document.getElementById('vpills').style.display='none';
   if(hidden.has('bar')) document.getElementById('container2').style.display='none';
   if(hidden.has('note')) document.querySelector('.viz-foot').style.display='none';
-  VL.pills('wpills', v=>{w=v;draw();});
+  VL.pills('vpills', v=>{mode=v;render();});
+  VL.pills('wpills', v=>{w=v;render();});
   const avail=[]; for(let y=2010;y<=2026;y++) avail.push(y);
   VL.yearDropdown('yrpick',{years:avail, initial:parseYears(Q.get('years'),avail)||avail.filter(y=>y>=2015&&y<=2025),
-    recent:[2015,2025], onChange:ys=>{years=ys;draw();}});
+    recent:[2015,2025], onChange:ys=>{years=ys;render();}});
 })();
 </script>
 </body>
