@@ -22,6 +22,7 @@
       </div>
     </div>
     <div class="ctrl-right">
+      <div id="rpick"></div>
       <div class="top-filter" id="metpills">
         <button data-met="synd" class="active">Syndication</button>
         <button data-met="frag">Fragmentation</button>
@@ -45,22 +46,24 @@
 <script src="viz-lib.js"></script>
 <script>
 (function(){
-  const M=VL.M; let met='synd', w='rounds', eu='EU27';
-  const yf=arr=>arr.filter(d=>d.key>=2008&&d.key<=2025);
-  const FIELD={
-    synd:{rounds:'multi_share_rounds', usd:'multi_share_usd'},
-    frag:{rounds:'xborder_share_rounds', usd:'ib_share_usd'}
-  };
+  const M=VL.M; let met='synd', w='rounds', eu='EU27', buckets=M.bucket_order.slice();
   const NOTE={
   };
 
   // ---- read settings + chrome flags from the URL (query string) ----
   // settings:  ?met=synd|frag  &w=rounds|usd  &eu=EU27|EUWIDE
-  // hide chrome: ?buttons=0 (&source=0 &legend=0 &logo=0 &chrome=0)  or  ?hide=buttons,logo
+  //            &rounds=seed,series-a (matched ignoring case/punctuation) | all
+  // hide chrome: ?buttons=0 (&source=0 &legend=0 &logo=0 &chrome=0)  or  ?hide=buttons,logo,rounds
   const P=new URLSearchParams(location.search);
   if(['synd','frag'].includes(P.get('met'))) met=P.get('met');
   if(['rounds','usd'].includes(P.get('w'))) w=P.get('w');
   if(['EU27','EUWIDE'].includes(P.get('eu'))) eu=P.get('eu');
+  const norm=s=>String(s).toLowerCase().replace(/[^a-z0-9+]/g,'');
+  if(P.get('rounds')&&P.get('rounds').toLowerCase()!=='all'){
+    const want=new Set(P.get('rounds').split(',').map(norm).filter(Boolean));
+    const sel=M.bucket_order.filter(b=>want.has(norm(b)));
+    if(sel.length) buckets=sel;
+  }
   const hideSet=new Set((P.get('hide')||'').split(',').map(s=>s.trim()).filter(Boolean));
   ['buttons','source','legend','logo','chrome'].forEach(k=>{
     const v=P.get(k);
@@ -68,18 +71,38 @@
   });
   const setActive=(id,attr,val)=>{const g=document.getElementById(id); if(g)[...g.querySelectorAll('button')].forEach(b=>b.classList.toggle('active',b.dataset[attr]===val));};
   setActive('metpills','met',met); setActive('wpills','w',w); setActive('eupills','eu',eu);
+  if(hideSet.has('rounds')) document.getElementById('rpick').style.display='none';
 
+  // pool the selected round types per year from raw numerators
+  // (with all rounds selected this reproduces M.timeseries exactly)
+  function pooled(mk){
+    const acc={};
+    buckets.forEach(b=>{((M.by_bucket_year[mk]||{})[b]||[]).forEach(d=>{
+      const a=(acc[d.key]=acc[d.key]||{n_rounds:0,n_multi:0,n_xborder:0,usd:0,usd_multi:0,usd_ib:0,usd_attr:0});
+      a.n_rounds+=d.n_rounds; a.n_multi+=d.n_multi; a.n_xborder+=d.n_xborder;
+      a.usd+=d.usd; a.usd_multi+=d.usd_multi; a.usd_ib+=d.usd_ib; a.usd_attr+=d.usd_attr;
+    });});
+    return Object.keys(acc).map(Number).sort((a,b)=>a-b)
+      .filter(y=>y>=2008&&y<=2025)
+      .map(y=>{const a=acc[y];
+        const v = met==='synd'
+          ? (w==='usd' ? (a.usd?a.usd_multi/a.usd:null) : (a.n_rounds?a.n_multi/a.n_rounds:null))
+          : (w==='usd' ? (a.usd_attr?a.usd_ib/a.usd_attr:null) : (a.n_rounds?a.n_xborder/a.n_rounds:null));
+        return {x:y, y:v, n:a.n_rounds};
+      }).filter(p=>p.y!=null);
+  }
   function draw(){
-    const f=FIELD[met][w];
     document.getElementById('note').textContent=NOTE[met]||'';
     VL.lineChart('chart',[
-      {label:'US',color:'var(--us)',pts:yf(M.timeseries.US).map(d=>({x:d.key,y:d[f],n:d.n_rounds}))},
-      {label:'EU',color:'var(--eu)',pts:yf(M.timeseries[eu]).map(d=>({x:d.key,y:d[f],n:d.n_rounds}))},
+      {label:'US',color:'var(--us)',pts:pooled('US')},
+      {label:'EU',color:'var(--eu)',pts:pooled(eu)},
     ],{tipLabel: met==='synd'?'Multi-jurisdiction share':'Internal cross-border share', W:960,H:360});
   }
   VL.pills('metpills', v=>{met=v;draw();});
   VL.pills('wpills', v=>{w=v;draw();});
   VL.pills('eupills', v=>{eu=v;draw();});
+  VL.multiSelect('rpick',{items:M.bucket_order.map(b=>({value:b,label:b})), initial:buckets,
+    noun:'rounds', onChange:bs=>{buckets=bs;draw();}});
   draw();
 })();
 </script>

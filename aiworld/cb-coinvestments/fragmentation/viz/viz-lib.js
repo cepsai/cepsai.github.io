@@ -105,7 +105,8 @@
       if (h > 13) {
         const lMid = L[l.source].y0 + L[l.source].h / 2 + 4, rMid = R[l.target].y0 + R[l.target].h / 2 + 4;
         flowLabel(nodeW + 6, nudge(y0a + h / 2 + 3.5, lMid, y0a + 10, y0b - 3), 'start', fmtPct(val(l) / srcTot[l.source]));
-        flowLabel(W - nodeW - 6, nudge(y1a + h / 2 + 3.5, rMid, y1a + 10, y1b - 3), 'end', fmtPct(val(l) / tgtTot[l.target]));
+        // with a single source node every target's inflow share is 100% — skip the noise
+        if (!opts.noInflowLabels) flowLabel(W - nodeW - 6, nudge(y1a + h / 2 + 3.5, rMid, y1a + 10, y1b - 3), 'end', fmtPct(val(l) / tgtTot[l.target]));
       }
       srcOff[l.source] = sy + h; tgtOff[l.target] = ty + h;
     });

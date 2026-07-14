@@ -34,6 +34,7 @@
         <button data-eu="EU27" class="active">EU-27</button>
         <button data-eu="EUWIDE">EU+</button>
       </div>
+      <div id="rpick"></div>
       <div id="yrpick"></div>
     </div>
     <div class="ctrl-right">
@@ -47,11 +48,18 @@
 <script src="viz-lib.js"></script>
 <script>
 (function(){
-  const M=VL.M; let eu='EU27', w='rounds', years=[], region='BOTH';
+  const M=VL.M; let eu='EU27', w='rounds', years=[], region='BOTH', buckets=M.bucket_order.slice();
   // URL settings: ?region=US|EU|BOTH & weight=rounds|usd & eu=EU27|EUWIDE
   //   & years=2020 | 2015-2025 | 2018,2020 | all
-  //   & hide=region,weight,eu,years (any subset) | hide=controls (all buttons) | hide=bar (whole bottom bar)
+  //   & rounds=seed,series-a,series-d (matched ignoring case/punctuation) | all
+  //   & hide=region,weight,eu,years,rounds (any subset) | hide=controls (all buttons) | hide=bar (whole bottom bar)
   const Q=new URLSearchParams(location.search);
+  const norm=s=>String(s).toLowerCase().replace(/[^a-z0-9+]/g,'');
+  if(Q.get('rounds')&&Q.get('rounds').toLowerCase()!=='all'){
+    const want=new Set(Q.get('rounds').split(',').map(norm).filter(Boolean));
+    const sel=M.bucket_order.filter(b=>want.has(norm(b)));
+    if(sel.length) buckets=sel;
+  }
   const qr=(Q.get('region')||'').toUpperCase(); if(['US','EU','BOTH'].includes(qr)) region=qr;
   const qw=(Q.get('weight')||'').toLowerCase(); if(qw==='usd'||qw==='$') w='usd'; else if(qw==='rounds') w='rounds';
   const qe=(Q.get('eu')||'').toUpperCase().trim(); if(qe==='EU27') eu='EU27'; else if(qe==='EUWIDE'||qe==='EU+'||qe==='EUPLUS') eu='EUWIDE';
@@ -68,14 +76,16 @@
     });
     return out.size ? [...out].sort((a,b)=>a-b) : null;
   }
-  // sum the per-year 2x2 cells for the selected years
+  // sum the 2x2 cells for the selected round types and years
   function agg(mk){
     const acc={};
-    years.forEach(y=>{(M.sankey_year[mk][String(y)]||[]).forEach(c=>{
-      const k=c.source+'|'+c.target;
-      (acc[k]=acc[k]||{source:c.source,target:c.target,rounds:0,usd:0});
-      acc[k].rounds+=c.rounds; acc[k].usd+=c.usd;
-    });});
+    buckets.forEach(b=>{const by=(M.sankey_bucket_year[mk]||{})[b]||{};
+      years.forEach(y=>{(by[String(y)]||[]).forEach(c=>{
+        const k=c.source+'|'+c.target;
+        (acc[k]=acc[k]||{source:c.source,target:c.target,rounds:0,usd:0});
+        acc[k].rounds+=c.rounds; acc[k].usd+=c.usd;
+      });});
+    });
     return Object.values(acc);
   }
   function draw(){
@@ -93,13 +103,15 @@
     document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('active', b.dataset[attr]===val));
   }
   setActive('regpills','reg',region); setActive('wpills','w',w); setActive('eupills','eu',eu);
-  const hideMap={region:'regpills', weight:'wpills', eu:'eupills', years:'yrpick'};
+  const hideMap={region:'regpills', weight:'wpills', eu:'eupills', years:'yrpick', rounds:'rpick'};
   Object.keys(hideMap).forEach(t=>{ if(hidden.has(t)) document.getElementById(hideMap[t]).style.display='none'; });
   if(hidden.has('bar')) document.getElementById('container2').style.display='none';
   VL.pills('regpills', v=>{region=v;applyRegion();draw();});
   VL.pills('wpills', v=>{w=v;draw();});
   VL.pills('eupills', v=>{eu=v;draw();});
   applyRegion();
+  VL.multiSelect('rpick',{items:M.bucket_order.map(b=>({value:b,label:b})), initial:buckets,
+    noun:'rounds', onChange:bs=>{buckets=bs;draw();}});
   // offer 2010–2026; default to the 2015–2025 stable window (matches the pooled view)
   const avail=[]; for(let y=2010;y<=2026;y++) avail.push(y);
   VL.yearDropdown('yrpick',{years:avail, initial:parseYears(Q.get('years'),avail)||avail.filter(y=>y>=2015&&y<=2025),
