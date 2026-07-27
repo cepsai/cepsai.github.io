@@ -1,0 +1,443 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style type="text/css">
+:root { --ceps-blue: #2756d3; }
+* { box-sizing: border-box; }
+body { margin: 0; height: 100vh; overflow: hidden; font-family: Arial, Helvetica, sans-serif; color: #222; display: flex; flex-direction: column; }
+
+#treemap-wrap { flex: 1 1 auto; min-height: 0; min-width: 0; position: relative; }
+#treemap { width: 100%; height: 100%; min-height: 0; min-width: 0; }
+
+#controls { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: clamp(8px, 1.4vw, 18px); justify-content: center; align-items: center; padding: clamp(8px, 1.4vh, 14px) clamp(10px, 2vw, 20px); border-top: 1px solid rgba(39,86,211,0.15); background: #fff; }
+#controls.hidden { display: none; }
+
+.top-filter { display: inline-flex; align-items: stretch; border: 1.5px solid var(--ceps-blue); border-radius: 14px; overflow: hidden; background: #fff; box-shadow: 0 3px 8px rgba(31,49,99,0.15); }
+.top-filter-button { border: none; background: transparent; color: var(--ceps-blue); padding: clamp(6px, 1vh, 9px) clamp(12px, 1.6vw, 18px); font-size: clamp(10px, 1.2vw, 13px); font-weight: 700; letter-spacing: 0.4px; cursor: pointer; transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease; text-transform: uppercase; line-height: 1.2; white-space: nowrap; }
+.top-filter-button + .top-filter-button { border-left: 1px solid rgba(39,86,211,0.2); }
+.top-filter-button.active { background: var(--ceps-blue); color: #fff; box-shadow: inset 0 -2px 6px rgba(0,0,0,0.2); }
+.top-filter-button:focus-visible { outline: none; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.8), 0 0 0 2px rgba(31,49,99,0.4); }
+
+.error-message { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: clamp(12px, 1.6vw, 18px); font-weight: 600; color: #555; text-align: center; padding: 16px; max-width: 80%; }
+</style>
+<script src="https://d3js.org/d3.v5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+</head>
+<body>
+<div id="treemap-wrap">
+  <div id="treemap"></div>
+</div>
+<div id="controls" role="group" aria-label="Treemap controls">
+  <div class="top-filter" id="typeFilter" role="group" aria-label="Item type"></div>
+  <div class="top-filter" id="metricFilter" role="group" aria-label="Metric"></div>
+  <div class="top-filter" id="windowFilter" role="group" aria-label="Window"></div>
+  <div class="top-filter" id="groupFilter" role="group" aria-label="Grouping"></div>
+  <div class="top-filter" id="topFilter" role="group" aria-label="Top N"></div>
+</div>
+<script>
+(function(){
+  "use strict";
+
+  // ---- state (defaults; overridden by URL query params) ----
+  var state = {
+    type: "models",      // "models" | "datasets"
+    metric: "dl",        // "dl" | "likes"
+    window: 7,           // 7 | 30
+    group: "task",       // "task" | "author"
+    top: "all"           // 50 | 100 | "all"
+  };
+  var showButtons = true; // URL: buttons=0 hides the control bar
+
+  var DATA = { models: [], datasets: [] };   // pre-processed rows w/ per-day rates
+  var snapshotDate = null;
+  var groupColors = {};                       // stable group -> color
+  var colorPalette = [
+    "#2756d3", // CEPS blue (anchor)
+    "#e8743b", "#19a979", "#945ecf", "#13a4b4",
+    "#525df4", "#bf399e", "#6c8893", "#ee6868",
+    "#2f6497", "#d35400", "#27ae60", "#8e44ad",
+    "#16a085", "#c0392b", "#2980b9", "#f39c12",
+    "#7f8c8d", "#e84393", "#00b894", "#0984e3"
+  ];
+  var paletteIndex = 0;
+  var resizeTimer = null;
+  var dataReady = false;
+
+  var commaFmt = d3.format(",");
+
+  // HTML-escape any value interpolated into tooltip markup (id/author/task are
+  // attacker-controllable HF repo metadata -> guard against stored XSS).
+  function esc(s){
+    return String(s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  // ---- toggle option definitions ----
+  var toggleDefs = {
+    typeFilter: {
+      key: "type",
+      options: [
+        { label: "Models", value: "models" },
+        { label: "Datasets", value: "datasets" }
+      ]
+    },
+    metricFilter: {
+      key: "metric",
+      options: [
+        { label: "Downloads/day", value: "dl" },
+        { label: "Likes/day", value: "likes" }
+      ]
+    },
+    windowFilter: {
+      key: "window",
+      options: [
+        { label: "Last 7 days", value: 7 },
+        { label: "Last 30 days", value: 30 }
+      ]
+    },
+    groupFilter: {
+      key: "group",
+      options: [
+        { label: "By task", value: "task" },
+        { label: "By author", value: "author" }
+      ]
+    },
+    topFilter: {
+      key: "top",
+      options: [
+        { label: "Top 50", value: 50 },
+        { label: "Top 100", value: 100 },
+        { label: "All", value: "all" }
+      ]
+    }
+  };
+
+  function valuesEqual(a, b){ return String(a) === String(b); }
+
+  // ---- URL <-> state ----
+  function allowedValues(key){
+    if(key === "window") return ["7", "30"];
+    var d = null;
+    Object.keys(toggleDefs).forEach(function(cid){
+      if(toggleDefs[cid].key === key) d = toggleDefs[cid];
+    });
+    return d ? d.options.map(function(o){ return String(o.value); }) : [];
+  }
+
+  function readURLState(){
+    var params;
+    try { params = new URLSearchParams(window.location.search); }
+    catch(e){ return; }
+    ["type", "metric", "group"].forEach(function(k){
+      var v = params.get(k);
+      if(v && allowedValues(k).indexOf(v) >= 0) state[k] = v;
+    });
+    var w = params.get("window");
+    if(w && allowedValues("window").indexOf(w) >= 0) state.window = parseInt(w, 10);
+    var topv = params.get("top");
+    if(topv && allowedValues("top").indexOf(topv) >= 0){
+      state.top = /^\d+$/.test(topv) ? parseInt(topv, 10) : topv;
+    }
+    var b = params.get("buttons");
+    if(b !== null) showButtons = !(b === "0" || b === "false" || b === "no");
+  }
+
+  function writeURLState(){
+    var params;
+    try { params = new URLSearchParams(window.location.search); }
+    catch(e){ return; }
+    params.set("type", state.type);
+    params.set("metric", state.metric);
+    params.set("window", String(state.window));
+    params.set("group", state.group);
+    params.set("top", String(state.top));
+    // preserve buttons param only if it was explicitly set
+    var newUrl = window.location.pathname + "?" + params.toString() + window.location.hash;
+    try { history.replaceState(null, "", newUrl); } catch(e){}
+  }
+
+  function applyButtonVisibility(){
+    var c = document.getElementById("controls");
+    if(c) c.classList.toggle("hidden", !showButtons);
+  }
+
+  // ---- color: stable per group ----
+  function getGroupColor(group){
+    var key = group == null || group === "" ? "Unknown" : String(group);
+    if(!groupColors[key]){
+      groupColors[key] = colorPalette[paletteIndex % colorPalette.length];
+      paletteIndex++;
+    }
+    return groupColors[key];
+  }
+
+  // ---- d3plus treemap (single instance, re-rendered on toggle) ----
+  var treemap = new d3plus.Treemap()
+    .select("#treemap")
+    .groupBy(["group", "id"])
+    .sum("value")
+    .layoutPadding(2)
+    .legend(false)
+    .label(function(d){ return d.id; })
+    .color(function(d){
+      // top-level group tiles + leaves both colored by their group
+      var g = (d && d.group) || (d && d.data && d.data.group);
+      if(g === undefined || g === null){
+        // d3plus group node: id is the group value at depth 0
+        if(typeof d.depth === "number" && d.depth === 0){ g = d.id; }
+      }
+      return getGroupColor(g);
+    })
+    .tooltipConfig({
+      title: function(d){ return d.group || d.id || ""; },
+      tbody: [],
+      footer: function(){ return ""; },
+      body: function(d){
+        // only render rich body for leaf rows (have a value field set)
+        var rawId = d.id != null ? String(d.id) : "";
+        var author = d.author != null ? esc(d.author) : "&mdash;";
+        var task = d.task != null && d.task !== "" ? esc(d.task) : "&mdash;";
+        var age = (typeof d.age_days === "number") ? d.age_days.toFixed(1) : "&mdash;";
+        var likes = (typeof d.likes === "number") ? commaFmt(d.likes) : "&mdash;";
+        var dls = (typeof d.downloadsAllTime === "number") ? commaFmt(d.downloadsAllTime) : "&mdash;";
+        var dlRate = (typeof d.dl_per_day === "number") ? d.dl_per_day.toFixed(1) : "&mdash;";
+        var likeRate = (typeof d.likes_per_day === "number") ? d.likes_per_day.toFixed(1) : "&mdash;";
+        var base = state.type === "datasets"
+          ? "https://huggingface.co/datasets/"
+          : "https://huggingface.co/";
+        var url = base + encodeURI(rawId);
+        var lines = [];
+        if(rawId){
+          var idDisp = esc(rawId);
+          // url is built from a fixed https://huggingface.co/ base; verify before linking
+          if(url.indexOf("https://huggingface.co/") === 0){
+            lines.push("<a href=\"" + esc(url) + "\" target=\"_blank\" rel=\"noopener\" style=\"color:#2756d3;text-decoration:underline;font-weight:700;\">" + idDisp + "</a>");
+          } else {
+            lines.push("<strong>" + idDisp + "</strong>");
+          }
+        }
+        lines.push("<strong>Author:</strong> " + author);
+        lines.push("<strong>Task:</strong> " + task);
+        lines.push("<strong>Age:</strong> " + age + " days");
+        lines.push("<strong>Likes:</strong> " + likes);
+        lines.push("<strong>Downloads (all time):</strong> " + dls);
+        lines.push("<strong>Downloads/day:</strong> " + dlRate);
+        lines.push("<strong>Likes/day:</strong> " + likeRate);
+        return lines.join("<br>");
+      }
+    })
+    .shapeConfig({
+      labelConfig: { fontColor: "#ffffff" }
+    });
+
+  // ---- data preprocessing ----
+  function parseSnapshotDate(s){
+    if(!s) return new Date();
+    // parse as date at 00:00:00 (local). Accept "YYYY-MM-DD" or ISO.
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s));
+    if(m){
+      return new Date(+m[1], +m[2] - 1, +m[3], 0, 0, 0, 0);
+    }
+    var d = new Date(s);
+    return isNaN(d.getTime()) ? new Date() : d;
+  }
+
+  function processRows(rows, snapshot){
+    if(!Array.isArray(rows)) return [];
+    var snapMs = snapshot.getTime();
+    return rows.map(function(r){
+      if(!r || typeof r !== "object") return null;
+      var id = r.id != null ? String(r.id) : "";
+      if(!id) return null;
+      var created = r.createdAt ? new Date(r.createdAt) : null;
+      var ageDays;
+      if(created && !isNaN(created.getTime())){
+        ageDays = (snapMs - created.getTime()) / 86400000;
+      } else {
+        ageDays = 30; // defensive default
+      }
+      if(!(ageDays >= 1)) ageDays = 1; // floor at 1 day (also handles NaN/negatives)
+      var dls = (typeof r.downloadsAllTime === "number" && isFinite(r.downloadsAllTime)) ? r.downloadsAllTime : 0;
+      var likes = (typeof r.likes === "number" && isFinite(r.likes)) ? r.likes : 0;
+      var author = r.author != null ? String(r.author) : (id.indexOf("/") >= 0 ? id.split("/")[0] : "Unknown");
+      var task = r.task != null && r.task !== "" ? String(r.task) : "unknown";
+      return {
+        id: id,
+        author: author,
+        task: task,
+        likes: likes,
+        downloadsAllTime: dls,
+        age_days: ageDays,
+        dl_per_day: dls / ageDays,
+        likes_per_day: likes / ageDays
+      };
+    }).filter(Boolean);
+  }
+
+  // ---- build leaves for current state and render ----
+  function buildLeaves(){
+    var rows = DATA[state.type] || [];
+    var groupKey = state.group; // "task" | "author"
+    var metricField = state.metric === "likes" ? "likes_per_day" : "dl_per_day";
+    var leaves = [];
+    for(var i = 0; i < rows.length; i++){
+      var r = rows[i];
+      if(state.window === 7 && !(r.age_days <= 7)) continue;
+      var v = r[metricField];
+      if(!(v > 0)) continue; // d3plus needs positive area
+      leaves.push({
+        group: r[groupKey] || "Unknown",
+        id: r.id,
+        author: r.author,
+        task: r.task,
+        value: v,
+        likes: r.likes,
+        downloadsAllTime: r.downloadsAllTime,
+        age_days: r.age_days,
+        dl_per_day: r.dl_per_day,
+        likes_per_day: r.likes_per_day
+      });
+    }
+    // top-N cap: keep the N highest-value items overall (still regrouped by d3plus)
+    if(state.top !== "all"){
+      var n = parseInt(state.top, 10);
+      if(n > 0 && leaves.length > n){
+        leaves.sort(function(a, b){ return b.value - a.value; });
+        leaves = leaves.slice(0, n);
+      }
+    }
+    return leaves;
+  }
+
+  function render(){
+    var leaves = buildLeaves();
+    clearError();
+    if(!leaves.length){
+      dataReady = false;
+      treemap.data([]).render();
+      showError("No " + state.type + " in the last " + state.window + " days with a positive " +
+                (state.metric === "likes" ? "likes/day" : "downloads/day") + " value.");
+      return;
+    }
+    dataReady = true;
+    sizeAndRender(leaves);
+  }
+
+  function sizeAndRender(leaves){
+    var el = document.getElementById("treemap");
+    if(!el) return;
+    var rect = el.getBoundingClientRect();
+    try {
+      if(typeof treemap.width === "function") treemap.width(rect.width || el.clientWidth);
+      if(typeof treemap.height === "function") treemap.height(rect.height || el.clientHeight);
+    } catch(e){}
+    if(leaves){
+      treemap.data(leaves).render();
+    } else {
+      treemap.render();
+    }
+  }
+
+  function showError(msg){
+    var wrap = document.getElementById("treemap-wrap");
+    if(!wrap) return;
+    clearError();
+    var div = document.createElement("div");
+    div.className = "error-message";
+    div.id = "errBox";
+    div.textContent = msg;
+    wrap.appendChild(div);
+  }
+  function clearError(){
+    var ex = document.getElementById("errBox");
+    if(ex && ex.parentNode) ex.parentNode.removeChild(ex);
+  }
+
+  // ---- toggle UI ----
+  function buildToggle(containerId){
+    var container = document.getElementById(containerId);
+    if(!container) return;
+    var def = toggleDefs[containerId];
+    container.innerHTML = "";
+    def.options.forEach(function(opt){
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "top-filter-button";
+      btn.textContent = opt.label;
+      btn.setAttribute("data-value", opt.value);
+      var active = valuesEqual(state[def.key], opt.value);
+      if(active) btn.classList.add("active");
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+      container.appendChild(btn);
+    });
+    // event delegation on the container (no inline handlers)
+    container.addEventListener("click", function(e){
+      var target = e.target.closest ? e.target.closest(".top-filter-button") : null;
+      if(!target || !container.contains(target)) return;
+      var rawVal = target.getAttribute("data-value");
+      // coerce all-digit values (window: 7/30, top: 50/100) to numbers; keep "all" etc. as strings
+      var val = /^\d+$/.test(rawVal) ? parseInt(rawVal, 10) : rawVal;
+      if(valuesEqual(state[def.key], val)) return;
+      state[def.key] = val;
+      updateToggleState(containerId);
+      writeURLState();
+      render();
+    });
+  }
+
+  function updateToggleState(containerId){
+    var container = document.getElementById(containerId);
+    if(!container) return;
+    var def = toggleDefs[containerId];
+    Array.prototype.forEach.call(container.querySelectorAll(".top-filter-button"), function(btn){
+      var v = btn.getAttribute("data-value");
+      var isActive = valuesEqual(state[def.key], v);
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
+
+  function buildAllToggles(){
+    Object.keys(toggleDefs).forEach(buildToggle);
+  }
+
+  // ---- resize ----
+  window.addEventListener("resize", function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function(){
+      if(dataReady) sizeAndRender(null);
+    }, 120);
+  });
+  if(typeof ResizeObserver !== "undefined"){
+    var ro = new ResizeObserver(function(){
+      if(dataReady) sizeAndRender(null);
+    });
+    var tmEl = document.getElementById("treemap");
+    if(tmEl) ro.observe(tmEl);
+  }
+
+  // ---- init / load ----
+  readURLState();
+  applyButtonVisibility();
+  buildAllToggles();
+
+  d3.json("hub_weekly_data.json").then(function(json){
+    if(!json || typeof json !== "object"){
+      showError("Could not read hub_weekly_data.json (empty or malformed).");
+      return;
+    }
+    snapshotDate = parseSnapshotDate(json.snapshot_date);
+    DATA.models = processRows(json.models, snapshotDate);
+    DATA.datasets = processRows(json.datasets, snapshotDate);
+    render();
+  }).catch(function(err){
+    console.error("Failed to load hub_weekly_data.json", err);
+    showError("Could not load hub_weekly_data.json. Serve this page over a local/HTTP server (file:// fetch is blocked by the browser).");
+  });
+})();
+</script>
+</body>
+</html>
