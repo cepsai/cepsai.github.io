@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check the data: funding scenarios</title>
+<link rel="stylesheet" href="viz.css">
+<style>
+body{display:block;overflow:auto;background:#fff;padding:26px 30px 70px;}
+.page{max-width:1150px;margin:0 auto;}
+h1{font-size:22px;margin:0 0 4px;color:var(--ink);}
+.sub{color:var(--muted);font-size:13px;margin:0 0 8px;max-width:900px;line-height:1.5;}
+code{background:#f4f6f9;border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:12px;}
+.card{border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:22px 0;}
+.card h2{font-size:16px;margin:0 0 2px;color:var(--ink);}
+.blurb{font-size:13px;color:var(--muted);margin:0 0 12px;line-height:1.5;max-width:960px;}
+.facts{font-size:13px;line-height:1.7;margin-bottom:6px;}
+.facts b{color:var(--ink);}
+.inv{display:inline-block;border:1px solid var(--line);border-radius:10px;padding:1px 8px;margin:1px 3px 1px 0;
+  font-size:12px;background:#f8fafc;}
+.inv .cc{font-weight:700;color:var(--blue);}
+.duo2{display:flex;gap:26px;flex-wrap:wrap;margin-top:10px;}
+.half{flex:1 1 420px;min-width:380px;}
+.half h3{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);margin:0 0 4px;}
+.half .cap2{font-size:12px;color:var(--ink);font-weight:600;margin:0 0 2px;}
+svg{max-width:100%;height:auto;}
+path.hl{opacity:.9!important;stroke:#d81b60;stroke-width:1.6;}
+path.dim{opacity:.12!important;}
+.legend-note{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.verify{border-left:3px solid var(--blue);background:#f6f8fb;border-radius:0 10px 10px 0;
+  padding:10px 16px;font-size:13px;line-height:1.7;margin:26px 0;}
+</style>
+</head>
+<body>
+<div class="page">
+<h1>Check the data: six real funding scenarios</h1>
+<p class="sub">Each card is one real Crunchbase round with a different co-funder configuration. The left
+chart is the market's capital-flow sankey for that round's year — the <b style="color:#d81b60">highlighted</b>
+cell is where this round is counted. The right chart is the "who co-invests with whom" syndication sankey for
+the round's anchor country and year — highlighted links are the partner flows this round contributes to.</p>
+<p class="sub">To re-derive every number from the raw CSVs independently, run
+<code>python3 verify_scenarios.py</code> in the <code>cb/fragmentation/</code> project folder.</p>
+<div id="cards"></div>
+<div class="verify"><b>What to check by hand:</b> look a company up on Crunchbase, confirm the investor list and
+round size, then confirm the classification: (1) how many <i>distinct member states / US states</i> do the located
+investors span? ≥2 → multi-jurisdiction. (2) Is an investor from the company's own jurisdiction present?
+Yes → invests domestically. (3) Every pair of investor countries in the round adds one joint round to that
+country pair in the syndication sankey and the country-pair tables.</div>
+</div>
+<script src="data.js"></script>
+<script src="country_pairs.js"></script>
+<script src="scenarios.js"></script>
+<script src="viz-lib.js"></script>
+<script>
+(function(){
+  const M=VL.M, C=window.CPAIR, S=window.SCENARIOS;
+  const name=c=>c==='XX'?'Rest of world':(C.countries[c]?C.countries[c].name:c);
+  const isEUR=c=>!!(C.countries[c]&&C.countries[c].europe);
+  const COL_A='#2756d3', COL_B='#E1701A', COL_REST='#8a97a6', COL_BEYOND='#8e6bbf', COL_SOLO='#c3ccd5';
+  const money=v=>v>=1e9?('$'+(v/1e9).toFixed(1)+'B'):('$'+(v/1e6).toFixed(1)+'M');
+  const jkey=(x,p)=> p==='XX' ? x+'|XX' : (x===p ? x+'|'+x : [x,p].sort().join('|'));
+
+  function markPaths(boxId, links, match){
+    const paths=[...document.getElementById(boxId).querySelectorAll('svg path')];
+    links.forEach((l,i)=>{ if(!paths[i]) return;
+      paths[i].classList.add(match(l)?'hl':'dim'); });
+  }
+
+  // left chart: the 2x2 market sankey for the scenario's year, cell highlighted
+  function drawMarket(boxId, sc){
+    const links=(M.sankey_year[sc.market][String(sc.year)]||[]).map(c=>({...c}));
+    VL.sankey(boxId, links, {weight:'rounds'});
+    markPaths(boxId, links, l=>l.source===sc.sankey_source&&l.target===sc.sankey_target);
+  }
+
+  // right chart: syndication sankey for the anchor country + year, partner links highlighted
+  function drawSynd(boxId, sc){
+    // anchor = the scenario's focus country (NL for the Dutch scenarios), else first contributor
+    const contrib=sc.synd_contribs.find(c=>c.country==='NL')||sc.synd_contribs[0];
+    const A=contrib.country, yr=String(sc.year);
+    const sum=k=>{const v=(C.joint[k]||{})[yr]; return v?[v[0],v[1]]:[0,0];};
+    const acc={}; const codes=Object.keys(C.countries);
+    codes.concat(['XX']).forEach(p=>{ if(p===A) return;
+      const v=sum(jkey(A,p)); if(v[0]||v[1]) acc[p]=v; });
+    const same=sum(jkey(A,A));
+    const soloV=(C.solo[A]||{})[yr]||[0,0];
+    const srcLbl=name(A)+' investors', sameLbl=name(A)+' (same country)';
+    // own nodes: top-4 partners + every partner this round touches
+    const touched=new Set(contrib.partners.filter(p=>p!=='SOLO'&&p!==A));
+    const ranked=Object.keys(acc).filter(p=>p!=='XX').sort((x,y)=>acc[y][0]-acc[x][0]);
+    const own=new Set(ranked.slice(0,4)); touched.forEach(p=>{ if(p!=='XX'&&acc[p]) own.add(p); });
+    const links=[]; const add=(t,v)=>{ if(v[0]||v[1]) links.push({source:srcLbl,target:t,rounds:v[0],usd:v[1]}); };
+    add(sameLbl,same);
+    const rest=[0,0], beyond=[0,0];
+    Object.keys(acc).forEach(p=>{
+      if(own.has(p)) add(name(p)+' co-investors', acc[p]);
+      else if(p!=='XX'&&isEUR(p)){ rest[0]+=acc[p][0]; rest[1]+=acc[p][1]; }
+      else { beyond[0]+=acc[p][0]; beyond[1]+=acc[p][1]; }
+    });
+    add('Rest of Europe',rest); add('Beyond Europe',beyond); add('No co-investor',[soloV[0],soloV[1]]);
+    const ownSorted=[...own].sort((x,y)=>acc[y][0]-acc[x][0]);
+    const tgtNames=[sameLbl,...ownSorted.map(p=>name(p)+' co-investors'),'Rest of Europe','Beyond Europe','No co-investor'];
+    const TOP_COLS=['#2a9d8f','#d81b60','#b8860b','#264653','#6b7785'];
+    const colMap={}; colMap[sameLbl]=COL_A;
+    ownSorted.forEach((p,i)=>{ colMap[name(p)+' co-investors']=TOP_COLS[i%TOP_COLS.length]; });
+    colMap['Rest of Europe']=COL_REST; colMap['Beyond Europe']=COL_BEYOND; colMap['No co-investor']=COL_SOLO;
+    const nodeCol=n=> n===srcLbl?COL_A:(colMap[n]||COL_REST);
+    VL.sankey(boxId, links, {weight:'rounds', srcNames:[srcLbl], tgtNames, noInflowLabels:true,
+      colorFor:nodeCol, srcColor:nodeCol, linkColor:l=>nodeCol(l.target), label:n=>n});
+    // which node names does this round touch?
+    const hit=new Set();
+    contrib.partners.forEach(p=>{
+      if(p==='SOLO') hit.add('No co-investor');
+      else if(p===A) hit.add(sameLbl);
+      else if(own.has(p)) hit.add(name(p)+' co-investors');
+      else if(p!=='XX'&&isEUR(p)) hit.add('Rest of Europe');
+      else hit.add('Beyond Europe');
+    });
+    markPaths(boxId, links, l=>hit.has(l.target));
+    return A;
+  }
+
+  const cards=document.getElementById('cards');
+  S.forEach((sc,i)=>{
+    const card=document.createElement('div'); card.className='card';
+    const invs=sc.investors.map(d=>
+      `<span class="inv">${d.name} <span class="cc">${d.state?d.state+' (US)':d.country.replace('The Netherlands','Netherlands').replace('Slovakia (Slovak Republic)','Slovakia')}</span></span>`).join('');
+    const mktLbl = sc.market==='US' ? 'US (states)' : 'EU-27 (member states)';
+    card.innerHTML=`
+      <h2>${i+1}. ${sc.title}</h2>
+      <p class="blurb">${sc.blurb}</p>
+      <div class="facts">
+        <b>${sc.org}</b> · ${sc.year} · ${sc.bucket} · ${money(sc.usd)} raised ·
+        company in ${sc.company_loc.split(',').slice(0,2).join(', ')}${sc.is_us?' (US)':''}<br>
+        Located investors (${sc.investors.length}${sc.n_investors_raw>sc.investors.length?' of '+sc.n_investors_raw+' listed':''}): ${invs}
+      </div>
+      <div class="duo2">
+        <div class="half"><h3>Capital-flow sankey — ${mktLbl}, ${sc.year}</h3>
+          <div class="cap2">counted as: ${sc.sankey_source} → ${sc.sankey_target}</div>
+          <div id="mkt${i}"></div></div>
+        <div class="half"><h3>Syndication sankey — anchor country, ${sc.year}</h3>
+          <div class="cap2" id="scap${i}"></div>
+          <div id="syn${i}"></div>
+          <div class="legend-note">highlighted = the partner links this round adds to (a round is counted once
+          under every co-investor country in its syndicate)</div></div>
+      </div>`;
+    cards.appendChild(card);
+    drawMarket('mkt'+i, sc);
+    const A=drawSynd('syn'+i, sc);
+    document.getElementById('scap'+i).textContent='who '+name(A)+' investors co-invest with, '+sc.year;
+  });
+})();
+</script>
+</body>
+</html>
