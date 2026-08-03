@@ -6,18 +6,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <style>
-/* ─── TOKENS ──────────────────────────────────────────────────────────────── */
 :root {
     --fs-control:  clamp(11px, 1.6vw, 15px);       /* selectors, dropdown */
     --fs-legend:   clamp(0.8rem, 1.7vw, 1.2rem);   /* legend text */
     --fs-meta:     clamp(12px, 1.9vw, 19px);       /* source, footnote */
     --fs-slider:   clamp(12px, 1.4vw, 15px);       /* slider tooltip */
 
-    /* Compact breakpoint — MUST match BREAKPOINT_COMPACT in JS (SKILL.md). */
     --breakpoint-compact: 500px;
 }
-
-/* ─── BASE ────────────────────────────────────────────────────────────────── */
 
 html, body {
     height: 100%;
@@ -30,8 +26,6 @@ body {
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
     background-color: white;
 }
-
-/* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
 
 .viz-grid {
     display: grid;
@@ -103,8 +97,6 @@ body {
     cursor: pointer;
 }
 
-/* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
-
 #viz {
     width: 100%;
     height: 100%;
@@ -117,8 +109,6 @@ body {
     width: 100%;
     height: 100%;
 }
-
-/* ─── TOOLTIP ─────────────────────────────────────────────────────────────── */
 
 #tooltip {
     position: fixed;
@@ -136,8 +126,6 @@ body {
     max-width: 280px;
     z-index: 100;
 }
-
-/* ─── LEGEND ──────────────────────────────────────────────────────────────── */
 
 .legend {
     display: flex;
@@ -163,8 +151,6 @@ body {
     padding: 2px 6px;
     cursor: default;
 }
-
-/* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
 
 .source-text {
     font-size: var(--fs-meta);
@@ -199,8 +185,6 @@ body {
     object-fit: contain;
 }
 
-/* ─── CHART ELEMENTS (D3) ─────────────────────────────────────────────────── */
-
 .axis path,
 .axis line {
     stroke: #cfd2d7;
@@ -224,8 +208,6 @@ body {
     fill: #555;
     font-weight: 500;
 }
-
-/* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
 
 @media (max-height: 500px) {
     .viz-grid {
@@ -272,7 +254,6 @@ body {
 </div>
 
 <script>
-/* ─── Container visibility ─────────────────────────────────────────────────── */
 const SHOW_CONTAINER_2 = 1;  // legend
 const SHOW_CONTAINER_3 = 1;  // source
 const SHOW_CONTAINER_4 = 1;  // logo
@@ -313,7 +294,6 @@ const SHOW_CONTAINER_5 = 0;  // footnote (removed)
   document.getElementById('container1').style.gridRow = '1';
 })();
 
-/* ─── Config ───────────────────────────────────────────────────────────────── */
 const LINE_CURVE       = "straight";  // "straight" | "smooth"
 const LINE_SHOW_DOTS   = 0;           // 395 points — dots off
 const LINE_SHOW_AREA   = 0;
@@ -323,21 +303,15 @@ const SHOW_TOOLTIP     = 1;
 
 const DATA_URL    = "data.csv";
 const SOURCE_NAME = "Google Finance";
-const SOURCE_HREF = "";
+const SOURCE_HREF = "https://www.google.com/finance";
 
-const BREAKPOINT_COMPACT = 500;       // px; MUST equal --breakpoint-compact in CSS
-// Below this width two panels stop being readable, so panel 2 is dropped and panel 1 goes
-// full width. Compact height (the CSS breakpoint) drops it too.
-const SINGLE_PANEL_BELOW = 620;       // px
+const BREAKPOINT_COMPACT = 500;
+const SINGLE_PANEL_BELOW = 620;
 
-// Panels share the index base but NOT the axis range: on 60–290 July's action is a squiggle.
-// Panel 2 gets its own range so the late-July divergence is legible. The break marks on the
-// connectors flag the scale change; panel 2 carries its own y-axis on the right.
-// Top is 275 rather than 260 so the 273 peak reference line still falls inside the panel.
 const P1_DOMAIN    = [60, 290];
 const P2_DOMAIN    = [85, 275];
 const PANEL_GAP    = 0.045;           // gap between panels, share of plotting width
-const PANEL1_SHARE = 0.64;            // panel 1 width share of the plotting width
+const PANEL1_SHARE = 0.64;
 
 const SERIES = ["Semis (SMH)", "Software (XSW)"];
 const COLORS = { "Semis (SMH)": "#2756d3", "Software (XSW)": "#E53229" };
@@ -346,19 +320,12 @@ const DASHED = { "Semis (SMH)": false,     "Software (XSW)": true };
 const PANEL2_FROM = Date.UTC(2026, 6, 1);
 const PANEL2_TO   = Date.UTC(2026, 6, 31);
 
-// Panel-2 annotations.
-//   kind "ref"   → horizontal reference line; the event sits outside the July window.
-//   kind "date"  → vertical marker + dot on the SMH line. `tier` is the label's height as a
-//                  share of panel height, placed in the empty band between the two series.
-// Labels render as two lines: bold date on top, description under it.
 const ANNOTATIONS = [
   { kind: "ref",  value: 273, when: "22 Jun 2026", label: "SMH peak (273)" },
   { kind: "date", date: Date.UTC(2026, 6, 24), when: "24 Jul", label: "Investor letter (FT)", tier: 0.44 },
   { kind: "date", date: Date.UTC(2026, 6, 30), when: "30 Jul", label: "Citadel block trade",  tier: 0.62 }
 ];
 
-/* ─── Helpers ──────────────────────────────────────────────────────────────── */
-// Source is a Google Sheets export: DD/MM/YYYY with a 16:00:00 suffix. Not US format.
 const parseDate = d3.utcParse("%d/%m/%Y %H:%M:%S");
 
 function parseNum(value) {
@@ -376,14 +343,10 @@ function smartFormat(v) {
   return d3.format(",.1f")(v);
 }
 
-// ponytail: d3.csv can't be used — the file has duplicate "Date,Close" headers that would
-// collapse into two keys. Split by hand: cols A/B = SMH, C/D = XSW.
 function parseRaw(text) {
   return text.trim().split(/\r?\n/).slice(1).map(line => {
     const p = line.split(",");
     const t = parseDate(p[0]);
-    // Floor to UTC midnight — the 16:00 close time would otherwise offset every point
-    // two-thirds of a day from its date, misaligning ticks and event markers.
     return { date: t && d3.utcDay.floor(t), smh: parseNum(p[1]), xsw: parseNum(p[3]) };
   }).filter(d => d.date && d.smh && d.xsw);
 }
@@ -410,8 +373,6 @@ function message(text) {
   vizContainer.appendChild(el);
 }
 
-/* ─── Legend ───────────────────────────────────────────────────────────────── */
-// Static: both series always draw, so there is nothing to toggle.
 function buildLegend() {
   if (legendInitialized || !SHOW_LEGEND) return;
   const legend = document.getElementById("legend");
@@ -420,7 +381,6 @@ function buildLegend() {
     const item = document.createElement("div");
     item.className = "legend-item";
 
-    // Line indicator mirrors the stroke style, so the dash reads as meaning not decoration.
     const ind = document.createElement("div");
     ind.style.cssText = "display:flex;align-items:center;flex-shrink:0;";
     ind.innerHTML =
@@ -437,7 +397,6 @@ function buildLegend() {
   legendInitialized = true;
 }
 
-/* ─── Render ───────────────────────────────────────────────────────────────── */
 function render() {
   const all = seriesMap[SERIES[0]];
   if (!all || !all.length) return;
@@ -458,22 +417,16 @@ function render() {
   const compact = window.matchMedia(`(max-height:${BREAKPOINT_COMPACT}px)`).matches;
   const singlePanel = compact || width < SINGLE_PANEL_BELOW;
 
-  // Type scale for everything drawn inside the SVG. Driven by whichever dimension is tighter,
-  // so ticks shrink in a small window instead of sitting at a fixed floor. CSS-clamped text
-  // (legend, source) scales on its own via the --fs-* tokens.
   const fontScale = Math.min(1, Math.max(0.7, Math.min(width / 1100, height / 620)));
 
-  // Tick-label width estimate tracks the tick font, or bigger type clips into the margin.
   const tickChar = Math.max(6, 10 * fontScale);
   const yTickFormat = d3.format(",");
   const yLabelWidth = Math.max(yTickFormat(P1_DOMAIN[1]).length * tickChar, 32) + 16;
-  // Panel 2's own axis sits on its right, so the right margin has to hold those labels.
   const y2LabelWidth = singlePanel
     ? 0
     : Math.max(yTickFormat(P2_DOMAIN[1]).length * tickChar, 28) + 12;
 
   const margin = {
-    // No panel title in single-panel mode, so the top margin only needs clearance.
     top:    singlePanel ? 12 : Math.max(30, height * 0.085),
     right:  Math.max(24, width * 0.02) + y2LabelWidth,
     bottom: Math.max(38, height * 0.11),
@@ -493,7 +446,6 @@ function render() {
     .style("width", "100%")
     .style("height", "100%");
 
-  // Zoom wedge sits behind both panels.
   const zoomLayer = svg.append("g").attr("class", "zoom-layer");
 
   const panels = [
@@ -507,7 +459,7 @@ function render() {
       tickValues: x => d3.utcDay.range(x.domain()[0], d3.utcDay.offset(x.domain()[1], 1), 7) }
   ].filter(p => !(singlePanel && p.key === "p2"));
 
-  const geom = {};   // per-panel plot rect in svg coords, for the zoom wedge
+  const geom = {}; 
 
   panels.forEach(p => {
     const g = svg.append("g")
@@ -526,7 +478,6 @@ function render() {
     const axisFont = Math.max(11 * fontScale,
       Math.min(17 * fontScale, p.w / Math.max(5, xTickValues.length) * 0.62));
 
-    // Panel 2 gets a tinted plot frame — it reads as a magnified cutout, not a second chart.
     if (p.key === "p2") {
       g.append("rect")
         .attr("x", 0).attr("y", 0).attr("width", p.w).attr("height", innerHeight)
@@ -535,14 +486,10 @@ function render() {
         .attr("stroke-width", 1);
     }
 
-    // Grid lines
     g.append("g")
       .attr("class", "grid-lines")
       .call(d3.axisLeft(yScale).ticks(compact ? 4 : 5).tickSize(-p.w).tickFormat(""))
       .select(".domain").remove();
-
-    // Y axis — each panel labels its own range. Panel 2's sits on the right so it does not
-    // crowd the gap, and so the two axes read as separate scales rather than a continuation.
     const yAxisG = g.append("g").attr("class", "axis y-axis")
       .attr("transform", p.key === "p2" ? `translate(${p.w},0)` : null)
       .call((p.key === "p2" ? d3.axisRight(yScale) : d3.axisLeft(yScale))
@@ -592,8 +539,6 @@ function render() {
         .text(p.title);
     }
 
-    // Mark the magnified region on panel 1 — bounded in y by panel 2's range, not the full
-    // height, so the connectors flare outward and the magnification is visible.
     if (p.key === "p1" && !singlePanel) {
       const bx0 = xScale(new Date(PANEL2_FROM));
       const bx1 = xScale(new Date(PANEL2_TO));
@@ -612,12 +557,10 @@ function render() {
       };
     }
 
-    // Panel-2 annotations — drawn before the lines so strokes sit on top
     if (p.annotate) {
       const annFont = Math.max(10 * fontScale, axisFont);
       const annFamily = "system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
 
-      // Two-line label: bold date over description. Anchored left or right of a point.
       function annLabel(x, y, anchor, when, what, color) {
         const t = g.append("text")
           .attr("x", x).attr("y", y)
@@ -643,8 +586,6 @@ function render() {
             .attr("stroke-width", 1)
             .attr("stroke-dasharray", "5,4")
             .attr("opacity", 0.6);
-          // Right-hand end: the series enters from the left, so that side is occupied.
-          // Sits below the line when the panel top is too close to fit two lines above it.
           const above = ry > annFont * 2.6;
           annLabel(p.w - 8, above ? ry - annFont * 1.45 : ry + annFont * 1.5,
                    "end", a.when, a.label, COLORS["Semis (SMH)"]);
@@ -753,11 +694,8 @@ function render() {
     }
   });
 
-  // Zoom wedge: the July band on panel 1 flares out into panel 2's frame.
   if (geom.band) {
     const p2L = geom.p2.left;
-    // Connectors only — a filled quad here just reads as dead space. Each runs from a corner
-    // of the magnified region to the matching corner of panel 2, so the pair flares open.
     const pairs = [
       [geom.band.top, margin.top],
       [geom.band.bot, margin.top + innerHeight]
@@ -769,7 +707,6 @@ function render() {
         .attr("stroke-width", 1)
         .attr("stroke-dasharray", "4,3");
 
-      // Axis-break marks: two parallel slashes at the midpoint declare the scale change.
       const mx = (geom.band.x1 + p2L) / 2, my = (y1 + y2) / 2;
       const ang = Math.atan2(y2 - y1, p2L - geom.band.x1);
       [-3, 3].forEach(off => {
@@ -787,7 +724,6 @@ function render() {
   }
 }
 
-/* ─── Load ─────────────────────────────────────────────────────────────────── */
 message("Loading…");
 
 d3.text(DATA_URL).then(text => {
