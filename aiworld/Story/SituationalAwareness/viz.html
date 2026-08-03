@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Semis vs software: the July 2026 unwind</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+/* ─── TOKENS ──────────────────────────────────────────────────────────────── */
+:root {
+    --fs-control:  clamp(11px, 1.6vw, 15px);       /* selectors, dropdown */
+    --fs-legend:   clamp(0.8rem, 1.7vw, 1.2rem);   /* legend text */
+    --fs-meta:     clamp(12px, 1.9vw, 19px);       /* source, footnote */
+    --fs-slider:   clamp(12px, 1.4vw, 15px);       /* slider tooltip */
+
+    /* Compact breakpoint — MUST match BREAKPOINT_COMPACT in JS (SKILL.md). */
+    --breakpoint-compact: 500px;
+}
+
+/* ─── BASE ────────────────────────────────────────────────────────────────── */
+
+html, body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    height: 100vh;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+    background-color: white;
+}
+
+/* ─── LAYOUT GRID ─────────────────────────────────────────────────────────── */
+
+.viz-grid {
+    display: grid;
+    grid-template-rows: 16fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    padding-bottom: clamp(8px, 2vh, 18px);
+}
+
+#container1 {
+    grid-row: 1;
+    grid-column: 1 / span 2;
+    overflow: hidden;
+    min-height: 0;
+}
+
+#container1 .chart-wrapper {
+    flex: 1 1 auto;
+    display: flex;
+    min-width: 0;
+    height: 100%;
+    margin-left: 0;
+}
+
+#container1 .chart-wrapper-inner {
+    flex: 1 1 auto;
+    display: flex;
+    min-width: 0;
+    height: 100%;
+}
+
+#container2 {
+    grid-row: 2;
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+#container3 {
+    grid-row: 3;
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+#container4 {
+    grid-row: 3;
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+#container4 a {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+/* ─── CHART CANVAS ────────────────────────────────────────────────────────── */
+
+#viz {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+}
+
+#chart {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* ─── TOOLTIP ─────────────────────────────────────────────────────────────── */
+
+#tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: #fff;
+    color: #0f172a;
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.45;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    max-width: 280px;
+    z-index: 100;
+}
+
+/* ─── LEGEND ──────────────────────────────────────────────────────────────── */
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(6px, 1vw, 14px);
+    background: rgba(255, 255, 255, 1);
+    padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+    border-radius: clamp(6px, 1vw, 12px);
+    max-width: 100%;
+    max-height: 100%;
+    font-size: var(--fs-legend);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: clamp(4px, 1vw, 8px);
+    font-weight: 600;
+    color: #333;
+    font-size: inherit;
+    padding: 2px 6px;
+    cursor: default;
+}
+
+/* ─── SOURCE + LOGO ───────────────────────────────────────────────────────── */
+
+.source-text {
+    font-size: var(--fs-meta);
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    font-style: normal;
+}
+
+.source-text a {
+    color: #2756d3;
+    text-decoration: underline;
+    cursor: pointer;
+    font-style: normal;
+    display: inline-block;
+    transition: transform .32s cubic-bezier(.4,0,.2,1), opacity .32s cubic-bezier(.4,0,.2,1);
+}
+
+.source-text a:visited {
+    color: #2756d3;
+}
+
+.logo {
+    height: 100%;
+    width: auto;
+    max-height: 100%;
+    max-width: 100%;
+    pointer-events: auto;
+    object-fit: contain;
+}
+
+/* ─── CHART ELEMENTS (D3) ─────────────────────────────────────────────────── */
+
+.axis path,
+.axis line {
+    stroke: #cfd2d7;
+}
+
+.tick text {
+    font-weight: 600;
+    fill: #4b5563;
+}
+
+.grid-lines line {
+    stroke: #DBDBDB;
+    stroke-dasharray: 2, 3;
+}
+
+.grid-lines path {
+    stroke: none;
+}
+
+.bar-label {
+    fill: #555;
+    font-weight: 500;
+}
+
+/* ─── RESPONSIVE ──────────────────────────────────────────────────────────── */
+
+@media (max-height: 500px) {
+    .viz-grid {
+        grid-template-rows: 1fr !important;
+        grid-template-columns: 1fr !important;
+        padding-bottom: 0;
+    }
+
+    #container1 {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+    }
+
+    #container2,
+    #container3,
+    #container4 {
+        display: none !important;
+    }
+
+    .legend,
+    .source-text,
+    .logo {
+        display: none !important;
+    }
+}
+  </style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1" class="container viz-container">
+    <div id="viz"></div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div class="legend" id="legend"></div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text" id="source-text"></div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+    </a>
+  </div>
+</div>
+
+<script>
+/* ─── Container visibility ─────────────────────────────────────────────────── */
+const SHOW_CONTAINER_2 = 1;  // legend
+const SHOW_CONTAINER_3 = 1;  // source
+const SHOW_CONTAINER_4 = 1;  // logo
+const SHOW_CONTAINER_5 = 0;  // footnote (removed)
+
+(function applyContainerVisibility() {
+  const vizGrid = document.querySelector('.viz-grid');
+  const c2 = document.getElementById('container2');
+  const c3 = document.getElementById('container3');
+  const c4 = document.getElementById('container4');
+  const c5 = document.getElementById('container5');
+
+  if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+  if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+  if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+  if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+  const row2Visible = SHOW_CONTAINER_5;
+  const row3Visible = SHOW_CONTAINER_2;
+  const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+  let gridRows = [];
+  let currentRow = 1;
+  const chartHeight = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+  gridRows.push(`${chartHeight}fr`);
+
+  if (row2Visible) { gridRows.push('1fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+  if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+  if (row4Visible) {
+    gridRows.push('1fr'); currentRow++;
+    if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+    if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+    if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+    if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+  }
+
+  vizGrid.style.gridTemplateRows = gridRows.join(' ');
+  document.getElementById('container1').style.gridRow = '1';
+})();
+
+/* ─── Config ───────────────────────────────────────────────────────────────── */
+const LINE_CURVE       = "straight";  // "straight" | "smooth"
+const LINE_SHOW_DOTS   = 0;           // 395 points — dots off
+const LINE_SHOW_AREA   = 0;
+const LINE_SHOW_LABELS = "none";      // "none" | "end" | "all"
+const SHOW_LEGEND      = 1;
+const SHOW_TOOLTIP     = 1;
+
+const DATA_URL    = "data.csv";
+const SOURCE_NAME = "Google Finance";
+const SOURCE_HREF = "";
+
+const BREAKPOINT_COMPACT = 500;       // px; MUST equal --breakpoint-compact in CSS
+// Below this width two panels stop being readable, so panel 2 is dropped and panel 1 goes
+// full width. Compact height (the CSS breakpoint) drops it too.
+const SINGLE_PANEL_BELOW = 620;       // px
+
+// Panels share the index base but NOT the axis range: on 60–290 July's action is a squiggle.
+// Panel 2 gets its own range so the late-July divergence is legible. The break marks on the
+// connectors flag the scale change; panel 2 carries its own y-axis on the right.
+// Top is 275 rather than 260 so the 273 peak reference line still falls inside the panel.
+const P1_DOMAIN    = [60, 290];
+const P2_DOMAIN    = [85, 275];
+const PANEL_GAP    = 0.045;           // gap between panels, share of plotting width
+const PANEL1_SHARE = 0.64;            // panel 1 width share of the plotting width
+
+const SERIES = ["Semis (SMH)", "Software (XSW)"];
+const COLORS = { "Semis (SMH)": "#2756d3", "Software (XSW)": "#E53229" };
+const DASHED = { "Semis (SMH)": false,     "Software (XSW)": true };
+
+const PANEL2_FROM = Date.UTC(2026, 6, 1);
+const PANEL2_TO   = Date.UTC(2026, 6, 31);
+
+// Panel-2 annotations.
+//   kind "ref"   → horizontal reference line; the event sits outside the July window.
+//   kind "date"  → vertical marker + dot on the SMH line. `tier` is the label's height as a
+//                  share of panel height, placed in the empty band between the two series.
+// Labels render as two lines: bold date on top, description under it.
+const ANNOTATIONS = [
+  { kind: "ref",  value: 273, when: "22 Jun 2026", label: "SMH peak (273)" },
+  { kind: "date", date: Date.UTC(2026, 6, 24), when: "24 Jul", label: "Investor letter (FT)", tier: 0.44 },
+  { kind: "date", date: Date.UTC(2026, 6, 30), when: "30 Jul", label: "Citadel block trade",  tier: 0.62 }
+];
+
+/* ─── Helpers ──────────────────────────────────────────────────────────────── */
+// Source is a Google Sheets export: DD/MM/YYYY with a 16:00:00 suffix. Not US format.
+const parseDate = d3.utcParse("%d/%m/%Y %H:%M:%S");
+
+function parseNum(value) {
+  if (value == null || value === "") return 0;
+  const n = Number(String(value).replace(/,/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function smartFormat(v) {
+  if (!isFinite(v)) return "N/A";
+  if (Math.abs(v) >= 1e9) return d3.format(".1f")(v / 1e9) + "B";
+  if (Math.abs(v) >= 1e6) return d3.format(".1f")(v / 1e6) + "M";
+  if (Math.abs(v) >= 1e3 && Math.floor(v) === v) return d3.format(",")(v);
+  if (Math.floor(v) === v) return d3.format(",")(v);
+  return d3.format(",.1f")(v);
+}
+
+// ponytail: d3.csv can't be used — the file has duplicate "Date,Close" headers that would
+// collapse into two keys. Split by hand: cols A/B = SMH, C/D = XSW.
+function parseRaw(text) {
+  return text.trim().split(/\r?\n/).slice(1).map(line => {
+    const p = line.split(",");
+    const t = parseDate(p[0]);
+    // Floor to UTC midnight — the 16:00 close time would otherwise offset every point
+    // two-thirds of a day from its date, misaligning ticks and event markers.
+    return { date: t && d3.utcDay.floor(t), smh: parseNum(p[1]), xsw: parseNum(p[3]) };
+  }).filter(d => d.date && d.smh && d.xsw);
+}
+
+/* ─── Metadata ─────────────────────────────────────────────────────────────── */
+document.getElementById("source-text").innerHTML = "Source: " + (SOURCE_HREF
+  ? '<a href="' + SOURCE_HREF + '" target="_blank" rel="noopener">' + SOURCE_NAME + '</a>'
+  : SOURCE_NAME);
+
+/* ─── State ────────────────────────────────────────────────────────────────── */
+const vizContainer = document.getElementById("viz");
+const getSeriesColor = name => COLORS[name];
+const isSeriesDashed = name => DASHED[name];
+
+let seriesMap = {};
+let lineTooltip = null;
+let legendInitialized = false;
+
+function message(text) {
+  while (vizContainer.firstChild) vizContainer.removeChild(vizContainer.firstChild);
+  const el = document.createElement("div");
+  el.style.cssText = "display:flex;align-items:center;justify-content:center;height:100%;font-family:system-ui,sans-serif;color:#666;";
+  el.textContent = text;
+  vizContainer.appendChild(el);
+}
+
+/* ─── Legend ───────────────────────────────────────────────────────────────── */
+// Static: both series always draw, so there is nothing to toggle.
+function buildLegend() {
+  if (legendInitialized || !SHOW_LEGEND) return;
+  const legend = document.getElementById("legend");
+  legend.innerHTML = "";
+  SERIES.forEach(name => {
+    const item = document.createElement("div");
+    item.className = "legend-item";
+
+    // Line indicator mirrors the stroke style, so the dash reads as meaning not decoration.
+    const ind = document.createElement("div");
+    ind.style.cssText = "display:flex;align-items:center;flex-shrink:0;";
+    ind.innerHTML =
+      '<svg width="18" height="4" viewBox="0 0 18 4" style="overflow:visible;">' +
+        '<line x1="0" y1="2" x2="18" y2="2" stroke="' + getSeriesColor(name) + '" stroke-width="3" ' +
+        'stroke-linecap="round"' + (isSeriesDashed(name) ? ' stroke-dasharray="4,5"' : '') + '/>' +
+      '</svg>';
+
+    const label = document.createElement("span");
+    label.textContent = name;
+    item.append(ind, label);
+    legend.appendChild(item);
+  });
+  legendInitialized = true;
+}
+
+/* ─── Render ───────────────────────────────────────────────────────────────── */
+function render() {
+  const all = seriesMap[SERIES[0]];
+  if (!all || !all.length) return;
+
+  buildLegend();
+
+  while (vizContainer.firstChild) vizContainer.removeChild(vizContainer.firstChild);
+
+  if (SHOW_TOOLTIP && !lineTooltip) {
+    lineTooltip = document.createElement("div");
+    lineTooltip.id = "tooltip";
+    document.body.appendChild(lineTooltip);
+  }
+
+  const rect    = vizContainer.getBoundingClientRect();
+  const width   = Math.max(320, rect.width);
+  const height  = Math.max(220, rect.height);
+  const compact = window.matchMedia(`(max-height:${BREAKPOINT_COMPACT}px)`).matches;
+  const singlePanel = compact || width < SINGLE_PANEL_BELOW;
+
+  // Type scale for everything drawn inside the SVG. Driven by whichever dimension is tighter,
+  // so ticks shrink in a small window instead of sitting at a fixed floor. CSS-clamped text
+  // (legend, source) scales on its own via the --fs-* tokens.
+  const fontScale = Math.min(1, Math.max(0.7, Math.min(width / 1100, height / 620)));
+
+  // Tick-label width estimate tracks the tick font, or bigger type clips into the margin.
+  const tickChar = Math.max(6, 10 * fontScale);
+  const yTickFormat = d3.format(",");
+  const yLabelWidth = Math.max(yTickFormat(P1_DOMAIN[1]).length * tickChar, 32) + 16;
+  // Panel 2's own axis sits on its right, so the right margin has to hold those labels.
+  const y2LabelWidth = singlePanel
+    ? 0
+    : Math.max(yTickFormat(P2_DOMAIN[1]).length * tickChar, 28) + 12;
+
+  const margin = {
+    // No panel title in single-panel mode, so the top margin only needs clearance.
+    top:    singlePanel ? 12 : Math.max(30, height * 0.085),
+    right:  Math.max(24, width * 0.02) + y2LabelWidth,
+    bottom: Math.max(38, height * 0.11),
+    left:   yLabelWidth + 34
+  };
+  const innerWidth  = Math.max(40, width  - margin.left - margin.right);
+  const innerHeight = Math.max(40, height - margin.top  - margin.bottom);
+
+  const gap = singlePanel ? 0 : innerWidth * PANEL_GAP;
+  const p1w = singlePanel ? innerWidth : Math.max(40, (innerWidth - gap) * PANEL1_SHARE);
+  const p2w = Math.max(40, innerWidth - gap - p1w);
+
+  const svg = d3.select(vizContainer).append("svg")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("viewBox", `0 0 ${width} ${height}`)
+    .style("width", "100%")
+    .style("height", "100%");
+
+  // Zoom wedge sits behind both panels.
+  const zoomLayer = svg.append("g").attr("class", "zoom-layer");
+
+  const panels = [
+    { key: "p1", x0: 0,         w: p1w, yDomain: P1_DOMAIN,
+      from: all[0].x, to: all[all.length - 1].x,
+      title: "Jan 2025 – Jul 2026", tickFmt: d3.utcFormat("%b '%y"), annotate: false,
+      tickValues: x => d3.utcMonth.every(3).range(d3.utcMonth.floor(x.domain()[0]), x.domain()[1]) },
+    { key: "p2", x0: p1w + gap, w: p2w, yDomain: P2_DOMAIN,
+      from: new Date(PANEL2_FROM), to: new Date(PANEL2_TO),
+      title: "July 2026", tickFmt: d3.utcFormat("%-d %b"), annotate: true,
+      tickValues: x => d3.utcDay.range(x.domain()[0], d3.utcDay.offset(x.domain()[1], 1), 7) }
+  ].filter(p => !(singlePanel && p.key === "p2"));
+
+  const geom = {};   // per-panel plot rect in svg coords, for the zoom wedge
+
+  panels.forEach(p => {
+    const g = svg.append("g")
+      .attr("transform", `translate(${margin.left + p.x0},${margin.top})`);
+
+    const xScale = d3.scaleUtc().domain([p.from, p.to]).range([0, p.w]);
+    const yScale = d3.scaleLinear().domain(p.yDomain).range([innerHeight, 0]);
+    geom[p.key] = { g, xScale, yScale, left: margin.left + p.x0, w: p.w };
+
+    const pdata = {};
+    SERIES.forEach(name => {
+      pdata[name] = seriesMap[name].filter(d => d.x >= p.from && d.x <= p.to);
+    });
+
+    const xTickValues = p.tickValues(xScale);
+    const axisFont = Math.max(11 * fontScale,
+      Math.min(17 * fontScale, p.w / Math.max(5, xTickValues.length) * 0.62));
+
+    // Panel 2 gets a tinted plot frame — it reads as a magnified cutout, not a second chart.
+    if (p.key === "p2") {
+      g.append("rect")
+        .attr("x", 0).attr("y", 0).attr("width", p.w).attr("height", innerHeight)
+        .attr("fill", "rgba(39,86,211,0.045)")
+        .attr("stroke", "rgba(39,86,211,0.35)")
+        .attr("stroke-width", 1);
+    }
+
+    // Grid lines
+    g.append("g")
+      .attr("class", "grid-lines")
+      .call(d3.axisLeft(yScale).ticks(compact ? 4 : 5).tickSize(-p.w).tickFormat(""))
+      .select(".domain").remove();
+
+    // Y axis — each panel labels its own range. Panel 2's sits on the right so it does not
+    // crowd the gap, and so the two axes read as separate scales rather than a continuation.
+    const yAxisG = g.append("g").attr("class", "axis y-axis")
+      .attr("transform", p.key === "p2" ? `translate(${p.w},0)` : null)
+      .call((p.key === "p2" ? d3.axisRight(yScale) : d3.axisLeft(yScale))
+        .ticks(compact ? 4 : 5).tickFormat(yTickFormat));
+    yAxisG.selectAll("text")
+      .style("font-size", `${axisFont}px`)
+      .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+
+    if (p.key === "p1") {
+      yAxisG.append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", -margin.left + 16)
+        .attr("x", -(innerHeight / 2))
+        .attr("dy", "0.71em")
+        .attr("text-anchor", "middle")
+        .style("fill", "#000")
+        .style("font-weight", "700")
+        .style("font-size", "clamp(14px, 1.9vw, 23px)")
+        .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif")
+        .text("Index (2 Jan 2025 = 100)");
+    }
+
+    // X axis
+    const xAxisG = g.append("g").attr("class", "axis x-axis")
+      .attr("transform", `translate(0,${innerHeight})`)
+      .call(d3.axisBottom(xScale).tickValues(xTickValues).tickFormat(p.tickFmt).tickSizeOuter(0));
+    xAxisG.selectAll("text")
+      .style("font-size", `${axisFont}px`)
+      .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif");
+    if (xTickValues.length > 7) {
+      xAxisG.selectAll("text")
+        .attr("transform", "rotate(-35)")
+        .attr("text-anchor", "end")
+        .attr("dx", "-0.4em")
+        .attr("dy", "0.8em");
+    }
+
+    // Panel title — dropped in single-panel mode, where the x-axis already says the range
+    if (!singlePanel) {
+      g.append("text")
+        .attr("x", p.w / 2).attr("y", -Math.max(8, margin.top * 0.32))
+        .attr("text-anchor", "middle")
+        .attr("fill", "#0f172a")
+        .style("font-size", `${Math.max(12 * fontScale, axisFont + 3)}px`)
+        .style("font-weight", "700")
+        .style("font-family", "system-ui, -apple-system, Segoe UI, Roboto, sans-serif")
+        .text(p.title);
+    }
+
+    // Mark the magnified region on panel 1 — bounded in y by panel 2's range, not the full
+    // height, so the connectors flare outward and the magnification is visible.
+    if (p.key === "p1" && !singlePanel) {
+      const bx0 = xScale(new Date(PANEL2_FROM));
+      const bx1 = xScale(new Date(PANEL2_TO));
+      const by0 = yScale(P2_DOMAIN[1]);
+      const by1 = yScale(P2_DOMAIN[0]);
+      g.append("rect")
+        .attr("x", bx0).attr("y", by0)
+        .attr("width", Math.max(2, bx1 - bx0)).attr("height", Math.max(2, by1 - by0))
+        .attr("fill", "rgba(39,86,211,0.10)")
+        .attr("stroke", "rgba(39,86,211,0.45)")
+        .attr("stroke-width", 1);
+      geom.band = {
+        x1: margin.left + Math.max(bx0 + 2, bx1),
+        top: margin.top + by0,
+        bot: margin.top + by1
+      };
+    }
+
+    // Panel-2 annotations — drawn before the lines so strokes sit on top
+    if (p.annotate) {
+      const annFont = Math.max(10 * fontScale, axisFont);
+      const annFamily = "system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+
+      // Two-line label: bold date over description. Anchored left or right of a point.
+      function annLabel(x, y, anchor, when, what, color) {
+        const t = g.append("text")
+          .attr("x", x).attr("y", y)
+          .attr("text-anchor", anchor)
+          .style("font-size", `${annFont}px`)
+          .style("font-family", annFamily);
+        t.append("tspan")
+          .attr("x", x).attr("dy", 0)
+          .attr("fill", color).style("font-weight", "700")
+          .text(when);
+        t.append("tspan")
+          .attr("x", x).attr("dy", annFont * 1.25)
+          .attr("fill", "#475569").style("font-weight", "500")
+          .text(what);
+      }
+
+      ANNOTATIONS.forEach(a => {
+        if (a.kind === "ref") {
+          const ry = yScale(a.value);
+          g.append("line")
+            .attr("x1", 0).attr("x2", p.w).attr("y1", ry).attr("y2", ry)
+            .attr("stroke", COLORS["Semis (SMH)"])
+            .attr("stroke-width", 1)
+            .attr("stroke-dasharray", "5,4")
+            .attr("opacity", 0.6);
+          // Right-hand end: the series enters from the left, so that side is occupied.
+          // Sits below the line when the panel top is too close to fit two lines above it.
+          const above = ry > annFont * 2.6;
+          annLabel(p.w - 8, above ? ry - annFont * 1.45 : ry + annFont * 1.5,
+                   "end", a.when, a.label, COLORS["Semis (SMH)"]);
+          return;
+        }
+
+        const ax = xScale(new Date(a.date));
+        if (ax < -1 || ax > p.w + 1) return;
+        g.append("line")
+          .attr("x1", ax).attr("x2", ax).attr("y1", 0).attr("y2", innerHeight)
+          .attr("stroke", "#94a3b8")
+          .attr("stroke-width", 1)
+          .attr("stroke-dasharray", "3,3");
+
+        // Labels live in the empty band between the two series, right-anchored to the marker.
+        const ly = a.tier * innerHeight;
+        g.append("line")
+          .attr("x1", ax - 5).attr("x2", ax).attr("y1", ly).attr("y2", ly)
+          .attr("stroke", "#94a3b8").attr("stroke-width", 1);
+        annLabel(ax - 9, ly, "end", a.when, a.label, "#0f172a");
+
+        // Dot where the marker meets the semis line
+        const hit = seriesMap["Semis (SMH)"].find(d => +d.x === a.date);
+        if (hit) {
+          g.append("circle")
+            .attr("cx", ax).attr("cy", yScale(hit.value)).attr("r", 4)
+            .attr("fill", "#fff")
+            .attr("stroke", COLORS["Semis (SMH)"]).attr("stroke-width", 2);
+        }
+      });
+    }
+
+    // Lines
+    const curveFn = LINE_CURVE === "straight" ? d3.curveLinear : d3.curveMonotoneX;
+    const lineGen = d3.line()
+      .x(d => xScale(d.x))
+      .y(d => yScale(d.value))
+      .curve(curveFn)
+      .defined(d => d.x != null && !isNaN(d.value));
+
+    const linesGroup = g.append("g").attr("class", "lines-group");
+    SERIES.forEach(name => {
+      linesGroup.append("path")
+        .datum(pdata[name])
+        .attr("class", "line-path")
+        .attr("fill", "none")
+        .attr("stroke", getSeriesColor(name))
+        .attr("stroke-width", p.key === "p2" ? 2.4 : 2)
+        .attr("stroke-linejoin", "round")
+        .attr("stroke-linecap", "round")
+        .attr("stroke-dasharray", isSeriesDashed(name) ? "4,5" : "none")
+        .attr("d", lineGen);
+    });
+
+    // Tooltip + crosshair
+    if (SHOW_TOOLTIP) {
+      const crosshair = g.append("line")
+        .attr("y1", 0).attr("y2", innerHeight)
+        .attr("stroke", "#aaa").attr("stroke-width", 1)
+        .attr("stroke-dasharray", "3,3").attr("opacity", 0)
+        .attr("pointer-events", "none");
+
+      const focus  = g.append("g").attr("pointer-events", "none");
+      const bisect = d3.bisector(d => d.x).center;
+
+      g.append("rect")
+        .attr("width", p.w).attr("height", innerHeight)
+        .attr("fill", "none").attr("pointer-events", "all")
+        .on("mousemove", function (event) {
+          const mx  = d3.pointer(event, this)[0];
+          const ref = pdata[SERIES[0]];
+          if (!ref || !ref.length) return;
+          const i  = bisect(ref, xScale.invert(mx));
+          const dt = ref[i].x;
+          crosshair.attr("x1", xScale(dt)).attr("x2", xScale(dt)).attr("opacity", 0.6);
+
+          const pts = SERIES.map(name => {
+            const pt = pdata[name][i];
+            return pt ? { name, value: pt.value, color: getSeriesColor(name) } : null;
+          }).filter(Boolean);
+
+          focus.selectAll("circle").data(pts).join("circle")
+            .attr("cx", xScale(dt)).attr("cy", d => yScale(d.value))
+            .attr("r", 4).attr("fill", d => d.color)
+            .attr("stroke", "#fff").attr("stroke-width", 1.5);
+
+          let html = "<strong>" + d3.utcFormat("%-d %b %Y")(dt) + "</strong>";
+          pts.forEach(pt => {
+            html += "<br/><span style='color:" + pt.color + ";font-weight:600'>" +
+              pt.name + ": " + smartFormat(pt.value) + "</span>";
+          });
+          lineTooltip.innerHTML = html;
+          // Flip to the left of the cursor past mid-screen so it never runs off the edge.
+          const flipLeft = event.clientX > window.innerWidth / 2;
+          lineTooltip.style.left = (flipLeft
+            ? event.clientX - 14 - lineTooltip.offsetWidth
+            : event.clientX + 14) + "px";
+          lineTooltip.style.top  = (event.clientY - 24) + "px";
+          lineTooltip.style.opacity = "1";
+        })
+        .on("mouseleave", function () {
+          lineTooltip.style.opacity = "0";
+          crosshair.attr("opacity", 0);
+          focus.selectAll("circle").remove();
+        });
+    }
+  });
+
+  // Zoom wedge: the July band on panel 1 flares out into panel 2's frame.
+  if (geom.band) {
+    const p2L = geom.p2.left;
+    // Connectors only — a filled quad here just reads as dead space. Each runs from a corner
+    // of the magnified region to the matching corner of panel 2, so the pair flares open.
+    const pairs = [
+      [geom.band.top, margin.top],
+      [geom.band.bot, margin.top + innerHeight]
+    ];
+    pairs.forEach(([y1, y2]) => {
+      zoomLayer.append("line")
+        .attr("x1", geom.band.x1).attr("y1", y1).attr("x2", p2L).attr("y2", y2)
+        .attr("stroke", "rgba(39,86,211,0.5)")
+        .attr("stroke-width", 1)
+        .attr("stroke-dasharray", "4,3");
+
+      // Axis-break marks: two parallel slashes at the midpoint declare the scale change.
+      const mx = (geom.band.x1 + p2L) / 2, my = (y1 + y2) / 2;
+      const ang = Math.atan2(y2 - y1, p2L - geom.band.x1);
+      [-3, 3].forEach(off => {
+        const ox = off * Math.cos(ang), oy = off * Math.sin(ang);
+        zoomLayer.append("line")
+          .attr("x1", mx + ox - 3).attr("y1", my + oy + 5)
+          .attr("x2", mx + ox + 3).attr("y2", my + oy - 5)
+          .attr("stroke", "#fff").attr("stroke-width", 3);
+        zoomLayer.append("line")
+          .attr("x1", mx + ox - 3).attr("y1", my + oy + 5)
+          .attr("x2", mx + ox + 3).attr("y2", my + oy - 5)
+          .attr("stroke", "rgba(39,86,211,0.75)").attr("stroke-width", 1.4);
+      });
+    });
+  }
+}
+
+/* ─── Load ─────────────────────────────────────────────────────────────────── */
+message("Loading…");
+
+d3.text(DATA_URL).then(text => {
+  const rows = parseRaw(text);
+  if (!rows.length) { message("No data available"); return; }
+
+  const base = { "Semis (SMH)": rows[0].smh, "Software (XSW)": rows[0].xsw };
+  seriesMap = {
+    "Semis (SMH)":    rows.map(d => ({ x: d.date, value: d.smh / base["Semis (SMH)"]    * 100 })),
+    "Software (XSW)": rows.map(d => ({ x: d.date, value: d.xsw / base["Software (XSW)"] * 100 }))
+  };
+
+  render();
+
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(render, 120);
+  });
+  if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(() => render()).observe(vizContainer);
+  }
+}).catch(() => message("Could not load " + DATA_URL));
+</script>
+</body>
+</html>
