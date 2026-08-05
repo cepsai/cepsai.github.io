@@ -10,24 +10,23 @@
   .viz-grid { display:grid; height:100vh; box-sizing:border-box; padding-bottom:clamp(8px,2vh,18px);
     grid-template-rows:17fr 1fr 1fr 1fr; grid-template-columns:1fr 1fr; }   /* rebuilt by applyContainerVisibility() */
   #container1 { grid-column:1 / -1; min-height:0; } #viz { width:100%; height:100%; }
-  /* footnote row: sits under the chart, above the legend */
-  #container5 { grid-column:1 / -1; display:flex; align-items:center; justify-content:center;
-    padding:0 20px; min-width:0; overflow:hidden; }
-  #container5 #footnote { font-size:clamp(5px,1.35vw,12px); color:#475569; white-space:nowrap;
-    overflow:hidden; text-overflow:ellipsis; max-width:100%; }
   #container2 { grid-column:1 / -1; }               /* legend */
   #legend { height:100%; display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
     gap:2px 16px; font-size:clamp(9px,1.4vw,13px); font-weight:600; color:#475569; }
   #legend .chip { display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:6px; vertical-align:-1px; }
-  /* source (left): width-scaled, vertically centred, ellipsised so a long source never wraps the row */
-  #container3 { font-size:clamp(5px,1.6vw,16px); display:flex; align-items:center; justify-content:flex-start;
-    padding:0 20px; overflow:hidden; min-width:0; }
-  #container3 #source-text { font-weight:600; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  /* one full-width footer row: source left, methodology footnote centred, logo right.
+     the .foot-side wrappers share equal flex but keep a fit-content floor: the footnote
+     is long, and without the floor it would squeeze source and logo to zero width */
+  #container3 { font-size:clamp(5px,1.6vw,16px); display:flex; align-items:center;
+    gap:clamp(8px,1.6vw,20px); padding:0 20px; overflow:hidden; min-width:0; }
+  #container3 .foot-side { flex:1 1 0; min-width:fit-content; height:100%; display:flex; align-items:center; }
+  #container3 .foot-right { justify-content:flex-end; }
+  #container3 #source-text { font-weight:600; color:#333; white-space:nowrap; }
   #container3 #source-text a { color:#2756d3; text-decoration:underline; }
-  /* logo (right): fills the footer row height */
-  #container4 { display:flex; justify-content:flex-end; align-items:center; padding:0 20px; overflow:hidden; min-width:0; }
-  #container4 a { height:100%; display:flex; align-items:center; }
-  #container4 img { height:100%; width:auto; max-height:100%; max-width:100%; object-fit:contain; }
+  #container3 #footnote { flex:0 1 auto; font-size:clamp(5px,1.35vw,12px); color:#475569;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  #container3 .foot-right a { height:100%; display:flex; align-items:center; }
+  #container3 .foot-right img { height:100%; width:auto; max-height:100%; max-width:100%; object-fit:contain; }
   #tooltip { position:fixed; pointer-events:none; display:none; background:#fff;
     border:1px solid #DBDBDB; padding:6px 8px; font-size:12px; border-radius:4px; }
   #tooltip .tt-head { font-weight:700; margin-bottom:3px; }
@@ -47,16 +46,19 @@
 </style></head><body>
 <div class="viz-grid">
   <div id="container1"><div id="viz"></div></div>
-  <div id="container5"><span id="footnote"></span></div>  <!-- methodology footnote -->
   <div id="container2"><div id="legend"></div></div>
-  <div id="container3"><span id="source-text"></span></div>
-  <div id="container4"><a href="https://aiworld.eu/" target="_blank" rel="noopener"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></div>
+  <div id="container3">
+    <span class="foot-side"><span id="source-text"></span></span>
+    <span id="footnote"></span>  <!-- methodology footnote, centred between source and logo -->
+    <span class="foot-side foot-right"><a href="https://aiworld.eu/" target="_blank" rel="noopener"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></span>
+  </div>
 </div>
 <div id="tooltip"></div>
 <script>
 "use strict";
 // ---- CONFIG: declare everything; nothing implicit ----
-const SHOW_CONTAINER_2 = 1, SHOW_CONTAINER_3 = 1, SHOW_CONTAINER_4 = 1, SHOW_CONTAINER_5 = 1;
+// container4 and 5 are off: logo and footnote live inside container3's consolidated footer row
+const SHOW_CONTAINER_2 = 1, SHOW_CONTAINER_3 = 1, SHOW_CONTAINER_4 = 0, SHOW_CONTAINER_5 = 0;
 const SHOW_TOOLTIP = 1;
 const BREAKPOINT_COMPACT = 500;                       // px; MUST equal --breakpoint-compact
 /* House region accents: Europe brand blue, USA amber, China red, RoW slate; Unknown neutral gray. */
@@ -70,8 +72,7 @@ const COUNTRY_REGION = { "United States":"United States", China:"China", Unknown
 const INK = "#0f172a", MUTED = "#475569";
 const SOURCE_NAME = "Hugging Face (22 July 2026)";
 const SOURCE_HREF = "https://huggingface.co/datasets/hfmlsoc/hub_weekly_snapshots";
-const FOOTNOTE = "Top 10 owner countries, top 1,000 datasets by all-time downloads; 27 smaller countries (92M) "
-  + "not shown. Unknown = no public evidence, never inferred from names/language. Snapshot 2026-07-22.";
+const FOOTNOTE = "Top 10 owner countries from top 1,000 datasets by all-time downloads";
 /* DATA: ranked by downloads; dl = all-time downloads, n = datasets in the top 1,000,
    q1/med/q3 = dataset-size quartiles in bytes (over the country's datasets with a recorded size). */
 const DATA = [
@@ -95,7 +96,7 @@ document.getElementById("footnote").textContent = FOOTNOTE;
 document.getElementById("footnote").title = FOOTNOTE;
 
 // Show only the footer rows whose flag is on, then recompute grid rows.
-// Visual order under the chart: container5 (footnote), legend, then source+logo.
+// Visual order under the chart: legend, then source+footnote+logo on one row.
 (function applyContainerVisibility(){
   const grid = document.querySelector(".viz-grid"), c = n => document.getElementById("container"+n);
   const c2=c(2), c3=c(3), c4=c(4), c5=c(5);

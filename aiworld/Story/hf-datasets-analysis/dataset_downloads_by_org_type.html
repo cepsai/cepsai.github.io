@@ -17,15 +17,18 @@
   #legend { height:100%; display:flex; flex-wrap:wrap; align-items:center; justify-content:center;
     gap:2px 16px; font-size:clamp(9px,1.4vw,13px); font-weight:600; color:#475569; }
   #legend .chip { display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:6px; vertical-align:-1px; }
-  /* source (left): width-scaled, vertically centred, ellipsised so a long source never wraps the row */
-  #container3 { font-size:clamp(5px,1.6vw,16px); display:flex; align-items:center; justify-content:flex-start;
-    padding:0 20px; overflow:hidden; min-width:0; }
+  /* one full-width footer row: source left, exclusion note centred, logo right.
+     the two .foot-side wrappers share equal flex so the note stays on the row's centre */
+  #container3 { font-size:clamp(5px,1.6vw,16px); display:flex; align-items:center;
+    gap:clamp(8px,1.6vw,20px); padding:0 20px; overflow:hidden; min-width:0; }
+  #container3 .foot-side { flex:1 1 0; min-width:0; height:100%; display:flex; align-items:center; overflow:hidden; }
+  #container3 .foot-right { justify-content:flex-end; }
   #container3 #source-text { font-weight:600; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
   #container3 #source-text a { color:#2756d3; text-decoration:underline; }
-  /* logo (right): fills the footer row height */
-  #container4 { display:flex; justify-content:flex-end; align-items:center; padding:0 20px; overflow:hidden; min-width:0; }
-  #container4 a { height:100%; display:flex; align-items:center; }
-  #container4 img { height:100%; width:auto; max-height:100%; max-width:100%; object-fit:contain; }
+  #container3 #legend-note { flex:0 1 auto; font-size:clamp(8px,1.35vw,13px); color:#475569;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  #container3 .foot-right a { height:100%; display:flex; align-items:center; }
+  #container3 .foot-right img { height:100%; width:auto; max-height:100%; max-width:100%; object-fit:contain; }
   #tooltip { position:fixed; pointer-events:none; display:none; background:#fff;
     border:1px solid #DBDBDB; padding:6px 8px; font-size:12px; border-radius:4px; }
   #tooltip .tt-date { font-weight:700; margin-bottom:3px; }
@@ -64,14 +67,18 @@
   <div id="container1"><div id="viz"></div></div>
   <div id="container5"></div>  <!-- control row: metric + individuals pills -->
   <div id="container2"><div id="legend"></div></div>
-  <div id="container3"><span id="source-text"></span></div>
-  <div id="container4"><a href="https://aiworld.eu/" target="_blank" rel="noopener"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></div>
+  <div id="container3">
+    <span class="foot-side"><span id="source-text"></span></span>
+    <span id="legend-note"></span>
+    <span class="foot-side foot-right"><a href="https://aiworld.eu/" target="_blank" rel="noopener"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></span>
+  </div>
 </div>
 <div id="tooltip"></div>
 <script>
 "use strict";
 // ---- CONFIG: declare everything; nothing implicit ----
-const SHOW_CONTAINER_2 = 1, SHOW_CONTAINER_3 = 1, SHOW_CONTAINER_4 = 1, SHOW_CONTAINER_5 = 1;
+// container4 is off: the logo lives inside container3's consolidated footer row
+const SHOW_CONTAINER_2 = 1, SHOW_CONTAINER_3 = 1, SHOW_CONTAINER_4 = 0, SHOW_CONTAINER_5 = 1;
 const SHOW_TOOLTIP = 1;
 const BREAKPOINT_COMPACT = 500;                       // px; MUST equal --breakpoint-compact
 /* Fixed org-type palette (project-wide contract, colorblind-safe). */
@@ -84,7 +91,7 @@ const ACCOUNT_OPTIONS = [["orgs", "Organisations only"], ["all", "Incl. individu
 // Government and classroom together stay under 1% of downloads and likes in every
 // week, so their bands are invisible in the stack; dropped and noted in the legend.
 const EXCLUDED_TYPES = ["government", "classroom"];
-const EXCLUDE_NOTE = "government and classroom omitted (together <1%)";
+const EXCLUDE_NOTE = "Government and classroom omitted (together <1%)";
 const SOURCE_NAME = "Hugging Face (weekly snapshots)";
 const SOURCE_HREF = "https://huggingface.co/datasets/hfmlsoc/hub_weekly_snapshots";
 /* DATA: {dates[w], org_types[t], dlat[t][w], lk[t][w]}: sums per org type per week;
@@ -93,6 +100,9 @@ const DATA = {"built":"2026-07-30","dates":["2024-07-24","2024-07-31","2024-08-0
 
 document.getElementById("source-text").innerHTML =
   'Source: <a href="' + SOURCE_HREF + '" target="_blank" rel="noopener">' + SOURCE_NAME + '</a>';
+const legendNote = document.getElementById("legend-note");
+legendNote.textContent = EXCLUDE_NOTE;
+legendNote.title = EXCLUDE_NOTE;                      // full text on hover if ellipsised
 
 // Show only the footer rows whose flag is on, then recompute grid rows.
 // Visual order under the chart: container5 (controls), legend, then source+logo.
@@ -197,9 +207,7 @@ function buildLegend(bands){
     s.append(chip, b.name);
     lg.appendChild(s);
   }
-  const note = document.createElement("span");         // exclusion note, as in the impact-index viz
-  note.textContent = EXCLUDE_NOTE;
-  lg.appendChild(note);
+  // exclusion note lives centred on the footer row (#legend-note), not in the legend
 }
 
 /* ---- render: clears the SVG and rebuilds from a measured container ---- */

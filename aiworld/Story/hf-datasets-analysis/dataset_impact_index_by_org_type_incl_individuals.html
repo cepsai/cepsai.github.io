@@ -1,0 +1,357 @@
+<!doctype html><html><head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which account types punch above their weight on Hugging Face?</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  :root { --breakpoint-compact: 500px; }            /* MUST equal BREAKPOINT_COMPACT in JS */
+  html,body { margin:0; height:100vh; width:100vw; overflow:hidden; color:#0f172a;
+    font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Helvetica,Arial,sans-serif; }
+  .viz-grid { display:grid; height:100vh; box-sizing:border-box; padding-bottom:clamp(8px,2vh,18px);
+    grid-template-rows:16fr 1fr 1fr; grid-template-columns:1fr 1fr; }
+  #container1 { grid-column:1 / -1; } #viz { width:100%; height:100%; }
+  /* control + legend rows: box-sizing so the vertical breathing room does not grow the grid */
+  #container5 { grid-column:1 / -1; display:flex; align-items:center; justify-content:center;
+    box-sizing:border-box; padding:clamp(4px,0.9vh,10px) 20px; }
+  #container2 { grid-column:1 / -1; display:flex; align-items:center; justify-content:center;
+    box-sizing:border-box; padding:clamp(4px,0.9vh,10px) 20px; }
+  #legend { display:flex; align-items:center; justify-content:center; flex-wrap:wrap;
+    gap:clamp(4px,0.8vh,9px) clamp(6px,1.4vw,20px); font-size:clamp(8px,1.35vw,13px); color:#475569; }
+  #legend .lg { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+  /* one full-width footer row: source left, methodology note centred, logo right.
+     the two .foot-side wrappers share equal flex so the note stays on the row's centre */
+  #container3 { font-size:clamp(5px,1.6vw,16px); display:flex; align-items:center;
+    gap:clamp(8px,1.6vw,20px); padding:0 20px; overflow:hidden; min-width:0; }
+  #container3 .foot-side { flex:1 1 0; min-width:0; height:100%; display:flex; align-items:center; overflow:hidden; }
+  #container3 .foot-right { justify-content:flex-end; }
+  #container3 #source-text { font-weight:600; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  #container3 #source-text a { color:#2756d3; text-decoration:underline; }
+  #container3 #legend-note { flex:0 1 auto; font-size:clamp(8px,1.35vw,13px); color:#475569;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  #container3 .foot-right a { height:100%; display:flex; align-items:center; }
+  #container3 .foot-right img { height:100%; width:auto; max-height:100%; max-width:100%; object-fit:contain; }
+  #tooltip { position:fixed; pointer-events:none; display:none; background:#fff;
+    border:1px solid #DBDBDB; padding:6px 8px; font-size:12px; border-radius:4px; }
+  #tooltip .tt-title { display:block; font-weight:700; margin-bottom:3px; }
+  #tooltip span { color:#475569; }
+  /* segmented switch (house style) */
+  .selector-group { display:flex; align-items:center; justify-content:center;
+    gap:clamp(2px,0.5vw,6px); padding:clamp(2px,0.4vw,4px);
+    border-radius:6px; border:1px solid rgba(17,24,39,0.15); background:#f8fafc;
+    max-width:100%; flex-shrink:1; min-width:0; }
+  .selector-button { border:none; background:transparent; border-radius:6px;
+    padding:clamp(4px,0.8vh,8px) clamp(8px,1.5vw,14px);
+    font-size:clamp(9px,1.4vw,13px); font-weight:600; color:#475569;
+    cursor:pointer; white-space:nowrap; min-width:0;
+    transition:background 0.2s ease, color 0.2s ease; }
+  .selector-button.active { background:#2756d3; color:#fff; }
+  /* Short iframe / "snapshot" embed: drop ALL chrome; chart alone fills the frame. */
+  @media (max-height:500px){
+    .viz-grid { grid-template-rows:1fr !important; grid-template-columns:1fr !important; padding-bottom:0; }
+    #container1 { grid-row:1 !important; grid-column:1 / -1 !important; }
+    #container2,#container3,#container4,#container5 { display:none !important; }
+  }
+</style></head><body>
+<div class="viz-grid">
+  <div id="container1"><div id="viz"></div></div>
+  <div id="container5"><div class="selector-group" id="scopeFilter"></div></div>
+  <div id="container2"><div id="legend"></div></div>
+  <div id="container3">
+    <span class="foot-side"><span id="source-text"></span></span>
+    <span id="legend-note"></span>
+    <span class="foot-side foot-right"><a href="https://aiworld.eu/" target="_blank" rel="noopener"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></span>
+  </div>
+</div>
+<div id="tooltip"></div>
+<script>
+// ---- CONFIG: declare everything; nothing implicit ----
+// container4 is off: the logo lives inside container3's consolidated footer row
+const SHOW_CONTAINER_2 = 1, SHOW_CONTAINER_3 = 1, SHOW_CONTAINER_4 = 0, SHOW_CONTAINER_5 = 1;
+const SHOW_TOOLTIP = 1;
+const BREAKPOINT_COMPACT = 500;                       // px; MUST equal --breakpoint-compact
+
+// One colour per account type (colour-blind-safe set reused across the HF project);
+// individual gets the set's neutral gray so the org types keep their established hues.
+const COLORS = { company:"#DE8F05", university:"#CC78BC", "non-profit":"#D55E00",
+                 community:"#029E73", classroom:"#CA9161", government:"#0173B2",
+                 individual:"#949494" };
+const TYPE_LABEL = { company:"Company", university:"University", "non-profit":"Non-profit",
+                     community:"Community", classroom:"Classroom", government:"Government",
+                     individual:"Individual" };
+// Fixed display order (by the all-datasets downloads index) so the two scopes stay comparable.
+const TYPE_ORDER = ["company", "university", "community", "non-profit", "individual", "classroom", "government"];
+
+// `exclude`: types with no datasets in that scope. Government and classroom have
+// zero entries in the overall top 1,000 (their strongest datasets fall below the
+// cutoff once individual-owned datasets compete), so they are dropped there.
+//
+// Each scope declares its own y top. Bars run from zero on a linear axis, read
+// against the grey dashed parity line at 1x. The two scopes are on different
+// scales because they cover very different ranges: across all datasets the
+// indices span 0.31x-6.52x (individuals are 82% of datasets, so every org type
+// indexes far above parity), inside the top 1,000 only 0.23x-2.16x. `axisNote`
+// and `excludeNote` are optional and join the legend text when present.
+const SCOPES = [                                      // segmented switch, in display order
+  { key:"all", btn:"All datasets", label:"all datasets", exclude:[],
+    domain:[0, 7], ticks:[0, 1, 2, 3, 4, 5, 6],
+    axisNote:"types differ by up to 16×" },
+  { key:"top", btn:"Top 1,000 by downloads", label:"the 1,000 most-downloaded datasets",
+    exclude:["government", "classroom"], excludeNote:"government and classroom absent (n = 0)",
+    domain:[0, 2.4], ticks:[0, 0.5, 1, 1.5, 2] },
+];
+const DEFAULT_SCOPE = "top";
+// ?scope=all opens on the all-datasets view, so a story can embed either state directly.
+const URL_SCOPE = new URLSearchParams(location.search).get("scope");
+let currentScope = SCOPES.some(s => s.key === URL_SCOPE) ? URL_SCOPE : DEFAULT_SCOPE;
+
+// One panel per metric, left to right; the label sits under its panel. Each index is
+// (the type's share of the outcome / its share of datasets), so all three read against
+// the same 1x parity line.
+const METRICS = [
+  { key:"dl", label:"Downloads index",       desc:"share of downloads ÷ share of datasets" },
+  { key:"lk", label:"Likes index",           desc:"share of likes ÷ share of datasets" },
+  { key:"ad", label:"Model-adoption index",  desc:"share of models declaring a dataset as training data ÷ share of datasets" },
+];
+
+const PARITY = 1;                                     // bars grow from here, up or down
+const PARITY_COLOR = "#B4B4B4";                       // light grey, so it reads behind the value labels
+const PANEL_GAP = 0.10;                               // share of a panel's width left between panels
+const SNAPSHOT = "22 July 2026";
+const SOURCE_NAME = "Hugging Face (" + SNAPSHOT + ")";
+const SOURCE_HREF = "https://huggingface.co/datasets";
+
+// One object per (account type x scope). dl/lk/ad are the indices;
+// n = datasets of that type in the scope, pop = all its datasets in the snapshot;
+// the remaining fields are the raw values behind each index, for the tooltip.
+/*__DATA_START__*/
+const DATA = [
+  { type:"company", scope:"all", n:29198, pop:29198, dl:5.1984, lk:6.5187, ad:4.5303, downloads:510999328, likes:109137, adoption:32291 },
+  { type:"university", scope:"all", n:23071, pop:23071, dl:3.3643, lk:3.3107, ad:2.7691, downloads:261309912, likes:43797, adoption:15596 },
+  { type:"community", scope:"all", n:59347, pop:59347, dl:2.5425, lk:2.1608, ad:2.1747, downloads:508001732, likes:73531, adoption:31506 },
+  { type:"non-profit", scope:"all", n:54542, pop:54542, dl:2.1745, lk:1.8926, ad:2.0419, downloads:399285826, likes:59189, adoption:27188 },
+  { type:"classroom", scope:"all", n:4039, pop:4039, dl:0.3388, lk:0.5082, ad:0.3387, downloads:4606379, likes:1177, adoption:334 },
+  { type:"government", scope:"all", n:693, pop:693, dl:0.3143, lk:0.9160, ad:0.5320, downloads:733279, likes:364, adoption:90 },
+  { type:"individual", scope:"all", n:803571, pop:803571, dl:0.5898, lk:0.5894, ad:0.6672, downloads:1595730509, likes:271559, adoption:130881 },
+  { type:"company", scope:"top", n:145, pop:29198, dl:1.3835, lk:1.5280, ad:2.1570, downloads:405921846, likes:22380, adoption:10356 },
+  { type:"university", scope:"top", n:96, pop:23071, dl:0.9408, lk:0.9288, ad:1.1263, downloads:182747728, likes:9006, adoption:3580 },
+  { type:"community", scope:"top", n:156, pop:59347, dl:1.2122, lk:1.3778, ad:1.3895, downloads:382630317, likes:21711, adoption:7177 },
+  { type:"non-profit", scope:"top", n:166, pop:54542, dl:0.8452, lk:1.0609, ad:1.5785, downloads:283875826, likes:17788, adoption:8676 },
+  { type:"individual", scope:"top", n:437, pop:803571, dl:0.8688, lk:0.6825, ad:0.2296, downloads:768239817, likes:30124, adoption:3322 },
+];
+/*__DATA_END__*/
+
+document.getElementById("source-text").innerHTML =
+  'Source: <a href="'+SOURCE_HREF+'" target="_blank" rel="noopener">'+SOURCE_NAME+'</a>';
+
+// Show only the footer rows whose flag is on, then recompute grid rows.
+(function applyContainerVisibility(){
+  const grid = document.querySelector(".viz-grid"), c = n => document.getElementById("container"+n);
+  const c2=c(2), c3=c(3), c4=c(4), c5=c(5);
+  if (c2 && !SHOW_CONTAINER_2) c2.style.display="none";
+  if (c3 && !SHOW_CONTAINER_3) c3.style.display="none";
+  if (c4 && !SHOW_CONTAINER_4) c4.style.display="none";
+  if (c5 && !SHOW_CONTAINER_5) c5.style.display="none";
+  const rowCtrl=SHOW_CONTAINER_5, rowLegend=SHOW_CONTAINER_2, rowFooter=SHOW_CONTAINER_3||SHOW_CONTAINER_4;
+  const rows=[]; let r=1;
+  rows.push((20-(rowCtrl?1:0)-(rowLegend?1:0)-(rowFooter?1:0))+"fr");
+  if (rowCtrl)   { rows.push("1fr"); r++; if (c5) c5.style.gridRow=r; }
+  if (rowLegend) { rows.push("1fr"); r++; if (c2) c2.style.gridRow=r; }
+  if (rowFooter) { rows.push("1fr"); r++;
+    if (SHOW_CONTAINER_3 && c3) c3.style.gridRow=r;
+    if (SHOW_CONTAINER_4 && c4) c4.style.gridRow=r;
+    if (SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn="1 / span 2";
+    if (!SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn="1 / span 2";
+  }
+  grid.style.gridTemplateRows = rows.join(" ");
+  c(1).style.gridRow = "1";
+})();
+
+// ---- helpers ----
+const fmtInt = d3.format(",");
+const fmtBig = d3.format(".3~s");                      // 494M downloads
+const fmtIdx = v => d3.format(".2f")(v) + "×";
+const tickLabel = t => String(t) + "×";                // 0.5x / 1x / 1.25x, never rounded to "1x"
+
+const measure = (() => {                               // text width, for dynamic margins
+  const ctx = document.createElement("canvas").getContext("2d");
+  return (txt, px, weight) => { ctx.font = (weight||400)+" "+px+"px system-ui, sans-serif"; return ctx.measureText(txt).width; };
+})();
+
+const tooltip = d3.select("#tooltip");
+const vizContainer = document.getElementById("viz");
+let shouldAnimate = true;   // true on first render and on a scope switch, false on resize redraws
+
+const scopeDef = () => SCOPES.find(s => s.key === currentScope);
+const typesFor = scope => TYPE_ORDER.filter(t => !scope.exclude.includes(t));
+
+// One drawable bar per (metric x type) for the active scope.
+function barsFor(scope){
+  const byType = new Map(DATA.filter(d => d.scope === scope.key).map(d => [d.type, d]));
+  const bars = [];
+  for (const m of METRICS)
+    for (const t of typesFor(scope)){
+      const row = byType.get(t);
+      if (!row) continue;
+      bars.push({ metric:m, type:t, row, value:row[m.key], fill:COLORS[t] });
+    }
+  return bars;
+}
+
+function buildScopeFilter(){
+  const box = document.getElementById("scopeFilter");
+  box.innerHTML = "";
+  for (const s of SCOPES){
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "selector-button"; b.textContent = s.btn;
+    b.dataset.scope = s.key;
+    b.title = "Show " + s.label;
+    b.setAttribute("aria-label", "Show " + s.label);
+    b.addEventListener("click", () => {
+      if (currentScope === s.key) return;              // no redundant redraw
+      currentScope = s.key; updateScopeState(); shouldAnimate = true; render();
+    });
+    box.appendChild(b);
+  }
+  updateScopeState();
+}
+function updateScopeState(){
+  document.querySelectorAll("#scopeFilter .selector-button").forEach(b =>
+    b.classList.toggle("active", b.dataset.scope === currentScope));
+}
+
+function buildLegend(){
+  const scope = scopeDef();
+  const swatch = t =>
+    '<svg width="14" height="14"><rect width="14" height="14" rx="2" fill="'+COLORS[t]+'"></rect></svg>';
+  // the legend row holds only the centred colour swatches; the notes sit centred on the
+  // footer row below, between source and logo (#legend-note). The active scope is not named
+  // anywhere (the segmented button states it); individuals need no note: their bar is in the chart.
+  const notes = ["1× = proportional to share of datasets",
+                 scope.axisNote, scope.excludeNote].filter(Boolean);
+  document.getElementById("legend").innerHTML =
+    typesFor(scope).map(t => '<span class="lg">' + swatch(t) + TYPE_LABEL[t] + '</span>').join("");
+  const note = document.getElementById("legend-note");
+  note.textContent = notes.join("; ");
+  note.title = notes.join("; ");                       // full text on hover if ellipsised
+}
+
+function render(){
+  d3.select("#viz").selectAll("*").remove();
+  const rect = vizContainer.getBoundingClientRect();
+  const W = Math.max(240, rect.width), H = Math.max(160, rect.height);
+  const compact = window.matchMedia(`(max-height:${BREAKPOINT_COMPACT}px)`).matches;
+  const animate = shouldAnimate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  shouldAnimate = false;
+
+  const scope = scopeDef();
+  const types = typesFor(scope);
+  const bars = barsFor(scope);
+  const fs = Math.max(8, Math.min(13, W/78));                   // tick / value size
+  const fsTitle = Math.max(9, Math.min(15, W/72));              // panel titles
+  const ticks = scope.ticks;
+  const tickW = Math.max(...ticks.map(t => measure(tickLabel(t), fs, 600)));
+  // top: room for the value label above the tallest bar; bottom: the panel label
+  const M = { top: Math.round(fs*1.8), right: Math.round(fs*0.8),
+              bottom: Math.round(compact ? fs*0.8 : fsTitle*2.2), left: Math.round(tickW + fs*1.2) };
+  const iw = Math.max(60, W - M.left - M.right), ih = Math.max(60, H - M.top - M.bottom);
+
+  const svg = d3.select("#viz").append("svg").attr("width", W).attr("height", H);
+  const g = svg.append("g").attr("transform", `translate(${M.left},${M.top})`);
+
+  // four equal panels across the inner width, separated by a fixed share of a panel
+  const panelW = iw / (METRICS.length + (METRICS.length - 1) * PANEL_GAP);
+  const panelX = i => i * panelW * (1 + PANEL_GAP);
+  const y = d3.scaleLinear().domain(scope.domain).range([ih, 0]);
+  const x = d3.scaleBand().domain(types).range([0, panelW]).padding(types.length > 4 ? 0.22 : 0.3);
+  const bw = x.bandwidth();
+  const y0 = y(0), y1 = y(PARITY);                             // bar baseline, parity line
+
+  // y tick labels once, on the far left; gridlines repeat inside every panel
+  g.append("g").selectAll("text").data(ticks).join("text")
+    .attr("x", -fs*0.6).attr("y", d => y(d) + fs*0.35).attr("text-anchor", "end")
+    .attr("font-size", fs).attr("font-weight", 600)
+    .attr("fill", d => d === PARITY ? "#0f172a" : "#475569")
+    .text(tickLabel);
+
+  METRICS.forEach((m, i) => {
+    const p = g.append("g").attr("transform", `translate(${panelX(i)},0)`);
+
+    p.append("g").selectAll("line").data(ticks.filter(t => t !== PARITY)).join("line")
+      .attr("x1", 0).attr("x2", panelW).attr("y1", d => y(d)).attr("y2", d => y(d))
+      .attr("stroke", "#DBDBDB").attr("stroke-dasharray", "2,3").attr("stroke-width", 1);
+
+    if (!compact)
+      p.append("text").attr("x", panelW/2).attr("y", ih + fsTitle*1.5).attr("text-anchor", "middle")
+        .attr("font-size", fsTitle).attr("font-weight", 700).attr("fill", "#0f172a")
+        .text(m.label);
+  });
+
+  const barSel = g.append("g").selectAll("rect").data(bars).join("rect")
+    .attr("x", b => panelX(METRICS.indexOf(b.metric)) + x(b.type))
+    .attr("width", bw)
+    .attr("fill", b => b.fill)
+    .attr("y", animate ? y0 : b => y(b.value))
+    .attr("height", animate ? 0 : b => Math.max(1, y0 - y(b.value)));
+
+  if (SHOW_TOOLTIP){
+    const rawLine = b => {
+      const d = b.row;
+      if (b.metric.key === "ad") return "Adopting models: <b>" + fmtInt(d.adoption) + "</b>";
+      if (b.metric.key === "lk") return "Likes: <b>" + fmtBig(d.likes) + "</b>";
+      return "Downloads: <b>" + fmtBig(d.downloads) + "</b>";
+    };
+    barSel.on("mousemove", (evt, b) => {
+        const d = b.row;
+        tooltip.style("display", "block")
+          .style("left", Math.min(evt.clientX + 12, window.innerWidth - 250) + "px")
+          .style("top", (evt.clientY + 14) + "px")
+          .html('<span class="tt-title">' + TYPE_LABEL[b.type] + ": " + b.metric.label + '</span>'
+            + "Index: <b>" + fmtIdx(b.value) + "</b> "
+            + (b.value > PARITY ? "above" : "below") + " parity<br>"
+            + rawLine(b) + "<br>"
+            + '<span>' + b.metric.desc + '</span><br>'
+            + '<span>' + fmtInt(d.n) + " of " + fmtInt(d.pop) + " datasets"
+            + (currentScope === "top" ? ", " + (d.n/10).toFixed(1) + "% of the top 1,000" : "")
+            + '</span>');
+      })
+      .on("mouseleave", () => tooltip.style("display", "none"));
+  }
+
+  // dotted 1x parity line per panel, drawn over the bars so the reference stays readable
+  METRICS.forEach((m, i) => {
+    g.append("line")
+      .attr("x1", panelX(i)).attr("x2", panelX(i) + panelW).attr("y1", y1).attr("y2", y1)
+      .attr("stroke", PARITY_COLOR).attr("stroke-width", 1.4).attr("stroke-dasharray", "4,3");
+  });
+
+  // index value above each bar
+  const vals = g.append("g").selectAll("text").data(bars).join("text")
+    .attr("x", b => panelX(METRICS.indexOf(b.metric)) + x(b.type) + bw/2)
+    .attr("y", b => y(b.value) - fs*0.45)
+    .attr("text-anchor", "middle")
+    .attr("font-size", Math.min(fs*0.95, bw*0.42)).attr("font-weight", 700).attr("fill", "#0f172a")
+    .attr("opacity", animate ? 0 : 1)
+    .text(b => fmtIdx(b.value));
+
+  if (animate){
+    barSel.transition().duration(850).ease(d3.easeCubicOut)
+      .attr("y", b => y(b.value))
+      .attr("height", b => Math.max(1, y0 - y(b.value)));
+    vals.transition().delay(600).duration(300).attr("opacity", 1);
+  }
+  buildLegend();     // the legend names the active scope, so it follows every render
+}
+
+try {
+  buildScopeFilter();
+  render();
+} catch (err){
+  d3.select("body").append("div")
+    .attr("style", "position:fixed;bottom:8px;left:8px;background:#fee;border:1px solid #de2d26;color:#7f1d1d;padding:6px 8px;font-size:12px;border-radius:4px")
+    .text("Chart failed to render: " + err.message);
+}
+
+let resizeTimer = null;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 220); });
+if (typeof ResizeObserver !== "undefined")
+  new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(render, 220); }).observe(vizContainer);
+</script></body></html>
