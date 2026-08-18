@@ -1,0 +1,1255 @@
+<!-- DATA — Belgium NUTS-2 choropleth: AI startup investment (USD, Crunchbase, 'Artificial Intelligence' industry). Cloned layout from 2-publications/map-belgium.html. -->
+<script id="chart-data" type="application/json">
+{
+  "metric": "AI startup investment (USD, Crunchbase, 'Artificial Intelligence' industry)",
+  "legend_title": "Investment",
+  "unit": "usd",
+  "years": [
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "default_year": 2024,
+  "breaks": [
+    1000000.0,
+    10000000.0,
+    50000000.0,
+    100000000.0,
+    200000000.0
+  ],
+  "colors": [
+    "#eff3ff",
+    "#c6dbef",
+    "#9ecae1",
+    "#6baed6",
+    "#3182bd",
+    "#08519c"
+  ],
+  "break_labels": [
+    "< $1M",
+    "$1–10M",
+    "$10–50M",
+    "$50–100M",
+    "$100–200M",
+    "≥ $200M"
+  ],
+  "breaks_all": [
+    1000000.0,
+    10000000.0,
+    50000000.0,
+    150000000.0,
+    300000000.0
+  ],
+  "break_labels_all": [
+    "< $1M",
+    "$1–10M",
+    "$10–50M",
+    "$50–150M",
+    "$150–300M",
+    "≥ $300M"
+  ],
+  "note": "Crunchbase investment (USD) in 'Artificial Intelligence'-tagged companies, by NUTS-2 region. 2025 partial.",
+  "regions": {
+    "BE10": {
+      "name": "Brussels-Capital",
+      "label": "Brussels",
+      "group": "Brussels",
+      "loff": [
+        0.05,
+        -0.07
+      ],
+      "by_year": [
+        288145651,
+        5426047,
+        3563152,
+        4214665,
+        0
+      ]
+    },
+    "BE21": {
+      "name": "Antwerpen",
+      "label": "Antwerpen",
+      "group": "Flanders",
+      "loff": [
+        0,
+        0
+      ],
+      "by_year": [
+        42026944,
+        20713671,
+        70350000,
+        0,
+        37558355
+      ]
+    },
+    "BE22": {
+      "name": "Limburg",
+      "label": "Limburg",
+      "group": "Flanders",
+      "loff": [
+        0,
+        0
+      ],
+      "by_year": [
+        1432367,
+        0,
+        2253690,
+        2294773,
+        0
+      ]
+    },
+    "BE23": {
+      "name": "Oost-Vlaanderen",
+      "label": "Oost-Vlaanderen",
+      "group": "Flanders",
+      "loff": [
+        0,
+        0
+      ],
+      "by_year": [
+        2141611,
+        15337324,
+        11429513,
+        115819949,
+        1676425
+      ]
+    },
+    "BE24": {
+      "name": "Vlaams-Brabant",
+      "label": "Vlaams-Brabant",
+      "group": "Flanders",
+      "loff": [
+        -0.02,
+        0.2
+      ],
+      "by_year": [
+        2010625,
+        21367857,
+        0,
+        1936987,
+        0
+      ]
+    },
+    "BE25": {
+      "name": "West-Vlaanderen",
+      "label": "West-Vlaanderen",
+      "group": "Flanders",
+      "loff": [
+        0,
+        0
+      ],
+      "by_year": [
+        2007353,
+        1467454,
+        0,
+        0,
+        0
+      ]
+    },
+    "BE31": {
+      "name": "Brabant wallon",
+      "label": "Brabant wallon",
+      "group": "Wallonia",
+      "loff": [
+        0,
+        0
+      ],
+      "by_year": [
+        0,
+        169640,
+        0,
+        0,
+        0
+      ]
+    },
+    "BE32": {
+      "name": "Hainaut",
+      "label": "Hainaut",
+      "group": "Wallonia",
+      "loff": [
+        0,
+        0
+      ],
+      "by_year": [
+        0,
+        49009998,
+        0,
+        7600000,
+        0
+      ]
+    },
+    "BE33": {
+      "name": "Liège",
+      "label": "Liège",
+      "group": "Wallonia",
+      "loff": [
+        0,
+        0
+      ],
+      "by_year": [
+        0,
+        184179,
+        0,
+        387256,
+        0
+      ]
+    },
+    "BE34": {
+      "name": "Luxembourg (BE)",
+      "label": "Luxembourg",
+      "group": "Wallonia",
+      "loff": [
+        0,
+        0
+      ],
+      "by_year": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "BE35": {
+      "name": "Namur",
+      "label": "Namur",
+      "group": "Wallonia",
+      "loff": [
+        0,
+        0
+      ],
+      "by_year": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  }
+}
+</script>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>AI investment by Belgian NUTS-2 region</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    html,
+    body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      height: 100vh;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+      background-color: white;
+    }
+
+    .viz-grid {
+      display: grid;
+      grid-template-rows: 16fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
+      height: 100vh;
+      width: 100vw;
+      box-sizing: border-box;
+      padding-bottom: clamp(8px, 2vh, 18px);
+    }
+
+    #container1 {
+      grid-row: 1;
+      grid-column: 1 / span 2;
+      overflow: hidden;
+      min-height: 0;
+      position: relative;
+    }
+
+    #container1 .chart-wrapper {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+      margin-left: 0;
+    }
+
+    #container1 .chart-wrapper-inner {
+      flex: 1 1 auto;
+      display: flex;
+      min-width: 0;
+      height: 100%;
+    }
+
+    #container2 {
+      grid-row: 2;
+      grid-column: 1 / span 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #container3 {
+      grid-row: 3;
+      grid-column: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #container4 {
+      grid-row: 3;
+      grid-column: 2;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    #viz,
+    #map {
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      min-width: 0;
+    }
+
+    #chart {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .leaflet-container {
+      background: #e0f2fe;
+    }
+
+    .leaflet-control-zoom a {
+      border-radius: 4px !important;
+      color: #475569 !important;
+      border: 1px solid rgba(17, 24, 39, 0.12) !important;
+    }
+
+    .country-base {
+      transition: fill 0.3s ease;
+    }
+
+    .leaflet-interactive {
+      transition: fill 0.4s ease, stroke 0.2s ease;
+    }
+
+    .city-label {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 12px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      text-shadow: 0 0 3px rgba(255, 255, 255, 0.95), 0 0 3px rgba(255, 255, 255, 0.95), 0 0 3px rgba(255, 255, 255, 0.95);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .city-label::before {
+      display: none !important;
+    }
+
+    .region-label {
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 0 !important;
+      color: #1e293b;
+      font-weight: 800;
+      font-style: italic;
+      font-size: 12px;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      text-shadow: 0 0 4px rgba(255, 255, 255, 0.95), 0 0 4px rgba(255, 255, 255, 0.95), 0 0 4px rgba(255, 255, 255, 0.95);
+      pointer-events: none;
+      white-space: nowrap;
+      opacity: 0.55;
+    }
+
+    .region-label::before {
+      display: none !important;
+    }
+
+    .map-legend {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+    }
+
+    .map-legend-title {
+      font-size: clamp(10px, 1.1vw, 12px);
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .map-legend-row {
+      display: flex;
+      gap: 2px;
+      flex-wrap: nowrap;
+    }
+
+    .map-legend-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      min-width: 38px;
+    }
+
+    .map-legend-swatch {
+      width: clamp(30px, 5vw, 48px);
+      height: 12px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .map-legend-tick {
+      font-size: clamp(9px, 1vw, 11px);
+      color: #64748b;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #tooltip {
+      position: fixed;
+      pointer-events: none;
+      background: #fff;
+      border: 1px solid rgba(17, 24, 39, 0.12);
+      border-radius: 8px;
+      padding: 8px 12px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.10);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-size: 12px;
+      color: #0f172a;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 2000;
+      min-width: 140px;
+    }
+
+    #tooltip .t-name {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 13px;
+    }
+
+    #tooltip .t-count {
+      font-weight: 800;
+      color: #2756d3;
+      font-size: 18px;
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #tooltip .t-meta {
+      color: #64748b;
+      font-size: 11px;
+      margin-top: 1px;
+    }
+
+    .floating-panel {
+      position: absolute;
+      left: 50%;
+      bottom: clamp(10px, 2vh, 20px);
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(4px, 0.8vh, 10px);
+      padding: clamp(8px, 1.2vh, 14px) clamp(12px, 1.6vw, 20px);
+      background: #ffffff;
+      border: 1px solid rgba(17, 24, 39, 0.08);
+      border-radius: 12px;
+      z-index: 1000;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      max-width: calc(100% - 8px);
+      width: auto;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: clamp(8px, 1vw, 14px);
+      width: 100%;
+    }
+
+    .slider-label {
+      font-size: clamp(11px, 1.2vw, 13px);
+      font-weight: 700;
+      color: #475569;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .slider-year-label {
+      font-size: clamp(13px, 1.4vw, 16px);
+      font-weight: 800;
+      color: #0f172a;
+      font-variant-numeric: tabular-nums;
+      min-width: 3ch;
+      text-align: right;
+    }
+
+    #slider-container {
+      display: flex;
+      align-items: center;
+      gap: clamp(8px, 1vw, 16px);
+      padding: 0;
+      overflow: visible;
+      min-height: 0;
+      width: clamp(260px, 38vw, 460px);
+    }
+
+    .slider-wrapper {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      height: 40px;
+      min-width: 160px;
+    }
+
+    .slider-track-bg {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+
+    .year-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: transparent;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+      position: relative;
+      z-index: 2;
+    }
+
+    .year-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #2756d3;
+      border: 3px solid #fff;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(39, 86, 211, 0.35);
+      transition: box-shadow 0.2s;
+    }
+
+    .year-slider::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 0 6px rgba(39, 86, 211, 0.15);
+    }
+
+    .year-slider::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #2756d3;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 6px rgba(39, 86, 211, 0.4);
+      cursor: pointer;
+    }
+
+    .play-button {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1px solid rgba(17, 24, 39, 0.12);
+      background: #f8fafc;
+      color: #2756d3;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: background 0.2s ease, border-color 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .play-button:hover {
+      background: #eef2ff;
+      border-color: rgba(39, 86, 211, 0.35);
+    }
+
+    .play-button svg {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
+    }
+
+    @media (max-height: 500px) {
+      .viz-grid {
+        grid-template-rows: 1fr !important;
+        grid-template-columns: 1fr !important;
+        padding-bottom: 0;
+      }
+
+      #container1 {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+      }
+
+      #container2,
+      #container3,
+      #container4 {
+        display: none !important;
+      }
+    }
+  
+    /* ══ v2: year controls replaced by the ?years= URL parameter ══
+       `?controls=1` puts them back; the <head> script below decides before
+       first paint so hidden controls never flash. ══ */
+    html.v2-hide-controls #slider-container,
+    html.v2-hide-controls .slider-row,
+    html.v2-hide-controls .slider-label,
+    html.v2-hide-controls .slider-wrapper,
+    html.v2-hide-controls .slider-year-label,
+    html.v2-hide-controls .play-button,
+    html.v2-hide-controls #year-slider,
+    html.v2-hide-controls #year-label,
+    html.v2-hide-controls #year-selector,
+    html.v2-hide-controls .year-selector-container,
+    html.v2-hide-controls #container6,
+    html.v2-hide-controls #range-wrapper,
+    html.v2-hide-controls .range-wrapper {
+      display: none !important;
+    }
+    .v2-years {
+      font-weight: 600;
+      color: #2756d3;
+      white-space: nowrap;
+    }
+    /* ═════════════════════════════════════════════════════════════ */
+</style>
+
+<script>
+/* v2: decide before first paint whether the in-chart year controls are shown,
+   so hidden controls never flash. `?controls=1` keeps them. */
+(function () {
+  var q = new URLSearchParams(window.location.search);
+  if (q.get("controls") !== "1") {
+    document.documentElement.classList.add("v2-hide-controls");
+  }
+})();
+</script>
+</head>
+
+<body>
+  <div class="viz-grid">
+    <div id="container1" class="container viz-container">
+      <div id="viz">
+        <div id="map"></div>
+      </div>
+      <div class="floating-panel">
+        <div id="map-legend" class="map-legend"></div>
+        <div id="slider-container">
+          <span class="slider-label">Year</span>
+          <div class="slider-wrapper">
+            <div class="slider-track-bg"></div>
+            <input type="range" class="year-slider" id="year-slider" min="2020" max="2025" value="2024" step="1">
+          </div>
+          <span class="slider-year-label" id="year-label">2024</span>
+          <button class="play-button" id="play-button" type="button" aria-label="Play animation">
+            <svg viewBox="0 0 12 12" aria-hidden="true">
+              <path d="M3 1.5 L10 6 L3 10.5 Z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="container2" class="container legend-container"></div>
+    <div id="container3" class="container source-container"></div>
+    <div id="container4" class="container logo-container"></div>
+  </div>
+
+  <div id="tooltip"></div>
+
+  <script>
+    const SHOW_CONTAINER_2 = 0;
+    const SHOW_CONTAINER_3 = 0;
+    const SHOW_CONTAINER_4 = 0;
+    const SHOW_CONTAINER_5 = 0;
+
+    (function applyContainerVisibility() {
+      const vizGrid = document.querySelector('.viz-grid');
+      const c2 = document.getElementById('container2');
+      const c3 = document.getElementById('container3');
+      const c4 = document.getElementById('container4');
+      const c5 = document.getElementById('container5');
+
+      if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+      if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+      if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+      if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+      const row2Visible = SHOW_CONTAINER_5;
+      const row3Visible = SHOW_CONTAINER_2;
+      const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+      let gridRows = [];
+      let currentRow = 1;
+      const chartHeight = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+      gridRows.push(`${chartHeight}fr`);
+
+      if (row2Visible) { gridRows.push('1fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+      if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+      if (row4Visible) {
+        gridRows.push('1fr'); currentRow++;
+        if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+        if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+        if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+        if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+      }
+
+      vizGrid.style.gridTemplateRows = gridRows.join(' ');
+      document.getElementById('container1').style.gridRow = '1';
+    })();
+
+    const COUNTRIES_URL = "https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_0_countries.geojson";
+    const NUTS1_URL = "https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_20M_2021_4326_LEVL_1.geojson";
+    const NUTS2_URL = "https://gisco-services.ec.europa.eu/distribution/v2/nuts/geojson/NUTS_RG_20M_2021_4326_LEVL_2.geojson";
+
+    const REGION_STROKE = "#1e293b";
+    const ARR_STROKE = "#94a3b8";
+    const NO_DATA_FILL = "#e5e7eb";
+    const NEIGHBOR_FILL = "#f1f5f9";
+    const NEIGHBOR_STROKE = "#cbd5e1";
+
+    const REGION_ISOS = new Set(["BE", "NL", "FR", "DE", "LU", "GB"]);
+    const FOCUS_BOUNDS = [[49.3, 2.3], [51.7, 6.6]];
+    const PLAY_INTERVAL_MS = 1300;
+    const PLAY_ICON = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5 L10 6 L3 10.5 Z"/></svg>';
+    const PAUSE_ICON = '<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2.5" y="2" width="2.5" height="8"/><rect x="7" y="2" width="2.5" height="8"/></svg>';
+
+    const rawData = JSON.parse(document.getElementById("chart-data").textContent);
+    const YEARS = rawData.years;
+    /* ══ v2: year selection from the URL ════════════════════════════════════
+       ?years=2023 | ?years=2021-2025 | ?years=2021,2023 | absent = all years  */
+    function v2ParseYears(all) {
+      all = (all || []).map(Number);
+      var q = new URLSearchParams(window.location.search);
+      var raw = (q.get("years") || q.get("year") || "").trim();
+      var want = [];
+      if (raw) {
+        raw.split(",").forEach(function (part) {
+          part = part.trim();
+          var m = part.match(/^(\d{4})\s*(?:-|\u2013|\u2014|\.\.)\s*(\d{4})$/);
+          if (m) {
+            var a = +m[1], b = +m[2];
+            if (a > b) { var t = a; a = b; b = t; }
+            for (var y = a; y <= b; y++) want.push(y);
+          } else if (/^\d{4}$/.test(part)) {
+            want.push(+part);
+          }
+        });
+      }
+      var wanted = new Set(want);
+      var sel = all.filter(function (y) { return wanted.has(y); });
+      if (!sel.length) sel = all.slice();          /* unparseable / no overlap */
+      var state = {
+        controls: q.get("controls") === "1",
+        has: function (y) { return this.years.indexOf(+y) >= 0; },
+        /* the in-chart controls, when shown, drive the selection again */
+        setYears: function (list) {
+          this.years = list.slice();
+          this.idx = this.years.map(function (y) { return all.indexOf(y); });
+          this.single = this.years.length === 1;
+          this.n = this.years.length;
+          this.all = this.years.length === all.length;
+          this.label = v2Label(this.years);
+        }
+      };
+      state.setYears(sel);
+      return state;
+    }
+    function v2Label(sel) {
+      if (!sel.length) return "";
+      if (sel.length === 1) return String(sel[0]);
+      var contiguous = sel.length === (sel[sel.length - 1] - sel[0] + 1);
+      return contiguous ? sel[0] + "\u2013" + sel[sel.length - 1] : sel.join(", ");
+    }
+    function v2CompactNum(v) {
+      var a = Math.abs(v);
+      function trim(x) { return String(+x.toFixed(1)).replace(/\.0$/, ""); }
+      if (a >= 1e9) return trim(v / 1e9) + "B";
+      if (a >= 1e6) return trim(v / 1e6) + "M";
+      if (a >= 1e3) return trim(v / 1e3) + "k";
+      return trim(v);
+    }
+    function v2ScaleBreaks(breaks, n) {
+      return breaks.map(function (b) { return b * n; });
+    }
+    function v2BreakLabels(breaks, prefix) {
+      var p = prefix || "";
+      function n(v) { return p + v2CompactNum(v); }
+      var out = ["< " + n(breaks[0])];
+      for (var i = 1; i < breaks.length; i++) {
+        out.push(n(breaks[i - 1]) + "\u2013" + n(breaks[i]));
+      }
+      out.push("\u2265 " + n(breaks[breaks.length - 1]));
+      return out;
+    }
+    /* keep a currency marker if the chart's own labels carried one */
+    function v2LabelPrefix(labels) {
+      return (labels || []).join("").indexOf("$") >= 0 ? "$" : "";
+    }
+    /* ══════════════════════════════════════════════════════════════════════ */
+
+    const V2 = v2ParseYears(YEARS);
+
+    if (V2.controls) {
+      var v2Slider = document.getElementById("year-slider");
+      if (v2Slider) {
+        v2Slider.addEventListener("input", function () {
+          var y = +v2Slider.value;
+          var isAll = (typeof isAllYears === "function") && isAllYears(y);
+          V2.setYears(isAll ? YEARS : [y]);
+          /* the legend title carries the year window, and in some archetypes the
+             legend is built once at load — rebuild it so it cannot go stale */
+          if (typeof buildLegend === "function") buildLegend();
+        }, true);
+      }
+    }
+
+    const REGIONS = rawData.regions;
+    const UNIT = rawData.unit || "count";
+    const METRIC = rawData.metric;
+    const DEFAULT_YEAR = rawData.default_year || YEARS[YEARS.length - 1];
+    const BREAKS = rawData.breaks;
+    const COLORS = rawData.colors;
+    const BREAK_LABELS = rawData.break_labels;
+    const BREAKS_ALL = rawData.breaks_all || BREAKS;
+    const BREAK_LABELS_ALL = rawData.break_labels_all || BREAK_LABELS;
+    const ALL_YEARS = YEARS[YEARS.length - 1] + 1;
+    let CUR_BREAKS = V2.single ? BREAKS : BREAKS_ALL;
+    let CUR_LABELS = V2.single ? BREAK_LABELS : BREAK_LABELS_ALL;
+    function isAllYears(y) { return +y >= ALL_YEARS; }
+    function yearText(y) { return isAllYears(y) ? "All years" : String(y); }
+
+    const tooltipEl = document.getElementById("tooltip");
+
+    function colorFor(value) {
+      if (value == null || !isFinite(value)) return NO_DATA_FILL;
+      for (let i = 0; i < CUR_BREAKS.length; i++) {
+        if (value < CUR_BREAKS[i]) return COLORS[i];
+      }
+      return COLORS[COLORS.length - 1];
+    }
+
+    function getValueForFeature(feature, year) {
+      const rec = REGIONS[feature.properties.NUTS_ID];
+      if (!rec || !rec.by_year) return null;
+      let v2s = 0, v2n = 0;
+      for (const i of V2.idx) {
+        const v = rec.by_year[i];
+        if (v != null && isFinite(v)) { v2s += v; v2n++; }
+      }
+      return v2n ? v2s : null;
+    }
+
+    function buildLegend() {
+      const el = document.getElementById("map-legend");
+      const cells = COLORS.map((c, i) => `
+        <div class="map-legend-cell">
+          <div class="map-legend-swatch" style="background:${c}"></div>
+          <div class="map-legend-tick">${CUR_LABELS[i]}</div>
+        </div>`).join("");
+      const noData = `
+        <div class="map-legend-cell">
+          <div class="map-legend-swatch" style="background:${NO_DATA_FILL}"></div>
+          <div class="map-legend-tick">N/A</div>
+        </div>`;
+      el.innerHTML = `
+        <div class="map-legend-title">${rawData.legend_title} <span class="v2-years">${V2.label}</span></div>
+        <div class="map-legend-row">${cells}${noData}</div>`;
+    }
+    buildLegend();
+
+    function smartFormat(v) {
+      if (!isFinite(v)) return "N/A";
+      if (Math.abs(v) >= 1e9) return d3.format(".1f")(v / 1e9) + "B";
+      if (Math.abs(v) >= 1e6) return d3.format(".1f")(v / 1e6) + "M";
+      if (Math.abs(v) >= 1e3 && Math.floor(v) === v) return d3.format(",")(v);
+      if (Math.floor(v) === v) return d3.format(",")(v);
+      return d3.format(",.1f")(v);
+    }
+
+    function fmtVal(v) {
+      if (v == null || !isFinite(v)) return "—";
+      return (UNIT === "usd" ? "$" : "") + smartFormat(v);
+    }
+
+    function getFeatureIso(props) {
+      let iso = props.ISO_A2;
+      if (!iso || iso === "-99") iso = props.ISO_A2_EH;
+      return iso && iso !== "-99" ? iso : null;
+    }
+
+    function bboxOverlaps(ring, [[s, w], [n, e]]) {
+      let minLon = Infinity, maxLon = -Infinity, minLat = Infinity, maxLat = -Infinity;
+      for (const [lon, lat] of ring) {
+        if (lon < minLon) minLon = lon; if (lon > maxLon) maxLon = lon;
+        if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+      }
+      return maxLat >= s && minLat <= n && maxLon >= w && minLon <= e;
+    }
+
+    function clipFeatures(features, bounds) {
+      return features.map((f) => {
+        const g = f.geometry;
+        if (!g || g.type !== "MultiPolygon") return f;
+        const inBounds = g.coordinates.filter((poly) => bboxOverlaps(poly[0], bounds));
+        if (!inBounds.length || inBounds.length === g.coordinates.length) return f;
+        return { ...f, geometry: { ...g, coordinates: inBounds } };
+      });
+    }
+
+    function ringSignedArea(ring) {
+      let a = 0;
+      for (let i = 0, n = ring.length - 1; i < n; i++) {
+        const [x0, y0] = ring[i], [x1, y1] = ring[i + 1];
+        a += x0 * y1 - x1 * y0;
+      }
+      return a / 2;
+    }
+    function ringCentroid(ring) {
+      let x = 0, y = 0, a = 0;
+      for (let i = 0, n = ring.length - 1; i < n; i++) {
+        const [x0, y0] = ring[i], [x1, y1] = ring[i + 1];
+        const f = x0 * y1 - x1 * y0;
+        x += (x0 + x1) * f; y += (y0 + y1) * f; a += f;
+      }
+      if (a === 0) {
+        let mx = 0, my = 0;
+        for (const [x0, y0] of ring) { mx += x0; my += y0; }
+        return [mx / ring.length, my / ring.length];
+      }
+      a *= 3;
+      return [x / a, y / a];
+    }
+    function mainlandLabelLatLng(feature) {
+      const g = feature.geometry;
+      if (!g) return null;
+      let best = null, bestArea = -Infinity;
+      if (g.type === "Polygon") {
+        best = g.coordinates[0];
+      } else if (g.type === "MultiPolygon") {
+        for (const poly of g.coordinates) {
+          const area = Math.abs(ringSignedArea(poly[0]));
+          if (area > bestArea) { bestArea = area; best = poly[0]; }
+        }
+      }
+      if (!best) return null;
+      const [lon, lat] = ringCentroid(best);
+      return L.latLng(lat, lon);
+    }
+
+    const map = L.map("map", {
+      zoomControl: true,
+      attributionControl: false,
+      minZoom: 6,
+      maxZoom: 11,
+      worldCopyJump: false,
+      zoomSnap: 0.25,
+    });
+
+    map.fitBounds(FOCUS_BOUNDS, { padding: [10, 10] });
+
+    let geoLayer = null;
+    let arrLayer = null;
+    let regionOutlineLayer = null;
+    let cityLabels = {};
+    let currentYear = DEFAULT_YEAR;
+
+    function cleanArrName(raw) {
+      if (!raw) return raw;
+      let n = String(raw).split("/")[0].trim();
+      n = n.replace(/^Arr\.\s*(de\s+|d['']\s*)?/i, "");
+      n = n.replace(/^Bezirk\s+/i, "");
+      return n.trim();
+    }
+
+    function showTooltip(feature, year) {
+      const code = feature.properties.NUTS_ID;
+      const rec = REGIONS[code];
+      const name = (rec && rec.name) || cleanArrName(feature.properties.NUTS_NAME || feature.properties.NAME_LATN || code);
+      const value = getValueForFeature(feature, year);
+      const grp = (rec && rec.group) ? rec.group + " · " : "";
+      let when = V2.label + (V2.single ? "" : " (sum)");
+      if (V2.has(YEARS[YEARS.length - 1])) when += ' <span style="color:#94a3b8;font-style:italic;">(partial)</span>';
+      tooltipEl.innerHTML = `
+        <div class="t-name">${name}</div>
+        <div class="t-count">${fmtVal(value)}</div>
+        <div class="t-meta">${grp}${when}</div>`;
+      tooltipEl.style.opacity = "1";
+    }
+
+    function moveTooltip(evt) {
+      const tw = tooltipEl.offsetWidth || 160;
+      const th = tooltipEl.offsetHeight || 60;
+      let left = evt.clientX + 14;
+      let top = evt.clientY - 24;
+      if (left + tw > window.innerWidth - 8) left = evt.clientX - tw - 14;
+      if (top + th > window.innerHeight - 8) top = evt.clientY - th - 14;
+      if (top < 8) top = 8;
+      tooltipEl.style.left = left + "px";
+      tooltipEl.style.top = top + "px";
+    }
+
+    function hideTooltip() { tooltipEl.style.opacity = "0"; }
+
+    function renderCountries(countries) {
+      const features = clipFeatures(
+        countries.features.filter(f => {
+          const iso = getFeatureIso(f.properties);
+          return REGION_ISOS.has(iso) && iso !== "BE";
+        }),
+        [[FOCUS_BOUNDS[0][0] - 3, FOCUS_BOUNDS[0][1] - 3], [FOCUS_BOUNDS[1][0] + 3, FOCUS_BOUNDS[1][1] + 3]]
+      );
+
+      geoLayer = L.geoJson({ type: "FeatureCollection", features }, {
+        style: () => ({
+          weight: 0.7,
+          color: NEIGHBOR_STROKE,
+          fillColor: NEIGHBOR_FILL,
+          fillOpacity: 1,
+          opacity: 1,
+          className: "country-base",
+          interactive: false,
+        }),
+      }).addTo(map);
+
+      geoLayer.bringToBack();
+    }
+
+    function renderRegions(nuts2) {
+      const beReg = nuts2.features.filter(f => f.properties.CNTR_CODE === "BE");
+
+      arrLayer = L.geoJson({ type: "FeatureCollection", features: beReg }, {
+        style: (feature) => {
+          const value = getValueForFeature(feature, currentYear);
+          return {
+            weight: 0.8,
+            color: ARR_STROKE,
+            fillColor: colorFor(value),
+            fillOpacity: 0.92,
+            opacity: 1,
+            className: "country-base",
+          };
+        },
+        onEachFeature: (feature, layer) => {
+          layer.on({
+            mouseover: (e) => {
+              e.target.setStyle({ weight: 2, color: "#0f172a" });
+              e.target.bringToFront();
+              if (regionOutlineLayer) regionOutlineLayer.bringToFront();
+              showTooltip(feature, currentYear);
+              moveTooltip(e.originalEvent);
+            },
+            mousemove: (e) => moveTooltip(e.originalEvent),
+            mouseout: (e) => {
+              arrLayer.resetStyle(e.target);
+              hideTooltip();
+            },
+          });
+        },
+      }).addTo(map);
+
+      beReg.forEach(f => {
+        const code = f.properties.NUTS_ID;
+        const rec = REGIONS[code];
+        if (!rec) return;
+        let pos = mainlandLabelLatLng(f);
+        if (!pos) return;
+        const off = rec.loff || [0, 0];
+        pos = L.latLng(pos.lat + off[0], pos.lng + off[1]);
+        const label = L.tooltip({
+          permanent: true,
+          direction: "center",
+          className: "city-label",
+          opacity: 1,
+          interactive: false,
+        })
+          .setContent(rec.label || rec.name)
+          .setLatLng(pos);
+        label.addTo(map);
+        cityLabels[code] = label;
+      });
+    }
+
+    function renderRegionOutlines(nuts1) {
+      const beRegions = nuts1.features.filter(f => f.properties.CNTR_CODE === "BE");
+      regionOutlineLayer = L.geoJson({ type: "FeatureCollection", features: beRegions }, {
+        style: () => ({
+          weight: 1.8,
+          color: REGION_STROKE,
+          fillOpacity: 0,
+          opacity: 0.65,
+          interactive: false,
+          className: "country-base",
+        }),
+      }).addTo(map);
+
+    }
+
+    function updateForYear(year) {
+      currentYear = year;
+      const allY = isAllYears(year);
+      CUR_BREAKS = V2.single ? BREAKS : BREAKS_ALL;
+      CUR_LABELS = V2.single ? BREAK_LABELS : BREAK_LABELS_ALL;
+      buildLegend();
+      if (!arrLayer) return;
+      arrLayer.setStyle((feature) => {
+        const value = getValueForFeature(feature, year);
+        return {
+          weight: 0.8,
+          color: ARR_STROKE,
+          fillColor: colorFor(value),
+          fillOpacity: 0.92,
+          opacity: 1,
+        };
+      });
+      if (regionOutlineLayer) regionOutlineLayer.bringToFront();
+    }
+
+    Promise.all([
+      fetch(COUNTRIES_URL).then(r => { if (!r.ok) throw new Error(`Countries ${r.status}`); return r.json(); }),
+      fetch(NUTS1_URL).then(r => { if (!r.ok) throw new Error(`NUTS1 ${r.status}`); return r.json(); }),
+      fetch(NUTS2_URL).then(r => { if (!r.ok) throw new Error(`NUTS2 ${r.status}`); return r.json(); }),
+    ])
+      .then(([countries, nuts1, nuts2]) => {
+        renderCountries(countries);
+        renderRegions(nuts2);
+        renderRegionOutlines(nuts1);
+      })
+      .catch(err => {
+        const box = document.createElement("div");
+        box.style.cssText = "position:fixed;top:12px;left:12px;z-index:9999;background:#fff;padding:10px 14px;border:1px solid #fecaca;border-radius:6px;color:#b91c1c;font-family:system-ui;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.12);";
+        box.textContent = `Map data failed to load: ${err.message}`;
+        document.body.appendChild(box);
+      });
+
+    const slider = document.getElementById("year-slider");
+    const yearLabel = document.getElementById("year-label");
+    const playButton = document.getElementById("play-button");
+    slider.min = YEARS[0]; slider.max = ALL_YEARS; slider.step = 1;
+    slider.value = DEFAULT_YEAR; yearLabel.textContent = yearText(DEFAULT_YEAR);
+
+    slider.addEventListener("input", () => {
+      const y = +slider.value;
+      yearLabel.textContent = yearText(y);
+      updateForYear(y);
+    });
+
+    map.on("mouseout movestart zoomstart", hideTooltip);
+    window.addEventListener("blur", hideTooltip);
+    document.addEventListener("mouseleave", hideTooltip);
+
+    const MIN_YEAR = +slider.min, MAX_YEAR = +slider.max;
+    let playing = false, playTimer = null;
+
+    function setSliderYear(year) {
+      slider.value = year;
+      slider.dispatchEvent(new Event("input"));
+    }
+    function startPlay() {
+      if (playing) return;
+      playing = true;
+      playButton.innerHTML = PAUSE_ICON;
+      playButton.setAttribute("aria-label", "Pause animation");
+      if (+slider.value >= MAX_YEAR) setSliderYear(MIN_YEAR);
+      playTimer = setInterval(() => {
+        const next = +slider.value + 1;
+        if (next > MAX_YEAR) { stopPlay(); return; }
+        setSliderYear(next);
+      }, PLAY_INTERVAL_MS);
+    }
+    function stopPlay() {
+      if (!playing) return;
+      playing = false;
+      playButton.innerHTML = PLAY_ICON;
+      playButton.setAttribute("aria-label", "Play animation");
+      clearInterval(playTimer); playTimer = null;
+    }
+    playButton.addEventListener("click", () => playing ? stopPlay() : startPlay());
+    slider.addEventListener("mousedown", stopPlay);
+    slider.addEventListener("touchstart", stopPlay, { passive: true });
+    slider.addEventListener("keydown", stopPlay);
+
+    window.addEventListener("resize", () => {
+      setTimeout(() => {
+        map.invalidateSize();
+        map.fitBounds(FOCUS_BOUNDS, { padding: [10, 10] });
+      }, 100);
+    });
+  </script>
+
+<script>
+/* ══ v2: pin the chart element to the grid cell's real pixels ═══════════════════
+   Safari/WebKit sizes `#viz { height: 100% }` from the *grid container* until the
+   `Nfr` row is resolved, which happens after the first render. The chart therefore
+   draws itself taller than its cell and `overflow: hidden` cuts the bottom off —
+   the rotated x-axis labels in the bars, the last row of tiles in the treemaps.
+   Measuring the cell and writing those pixels back breaks the circular sizing;
+   the dispatched `resize` makes the chart redraw at the corrected size (every
+   archetype here, Leaflet included, re-renders on window resize). ══════════════ */
+(function () {
+  var cell = document.getElementById("container1");
+  var viz = document.getElementById("viz") || document.getElementById("map");
+  if (!cell || !viz) return;
+  var lastW = 0, lastH = 0, redraws = 0;
+  function pin() {
+    var w = Math.round(cell.clientWidth), h = Math.round(cell.clientHeight);
+    if (!w || !h) return;
+    if (Math.abs(w - lastW) < 2 && Math.abs(h - lastH) < 2) return;
+    lastW = w; lastH = h;
+    viz.style.width = w + "px";
+    viz.style.height = h + "px";
+    /* a cell whose height feeds back from its content could ping-pong here; cap it */
+    if (redraws++ < 40) window.dispatchEvent(new Event("resize"));
+  }
+  pin();
+  requestAnimationFrame(pin);
+  window.addEventListener("load", function () { requestAnimationFrame(pin); });
+  window.addEventListener("resize", pin);
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(pin).observe(cell);
+})();
+</script>
+</body>
+
+</html>
