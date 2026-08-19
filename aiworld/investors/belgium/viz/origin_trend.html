@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Belgian venture funding — origin / destination mix over time</title>
+<link rel="stylesheet" href="viz.css">
+<style>
+  .cap{font-size:clamp(12px,1.5vw,16px);font-weight:700;text-align:center;margin:0 0 8px;color:var(--ink);}
+  .cap .d{color:var(--muted);font-weight:600;}
+</style>
+</head>
+<body>
+<div class="viz-grid has-foot">
+  <div id="container1">
+    <div class="chart-area">
+      <div class="cap" id="cap"></div>
+      <div class="chart-fit" id="chart"></div>
+    </div>
+  </div>
+  <div id="container2">
+    <div class="ctrl-left">
+      <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a></div>
+    </div>
+    <div class="ctrl-center"></div>
+    <div class="ctrl-right">
+      <div id="dompills"></div>
+      <div id="eubpills"></div>
+      <div class="top-filter" id="dirpills">
+        <button data-dir="in" class="active">Inbound</button>
+        <button data-dir="out">Outbound</button>
+      </div>
+      <div class="top-filter" id="wpills">
+        <button data-w="rounds" class="active">Rounds</button>
+        <button data-w="usd">$</button>
+      </div>
+      <div id="rpick"></div>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener" class="logo-link">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+      </a>
+    </div>
+  </div>
+  <div class="viz-foot">
+    <div class="custom-legend" id="lg"></div>
+    <div id="footnote"></div>
+  </div>
+</div>
+<script src="../data/belgium.js"></script>
+<script src="viz-lib.js"></script>
+<script src="be-lib.js"></script>
+<script>
+(function(){
+  const M=BE.M;
+  // URL: ?dir=in|out & weight=rounds|usd & from=2010 & rounds=seed,series-a|all
+  let dir=BE.qs('dir',['in','out'],'in');
+  let w=BE.qs('weight',['rounds','usd'],'rounds'); if((BE.Q.get('weight')||'')==='$') w='usd';
+  const from=Math.max(2000,Math.min(2024,parseInt(BE.Q.get('from'),10)||2010));
+  let buckets=M.bucket_order.slice();
+  const norm=s=>String(s).toLowerCase().replace(/[^a-z0-9+]/g,'');
+  if(BE.Q.get('rounds')&&BE.Q.get('rounds').toLowerCase()!=='all'){
+    const want=new Set(BE.Q.get('rounds').split(',').map(norm).filter(Boolean));
+    const sel=M.bucket_order.filter(b=>want.has(norm(b)));
+    if(sel.length) buckets=sel;
+  }
+  const LOW=15;   // years with fewer rounds than this are flagged, not hidden
+
+  function draw(){
+    const t=BE.trend({dir,weight:w,buckets,from});
+    VL.stackShare('chart',t.years,t.bands,{unit:w==='usd'?'$':'rounds',W:960,H:400});
+    BE.legend('lg', t.bands.map(b=>[b.label,b.color]));
+    const thin=t.years.filter((y,i)=>t.counts[i]<LOW);
+    document.getElementById('cap').innerHTML = dir==='in'
+      ? `Where the money funding Belgian companies comes from <span class="d">· share of ${w==='usd'?'$':'rounds'}, ${t.years[0]}–${t.years[t.years.length-1]}</span>`
+      : `Where Belgian investors put their money <span class="d">· share of ${w==='usd'?'$':'rounds'}, ${t.years[0]}–${t.years[t.years.length-1]}</span>`;
+    document.getElementById('footnote').textContent =
+      (dir==='in' ? 'Each investor in a Belgian company’s round counted at its own country of origin. '
+                  : 'Destination country of every round a Belgian investor took part in (their own share only). ')
+      + (w==='usd' ? 'Dollars are the round total split equally across all investors, so a single mega-round can move a year. '
+                   : 'Round share weights every investor equally (1/n per round), which is far less mega-round sensitive than $. ')
+      + (thin.length ? 'Thin years (<' + LOW + ' rounds): ' + thin.join(', ') + '.' : '') + BE.scopeNote() + BE.eubNote() + BE.PARTIAL;
+  }
+  function setActive(id,attr,val){
+    document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('active',b.dataset[attr]===val));
+  }
+  setActive('dirpills','dir',dir); setActive('wpills','w',w);
+  VL.pills('dirpills',v=>{dir=v;draw();});
+  VL.pills('wpills',v=>{w=v;draw();});
+  BE.domainPills('dompills',()=>draw());
+  BE.eubPills('eubpills',()=>draw());
+  VL.multiSelect('rpick',{items:M.bucket_order.map(b=>({value:b,label:b})),initial:buckets,
+    noun:'rounds',onChange:bs=>{buckets=bs;draw();}});
+})();
+</script>
+</body>
+</html>

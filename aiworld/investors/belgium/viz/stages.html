@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Belgian venture funding — domestic vs foreign by stage</title>
+<link rel="stylesheet" href="viz.css">
+<style>
+  .cap{font-size:clamp(12px,1.5vw,16px);font-weight:700;text-align:center;margin:0 0 8px;color:var(--ink);}
+  .cap .d{color:var(--muted);font-weight:600;}
+</style>
+</head>
+<body>
+<div class="viz-grid has-foot">
+  <div id="container1">
+    <div class="chart-area">
+      <div class="cap" id="cap"></div>
+      <div class="chart-fit" id="chart"></div>
+    </div>
+  </div>
+  <div id="container2">
+    <div class="ctrl-left">
+      <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a></div>
+    </div>
+    <div class="ctrl-center"></div>
+    <div class="ctrl-right">
+      <div id="dompills"></div>
+      <div id="eubpills"></div>
+      <div class="top-filter" id="dirpills">
+        <button data-dir="in" class="active">Inbound</button>
+        <button data-dir="out">Outbound</button>
+      </div>
+      <div class="top-filter" id="wpills">
+        <button data-w="rounds" class="active">Rounds</button>
+        <button data-w="usd">$</button>
+      </div>
+      <div id="yrpick"></div>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener" class="logo-link">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+      </a>
+    </div>
+  </div>
+  <div class="viz-foot">
+    <div class="custom-legend" id="lg"></div>
+    <div id="footnote"></div>
+  </div>
+</div>
+<script src="../data/belgium.js"></script>
+<script src="viz-lib.js"></script>
+<script src="be-lib.js"></script>
+<script>
+(function(){
+  const M=BE.M;
+  // URL: ?dir=in|out & weight=rounds|usd & years=2015-2025|all
+  let dir=BE.qs('dir',['in','out'],'in');
+  let w=BE.qs('weight',['rounds','usd'],'rounds'); if((BE.Q.get('weight')||'')==='$') w='usd';
+  let years=[];
+  const LOW=20;
+
+  function draw(){
+    const rows=BE.byBucket({dir,weight:w,years}).filter(r=>r.n>0);
+    const cats=rows.map(r=>r.bucket+' ('+r.n+')');
+    const share=r=>{const t=r.dom+r.foreign; return t?r.dom/t:0;};
+    const series=[
+      {label: dir==='in'?'Belgian funders':'Into Belgian companies', color:BE.BLOC_COL['Belgium'],
+       values:rows.map(share)},
+      {label: dir==='in'?'Foreign funders':'Abroad', color:BE.BLOC_COL['EU-27 (excl. BE)'],
+       values:rows.map(r=>1-share(r))},
+    ];
+    VL.groupedBar('chart',cats,series,{tipLabel:'Share of '+(w==='usd'?'$':'rounds')});
+    BE.legend('lg', series.map(s=>[s.label,s.color]));
+    const s=BE.stats({dir,years});
+    document.getElementById('cap').innerHTML = (dir==='in'
+      ? 'Who funds Belgian companies, by round type'
+      : 'Where Belgian investors deploy, by round type')
+      + ` <span class="d">· ${s.rounds.toLocaleString()} rounds · ${VL.money(s.usd)}</span>`;
+    const thin=rows.filter(r=>r.n<LOW).map(r=>r.bucket);
+    document.getElementById('footnote').textContent =
+      'Round counts per stage in brackets. '
+      + (dir==='in'
+          ? 'Inbound splits each Belgian company’s round across its investors, then asks how much came from Belgium. '
+          : 'Outbound counts a round as domestic when the recipient company is Belgian. ')
+      + (thin.length ? 'Thin cells (<'+LOW+' rounds): '+thin.join(', ')+'.' : '') + BE.scopeNote() + BE.eubNote() + BE.PARTIAL;
+  }
+  function setActive(id,attr,val){
+    document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('active',b.dataset[attr]===val));
+  }
+  setActive('dirpills','dir',dir); setActive('wpills','w',w);
+  VL.pills('dirpills',v=>{dir=v;draw();});
+  VL.pills('wpills',v=>{w=v;draw();});
+  BE.domainPills('dompills',()=>draw());
+  BE.eubPills('eubpills',()=>draw());
+  const avail=M.meta.years.filter(y=>y>=2005);
+  VL.yearDropdown('yrpick',{years:avail,
+    initial:BE.parseYears(BE.Q.get('years'),avail)||avail.filter(y=>y>=2015&&y<=2025),
+    recent:[2015,2025],onChange:ys=>{years=ys;draw();}});
+})();
+</script>
+</body>
+</html>

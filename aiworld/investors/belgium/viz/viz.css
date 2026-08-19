@@ -1,0 +1,152 @@
+:root{
+  --ink:#1f2933; --muted:#6b7785; --line:#d4dae2; --panel:#fff; --bg:#fff;
+  --us:#E1701A; --eu:#2756d3;
+  --dom:#8a97a6; --ib:#2756d3; --intl:#E1701A;
+  --blue:#2756d3;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Helvetica,Arial,sans-serif;
+  color:var(--ink); height:100vh; overflow:hidden;
+}
+
+/* ---- full-viewport layout (chart on top, chrome bar below) ---- */
+.viz-grid{
+  display:grid; grid-template-rows:1fr auto; grid-template-columns:1fr;
+  height:100vh; width:100vw; box-sizing:border-box;
+  padding-bottom:clamp(8px,2vh,18px);
+}
+#container1{
+  grid-row:1; grid-column:1; overflow:hidden; min-height:0;
+  display:flex; flex-direction:column;
+  padding:clamp(10px,2.2vh,26px) clamp(14px,2.5vw,34px) 0;
+}
+#container2{
+  grid-row:2; grid-column:1;
+  /* source (left) + controls (right) sized to content so both always show;
+     legend takes the middle and wraps if space is tight */
+  display:grid; grid-template-columns:max-content 1fr max-content; align-items:center;
+  gap:clamp(10px,2vw,28px);
+  padding:clamp(8px,1.5vh,16px) clamp(14px,2.5vw,28px);
+  overflow:visible; min-height:clamp(44px,7vh,80px);
+}
+#container2 .ctrl-left{justify-self:stretch;display:flex;align-items:center;gap:12px;min-width:0;overflow:hidden;}
+#container2 .ctrl-center{justify-self:center;display:flex;align-items:center;gap:clamp(8px,1.5vw,18px);flex-wrap:nowrap;}
+#container2 .ctrl-right{justify-self:end;display:flex;align-items:center;gap:clamp(8px,1.5vw,18px);flex-wrap:nowrap;}
+
+/* ---- chart fitting: SVGs scale to fill their box, aspect preserved ---- */
+.chart-area{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;}
+.chart-fit{flex:1 1 auto;min-height:0;min-width:0;display:flex;align-items:center;justify-content:center;}
+.chart-fit svg{width:100%;height:100%;max-height:100%;display:block;overflow:visible;}
+/* github_stacked-style explanatory footnote under a chart */
+.viz-note{flex:0 0 auto;padding:8px clamp(14px,4vw,60px) 0;font-size:clamp(9px,1.15vw,12.5px);
+  font-style:italic;color:#555;text-align:center;line-height:1.4;max-width:100%;}
+/* full-width footnote row below the whole chrome bar */
+.viz-grid.has-foot{grid-template-rows:1fr auto auto;}
+.viz-foot{grid-row:3;grid-column:1;text-align:center;font-style:italic;color:#555;
+  font-size:clamp(9px,1.15vw,12.5px);line-height:1.4;padding:4px clamp(14px,2.5vw,28px) 0;}
+.duo{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:clamp(14px,3vw,40px);}
+.duo.single{grid-template-columns:1fr;}
+.duo .col.hidden{display:none;}
+.duo .col{display:flex;flex-direction:column;min-height:0;min-width:0;}
+.duo .col-cap{font-size:clamp(12px,1.5vw,16px);font-weight:700;text-align:center;margin:0 0 6px;}
+.duo .col-cap.us{color:var(--us);} .duo .col-cap.eu{color:var(--eu);}
+
+/* small-multiples grid (stage trends) */
+.smgrid{flex:1 1 auto;min-height:0;display:grid;
+  grid-template-columns:repeat(4,1fr);gap:clamp(8px,1.4vw,16px);}
+@media(max-width:900px){.smgrid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:620px){.smgrid{grid-template-columns:repeat(2,1fr);}}
+.sm-panel{display:flex;flex-direction:column;min-height:0;min-width:0;}
+.smcap{font-size:clamp(10px,1.2vw,13px);font-weight:700;color:var(--ink);margin:0 0 2px;text-align:center;}
+
+/* ---- source (left) ---- */
+.source-text{
+  font-size:clamp(12px,1.4vw,16px);font-weight:600;color:#333;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  min-width:0;flex:0 1 auto;max-width:100%;
+}
+.source-text a{color:var(--blue);text-decoration:underline;cursor:pointer;}
+.source-text a:visited{color:var(--blue);}
+
+/* ---- legend (center) ---- */
+.custom-legend{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+  gap:clamp(8px,1.6vw,18px);font-size:clamp(11px,1.4vw,15px);font-weight:600;color:#333;
+}
+.legend-item{display:flex;align-items:center;gap:6px;}
+.legend-square{width:clamp(11px,1.2vw,14px);height:clamp(11px,1.2vw,14px);border-radius:4px;flex-shrink:0;}
+.legend-note{color:var(--muted);font-weight:600;}
+
+/* ---- toggle pills (right) — matches iclr template ---- */
+.ctl-label{font-size:clamp(9px,1vw,11px);color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-right:-2px;}
+.top-filter{display:inline-flex;align-items:stretch;border:1.5px solid var(--blue);border-radius:14px;overflow:hidden;background:#fff;flex-shrink:0;}
+.top-filter button{
+  border:none;background:transparent;color:var(--blue);
+  padding:clamp(5px,1vh,9px) clamp(11px,1.6vw,18px);
+  font-size:clamp(10px,1.2vw,14px);font-weight:700;letter-spacing:.3px;
+  cursor:pointer;transition:background-color .2s ease,color .2s ease;
+  text-transform:uppercase;line-height:1.2;white-space:nowrap;
+}
+.top-filter button+button{border-left:1px solid rgba(39,86,211,.2);}
+.top-filter button.active{background:var(--blue);color:#fff;}
+.top-filter button:focus-visible{outline:none;}
+
+/* ---- URL-driven chrome hiding (e.g. ?buttons=0&source=0&legend=0&logo=0&chrome=0) ---- */
+body.hide-buttons .top-filter,
+body.hide-buttons .yr-wrap{display:none!important;}
+/* with the toggle pills gone, make the columns symmetric so the legend centers on the page */
+body.hide-buttons #container2{grid-template-columns:1fr auto 1fr;}
+body.hide-source .source-text{display:none!important;}
+body.hide-legend .custom-legend{display:none!important;}
+body.hide-logo .logo-link{display:none!important;}
+body.hide-chrome #container2{display:none!important;}
+
+/* ---- year multi-select dropdown ---- */
+.yr-wrap{position:relative;display:inline-flex;flex-shrink:0;}
+.yr-toggle{display:inline-flex;align-items:center;gap:6px;}
+.yr-panel{position:absolute;bottom:calc(100% + 8px);right:0;background:#fff;border:1px solid var(--line);
+  border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:10px 12px;z-index:60;
+  display:none;grid-template-columns:repeat(5,auto);gap:3px 12px;}
+.yr-panel.show{display:grid;}
+.yr-panel label{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--ink);
+  cursor:pointer;padding:2px 4px;white-space:nowrap;}
+.yr-panel label input{accent-color:var(--blue);cursor:pointer;margin:0;}
+.yr-actions{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--line);
+  margin-top:5px;padding-top:7px;}
+.yr-actions button{border:1px solid var(--blue);background:#fff;color:var(--blue);border-radius:8px;
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:3px 9px;cursor:pointer;}
+.yr-actions button:hover{background:var(--blue);color:#fff;}
+
+/* ---- AI World logo (far right) ---- */
+.logo-link{height:clamp(28px,4vh,44px);display:flex;align-items:center;flex-shrink:0;}
+.logo{height:100%;width:auto;max-height:100%;object-fit:contain;}
+
+/* ---- svg text ---- */
+.axis{font-size:11px;fill:var(--muted);}
+.gl{stroke:#eef1f4;stroke-width:1;}
+
+/* ---- tooltip ---- */
+.tip{position:fixed;pointer-events:none;background:rgba(31,41,51,.96);color:#fff;font-size:12.5px;
+  padding:8px 10px;border-radius:7px;opacity:0;transition:opacity .08s;max-width:260px;z-index:50;
+  box-shadow:0 4px 14px rgba(0,0,0,.18);}
+.tip b{color:#fff;} .tip .d{color:#c7d0da;}
+
+/* ---- data-table overlay (stage trends: problematic years) ---- */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:none;align-items:center;justify-content:center;}
+.overlay.show{display:flex;}
+.overlay-panel{background:#fff;border-radius:12px;max-width:min(680px,92vw);max-height:84vh;overflow:auto;
+  box-shadow:0 10px 44px rgba(0,0,0,.28);padding:20px 22px;}
+.overlay-panel h3{margin:0 0 4px;font-size:16px;}
+.overlay-panel p.sub{margin:0 0 14px;font-size:12.5px;color:var(--muted);}
+.overlay-close{position:sticky;top:0;float:right;border:0;background:#eef1f4;border-radius:8px;
+  width:28px;height:28px;font-size:15px;cursor:pointer;color:var(--ink);}
+table.dt{border-collapse:collapse;width:100%;font-size:12.5px;}
+table.dt th,table.dt td{padding:5px 10px;text-align:right;border-bottom:1px solid var(--line);}
+table.dt th:first-child,table.dt td:first-child{text-align:left;}
+table.dt th{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);}
+table.dt td.lo{color:#c0392b;font-weight:700;}
+table.dt tr td.stage{font-weight:700;}
+
+@media(max-height:460px){#container2{display:none!important;}.viz-grid{grid-template-rows:1fr!important;}}

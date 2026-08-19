@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inside Belgium — which region funds which</title>
+<link rel="stylesheet" href="viz.css">
+<style>
+  .cap{font-size:clamp(12px,1.5vw,16px);font-weight:700;text-align:center;margin:0 0 8px;color:var(--ink);}
+  .cap .d{color:var(--muted);font-weight:600;}
+</style>
+</head>
+<body>
+<div class="viz-grid has-foot">
+  <div id="container1">
+    <div class="chart-area">
+      <div class="cap" id="cap"></div>
+      <div class="chart-fit" id="chart"></div>
+    </div>
+  </div>
+  <div id="container2">
+    <div class="ctrl-left">
+      <div class="source-text">Source: <a href="https://www.crunchbase.com/" target="_blank" rel="noopener">Crunchbase</a></div>
+    </div>
+    <div class="ctrl-center"></div>
+    <div class="ctrl-right">
+      <div id="dompills"></div>
+      <div id="eubpills"></div>
+      <div class="top-filter" id="lvlpills">
+        <button data-lvl="nuts1" class="active">Region</button>
+        <button data-lvl="nuts2">Province</button>
+      </div>
+      <div class="top-filter" id="othpills">
+        <button data-oth="0" class="active">Belgium only</button>
+        <button data-oth="1">+ Outside Belgium</button>
+      </div>
+      <div class="top-filter" id="wpills">
+        <button data-w="rounds" class="active">Rounds</button>
+        <button data-w="usd">$</button>
+      </div>
+      <div id="rpick"></div>
+      <div id="yrpick"></div>
+      <a href="https://aiworld.eu/" target="_blank" rel="noopener" class="logo-link">
+        <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+      </a>
+    </div>
+  </div>
+  <div class="viz-foot">
+    <div class="custom-legend" id="lg"></div>
+    <div id="footnote"></div>
+  </div>
+</div>
+<script src="../data/belgium.js"></script>
+<script src="viz-lib.js"></script>
+<script src="be-lib.js"></script>
+<script>
+(function(){
+  const M=BE.M;
+  // URL: ?level=nuts1|nuts2 & weight=rounds|usd & years=2015-2025|all & rounds=seed,...|all & other=0|1
+  let level=BE.qs('level',['nuts1','nuts2'],'nuts1');
+  let other=['1','true','yes'].includes((BE.Q.get('other')||'').toLowerCase());
+  let w=BE.qs('weight',['rounds','usd'],'rounds'); if((BE.Q.get('weight')||'')==='$') w='usd';
+  let years=[], buckets=M.bucket_order.slice();
+  const norm=s=>String(s).toLowerCase().replace(/[^a-z0-9+]/g,'');
+  if(BE.Q.get('rounds')&&BE.Q.get('rounds').toLowerCase()!=='all'){
+    const want=new Set(BE.Q.get('rounds').split(',').map(norm).filter(Boolean));
+    const sel=M.bucket_order.filter(b=>want.has(norm(b)));
+    if(sel.length) buckets=sel;
+  }
+
+  function draw(){
+    const {links,srcNames,tgtNames}=BE.intra({level,years,buckets,other});
+    VL.sankey('chart',links,{
+      weight:w, srcNames, tgtNames, label:n=>n,
+      srcColor:n=>BE.nodeColor(n,level),
+      colorFor:n=>BE.nodeColor(n,level),
+      linkColor:l=>BE.nodeColor(l.source,level),
+    });
+    const OUT=BE.OUTSIDE, unit=w==='usd'?'$':'flows';
+    const val=l=>w==='usd'?l.usd:l.rounds;
+    const tot=links.reduce((a,l)=>a+val(l),0)||1;
+    const dom=links.filter(l=>l.target!==OUT);               // the intra-Belgian part
+    const domTot=dom.reduce((a,l)=>a+val(l),0)||1;
+    const same=dom.filter(l=>l.source===l.target).reduce((a,l)=>a+val(l),0);
+    const nuts1=(n)=>{const p=Object.values(M.prov).find(p=>p.name===n); return p?p.nuts1:n;};
+    const sameReg=dom.filter(l=>nuts1(l.source)===nuts1(l.target)).reduce((a,l)=>a+val(l),0);
+    const unitName=level==='nuts1'?'region':'province';
+    const cap=document.getElementById('cap');
+    if(other){
+      const away=links.filter(l=>l.target===OUT).reduce((a,l)=>a+val(l),0);
+      // which source sends the largest share abroad — the comparison the toggle is for
+      const bySrc=srcNames.map(s=>{
+        const ls=links.filter(l=>l.source===s), t=ls.reduce((a,l)=>a+val(l),0)||1;
+        return {s, pct:ls.filter(l=>l.target===OUT).reduce((a,l)=>a+val(l),0)/t*100, t};
+      }).filter(x=>x.t>0).sort((a,b)=>b.pct-a.pct);
+      const rank=bySrc.map(x=>`${x.s} ${x.pct.toFixed(0)}%`).join(' · ');
+      cap.innerHTML=`Belgian investors → Belgian companies <i>and abroad</i>, by ${unitName} `
+        +`<span class="d">· ${(away/tot*100).toFixed(0)}% of ${unit} leave Belgium`
+        +(bySrc.length?` · share going abroad: ${rank}`:'')+`</span>`;
+    } else {
+      cap.innerHTML=`Belgian investors → Belgian companies, by ${unitName} `
+        +`<span class="d">· ${(same/domTot*100).toFixed(0)}% of ${unit} stay in the same ${unitName}`
+        +(level==='nuts2'?` · ${(sameReg/domTot*100).toFixed(0)}% stay in the same region`:'')+`</span>`;
+    }
+    const groups=level==='nuts1'
+      ? ['Brussels','Flanders','Wallonia','Region n/a']
+      : ['Brussels','Flanders','Wallonia'];
+    BE.legend('lg', groups.map(g=>[g, BE.NUTS1_COL[g]||'#8a97a6'])
+      .concat(other?[[OUT, BE.nodeColor(OUT,level)]]:[]));
+    const rc=BE.roundCounts(), eub=BE.euBodyShare();
+    document.getElementById('footnote').textContent = (other
+      ? 'Every round with at least one Belgian investor — those that funded a Belgian company, plus those that funded a '
+        + `company abroad, collapsed into a single “Outside Belgium” node (over the full 2000–2026 period that is `
+        + `${rc.outbound.toLocaleString()} rounds, ${rc.domestic.toLocaleString()} domestic and ${rc.abroad.toLocaleString()} `
+        + 'abroad; the chart shows only the years and round types selected). Turning the '
+        + 'toggle off leaves the Belgian→Belgian links unchanged. Caveat on Brussels: EU bodies registered there '
+        + `(European Innovation Council, EIC Accelerator, EISMEA) count as Belgian investors and are ${eub.pct.toFixed(0)}% of all `
+        + 'Belgian-investor dollars, most of it going abroad. '
+      : `Only the rounds where a Belgian investor funded a Belgian company (${rc.domestic.toLocaleString()} over the full `
+        + '2000–2026 period; the chart shows only the years and round types selected). ')
+      + 'Left = investor’s own ' + unitName + ', right = company’s '
+      + (other?'(or “Outside Belgium”)':'') + '. Dollars are the round total split equally '
+      + 'across all investors, counting only the Belgian ones — so this is the Belgian investors’ own share of a round, not the whole round. '
+      + 'A round with investors from two Belgian ' + unitName + 's appears once per ' + unitName + ' pair.'
+      + BE.scopeNote() + BE.eubNote() + BE.PARTIAL;
+  }
+  function setActive(id,attr,val){
+    document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('active',b.dataset[attr]===val));
+  }
+  setActive('lvlpills','lvl',level); setActive('wpills','w',w);
+  setActive('othpills','oth',other?'1':'0');
+  VL.pills('lvlpills',v=>{level=v;draw();});
+  VL.pills('wpills',v=>{w=v;draw();});
+  BE.domainPills('dompills',()=>draw());
+  BE.eubPills('eubpills',()=>draw());
+  VL.pills('othpills',v=>{other=v==='1';draw();});
+  VL.multiSelect('rpick',{items:M.bucket_order.map(b=>({value:b,label:b})),initial:buckets,
+    noun:'rounds',onChange:bs=>{buckets=bs;draw();}});
+  const avail=M.meta.years.filter(y=>y>=2005);
+  VL.yearDropdown('yrpick',{years:avail,
+    initial:BE.parseYears(BE.Q.get('years'),avail)||avail.filter(y=>y>=2015&&y<=2025),
+    recent:[2015,2025],onChange:ys=>{years=ys;draw();}});
+})();
+</script>
+</body>
+</html>

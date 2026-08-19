@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Belgian companies and Belgian investors — named</title>
+<link rel="stylesheet" href="viz.css">
+<style>
+  /* this page scrolls, unlike the fixed-viewport chart pages */
+  html,body{height:auto;overflow:auto;}
+  .wrap{max-width:1180px;margin:0 auto;padding:26px clamp(14px,3vw,34px) 60px;}
+  h1{font-size:clamp(19px,2.4vw,27px);margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 18px;line-height:1.5;}
+  .bar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin:0 0 16px;}
+  .search{border:1.5px solid var(--line);border-radius:14px;padding:7px 13px;font-size:13px;
+    font-weight:600;color:var(--ink);min-width:210px;outline:none;font-family:inherit;}
+  .search:focus{border-color:var(--blue);}
+  table.ent{border-collapse:collapse;width:100%;font-size:13px;}
+  table.ent th{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);
+    text-align:right;padding:6px 10px;border-bottom:1.5px solid var(--line);white-space:nowrap;}
+  table.ent th:nth-child(2),table.ent th:nth-child(6){text-align:left;}
+  table.ent td{padding:7px 10px;border-bottom:1px solid #eef1f4;text-align:right;vertical-align:middle;}
+  table.ent td.name{text-align:left;font-weight:700;}
+  table.ent td.name .prov{display:block;font-weight:600;font-size:11px;color:var(--muted);}
+  table.ent td.rank{color:var(--muted);font-variant-numeric:tabular-nums;}
+  table.ent tr.row{cursor:pointer;}
+  table.ent tr.row:hover{background:#f6f8fb;}
+  .mix{display:flex;height:13px;width:150px;border-radius:3px;overflow:hidden;background:#eef1f4;}
+  .mix span{display:block;height:100%;}
+  .partners{text-align:left;color:var(--muted);font-size:12px;max-width:360px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* country tag on a counterparty — tinted by the funder/recipient's bloc */
+  .cc{display:inline-block;border-radius:4px;padding:1px 4px;margin-right:3px;
+    font-size:9.5px;font-weight:800;letter-spacing:.04em;vertical-align:1px;
+    font-variant-numeric:tabular-nums;}
+  tr.detail td{background:#f9fafc;text-align:left;font-size:12.5px;color:var(--ink);padding:10px 14px 14px;}
+  tr.detail .chip{display:inline-block;background:#fff;border:1px solid var(--line);border-radius:11px;
+    padding:3px 9px;margin:3px 5px 0 0;font-weight:600;}
+  tr.detail .chip b{font-weight:700;} tr.detail .chip .d{color:var(--muted);font-weight:600;}
+  .foot{margin-top:20px;font-size:12px;font-style:italic;color:#555;line-height:1.5;}
+  .legend-row{margin:0 0 12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="h1">Belgian companies and their funders</h1>
+  <p class="sub" id="sub"></p>
+  <div class="bar">
+    <div id="dompills"></div>
+    <div id="eubpills"></div>
+    <div class="top-filter" id="dirpills">
+      <button data-dir="in" class="active">Companies (inbound)</button>
+      <button data-dir="out">Investors (outbound)</button>
+    </div>
+    <div class="top-filter" id="wpills">
+      <button data-w="usd" class="active">$</button>
+      <button data-w="rounds">Rounds</button>
+    </div>
+    <div id="yrpick"></div>
+    <input class="search" id="q" type="search" placeholder="Filter by name…" autocomplete="off">
+  </div>
+  <div class="custom-legend legend-row" id="lg"></div>
+  <table class="ent">
+    <thead><tr>
+      <th>#</th><th id="thName">Company</th><th>Rounds</th><th id="thUsd">$ raised</th>
+      <th>Origin mix</th><th id="thPart">Main funders</th>
+    </tr></thead>
+    <tbody id="tb"></tbody>
+  </table>
+  <p class="foot" id="foot"></p>
+</div>
+<script src="../data/belgium.js"></script>
+<script src="viz-lib.js"></script>
+<script src="be-lib.js"></script>
+<script>
+(function(){
+  const M=BE.M;
+  // URL: ?dir=in|out & weight=usd|rounds & years=2015-2025|all & top=60 & q=name
+  let dir=BE.qs('dir',['in','out'],'in');
+  let w=BE.qs('weight',['usd','rounds'],'usd');
+  let years=[], q=(BE.Q.get('q')||'').toLowerCase();
+  const TOP=Math.max(10,Math.min(400,parseInt(BE.Q.get('top'),10)||60));
+  const tb=document.getElementById('tb');
+  let rows=[];
+
+  function mixBar(mix){
+    const tot=Object.values(mix).reduce((a,b)=>a+b,0)||1;
+    return '<div class="mix">'+M.bloc_order.filter(b=>mix[b]>0).map(b=>
+      `<span style="width:${(mix[b]/tot*100).toFixed(2)}%;background:${BE.BLOC_COL[b]}"></span>`).join('')+'</div>';
+  }
+  // partners are keyed by counterparty index and carry {name,country,cc,bloc,usd}
+  function topPartners(p,n){
+    return Object.values(p).sort((a,b)=>b.usd-a.usd).slice(0,n);
+  }
+  // ISO-2 tag tinted by the counterparty's bloc; unlocated ones get a muted "?"
+  function ccTag(p){
+    const col=p.cc?(BE.BLOC_COL[p.bloc]||'#8a97a6'):'#c3cad3';
+    return `<span class="cc" style="background:${VL.lerpColor(col,'#ffffff',0.80)};`
+      +`color:${VL.lerpColor(col,'#000000',0.30)}">${p.cc||'?'}</span>`;
+  }
+  function render(){
+    rows=BE.entities({dir,weight:w,years});
+    const filtered=(q?rows.filter(r=>r.name.toLowerCase().includes(q)):rows).slice(0,TOP);
+    tb.innerHTML=filtered.map((r,i)=>{
+      const parts=topPartners(r.partners,3).map(p=>ccTag(p)+p.name).join(' · ');
+      return `<tr class="row" data-k="${r.key}"><td class="rank">${i+1}</td>`
+        +`<td class="name">${r.name}<span class="prov">${r.sub}</span></td>`
+        +`<td>${r.rounds.toLocaleString()}</td><td>${VL.money(r.usd)}</td>`
+        +`<td>${mixBar(r.mix)}</td><td class="partners">${parts||'—'}</td></tr>`;
+    }).join('');
+    const s=BE.stats({dir,years});
+    document.getElementById('h1').textContent = dir==='in'
+      ? 'Belgian companies and their funders' : 'Belgian investors and their recipients';
+    document.getElementById('sub').textContent = dir==='in'
+      ? `${rows.length.toLocaleString()} Belgian companies raised ${VL.money(s.usd)} across ${s.rounds.toLocaleString()} rounds. `
+        + 'The mix bar shows where each company’s money came from. Click a row for the named funders.'
+      : `${rows.length.toLocaleString()} Belgian investors deployed ${VL.money(s.usd)} (their equal-split share) across ${s.rounds.toLocaleString()} rounds. `
+        + 'The mix bar shows where each investor put it. Click a row for the named companies.';
+    document.getElementById('thName').textContent = dir==='in'?'Company':'Investor';
+    document.getElementById('thUsd').textContent = dir==='in'?'$ raised':'$ deployed';
+    document.getElementById('thPart').textContent = dir==='in'?'Main funders':'Main recipients';
+    document.getElementById('foot').textContent =
+      'Showing the top '+TOP+' by '+(w==='usd'?'$':'rounds')+(q?' matching “'+q+'”':'')+'. '
+      + 'The ISO-2 tag on each '+(dir==='in'?'funder':'recipient')+' is its own country of registration, coloured by the bloc legend above; '
+      + '“?” means Crunchbase has no location for it. Note that EU bodies registered in Brussels (European Innovation Council, EIC Accelerator, '
+      + `EISMEA) carry a BE tag and count as Belgian investors here — they are ${BE.euBodyShare().pct.toFixed(0)}% of all Belgian-investor dollars. `
+      + 'Dollars are the round total split equally across all investors in the round; for investors that means their own share, '
+      + 'for companies it is the full round. Company names are derived from the Crunchbase permalink, so a few read oddly. '
+      + 'Belgian region comes from the entity’s own location record.' + BE.scopeNote() + BE.eubNote() + BE.PARTIAL;
+    BE.legend('lg', M.bloc_order.map(b=>[b,BE.BLOC_COL[b]]));
+  }
+  // event delegation — expand a row into its named counterparties
+  tb.addEventListener('click', e=>{
+    const tr=e.target.closest('tr.row'); if(!tr) return;
+    const nxt=tr.nextElementSibling;
+    if(nxt&&nxt.classList.contains('detail')){ nxt.remove(); return; }
+    [...tb.querySelectorAll('tr.detail')].forEach(d=>d.remove());
+    const r=rows.find(x=>String(x.key)===tr.dataset.k); if(!r) return;
+    const chips=topPartners(r.partners,24).map(p=>
+      `<span class="chip">${ccTag(p)}<b>${p.name}</b> <span class="d">${VL.money(p.usd)}</span></span>`).join('');
+    const d=document.createElement('tr'); d.className='detail';
+    d.innerHTML=`<td colspan="6"><b>${r.name}</b> — ${dir==='in'?'funders':'recipients'} `
+      +`(top ${Math.min(24,Object.keys(r.partners).length)} of ${Object.keys(r.partners).length}, by $):<br>${chips}</td>`;
+    tr.after(d);
+  });
+  function setActive(id,attr,val){
+    document.querySelectorAll('#'+id+' button').forEach(b=>b.classList.toggle('active',b.dataset[attr]===val));
+  }
+  setActive('dirpills','dir',dir); setActive('wpills','w',w);
+  VL.pills('dirpills',v=>{dir=v;render();});
+  VL.pills('wpills',v=>{w=v;render();});
+  BE.domainPills('dompills',()=>render());
+  BE.eubPills('eubpills',()=>render());
+  document.getElementById('q').addEventListener('input',e=>{q=e.target.value.toLowerCase();render();});
+  if(q) document.getElementById('q').value=q;
+  const avail=M.meta.years.filter(y=>y>=2005);
+  VL.yearDropdown('yrpick',{years:avail,
+    initial:BE.parseYears(BE.Q.get('years'),avail)||avail.filter(y=>y>=2015&&y<=2025),
+    recent:[2015,2025],onChange:ys=>{years=ys;render();}});
+})();
+</script>
+</body>
+</html>

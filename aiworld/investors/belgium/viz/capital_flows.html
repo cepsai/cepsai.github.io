@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Belgium — international capital flows in vs out</title>
+<link rel="stylesheet" href="viz.css">
+<style>
+  html,body{height:auto;overflow:auto;}
+  .wrap{max-width:1100px;margin:0 auto;padding:34px clamp(14px,3vw,34px) 70px;}
+  header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;margin:0 0 6px;}
+  h1{font-size:clamp(22px,3vw,33px);margin:0 0 6px;line-height:1.15;}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+    margin:38px 0 12px;padding-bottom:7px;border-bottom:1.5px solid var(--line);}
+  h3{font-size:14.5px;margin:0 0 5px;}
+  p{line-height:1.62;font-size:14px;max-width:82ch;}
+  .ask{border-left:3px solid var(--blue);background:#f6f8fd;border-radius:0 10px 10px 0;
+    padding:13px 18px;margin:0 0 24px;max-width:82ch;}
+  .ask p{margin:0 0 6px;font-style:italic;color:#3a4657;font-size:14px;}
+  .ask p:last-child{margin:0;}
+  .verdict{border:1.5px solid var(--blue);border-radius:12px;background:#fff;padding:17px 20px;margin:0 0 8px;}
+  .verdict .t{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--blue);font-weight:800;margin-bottom:7px;}
+  .verdict p{margin:0 0 9px;font-size:14.5px;} .verdict p:last-child{margin:0;}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin:0 0 6px;}
+  @media(max-width:860px){.stats{grid-template-columns:repeat(2,1fr);}}
+  .stat{border:1px solid var(--line);border-radius:12px;padding:13px 15px;background:#fff;}
+  .stat .k{font-size:clamp(18px,2.4vw,26px);font-weight:800;line-height:1.1;}
+  .stat .l{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:4px;line-height:1.38;}
+  .stat.dom .k{color:#8a97a6;} .stat.in .k{color:var(--blue);}
+  .stat.out .k{color:var(--us);} .stat.net .k{color:#8e5fb5;}
+  .flowbars{border:1px solid var(--line);border-radius:12px;background:#fff;padding:16px 18px 12px;}
+  .fb{display:grid;grid-template-columns:200px 1fr 92px;gap:12px;align-items:center;margin-bottom:9px;}
+  @media(max-width:700px){.fb{grid-template-columns:140px 1fr 78px;}}
+  .fb .lab{font-size:12.5px;font-weight:700;line-height:1.3;}
+  .fb .lab span{display:block;font-weight:600;font-size:11px;color:var(--muted);}
+  .fb .track{background:#eef1f4;border-radius:4px;height:19px;overflow:hidden;}
+  .fb .fill{height:100%;border-radius:4px;}
+  .fb .v{text-align:right;font-weight:800;font-size:13px;font-variant-numeric:tabular-nums;}
+  table.t{border-collapse:collapse;width:100%;font-size:13px;background:#fff;}
+  table.t th{font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);
+    text-align:right;padding:7px 10px;border-bottom:1.5px solid var(--line);}
+  table.t th:first-child{text-align:left;}
+  table.t td{padding:7px 10px;border-bottom:1px solid #eef1f4;text-align:right;
+    font-variant-numeric:tabular-nums;}
+  table.t td:first-child{text-align:left;font-weight:700;}
+  table.t tr.hi td{background:#f6f8fd;}
+  .neg{color:var(--us);} .pos{color:#3f9c76;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr;}}
+  .box{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff;}
+  .box p{font-size:12.8px;margin:0;color:#444;}
+  .box .num{font-size:20px;font-weight:800;color:var(--ink);display:block;margin-bottom:3px;}
+  ul.m{font-size:13.3px;line-height:1.66;color:#333;max-width:86ch;padding-left:20px;}
+  ul.m li{margin-bottom:7px;}
+  ul.m b{color:var(--ink);}
+  .warn{border-left:3px solid var(--us);background:#fdf6f1;border-radius:0 10px 10px 0;
+    padding:13px 17px;margin:14px 0;max-width:86ch;}
+  .warn p{margin:0;font-size:13.3px;}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;}
+  @media(max-width:800px){.cards{grid-template-columns:1fr;}}
+  a.card{display:block;border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fff;
+    text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s;}
+  a.card:hover{border-color:var(--blue);box-shadow:0 5px 18px rgba(39,86,211,.10);}
+  a.card .t{font-weight:800;font-size:13.5px;margin-bottom:3px;}
+  a.card .d{font-size:12px;color:var(--muted);line-height:1.45;}
+  .foot{margin-top:26px;font-size:12px;font-style:italic;color:#555;line-height:1.6;max-width:86ch;}
+  .logo-link{height:42px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Does Belgium have a small capital market —<br>or is Belgian capital going abroad?</h1>
+    </div>
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener" class="logo-link">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo"/>
+    </a>
+  </header>
+
+  <div class="ask">
+    <p>“Is there scope for looking at international capital flows into Belgium vs out?”</p>
+    <p>“Does Belgium just have a small domestic capital market — or is it that they are investing abroad?”</p>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 22px">
+    <div id="dompills"></div>
+    <div id="eubpills"></div>
+  </div>
+
+  <div class="verdict">
+    <div class="t">Short answer</div>
+    <p id="v1"></p>
+    <p id="v2"></p>
+  </div>
+
+  <h2>The two-sided account</h2>
+  <p id="acctIntro"></p>
+  <div class="stats" id="stats"></div>
+  <div class="flowbars" id="bars" style="margin-top:13px"></div>
+
+  <h2>Is it a small market, or an exporting one?</h2>
+  <p id="bothIntro"></p>
+  <div class="grid2">
+    <div class="box"><h3>Small domestic market?</h3><p id="boxSmall"></p></div>
+    <div class="box"><h3>Investing abroad?</h3><p id="boxAbroad"></p></div>
+  </div>
+
+  <h2>When did Belgium become a net exporter?</h2>
+  <p>Both legs by period. Positive net = more foreign money came into Belgian companies than
+     Belgian investors sent out; negative = the reverse.</p>
+  <table class="t" id="periods">
+    <thead><tr><th>Period</th><th>Inflow</th><th>Outflow</th><th>Net</th><th>Out ÷ in</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>Does the finding survive the obvious objections?</h2>
+  <p>The headline rests on an attribution rule (dollars split equally across a round's investors),
+     so it is worth attacking on three fronts before believing it.</p>
+  <div class="grid2" id="robust"></div>
+  <div class="warn" id="euwarn"></div>
+
+  <h2>Where the money comes from and goes</h2>
+  <div class="grid2">
+    <div class="box"><h3>Inflow by funder bloc</h3><table class="t" id="inBloc"></table></div>
+    <div class="box"><h3>Outflow by destination bloc</h3><table class="t" id="outBloc"></table></div>
+  </div>
+
+  <h2>What this data can and cannot answer</h2>
+  <div class="grid2">
+    <div>
+      <h3 style="margin-bottom:8px">In scope</h3>
+      <ul class="m">
+        <li><b>Yes, the two-sided view is constructible</b> — the dataset is built precisely for it: inbound is anchored on Belgian companies, outbound on Belgian investors, over the same round universe.</li>
+        <li><b>Direction and magnitude of venture flows</b>, by year, round stage, funder bloc and Belgian region.</li>
+        <li><b>Which institutions drive the outflow</b>, by name.</li>
+        <li id="domShare"></li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="margin-bottom:8px">Out of scope</h3>
+      <ul class="m">
+        <li><b>Not actual cheque sizes.</b> Crunchbase publishes no per-investor amounts; every dollar figure here is a 1/n split of the round total.</li>
+        <li><b>Equity venture only</b> — no debt, grants, public markets, real estate or FDI. This is not the Belgian capital account, only its venture corner.</li>
+        <li><b>No LP flows.</b> Money Belgian pension funds or families commit <i>into</i> foreign funds is invisible; only direct participation in rounds is captured.</li>
+        <li><b>No fund domicile.</b> A Belgian-managed fund registered in Luxembourg counts as Luxembourgish — a real distortion for a market next door to a fund hub.</li>
+        <li><b>HQ-based geography.</b> A company is placed where Crunchbase says it is headquartered, not where it operates.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>Follow it up in the dashboard</h2>
+  <div class="cards">
+    <a class="card" href="flows.html?dir=out&amp;level=nuts1"><div class="t">Where the outflow goes</div><div class="d">Sankey from Belgian funder region to destination country.</div></a>
+    <a class="card" href="intra_be.html?other=1"><div class="t">Home vs abroad by region</div><div class="d">The “+ Outside Belgium” toggle, comparing Brussels, Flanders and Wallonia.</div></a>
+    <a class="card" href="entities.html?dir=out"><div class="t">Who is doing it</div><div class="d">Named Belgian investors with country-tagged recipients.</div></a>
+  </div>
+
+  <p class="foot" id="foot"></p>
+</div>
+<script src="../data/belgium.js"></script>
+<script src="viz-lib.js"></script>
+<script src="be-lib.js"></script>
+<script>
+(function(){
+  const M=BE.M, R=BE.R, I=BE.I, O=BE.O;
+  const FLAG_IN=1, FLAG_OUT=2, FLAG_AI=4;
+  // this page walks M.rounds directly rather than going through BE.select(),
+  // so it has to apply the AI/all-sectors domain filter itself
+  const inDomain=r=>BE.getDomain()==='all'||(r[R.F]&FLAG_AI);
+  const money=v=>VL.money(v);
+  const pct=(a,b)=>b?(a/b*100).toFixed(0)+'%':'—';
+
+  /* EU institutions registered in Brussels carry a Belgian location record and are
+     therefore Belgian investors by construction. Membership comes from M.eu_bodies
+     (baked by build_belgium.py) via BE.isEUBody — this page used to keep its own
+     hardcoded name list, which silently drifted from be-lib's. Two predicates:
+     RAW keeps them Belgian, STRICT does not; which one is live follows the page
+     toggle (?eubodies=excl|incl), and the robustness box always shows the other. */
+  const isBEraw=i=>M.inv[i][I.CC]==='Belgium';
+  const isBEstrict=i=>isBEraw(i)&&!BE.isEUBody(i);
+  const excl=()=>BE.getEUB()==='excl';
+  const isBEinv=i=>excl()?isBEstrict(i):isBEraw(i);
+  const isBEalt=i=>excl()?isBEraw(i):isBEstrict(i);   // the counterfactual
+  const isBEorg=o=>M.org[o][O.CC]==='Belgium';
+
+  /* The account: three legs over the same round universe.
+     domestic = BE investor -> BE company;  inflow = foreign investor -> BE company;
+     outflow  = BE investor -> foreign company.  All on the equal-split rule. */
+  function account(pred,lo,hi,skipBuckets){
+    lo=lo||0; hi=hi||9999;
+    let domestic=0,inflow=0,outflow=0,rIn=0,rOut=0,rOutDom=0;
+    M.rounds.forEach(r=>{
+      const y=r[R.Y]; if(y<lo||y>hi) return;
+      if(!inDomain(r)) return;
+      const n=r[R.INV].length; if(!n) return;
+      if(skipBuckets&&skipBuckets.has(M.bucket_order[r[R.B]])) return;
+      const share=r[R.USD]/n;
+      const nbe=r[R.INV].reduce((a,i)=>a+(pred(i)?1:0),0);
+      if(r[R.F]&FLAG_IN){ rIn++; domestic+=share*nbe; inflow+=share*(n-nbe); }
+      // FLAG_OUT is baked with EU bodies counted as Belgian, so under the strict
+      // predicate a round whose only Belgian investor was an EU body leaves the
+      // outbound universe entirely (nbe===0) rather than contributing $0.
+      if((r[R.F]&FLAG_OUT)&&nbe>0){ rOut++; if(isBEorg(r[R.O])) rOutDom++; else outflow+=share*nbe; }
+    });
+    return {domestic,inflow,outflow,rIn,rOut,rOutDom,
+            net:inflow-outflow, ratio:inflow?outflow/inflow:0};
+  }
+
+  function render(){
+  const A=account(isBEinv);
+  const raised=A.domestic+A.inflow;
+
+  // ---- verdict ------------------------------------------------------------
+  // The claim has to track the domain: "lopsided" is earned at 1.85x all-sector but
+  // not at ~1.3x on AI, and the capital being described is AI venture capital there.
+  const AI = BE.getDomain()==='ai';
+  const CAP = AI ? 'AI venture capital' : 'venture capital';
+  const strength = A.ratio>=1.5 ? 'and it is lopsided'
+                 : A.ratio>1.05 ? 'and it tilts outward, though not dramatically'
+                 : A.ratio>=0.95 ? 'and the two directions roughly balance'
+                 : 'and the balance runs inward';
+  const dir = A.net<0 ? 'net exporter' : 'net importer';
+  document.getElementById('v1').innerHTML =
+    `<b>Yes — the data supports a proper two-sided flow account, ${strength}.</b> Belgian investors sent `
+    +`<b>${money(A.outflow)}</b> into ${AI?'AI ':''}companies abroad while foreign investors put <b>${money(A.inflow)}</b> into `
+    +`Belgian ${AI?'AI ':''}companies. Belgium is a <b>${dir} of ${CAP} by ${money(Math.abs(A.net))}</b> over 2000–2026 — `
+    +`${A.ratio.toFixed(2)}× as much goes out as comes in.`
+    +(AI?` <i>On all sectors the same account is far more lopsided — switch the toggle above to compare.</i>`:'');
+  const domSmall = A.domestic < Math.min(A.inflow, A.outflow);
+  document.getElementById('v2').innerHTML =
+    `<b>It is not either/or — it is both${A.ratio>=1.5?', and the export leg is the bigger story':''}.</b> `
+    +`The purely domestic market (Belgian investors funding Belgian ${AI?'AI ':''}companies) is <b>${money(A.domestic)}</b>, `
+    +`${domSmall?'smaller than either cross-border leg':'comparable to the cross-border legs'}. `
+    +`But Belgian investors are not short of capital to deploy: they deployed `
+    +`${money(A.domestic+A.outflow)} in total and put <b>${pct(A.outflow,A.domestic+A.outflow)} of it outside Belgium</b>. `
+    +`So the domestic market is small partly <i>because</i> Belgian money goes elsewhere, not only because there is little of it.`;
+
+  document.getElementById('acctIntro').textContent =
+    `Every equity round in the dataset falls into one of three legs. Dollars are the round total split equally across `
+    +`all investors in the round, so the three legs are measured on one consistent rule and can be added and compared. `
+    +`${A.rIn.toLocaleString()} rounds were raised by Belgian companies; ${A.rOut.toLocaleString()} rounds had at least `
+    +`one Belgian investor; ${A.rOutDom.toLocaleString()} are both.`;
+
+  const card=(cls,k,l)=>`<div class="stat ${cls}"><div class="k">${k}</div><div class="l">${l}</div></div>`;
+  document.getElementById('stats').innerHTML =
+    card('dom',money(A.domestic),'Domestic market — Belgian investors into Belgian companies')
+  + card('in',money(A.inflow),'Inflow — foreign investors into Belgian companies')
+  + card('out',money(A.outflow),'Outflow — Belgian investors into companies abroad')
+  + card('net','−'+money(Math.abs(A.net)),'Net position: Belgium is a net capital exporter');
+
+  const legs=[
+    {lab:'Outflow',sub:'Belgian investors → abroad',v:A.outflow,c:'#E1701A'},
+    {lab:'Inflow',sub:'foreign investors → Belgian companies',v:A.inflow,c:'#2756d3'},
+    {lab:'Domestic',sub:'Belgian investors → Belgian companies',v:A.domestic,c:'#8a97a6'},
+  ];
+  const mx=Math.max(...legs.map(l=>l.v));
+  document.getElementById('bars').innerHTML = legs.map(l=>
+    `<div class="fb"><div class="lab">${l.lab}<span>${l.sub}</span></div>`
+    +`<div class="track"><div class="fill" style="width:${(l.v/mx*100).toFixed(1)}%;background:${l.c}"></div></div>`
+    +`<div class="v">${money(l.v)}</div></div>`).join('')
+    +`<div style="font-size:11.5px;color:var(--muted);margin-top:4px">Bars share one scale. `
+    +`Belgian companies raised ${money(raised)} in total (domestic + inflow), of which `
+    +`${pct(A.inflow,raised)} came from abroad.</div>`;
+
+  document.getElementById('bothIntro').textContent =
+    'The question poses two explanations as alternatives. The data lets us test each one separately, '
+    + 'because the domestic leg appears in both accounts — as the Belgian share of what companies raise, '
+    + 'and as the home share of what Belgian investors deploy.';
+  document.getElementById('boxSmall').innerHTML =
+    `<span class="num">${pct(A.domestic,raised)}</span>of the ${money(raised)} raised by Belgian companies came from `
+    +`Belgian investors — so the domestic market covers well under half of domestic demand. Foreign capital is `
+    +`not absent from Belgium; it supplies the majority (${pct(A.inflow,raised)}) of what Belgian companies raise.`;
+  document.getElementById('boxAbroad').innerHTML =
+    `<span class="num">${pct(A.outflow,A.domestic+A.outflow)}</span>of what Belgian investors deploy leaves the country. `
+    +`They are active investors at scale — ${money(A.domestic+A.outflow)} deployed across `
+    +`${A.rOut.toLocaleString()} rounds — but most of that activity funds companies elsewhere.`;
+
+  // ---- periods ------------------------------------------------------------
+  const PERIODS=[[2000,2009],[2010,2014],[2015,2019],[2020,2025]];
+  document.querySelector('#periods tbody').innerHTML = PERIODS.map(([lo,hi])=>{
+    const p=account(isBEinv,lo,hi);
+    const cls=p.net<0?'neg':'pos';
+    return `<tr${hi===2025?' class="hi"':''}><td>${lo}–${hi}</td><td>${money(p.inflow)}</td>`
+      +`<td>${money(p.outflow)}</td><td class="${cls}">${p.net<0?'−':'+'}${money(Math.abs(p.net))}</td>`
+      +`<td class="${cls}">${p.ratio.toFixed(2)}×</td></tr>`;
+  }).join('') + (function(){
+    const p=account(isBEinv,2026,2026);
+    return `<tr><td style="font-weight:600;color:var(--muted)">2026 (partial)</td><td>${money(p.inflow)}</td>`
+      +`<td>${money(p.outflow)}</td><td>${p.net<0?'−':'+'}${money(Math.abs(p.net))}</td><td>${p.ratio.toFixed(2)}×</td></tr>`;
+  })();
+
+  // ---- robustness ---------------------------------------------------------
+  // 1. attribution-free: count rounds, not dollars
+  const roundsAbroad=A.rOut-A.rOutDom;
+  // 2. concentration of the outflow across rounds and across investors
+  const contrib=[], perInv={};
+  M.rounds.forEach(r=>{
+    const n=r[R.INV].length; if(!n||!inDomain(r)||!(r[R.F]&FLAG_OUT)||isBEorg(r[R.O])) return;
+    const share=r[R.USD]/n;
+    let nbe=0;
+    r[R.INV].forEach(i=>{ if(isBEinv(i)){ nbe++; perInv[M.inv[i][I.NAME]]=(perInv[M.inv[i][I.NAME]]||0)+share; } });
+    contrib.push(share*nbe);
+  });
+  contrib.sort((a,b)=>b-a);
+  const oTot=contrib.reduce((a,b)=>a+b,0)||1;
+  const top10R=contrib.slice(0,10).reduce((a,b)=>a+b,0);
+  const invRank=Object.entries(perInv).sort((a,b)=>b[1]-a[1]);
+  const top10I=invRank.slice(0,10).reduce((a,b)=>a+b[1],0);
+  // 3. drop the least venture-like buckets
+  const noLate=account(isBEinv,0,9999,new Set(['Late/PE','Corporate']));
+  // 4. the EU-institution treatment, whichever way round the toggle is
+  const alt=account(isBEalt);
+
+  const rbox=(t,num,body)=>`<div class="box"><h3>${t}</h3><p><span class="num">${num}</span>${body}</p></div>`;
+  document.getElementById('robust').innerHTML =
+    rbox('Drop the dollar attribution entirely', pct(roundsAbroad,A.rOut),
+      `of the ${A.rOut.toLocaleString()} rounds a Belgian investor joined were rounds for a company outside Belgium `
+      +`(${roundsAbroad.toLocaleString()} of them). Counting rounds needs no attribution rule at all, and it points the same way as the dollars.`)
+  + rbox('Is it a handful of mega-deals?', pct(top10R,oTot),
+      `of the outflow comes from its ten largest rounds, spread across ${contrib.length.toLocaleString()} rounds in total — `
+      +(top10R/oTot>0.35
+        ? `<b>concentrated enough to treat the level with care.</b> `
+        : `so the result is not an artefact of a few outliers. `)
+      +`<b>It is also concentrated by institution:</b> the top ten Belgian investors account for ${pct(top10I,oTot)} of it, `
+      +`led by ${invRank.slice(0,3).map(x=>x[0]).join(', ')}.`)
+  + rbox('Is it really venture?', noLate.ratio.toFixed(2)+'×',
+      `out-to-in ratio after removing Late/PE and Corporate rounds (vs ${A.ratio.toFixed(2)}× for everything). `
+      +(Math.abs(noLate.ratio-A.ratio)>0.25
+        ? `Holding-company and growth deals are moving this materially.`
+        : `Holding companies and growth deals are part of the story but they are not driving it.`))
+  + rbox(excl()?'Put the EU institutions back':'Remove the EU institutions', alt.ratio.toFixed(2)+'×',
+      `out-to-in ratio ${excl()?'if EU bodies registered in Brussels are counted as Belgian investors (the raw '
+        +'Crunchbase treatment, which the rest of this dashboard used before the toggle existed)'
+        :'once EU bodies registered in Brussels are excluded'}, with a net position of `
+      +`${alt.net<0?'−':'+'}${money(Math.abs(alt.net))} instead of ${A.net<0?'−':'+'}${money(Math.abs(A.net))}. `
+      +(Math.abs(alt.ratio-A.ratio)<0.05
+        ? `They barely register in this domain, so they are not driving the result either way.`
+        : (excl()
+          ? `That gap is EU money, not Belgian money — which is why this page excludes it by default.`
+          : `The conclusion is weakened but not overturned — see the caveat below.`)));
+
+  // size of the correction, always measured the same way: raw minus strict
+  const raw=excl()?alt:A, str=excl()?A:alt;
+  const euShare=(raw.domestic+raw.outflow)-(str.domestic+str.outflow);
+  const euPct=pct(euShare,raw.domestic+raw.outflow);
+  document.getElementById('euwarn').innerHTML =
+    `<p><b>One measurement trap worth knowing about.</b> The European Innovation Council, EIC Accelerator, EISMEA, `
+    +`Horizon 2020, the European Commission, the ERC, the ESF and the EIT bodies are registered in Brussels, so `
+    +`Crunchbase gives them a Belgian location and the raw data counts them as <i>Belgian investors</i>. They are `
+    +`${money(euShare)} — ${euPct} of all “Belgian” investor dollars on the ${BE.DOMAIN_LABEL[BE.getDomain()]} view — `
+    +`and most of it funds companies in other member states, which inflates both the outflow and Brussels’ share of it. `
+    +(excl()
+      ? `<b>This page, and every other page in the dashboard, now excludes them by default</b> and shows them as their own `
+        +`“EU institutions” origin instead, so the dollars are still conserved: EU-body money into a Belgian company `
+        +`counts as foreign inflow, not domestic. Switch the toggle to “in” to see the raw treatment.`
+      : `<b>You are currently looking at the raw treatment, which keeps them Belgian.</b> Switch the toggle to `
+        +`“EU bodies out” to reclassify them into their own origin bloc.`)
+    +` Borderline cases deliberately kept as Belgian: EDFI ElectriFI (an EC-funded blended-finance facility rather than `
+    +`an EU institution) and privately-owned firms whose name merely begins with “European”.</p>`;
+
+  // ---- bloc tables --------------------------------------------------------
+  const inB={}, outB={};
+  M.rounds.forEach(r=>{
+    const n=r[R.INV].length; if(!n||!inDomain(r)) return;
+    const share=r[R.USD]/n;
+    if(r[R.F]&FLAG_IN) r[R.INV].forEach(i=>{
+      if(!isBEinv(i)){ const b=BE.bloc(BE.invCC(i)); inB[b]=(inB[b]||0)+share; }});
+    if((r[R.F]&FLAG_OUT)&&!isBEorg(r[R.O])){
+      const nbe=r[R.INV].reduce((a,i)=>a+(isBEinv(i)?1:0),0);
+      const b=BE.bloc(M.org[r[R.O]][O.CC]); outB[b]=(outB[b]||0)+share*nbe;
+    }
+  });
+  const blocTable=(obj,tot)=>'<tbody>'+Object.entries(obj).sort((a,b)=>b[1]-a[1]).map(([k,v])=>
+    `<tr><td>${k}</td><td>${money(v)}</td><td style="color:var(--muted)">${pct(v,tot)}</td></tr>`).join('')+'</tbody>';
+  document.getElementById('inBloc').innerHTML=blocTable(inB,A.inflow);
+  document.getElementById('outBloc').innerHTML=blocTable(outB,A.outflow);
+
+  document.getElementById('foot').textContent =
+    'Source: Crunchbase bulk export via cb/investors/data/org (org CSVs built 2026-07-01), all sectors, equity rounds only, '
+    + '2000–2026. Dataset built ' + M.meta.built + '. Every figure on this page is computed in the browser from the same '
+    + 'belgium.js payload as the rest of the dashboard, so it cannot drift from the charts.'
+    + BE.scopeNote() + BE.eubNote() + BE.PARTIAL;
+
+  // the domestic-share trend claim in the "In scope" list, computed per domain
+  const p1=account(isBEinv,2015,2019), p2=account(isBEinv,2020,2025);
+  const shr=p=>p.domestic+p.inflow?((p.domestic/(p.domestic+p.inflow))*100).toFixed(0)+'%':'—';
+  document.getElementById('domShare').innerHTML =
+    `<b>Whether the domestic share is shrinking</b> — the Belgian share of dollars raised by Belgian `
+    +`companies moved from ${shr(p1)} (2015–19) to ${shr(p2)} (2020–25).`;
+  }
+  render();
+  BE.domainPills('dompills',()=>{BE.decorateLinks('a.card');render();});
+  BE.eubPills('eubpills',()=>{BE.decorateLinks('a.card');render();});
+  BE.decorateLinks('a.card');
+})();
+</script>
+</body>
+</html>
