@@ -1,0 +1,873 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Tokens routed on OpenRouter</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 16fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+            position: relative;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(10px, 2vw, 24px);
+            overflow: hidden;
+        }
+
+        #legend-side {
+            grid-row: 1;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 clamp(6px, 1vw, 14px);
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #legend-side .legend {
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            flex-wrap: nowrap;
+            gap: clamp(6px, 1.4vh, 14px);
+            padding: clamp(6px, 1.4vh, 14px) clamp(8px, 1.2vw, 14px);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #legend-side .legend-item {
+            width: 100%;
+        }
+
+        #container3 {
+            grid-row: 3;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        #viz {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+        }
+
+        .selector-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(2px, 0.5vw, 6px);
+            padding: clamp(2px, 0.4vw, 4px);
+            border-radius: 6px;
+            border: 1px solid rgba(17, 24, 39, 0.15);
+            background: #f8fafc;
+            max-width: 100%;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        .selector-pill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: #2756d3;
+            border-radius: 6px;
+            z-index: 0;
+            pointer-events: none;
+            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .selector-button {
+            position: relative;
+            z-index: 1;
+            border: none;
+            background: transparent;
+            padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+            border-radius: 6px;
+            font-size: clamp(9px, 1.4vw, 13px);
+            font-weight: 600;
+            color: #475569;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            white-space: nowrap;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+
+        .selector-button.active {
+            color: #fff;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1vw, 14px);
+            background: rgba(255, 255, 255, 1);
+            padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+            border-radius: clamp(6px, 1vw, 12px);
+            max-width: 100%;
+            max-height: 100%;
+            font-size: clamp(0.7rem, 1.4vw, 1rem);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 8px);
+            font-weight: 600;
+            color: #333;
+            font-size: inherit;
+            padding: 2px 6px;
+            cursor: default;
+        }
+
+        .legend-square {
+            width: clamp(10px, 1vw, 14px);
+            height: clamp(10px, 1vw, 14px);
+            border-radius: 0;
+            flex-shrink: 0;
+        }
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a,
+        .source-text a:visited {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: clamp(20px, 4.5vh, 56px);
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .sample-badge {
+            position: absolute;
+            top: clamp(8px, 1.5vh, 14px);
+            right: clamp(36px, 4vw, 48px);
+            background: rgba(229, 50, 41, 0.08);
+            border: 1px solid #E53229;
+            color: #E53229;
+            font-size: clamp(9px, 1.3vh, 12px);
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 6px;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        @media (max-height: 500px) {
+            .viz-grid {
+                grid-template-rows: 1fr !important;
+                grid-template-columns: 1fr !important;
+                padding-bottom: 0;
+            }
+
+            #container1 {
+                grid-row: 1 !important;
+                grid-column: 1 !important;
+            }
+
+            #container2,
+            #container3,
+            #container4,
+            #legend-side {
+                display: none !important;
+            }
+
+            .source-text,
+            .logo,
+            .legend {
+                display: none !important;
+            }
+        }
+
+        .loading-state,
+        .empty-state,
+        .error-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: clamp(13px, 1.5vw, 16px);
+            color: #475569;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+        }
+
+        .chart-tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 12px;
+            padding: 14px 16px;
+            box-shadow: 0 18px 28px rgba(15, 23, 42, 0.15);
+            border: 1px solid rgba(39, 86, 211, 0.15);
+            min-width: 220px;
+            max-width: 280px;
+            font-size: 12px;
+            color: #0f172a;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            z-index: 10;
+        }
+
+        .tooltip-title {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .tooltip-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            font-size: 12px;
+            color: #0f172a;
+            padding: 2px 0;
+        }
+
+        .tooltip-row .label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #475569;
+        }
+
+        .tooltip-row .swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .tooltip-row .value {
+            font-weight: 700;
+        }
+
+        .tooltip-total {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid rgba(15, 23, 42, 0.1);
+            font-size: 12px;
+            color: #475569;
+        }
+
+        .y-grid line {
+            stroke: rgba(148, 163, 184, 0.35);
+            stroke-dasharray: 3 4;
+        }
+
+        .y-grid .domain {
+            display: none;
+        }
+
+        .x-axis text,
+        .y-axis text {
+            font-size: 14px;
+            fill: #475569;
+        }
+
+        .x-axis path,
+        .y-axis path,
+        .x-axis line,
+        .y-axis line {
+            stroke: #d0d7e8;
+        }
+
+        .focus-line {
+            stroke: rgba(15, 23, 42, 0.7);
+            stroke-width: 1;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .interaction-overlay {
+            cursor: crosshair;
+        }
+
+        .y-axis-label {
+            font-size: 18px;
+            font-weight: 600;
+            fill: #000000;
+        }
+
+        .month-axis-label {
+            font-size: 11px;
+            fill: #475569;
+        }
+
+        .year-axis-label {
+            font-size: 12px;
+            font-weight: 600;
+            fill: #0f172a;
+        }
+
+        .majority-line {
+            stroke: rgba(15, 23, 42, 0.55);
+            stroke-width: 1.4;
+            stroke-dasharray: 6 4;
+            pointer-events: none;
+        }
+
+        .majority-label {
+            font-size: clamp(14px, 2.4vh, 22px);
+            font-weight: 800;
+            fill: #0f172a;
+            paint-order: stroke;
+            stroke: rgba(255, 255, 255, 0.85);
+            stroke-width: 4px;
+            stroke-linejoin: round;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1" class="container viz-container">
+            <div id="viz" role="img"
+                aria-label="Monthly share of tokens routed on OpenRouter, open-weight vs proprietary models"></div>
+        </div>
+        <div id="legend-side">
+            <div class="legend" id="legend"></div>
+        </div>
+        <div id="container2" class="container legend-container">
+            <div class="selector-group" id="mode-selector">
+                <button class="selector-button active" data-mode="0">Share</button>
+                <button class="selector-button" data-mode="1">Absolute</button>
+            </div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-text" id="source-text">Source: <a href="https://openrouter.ai/rankings" target="_blank"
+                    rel="noopener">OpenRouter</a></div>
+        </div>
+        <div id="container4" class="container logo-container">
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const SHOW_CONTAINER_2 = 1;
+        const SHOW_CONTAINER_3 = 1;
+        const SHOW_CONTAINER_4 = 1;
+
+        (function applyContainerVisibility() {
+            const vizGrid = document.querySelector('.viz-grid');
+            const c2 = document.getElementById('container2');
+            const c3 = document.getElementById('container3');
+            const c4 = document.getElementById('container4');
+
+            if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+            if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+            if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+
+            const row2Visible = SHOW_CONTAINER_2;
+            const row3Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+            let gridRows = [];
+            let currentRow = 1;
+            const chartHeight = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 1 : 0);
+            gridRows.push(`${chartHeight}fr`);
+
+            if (row2Visible) { gridRows.push('1.4fr'); currentRow++; c2.style.gridRow = String(currentRow); }
+            if (row3Visible) {
+                gridRows.push('1fr'); currentRow++;
+                if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+                if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+            }
+
+            vizGrid.style.gridTemplateRows = gridRows.join(' ');
+            vizGrid.style.gridTemplateColumns = 'minmax(0, 1fr) clamp(130px, 15vw, 210px)';
+            const c1 = document.getElementById('container1');
+            c1.style.gridRow = '1';
+            c1.style.gridColumn = '1';
+        })();
+
+        let mode = new URLSearchParams(window.location.search).get('mode') === '1' ? 1 : 0;
+        const DATA_PATH = 'openrouter_share.csv';
+        const SAMPLE_PATH = 'openrouter_share.sample.csv';
+
+        const STACK_KEYS = [
+            { pctKey: 'open_pct', countKey: 'open_tokens', label: 'Open-weight', color: '#188AB2' },
+            { pctKey: 'prop_pct', countKey: 'prop_tokens', label: 'Proprietary', color: '#EF476F' },
+            { pctKey: 'other_pct', countKey: 'other_tokens', label: 'Other / unclassified', color: '#94a3b8' }
+        ];
+
+        const percentFormatter = d3.format('.1%');
+        function tokenFormatter(v) {
+            if (!isFinite(v)) return '';
+            if (Math.abs(v) >= 1e12) return d3.format('.1f')(v / 1e12).replace(/\.0$/, '') + 'T';
+            if (Math.abs(v) >= 1e9) return d3.format('.1f')(v / 1e9).replace(/\.0$/, '') + 'B';
+            if (Math.abs(v) >= 1e6) return d3.format('.1f')(v / 1e6).replace(/\.0$/, '') + 'M';
+            return d3.format(',')(v);
+        }
+
+        const vizContainer = document.getElementById('viz');
+        const chartContainer = document.getElementById('container1');
+
+        const tooltipElement = document.createElement('div');
+        tooltipElement.className = 'chart-tooltip';
+        chartContainer.appendChild(tooltipElement);
+
+        let preparedRows = [];
+        let dataYears = [];
+
+        function hideTooltip() {
+            tooltipElement.style.opacity = 0;
+        }
+
+        function parseISODate(s) {
+            const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+            if (!m) return null;
+            return new Date(Date.UTC(+m[1], +m[2] - 1, 15));
+        }
+
+        function loadMonthly(csvText) {
+            const lines = csvText.trim().split(/\r?\n/);
+            const header = lines[0].split(',');
+            const idx = Object.fromEntries(header.map((h, i) => [h.trim(), i]));
+            const rows = [];
+            for (let i = 1; i < lines.length; i++) {
+                const r = lines[i].split(',');
+                const date = parseISODate(r[idx.month]);
+                if (!date) continue;
+                const open_tokens = +r[idx.open_tokens] || 0;
+                const prop_tokens = +r[idx.prop_tokens] || 0;
+                const other_tokens = +r[idx.other_tokens] || 0;
+                const total = open_tokens + prop_tokens + other_tokens;
+                const den = total || 1;
+                rows.push({
+                    date,
+                    open_tokens, prop_tokens, other_tokens,
+                    total_tokens: total,
+                    open_pct: open_tokens / den,
+                    prop_pct: prop_tokens / den,
+                    other_pct: other_tokens / den
+                });
+            }
+            rows.sort((a, b) => a.date - b.date);
+            const years = Array.from(new Set(rows.map(d => d.date.getUTCFullYear()))).sort();
+            return { rows, years };
+        }
+
+        function buildLegend() {
+            const legend = document.getElementById('legend');
+            legend.innerHTML = '';
+            STACK_KEYS.forEach(s => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                const square = document.createElement('span');
+                square.className = 'legend-square';
+                square.style.background = s.color;
+                const label = document.createElement('span');
+                label.textContent = s.label;
+                item.append(square, label);
+                legend.appendChild(item);
+            });
+        }
+
+        function renderVisualization(data, width, height) {
+            if (!data.length || !vizContainer) return;
+
+            hideTooltip();
+            vizContainer.innerHTML = '';
+
+            const stackValueKey = mode === 1 ? 'countKey' : 'pctKey';
+            const colorByKey = Object.fromEntries(STACK_KEYS.map(s => [s[stackValueKey], s.color]));
+
+            const isSmallWindow = height < 500 || width < 600;
+            const margin = {
+                top: isSmallWindow ? 12 : 20,
+                right: 32,
+                bottom: isSmallWindow ? 44 : 78,
+                left: isSmallWindow ? 60 : 90
+            };
+            const innerWidth = Math.max(0, width - margin.left - margin.right);
+            const innerHeight = Math.max(0, height - margin.top - margin.bottom);
+
+            if (!innerWidth || !innerHeight) {
+                vizContainer.innerHTML = '<div class="empty-state">Not enough space to render the chart.</div>';
+                return;
+            }
+
+            const yearAxisFontSize = isSmallWindow ? 12 : Math.max(16, Math.min(26, innerWidth * 0.03));
+
+            const svg = d3.select(vizContainer)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            const chartGroup = svg.append('g')
+                .attr('transform', `translate(${margin.left},${margin.top})`);
+
+            const xMin = data[0].date;
+            const xMax = data[data.length - 1].date;
+            const x = d3.scaleUtc().domain([xMin, xMax]).range([0, innerWidth]);
+
+            let y;
+            if (mode === 1) {
+                const yMaxData = d3.max(data, d => d.total_tokens) || 1;
+                y = d3.scaleLinear().domain([0, yMaxData * 1.08]).range([innerHeight, 0]).nice();
+            } else {
+                y = d3.scaleLinear().domain([0, 1]).range([innerHeight, 0]);
+            }
+
+            chartGroup.append('g')
+                .attr('class', 'y-grid')
+                .call(d3.axisLeft(y).ticks(5).tickSize(-innerWidth).tickFormat(''));
+
+            const stack = d3.stack().keys(STACK_KEYS.map(s => s[stackValueKey]));
+            const series = stack(data);
+
+            const area = d3.area()
+                .x(d => x(d.data.date))
+                .y0(d => y(d[0]))
+                .y1(d => y(d[1]))
+                .curve(d3.curveMonotoneX);
+
+            chartGroup.selectAll('path.stacked-area')
+                .data(series)
+                .join('path')
+                .attr('class', 'stacked-area')
+                .attr('fill', d => colorByKey[d.key])
+                .attr('opacity', 0.92)
+                .attr('d', area);
+
+            const boundaryBottom = innerHeight + (isSmallWindow ? 38 : 58);
+            dataYears.forEach(year => {
+                const yearStart = new Date(Date.UTC(year, 0, 1));
+                if (yearStart > xMin && yearStart < xMax) {
+                    chartGroup.append('line')
+                        .attr('x1', x(yearStart))
+                        .attr('x2', x(yearStart))
+                        .attr('y1', 0)
+                        .attr('y2', boundaryBottom)
+                        .attr('stroke', '#64748b')
+                        .attr('stroke-width', 2)
+                        .attr('stroke-linecap', 'round')
+                        .attr('opacity', 0.7);
+                }
+            });
+
+            if (mode === 0) {
+                chartGroup.append('line')
+                    .attr('class', 'majority-line')
+                    .attr('x1', 0)
+                    .attr('x2', innerWidth)
+                    .attr('y1', y(0.5))
+                    .attr('y2', y(0.5));
+                if (!isSmallWindow) {
+                    chartGroup.append('text')
+                        .attr('class', 'majority-label')
+                        .attr('x', innerWidth - 10)
+                        .attr('y', y(0.5) - 10)
+                        .attr('text-anchor', 'end')
+                        .text('50%');
+                }
+            }
+
+            chartGroup.append('g')
+                .attr('class', 'x-axis')
+                .attr('transform', `translate(0,${innerHeight})`)
+                .call(d3.axisBottom(x).ticks(0).tickFormat(() => ''));
+
+            const monthRowY = innerHeight + (isSmallWindow ? 14 : 18);
+            const yearRowY = innerHeight + (isSmallWindow ? 32 : 50);
+            const monthFormatter = d3.utcFormat('%b');
+
+            const minLabelGap = 26;
+            const naturalGap = innerWidth / Math.max(1, data.length - 1);
+            const stride = Math.max(1, Math.ceil(minLabelGap / Math.max(1, naturalGap)));
+
+            chartGroup.append('g')
+                .attr('class', 'month-axis-labels')
+                .selectAll('text')
+                .data(data.filter((_, i) => i % stride === 0))
+                .join('text')
+                .attr('class', 'month-axis-label')
+                .attr('x', d => x(d.date))
+                .attr('y', monthRowY)
+                .attr('text-anchor', 'middle')
+                .text(d => monthFormatter(d.date));
+
+            const yearAxisLabelData = dataYears.map(year => {
+                const yearStart = new Date(Date.UTC(year, 0, 1));
+                const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
+                const start = yearStart < xMin ? xMin : yearStart;
+                const end = yearEnd > xMax ? xMax : yearEnd;
+                if (start >= end) return null;
+                const midTime = start.getTime() + (end.getTime() - start.getTime()) / 2;
+                return { year, x: x(new Date(midTime)) };
+            }).filter(Boolean);
+
+            chartGroup.append('g')
+                .attr('class', 'year-axis-labels')
+                .selectAll('text')
+                .data(yearAxisLabelData)
+                .join('text')
+                .attr('class', 'year-axis-label')
+                .attr('x', d => d.x)
+                .attr('y', yearRowY)
+                .attr('text-anchor', 'middle')
+                .style('font-size', `${yearAxisFontSize}px`)
+                .text(d => d.year);
+
+            const yAxis = d3.axisLeft(y)
+                .ticks(Math.min(5, Math.max(3, Math.floor(innerHeight / 90))))
+                .tickFormat(mode === 1 ? tokenFormatter : d3.format('.0%'));
+
+            chartGroup.append('g').attr('class', 'y-axis').call(yAxis);
+
+            if (!isSmallWindow) {
+                chartGroup.append('text')
+                    .attr('class', 'y-axis-label')
+                    .attr('transform', 'rotate(-90)')
+                    .attr('x', -innerHeight / 2)
+                    .attr('y', -margin.left + 24)
+                    .attr('text-anchor', 'middle')
+                    .text(mode === 1 ? 'Tokens routed per month' : 'Share of routed tokens');
+            }
+
+            const focusLine = chartGroup.append('line')
+                .attr('class', 'focus-line')
+                .attr('y1', 0)
+                .attr('y2', innerHeight);
+
+            const bisectDate = d3.bisector(d => d.date).left;
+
+            chartGroup.append('rect')
+                .attr('class', 'interaction-overlay')
+                .attr('width', innerWidth)
+                .attr('height', innerHeight)
+                .attr('fill', 'transparent')
+                .on('mousemove', function (event) {
+                    const [mx, my] = d3.pointer(event, this);
+                    if (mx < 0 || mx > innerWidth || my < 0 || my > innerHeight) {
+                        focusLine.style('opacity', 0);
+                        hideTooltip();
+                        return;
+                    }
+                    const hoveredDate = x.invert(mx);
+                    const index = Math.min(Math.max(bisectDate(data, hoveredDate), 1), data.length - 1);
+                    const d0 = data[index - 1];
+                    const d1 = data[index];
+                    const d = hoveredDate - d0.date > d1.date - hoveredDate ? d1 : d0;
+                    const xPos = x(d.date);
+
+                    focusLine.attr('x1', xPos).attr('x2', xPos).style('opacity', 1);
+
+                    const monthLabel = d3.utcFormat('%b %Y')(d.date);
+                    const rowsHtml = STACK_KEYS.map(s => {
+                        const count = d[s.countKey] || 0;
+                        const share = d[s.pctKey] || 0;
+                        const primary = mode === 1 ? tokenFormatter(count) : percentFormatter(share);
+                        const secondary = mode === 1 ? percentFormatter(share) : tokenFormatter(count);
+                        return `
+                            <div class="tooltip-row">
+                                <span class="label"><span class="swatch" style="background:${s.color}"></span>${s.label}</span>
+                                <span class="value">${primary} <span style="color:#94a3b8;font-weight:500">(${secondary})</span></span>
+                            </div>`;
+                    }).join('');
+
+                    tooltipElement.innerHTML = `
+                        <div class="tooltip-title">${monthLabel}</div>
+                        ${rowsHtml}
+                        <div class="tooltip-total">${tokenFormatter(d.total_tokens)} tokens routed</div>
+                    `;
+                    tooltipElement.style.opacity = 1;
+
+                    const tooltipWidth = tooltipElement.offsetWidth || 240;
+                    const tooltipHeight = tooltipElement.offsetHeight || 140;
+                    const containerWidth = vizContainer.clientWidth;
+                    const containerHeight = vizContainer.clientHeight;
+                    let left = margin.left + xPos + 16;
+                    if (left + tooltipWidth > containerWidth) {
+                        left = margin.left + xPos - tooltipWidth - 16;
+                    }
+                    left = Math.max(8, Math.min(containerWidth - tooltipWidth - 8, left));
+                    let top = margin.top + my - tooltipHeight - 12;
+                    if (top < 8) {
+                        top = margin.top + my + 12;
+                    }
+                    top = Math.max(8, Math.min(containerHeight - tooltipHeight - 8, top));
+                    tooltipElement.style.left = `${left}px`;
+                    tooltipElement.style.top = `${top}px`;
+                })
+                .on('mouseleave', function () {
+                    focusLine.style('opacity', 0);
+                    hideTooltip();
+                });
+        }
+
+        function renderVisualizationForContainer() {
+            if (!vizContainer || !preparedRows.length) return;
+            const rect = vizContainer.getBoundingClientRect();
+            renderVisualization(preparedRows, rect.width, rect.height);
+        }
+
+        function positionPill(group) {
+            const pill = group._pill, btn = group.querySelector('.selector-button.active');
+            if (!pill || !btn) return;
+            pill.style.width = btn.offsetWidth + 'px';
+            pill.style.height = btn.offsetHeight + 'px';
+            pill.style.transform = `translate(${btn.offsetLeft}px,${btn.offsetTop}px)`;
+        }
+
+        function initPill(group) {
+            const pill = document.createElement('span');
+            pill.className = 'selector-pill';
+            pill.style.transition = 'none';
+            group.insertBefore(pill, group.firstChild);
+            group._pill = pill;
+            positionPill(group);
+            requestAnimationFrame(() => { pill.style.transition = ''; });
+        }
+
+        const modeSelector = document.getElementById('mode-selector');
+        modeSelector.querySelectorAll('.selector-button').forEach(btn => {
+            if (+btn.dataset.mode === mode) btn.classList.add('active');
+            else btn.classList.remove('active');
+            btn.addEventListener('click', () => {
+                if (+btn.dataset.mode === mode) return;
+                mode = +btn.dataset.mode;
+                modeSelector.querySelectorAll('.selector-button').forEach(b =>
+                    b.classList.toggle('active', +b.dataset.mode === mode));
+                positionPill(modeSelector);
+                renderVisualizationForContainer();
+            });
+        });
+        initPill(modeSelector);
+        window.addEventListener('resize', () => {
+            const p = modeSelector._pill;
+            if (p) p.style.transition = 'none';
+            positionPill(modeSelector);
+            requestAnimationFrame(() => { if (p) p.style.transition = ''; });
+        });
+
+        function ingest(text, isSample) {
+            const result = loadMonthly(text);
+            if (!result.rows.length) {
+                vizContainer.innerHTML = '<div class="empty-state">No monthly data found.</div>';
+                return;
+            }
+            preparedRows = result.rows;
+            dataYears = result.years;
+            if (isSample) {
+                const badge = document.createElement('div');
+                badge.className = 'sample-badge';
+                badge.textContent = 'SAMPLE DATA — run fetch_openrouter.py';
+                chartContainer.appendChild(badge);
+            }
+            buildLegend();
+            renderVisualizationForContainer();
+        }
+
+        function loadData() {
+            vizContainer.innerHTML = '<div class="loading-state">Loading…</div>';
+            fetch(DATA_PATH)
+                .then(r => { if (!r.ok) throw new Error('missing'); return r.text(); })
+                .then(text => ingest(text, false))
+                .catch(() => {
+                    fetch(SAMPLE_PATH)
+                        .then(r => r.text())
+                        .then(text => ingest(text, true))
+                        .catch(() => {
+                            vizContainer.innerHTML = `<div class="error-state">Unable to load ${DATA_PATH}.</div>`;
+                        });
+                });
+        }
+
+        let resizeTimer;
+        window.addEventListener('resize', function () {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(renderVisualizationForContainer, 220);
+        });
+
+        if (typeof ResizeObserver !== 'undefined' && vizContainer) {
+            new ResizeObserver(renderVisualizationForContainer).observe(vizContainer);
+        }
+
+        loadData();
+    </script>
+</body>
+
+</html>

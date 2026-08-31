@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>When openness becomes a security feature</title>
+    <style>
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 18fr 1fr;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: clamp(8px, 1.5vh, 16px) clamp(12px, 2vw, 24px);
+            box-sizing: border-box;
+        }
+
+        #container3 {
+            grid-row: 2;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 2;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a,
+        .source-text a:visited {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: clamp(20px, 4.5vh, 56px);
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .diagram {
+            width: 100%;
+            max-width: 1020px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 0;
+        }
+
+        .d-phase {
+            display: flex;
+            align-items: center;
+            gap: clamp(10px, 1.6vw, 20px);
+            font-size: clamp(16px, 3vh, 26px);
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #334155;
+            margin-bottom: clamp(18px, 3.6vh, 40px);
+        }
+
+        .d-phase::before,
+        .d-phase::after {
+            content: '';
+            flex: 1;
+            height: 1.5px;
+            background: #cbd5e1;
+        }
+
+        .d-chain {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr auto 1fr;
+            align-items: stretch;
+            column-gap: clamp(4px, 0.8vw, 10px);
+        }
+
+        .d-box {
+            box-sizing: border-box;
+            border-radius: 10px;
+            padding: clamp(6px, 1.2vh, 12px) clamp(8px, 1.4vw, 16px);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 2px;
+            position: relative;
+        }
+
+        .d-box.has-chip {
+            margin-top: clamp(12px, 2vh, 18px);
+            padding-top: clamp(14px, 2.4vh, 22px);
+        }
+
+        .d-chain .d-box {
+            margin-top: clamp(12px, 2vh, 18px);
+        }
+
+        .d-grid .d-box[style*="grid-row:2"] {
+            margin-top: clamp(12px, 2vh, 18px);
+        }
+
+        .chip-row {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            gap: 6px;
+        }
+
+        .logo-chip {
+            width: clamp(24px, 4vh, 34px);
+            height: clamp(24px, 4vh, 34px);
+            border-radius: 50%;
+            object-fit: cover;
+            background: #fff;
+            border: 1.5px solid #cbd5e1;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+            display: block;
+        }
+
+        .d-box.attack .logo-chip,
+        .d-box.stalled .logo-chip {
+            border-color: #E53229;
+        }
+
+        .d-box.open .logo-chip,
+        .d-box.outcome .logo-chip {
+            border-color: #10b981;
+        }
+
+        .d-box.attack {
+            border: 1.5px solid #E53229;
+            background: rgba(229, 50, 41, 0.07);
+        }
+
+        .d-box.origin {
+            background: #E53229;
+            border: 2px solid #b91c1c;
+            box-shadow: 0 10px 24px rgba(229, 50, 41, 0.35);
+            padding: clamp(10px, 2vh, 18px) clamp(10px, 1.8vw, 20px);
+        }
+
+        .origin-cell {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .origin-cell .d-box {
+            flex: 1;
+        }
+
+        .origin-title {
+            text-align: center;
+            font-size: clamp(15px, 2.6vh, 22px);
+            font-weight: 800;
+            color: #b91c1c;
+            line-height: 1.1;
+            padding-bottom: clamp(2px, 0.5vh, 5px);
+        }
+
+        .d-box.attack.origin .b-sub {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .d-box.origin .logo-chip {
+            border-color: #b91c1c;
+            width: clamp(30px, 5vh, 42px);
+            height: clamp(30px, 5vh, 42px);
+        }
+
+        .d-box.neutral {
+            border: 1.5px solid #cbd5e1;
+            background: #f8fafc;
+        }
+
+        .d-box.stalled {
+            border: 1.5px solid #E53229;
+            background: rgba(229, 50, 41, 0.07);
+        }
+
+        .d-box.open {
+            border: 1.5px solid #10b981;
+            background: rgba(16, 185, 129, 0.08);
+        }
+
+        .d-box.outcome {
+            border-width: 2px;
+            background: rgba(16, 185, 129, 0.14);
+        }
+
+        .b-title {
+            font-weight: 700;
+            font-size: clamp(13px, 2.3vh, 19px);
+            color: #0f172a;
+            margin-bottom: clamp(4px, 0.9vh, 9px);
+        }
+
+        .d-box.attack .b-title,
+        .d-box.stalled .b-title {
+            color: #b91c1c;
+        }
+
+        .d-box.open .b-title,
+        .d-box.outcome .b-title {
+            color: #047857;
+        }
+
+        .b-sub {
+            font-weight: 500;
+            font-size: clamp(9px, 1.35vh, 12px);
+            color: #475569;
+            line-height: 1.35;
+        }
+
+        .h-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .h-arrow::before {
+            content: '';
+            width: clamp(10px, 1.4vw, 20px);
+            height: 1.5px;
+            background: #94a3b8;
+        }
+
+        .h-arrow::after {
+            content: '';
+            width: 0;
+            height: 0;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            border-left: 6px solid #94a3b8;
+        }
+
+        .v-arrow {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: clamp(12px, 2.2vh, 24px);
+        }
+
+        .v-arrow::before {
+            content: '';
+            flex: 1;
+            width: 1.5px;
+            background: #94a3b8;
+        }
+
+        .v-arrow::after {
+            content: '';
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid #94a3b8;
+        }
+
+        .d-pivot {
+            width: min(64%, 520px);
+            margin: clamp(14px, 2.6vh, 26px) auto 0;
+        }
+
+        .d-split {
+            width: 100%;
+            height: clamp(16px, 3vh, 32px);
+            display: block;
+        }
+
+        .d-split path {
+            fill: none;
+            stroke: #94a3b8;
+            stroke-width: 1.5;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .d-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            column-gap: clamp(16px, 4vw, 48px);
+            align-items: stretch;
+        }
+
+        .d-lane {
+            text-align: center;
+            font-size: clamp(9px, 1.4vh, 12px);
+            font-weight: 700;
+            text-transform: uppercase;
+            padding-bottom: clamp(3px, 0.6vh, 6px);
+        }
+
+        .d-lane.closed-lane {
+            grid-column: 1;
+            color: #b91c1c;
+        }
+
+        .d-lane.open-lane {
+            grid-column: 2;
+            color: #047857;
+        }
+
+        .d-merge {
+            position: relative;
+            height: clamp(44px, 8vh, 72px);
+        }
+
+        .d-merge-svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .d-merge-svg path {
+            fill: none;
+            vector-effect: non-scaling-stroke;
+        }
+
+        .m-flow {
+            stroke: #94a3b8;
+            stroke-width: 1.5;
+        }
+
+        .m-stub {
+            stroke: #E53229;
+            stroke-width: 1.5;
+            stroke-dasharray: 3 3;
+        }
+
+        .d-merge::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: -1px;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 6px solid #94a3b8;
+        }
+
+        .no-entry {
+            position: absolute;
+            left: 25%;
+            top: 22%;
+            transform: translateX(-50%);
+            width: clamp(18px, 3.2vh, 26px);
+            height: clamp(18px, 3.2vh, 26px);
+            border-radius: 50%;
+            background: #E53229;
+            box-shadow: 0 2px 6px rgba(229, 50, 41, 0.35), 0 0 0 2.5px #fff, 0 0 0 4px rgba(229, 50, 41, 0.25);
+        }
+
+        .no-entry::after {
+            content: '';
+            position: absolute;
+            left: 18%;
+            right: 18%;
+            top: 50%;
+            transform: translateY(-50%);
+            height: clamp(3px, 0.6vh, 5px);
+            border-radius: 2px;
+            background: #fff;
+        }
+
+        .dead-label {
+            position: absolute;
+            left: 25%;
+            top: calc(22% + clamp(20px, 3.6vh, 30px));
+            transform: translateX(-50%);
+            font-size: clamp(8px, 1.3vh, 11px);
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #E53229;
+        }
+
+        .d-box.outcome.d-final {
+            width: min(70%, 600px);
+            margin-left: auto;
+            margin-right: auto;
+            background: #059669;
+            border: 2px solid #047857;
+            box-shadow: 0 10px 24px rgba(5, 150, 105, 0.35);
+            padding: clamp(10px, 2vh, 18px) clamp(10px, 1.8vw, 20px);
+        }
+
+        .d-box.outcome.d-final .b-title {
+            color: #fff;
+            font-size: clamp(15px, 2.6vh, 22px);
+        }
+
+        .d-box.outcome.d-final .b-sub {
+            color: rgba(255, 255, 255, 0.92);
+        }
+
+        .d-box.outcome.d-final .logo-chip {
+            border-color: #047857;
+            width: clamp(30px, 5vh, 42px);
+            height: clamp(30px, 5vh, 42px);
+        }
+
+        @media (max-width: 619px) {
+            body {
+                overflow-x: auto;
+            }
+
+            .viz-grid {
+                min-width: 620px;
+            }
+        }
+
+        @media (max-height: 500px) {
+            body {
+                overflow-y: auto;
+            }
+
+            .viz-grid {
+                height: auto;
+                min-height: 520px;
+            }
+
+            #container3,
+            #container4 {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1">
+            <div class="diagram">
+                <div class="d-phase">The attack: 9 to 13 July 2026</div>
+                <div class="d-chain">
+                    <div class="origin-cell">
+                        <div class="origin-title">Sandbox escape</div>
+                        <div class="d-box attack origin has-chip"><div class="chip-row"><img class="logo-chip" src="logos/openai.jpeg" alt=""></div>
+                            <div class="b-sub">OpenAI models in a cyber-capability eval exploit a zero-day in a package-registry proxy and reach the open internet</div>
+                        </div>
+                    </div>
+                    <div class="h-arrow"></div>
+                    <div class="d-box attack has-chip"><div class="chip-row"><img class="logo-chip" src="logos/huggingface.jpeg" alt=""></div>
+                        <div class="b-title">Pivot to Hugging Face</div>
+                        <div class="b-sub">A third-party code sandbox is rooted as a base: HF's dataset processor is
+                            abused, file read then code execution, into the internal network</div>
+                    </div>
+                    <div class="h-arrow"></div>
+                    <div class="d-box attack">
+                        <div class="b-title">Production breached</div>
+                        <div class="b-sub">+17000 agent actions in 4 and a half days</div>
+                    </div>
+                </div>
+                <div class="d-box neutral d-pivot">
+                    <div class="b-title">Defenders need model help</div>
+                    <div class="b-sub">Detected by Hugging Face on 16 July</div>
+                </div>
+                <svg class="d-split" viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true">
+                    <path d="M50,0 V8 H25 V20 M50,8 H75 V20"></path>
+                </svg>
+                <div class="d-grid">
+                    <div class="d-lane closed-lane">Closed path</div>
+                    <div class="d-lane open-lane">Open path</div>
+
+                    <div class="d-box neutral has-chip" style="grid-column:1;grid-row:2"><div class="chip-row"><img class="logo-chip" src="logos/anthropic.jpeg" alt=""></div>
+                        <div class="b-title">Closed frontier API</div>
+                        <div class="b-sub">Claude Opus and Fable tried first, but a large part of the forensic work was
+                            refused, since safeguards read the defender as an attacker</div>
+                    </div>
+                    <div class="d-box open has-chip" style="grid-column:2;grid-row:2"><div class="chip-row"><img class="logo-chip" src="logos/zai.jpeg" alt=""><img class="logo-chip" src="logos/nvidia.jpeg" alt=""></div>
+                        <div class="b-title">Self-hosted open weights</div>
+                        <div class="b-sub">GLM-5.2, quantised by NVIDIA, was deployed on Hugging Face's own hardware.
+                            No third party in the loop!</div>
+                    </div>
+
+                    <div class="v-arrow" style="grid-column:1;grid-row:3"></div>
+                    <div class="v-arrow" style="grid-column:2;grid-row:3"></div>
+
+                    <div class="d-box stalled" style="grid-column:1;grid-row:4">
+                        <div class="b-title">Investigation stalls</div>
+                        <div class="b-sub">The attack tooling couldn't be analysed through the closed model API</div>
+                    </div>
+                    <div class="d-box open" style="grid-column:2;grid-row:4">
+                        <div class="b-title">Investigation completed</div>
+                        <div class="b-sub">Encrypted payloads decrypted, exploit code inspected freely, the full
+                            ~17000-action timeline reconstructed</div>
+                    </div>
+
+                </div>
+                <div class="d-merge">
+                    <svg class="d-merge-svg" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">
+                        <path class="m-stub" d="M25,0 V6"></path>
+                        <path class="m-flow" d="M75,0 V10 H50 V24"></path>
+                    </svg>
+                    <div class="no-entry"></div>
+                    <div class="dead-label">Dead end</div>
+                </div>
+                <div class="d-box open outcome has-chip d-final"><div class="chip-row"><img class="logo-chip" src="logos/huggingface.jpeg" alt=""></div>
+                    <div class="b-title">Incident contained</div>
+                    <div class="b-sub">Attacker data never left Hugging Face's infrastructure. Close call!</div>
+                </div>
+            </div>
+        </div>
+        <div id="container3">
+            <div class="source-text">Source: <a href="https://huggingface.co/blog/agent-intrusion-technical-timeline"
+                    target="_blank" rel="noopener">Hugging Face</a></div>
+        </div>
+        <div id="container4">
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+            </a>
+        </div>
+    </div>
+</body>
+
+</html>
