@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Frontier models, country, lab, licensing</title>
+    <script src="https://d3js.org/d3.v5.min.js"></script>
+    <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+    <style>
+        html,
+        body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+            background-color: white;
+        }
+
+        .viz-grid {
+            display: grid;
+            grid-template-rows: 1fr auto auto;
+            grid-template-columns: 1fr 1fr;
+            height: 100vh;
+            width: 100vw;
+            box-sizing: border-box;
+            padding-bottom: clamp(8px, 2vh, 18px);
+        }
+
+        #container1 {
+            grid-row: 1;
+            grid-column: 1 / span 2;
+            overflow: hidden;
+            min-height: 0;
+            position: relative;
+            padding: clamp(8px, 1.5vh, 16px) clamp(12px, 2vw, 24px) 0;
+            box-sizing: border-box;
+        }
+
+        #viz {
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+            position: relative;
+        }
+
+        #viz svg {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #container2 {
+            grid-row: 2;
+            grid-column: 1 / span 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: clamp(2px, 0.6vh, 6px) 0;
+            position: relative;
+            min-height: clamp(28px, 5vh, 46px);
+        }
+
+        #container3 {
+            grid-row: 3;
+            grid-column: 1;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        #container4 {
+            grid-row: 3;
+            grid-column: 2;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 20px;
+            overflow: hidden;
+            min-width: 0;
+            height: clamp(28px, 5vh, 56px);
+        }
+
+        #container4 a {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            justify-content: center;
+            gap: clamp(6px, 1vw, 14px);
+            background: rgba(255, 255, 255, 1);
+            padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+            border-radius: clamp(6px, 1vw, 12px);
+            white-space: nowrap;
+            font-size: clamp(0.7rem, 1.4vw, 1rem);
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: clamp(4px, 1vw, 8px);
+            font-weight: 600;
+            color: #333;
+            font-size: inherit;
+            padding: 2px 6px;
+            cursor: default;
+        }
+
+        .legend-square {
+            width: clamp(10px, 1vw, 14px);
+            height: clamp(10px, 1vw, 14px);
+            border-radius: 0;
+            flex-shrink: 0;
+        }
+
+        .source-text {
+            font-size: clamp(10px, 1.6vw, 16px);
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+            font-style: normal;
+        }
+
+        .source-text a,
+        .source-text a:visited {
+            color: #2756d3;
+            text-decoration: underline;
+            cursor: pointer;
+            font-style: normal;
+        }
+
+        .logo {
+            height: 100%;
+            width: auto;
+            max-height: clamp(20px, 4.5vh, 56px);
+            pointer-events: auto;
+            object-fit: contain;
+        }
+
+        .links path,
+        .highlight-layer path {
+            fill: none;
+            stroke-opacity: 0.4;
+            transition: all 0.3s ease;
+        }
+
+        .nodes rect {
+            stroke-width: 1px;
+            transition: all 0.3s ease;
+        }
+
+        .nodes text {
+            pointer-events: none;
+            transition: all 0.3s ease;
+        }
+
+        .hoveredNode rect {
+            filter: drop-shadow(0 0 5px #fff);
+            stroke-width: 2px;
+        }
+
+        .hoveredNode text {
+            font-weight: bold;
+        }
+
+        .hoveredLink {
+            stroke-opacity: 1 !important;
+        }
+
+        .dimmedNode rect {
+            fill: #eeeeee !important;
+            stroke: #eeeeee !important;
+        }
+
+        .dimmedNode text {
+            fill: #999999 !important;
+        }
+
+        .dimmedLink {
+            stroke: #eeeeee !important;
+        }
+
+        .level-label {
+            font-weight: 800;
+            fill: #334155;
+            text-anchor: middle;
+            font-size: clamp(13px, 2vh, 17px);
+            text-transform: uppercase;
+        }
+
+        .level-label-rule {
+            stroke: #cbd5e1;
+            stroke-width: 1.5;
+        }
+
+        .tooltip {
+            position: absolute;
+            padding: 6px 8px;
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 2px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            color: #444;
+            z-index: 9999;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+            transition: opacity 0.1s ease;
+        }
+
+        @media (max-height: 500px) {
+
+            #container2,
+            #container3,
+            #container4 {
+                display: none !important;
+            }
+        }
+
+        @media (max-width: 469px) {
+            body {
+                overflow-x: auto;
+            }
+
+            .viz-grid {
+                min-width: 470px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="viz-grid">
+        <div id="container1" class="container viz-container">
+            <div id="viz">
+                <svg id="sankey"></svg>
+            </div>
+        </div>
+        <div id="container2" class="container legend-container">
+            <div class="legend">
+                <div class="legend-item"><span class="legend-square" style="background:#188AB2"></span><span>Open
+                        weights</span></div>
+                <div class="legend-item"><span class="legend-square"
+                        style="background:#EF476F"></span><span>Proprietary</span></div>
+            </div>
+        </div>
+        <div id="container3" class="container source-container">
+            <div class="source-text">Source: <a href="https://lmarena.ai" target="_blank" rel="noopener">LMArena</a></div>
+        </div>
+        <div id="container4" class="container logo-container">
+            <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+                <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const OS_COLORS = { 1: '#188AB2', 0: '#EF476F' };
+        const GEO_COLORS = { US: '#EE7678', China: '#4D72B4', France: '#5c5a74' };
+        const LOGO_BASE = 'https://aileaderboard.franri.dev/logos/';
+        const PROVIDERS = {
+            'OpenAI': { color: '#11a37f', logo: 'gpt' },
+            'Anthropic': { color: '#da7857', logo: 'claude' },
+            'Deepseek': { color: '#4e6bfe', logo: 'deepseek' },
+            'Google': { color: '#4185f4', logo: 'gemini' },
+            'xAI': { color: '#000000', logo: 'grok' },
+            'Meta': { color: '#0568e2', logo: 'meta' },
+            'Moonshot AI': { color: '#01245a', logo: 'moonshot' },
+            'Alibaba': { color: '#8b5cf6', logo: 'qwen' },
+            'Z.ai': { color: '#3e025a', logo: 'zai' },
+            'Xiaomi': { color: '#ff6900', logo: 'xiaomi' },
+            'Mistral AI': { color: '#ffaf00', logo: 'mistral' },
+            'MiniMax': { color: '#f13d5c', logo: 'minimax' },
+            'NVIDIA': { color: '#76b900', logo: 'nemotron' },
+            'Baidu': { color: '#2a32e3', logo: 'baidu' },
+            'StepFun': { color: '#00a9ff', logo: 'stepfun' }
+        };
+        const COLUMN_LABELS = ['Country', 'Lab', 'Model'];
+
+        const MODELS = [
+            { name: 'Claude Fable 5', org: 'Anthropic', geo: 'US', os: 0, rank: 1, lma: 1507 },
+            { name: 'Claude Opus 5', org: 'Anthropic', geo: 'US', os: 0, rank: 5, lma: 1488 },
+            { name: 'Claude Sonnet 5', org: 'Anthropic', geo: 'US', os: 0, rank: 24, lma: 1461 },
+            { name: 'Claude Haiku 4.5', org: 'Anthropic', geo: 'US', os: 0, rank: 51, lma: 1413 },
+            { name: 'Gemini 3.7 Flash', org: 'Google', geo: 'US', os: 0, rank: 2, lma: 1490 },
+            { name: 'Gemini 3.1 Pro (Preview)', org: 'Google', geo: 'US', os: 0, rank: 7, lma: 1487 },
+            { name: 'Gemma 4', org: 'Google', geo: 'US', os: 1, rank: 30, lma: 1451 },
+            { name: 'Muse Spark 1.2', org: 'Meta', geo: 'US', os: 0, rank: null, lma: null },
+            { name: 'Kimi K3', org: 'Moonshot AI', geo: 'China', os: 1, rank: 4, lma: 1489 },
+            { name: 'Kimi K2.7 Code', org: 'Moonshot AI', geo: 'China', os: 1, rank: null, lma: null },
+            { name: 'GLM 5.3', org: 'Z.ai', geo: 'China', os: 1, rank: 9, lma: 1484 },
+            { name: 'GLM 5.3 Flash', org: 'Z.ai', geo: 'China', os: 1, rank: null, lma: null },
+            { name: 'GPT 5.6 Sol', org: 'OpenAI', geo: 'US', os: 0, rank: 10, lma: 1482 },
+            { name: 'GPT 5.5', org: 'OpenAI', geo: 'US', os: 0, rank: 11, lma: 1482 },
+            { name: 'GPT 5.4 mini', org: 'OpenAI', geo: 'US', os: 0, rank: 33, lma: 1448 },
+            { name: 'o3', org: 'OpenAI', geo: 'US', os: 0, rank: 43, lma: 1431 },
+            { name: 'GPT-OSS', org: 'OpenAI', geo: 'US', os: 1, rank: 57, lma: 1352 },
+            { name: 'GPT 5 Nano', org: 'OpenAI', geo: 'US', os: 0, rank: 60, lma: 1337 },
+            { name: 'GPT 5.6 Terra', org: 'OpenAI', geo: 'US', os: 0, rank: null, lma: null },
+            { name: 'GPT 5.6 Luna', org: 'OpenAI', geo: 'US', os: 0, rank: null, lma: null },
+            { name: 'Qwen 3.8 Max', org: 'Alibaba', geo: 'China', os: 1, rank: 14, lma: 1479 },
+            { name: 'Qwen 3.5', org: 'Alibaba', geo: 'China', os: 1, rank: 40, lma: 1441 },
+            { name: 'Qwen 3.6 Plus', org: 'Alibaba', geo: 'China', os: 1, rank: null, lma: null },
+            { name: 'Grok 4.6', org: 'xAI', geo: 'US', os: 0, rank: 25, lma: 1461 },
+            { name: 'Grok 4.1 Fast', org: 'xAI', geo: 'US', os: 0, rank: 44, lma: 1430 },
+            { name: 'MiMo v2.5 Pro (Thinking)', org: 'Xiaomi', geo: 'China', os: 1, rank: 21, lma: 1468 },
+            { name: 'DeepSeek v4 Pro', org: 'Deepseek', geo: 'China', os: 1, rank: 28, lma: 1458 },
+            { name: 'DeepSeek v3.2 (Thinking)', org: 'Deepseek', geo: 'China', os: 1, rank: 49, lma: 1423 },
+            { name: 'DeepSeek v4 Flash', org: 'Deepseek', geo: 'China', os: 1, rank: null, lma: null },
+            { name: 'ERNIE 5.0', org: 'Baidu', geo: 'China', os: 0, rank: 36, lma: 1446 },
+            { name: 'MiniMax M3', org: 'MiniMax', geo: 'China', os: 1, rank: 39, lma: 1442 },
+            { name: 'Nemotron 3 Ultra', org: 'NVIDIA', geo: 'US', os: 1, rank: 46, lma: 1426 },
+            { name: 'Nemotron 3 Super', org: 'NVIDIA', geo: 'US', os: 1, rank: 56, lma: 1361 },
+            { name: 'Nemotron 3 Nano', org: 'NVIDIA', geo: 'US', os: 1, rank: 61, lma: 1314 },
+            { name: 'Step 3.5 Flash', org: 'StepFun', geo: 'China', os: 1, rank: 53, lma: 1394 },
+            { name: 'Magistral Medium', org: 'Mistral AI', geo: 'France', os: 0, rank: 62, lma: 1304 },
+            { name: 'Mistral', org: 'Mistral AI', geo: 'France', os: 0, rank: null, lma: null }
+        ];
+
+        const svg = d3.select('#sankey');
+        const sankeyGen = d3.sankey().nodeWidth(16).nodePadding(10).nodeSort(null);
+        const linkPath = d3.sankeyLinkHorizontal();
+        const tooltip = d3.select('body').append('div').attr('class', 'tooltip');
+
+        let width = 0, height = 0;
+
+        function updateDimensions() {
+            const rect = document.getElementById('viz').getBoundingClientRect();
+            width = rect.width || window.innerWidth;
+            height = rect.height || window.innerHeight;
+            svg.attr('width', width).attr('height', height)
+                .attr('viewBox', `0 0 ${width} ${height}`);
+        }
+
+        function buildGraph() {
+            const nodes = [];
+            const nodeIndex = new Map();
+            function getNode(name, level, color, extra) {
+                const key = level + '|' + name;
+                if (!nodeIndex.has(key)) {
+                    nodeIndex.set(key, nodes.length);
+                    nodes.push(Object.assign({ name, level, color }, extra));
+                }
+                return nodeIndex.get(key);
+            }
+            const linkMap = new Map();
+            function addLink(s, t, color) {
+                const key = s + '|' + t;
+                if (!linkMap.has(key)) linkMap.set(key, { source: s, target: t, value: 0, color });
+                linkMap.get(key).value += 1;
+            }
+            const geoOrder = ['US', 'China', 'France'];
+            geoOrder.forEach(g => {
+                if (MODELS.some(m => m.geo === g)) getNode(g, 0, GEO_COLORS[g] || '#94a3b8');
+            });
+            const labOrder = {};
+            MODELS.forEach((m, i) => { if (!(m.org in labOrder)) labOrder[m.org] = i; });
+            const labs = Array.from(new Set(MODELS.map(m => m.org)));
+            labs.sort((a, b) => {
+                const ga = MODELS.find(m => m.org === a).geo, gb = MODELS.find(m => m.org === b).geo;
+                if (ga !== gb) return geoOrder.indexOf(ga) - geoOrder.indexOf(gb);
+                return labOrder[a] - labOrder[b];
+            });
+            labs.forEach(l => getNode(l, 1, (PROVIDERS[l] || {}).color || '#94a3b8'));
+            const byRank = MODELS.slice().sort((a, b) => (a.rank || Infinity) - (b.rank || Infinity));
+            byRank.forEach(m => getNode(m.name, 2, OS_COLORS[m.os], { rank: m.rank, lma: m.lma }));
+            MODELS.forEach(m => {
+                const orgColor = (PROVIDERS[m.org] || {}).color || '#94a3b8';
+                const c = getNode(m.geo, 0, GEO_COLORS[m.geo] || '#94a3b8');
+                const o = getNode(m.org, 1, orgColor);
+                const md = getNode(m.name, 2, OS_COLORS[m.os]);
+                addLink(c, o, OS_COLORS[m.os]);
+                addLink(o, md, OS_COLORS[m.os]);
+            });
+            return { nodes, links: Array.from(linkMap.values()) };
+        }
+
+        function nodeFontSize(d) {
+            const minSize = height < 500 ? 8 : 10;
+            const maxSize = height < 500 ? 10 : 16;
+            return Math.round(Math.max(minSize, Math.min(maxSize, (d.y1 - d.y0) * 0.7)));
+        }
+
+        function render() {
+            updateDimensions();
+            svg.selectAll('*').remove();
+
+            const graph = buildGraph();
+            const labelHeight = 0;
+            const paddingTop = 40;
+            const paddingBottom = 10;
+            const rightLabelSpace = Math.min(220, width * 0.24);
+            const availableHeight = Math.max(10, height - labelHeight - paddingTop - paddingBottom);
+
+            const perLevel = d3.nest().key(d => d.level).entries(graph.nodes);
+            const maxNodes = d3.max(perLevel, d => d.values.length) || 1;
+            const dynamicPadding = Math.min(12, maxNodes > 1 ? (availableHeight * 0.35) / (maxNodes - 1) : 12);
+
+            sankeyGen.nodePadding(dynamicPadding);
+            sankeyGen.extent([[0, paddingTop], [width - rightLabelSpace, availableHeight + paddingTop]]);
+            sankeyGen.nodeAlign(node => node.level);
+            sankeyGen(graph);
+
+            const FLAGS = {
+                US: { src: 'usa.jpg', fit: 'xMidYMid slice' },
+                China: { src: 'china.png', fit: 'none' },
+                France: { src: 'europe.jpg', fit: 'xMidYMid slice' }
+            };
+            const defs = svg.append('defs');
+            const flagLayer = svg.append('g')
+                .attr('class', 'flag-layer')
+                .attr('opacity', 0.4)
+                .style('pointer-events', 'none');
+            Object.keys(FLAGS).forEach(geo => {
+                const ls = graph.links.filter(l => l.source.level === 0 && l.source.name === geo);
+                if (!ls.length) return;
+                const fx0 = ls[0].source.x1;
+                const fx1 = d3.max(ls, l => l.target.x0);
+                const fy0 = d3.min(ls, l => Math.min(l.source.y0, l.target.y0));
+                const fy1 = d3.max(ls, l => Math.max(l.source.y1, l.target.y1));
+                defs.append('pattern')
+                    .attr('id', 'flag-' + geo)
+                    .attr('patternUnits', 'userSpaceOnUse')
+                    .attr('x', fx0).attr('y', fy0)
+                    .attr('width', fx1 - fx0).attr('height', fy1 - fy0)
+                    .append('image')
+                    .attr('href', FLAGS[geo].src)
+                    .attr('width', fx1 - fx0).attr('height', fy1 - fy0)
+                    .attr('preserveAspectRatio', FLAGS[geo].fit);
+                ls.forEach(l => flagLayer.append('path')
+                    .attr('d', linkPath(l))
+                    .attr('fill', 'none')
+                    .attr('stroke', 'url(#flag-' + geo + ')')
+                    .attr('stroke-width', Math.max(1, l.width)));
+            });
+
+            const linkLayer = svg.append('g').attr('class', 'links');
+            const links = linkLayer.selectAll('path')
+                .data(graph.links).enter().append('path')
+                .attr('d', linkPath)
+                .attr('stroke', d => d.source.level === 0 ? 'transparent' : d.color)
+                .attr('stroke-width', d => Math.max(1, d.width));
+
+            const highlightLayer = svg.append('g')
+                .attr('class', 'highlight-layer')
+                .style('pointer-events', 'none');
+
+            function highlightLinksOverlay(selection) {
+                highlightLayer.selectAll('*').remove();
+                selection.each(function () {
+                    const clone = this.cloneNode(true);
+                    d3.select(clone).classed('hoveredLink', true).classed('dimmedLink', false);
+                    highlightLayer.node().appendChild(clone);
+                });
+            }
+            function clearHighlightOverlay() { highlightLayer.selectAll('*').remove(); }
+
+            const nodeLayer = svg.append('g').attr('class', 'nodes');
+            const nodeGroups = nodeLayer.selectAll('g')
+                .data(graph.nodes).enter().append('g');
+
+            nodeGroups.append('rect')
+                .attr('x', d => d.x0)
+                .attr('y', d => d.y0)
+                .attr('width', d => d.x1 - d.x0)
+                .attr('height', d => Math.max(1, d.y1 - d.y0))
+                .attr('fill', d => d.color)
+                .attr('stroke', d => d3.color(d.color).darker(0.5));
+
+            defs.append('filter')
+                .attr('id', 'logo-blur')
+                .attr('x', '-60%').attr('y', '-60%').attr('width', '220%').attr('height', '220%')
+                .append('feGaussianBlur')
+                .attr('stdDeviation', 3);
+
+            const nodeTextLayer = svg.append('g');
+            const iconSize = d => Math.max(12, nodeFontSize(d) + 2);
+            const logoNodes = graph.nodes.filter(n => n.level === 1 && PROVIDERS[n.name]);
+            nodeTextLayer.selectAll('circle.logo-bg')
+                .data(logoNodes)
+                .enter().append('circle')
+                .attr('class', 'logo-bg')
+                .attr('cx', d => d.x1 + 6 + iconSize(d) / 2)
+                .attr('cy', d => d.y0 + (d.y1 - d.y0) / 2)
+                .attr('r', d => iconSize(d) / 2 + 3)
+                .attr('fill', '#fff')
+                .attr('filter', 'url(#logo-blur)')
+                .style('pointer-events', 'none');
+            nodeTextLayer.selectAll('image')
+                .data(logoNodes)
+                .enter().append('image')
+                .attr('href', d => LOGO_BASE + PROVIDERS[d.name].logo + '.png')
+                .attr('x', d => d.x1 + 6)
+                .attr('y', d => d.y0 + (d.y1 - d.y0) / 2 - iconSize(d) / 2)
+                .attr('width', iconSize)
+                .attr('height', iconSize)
+                .style('pointer-events', 'none');
+            nodeTextLayer.selectAll('text')
+                .data(graph.nodes).enter().append('text')
+                .attr('x', d => d.level === 1 && PROVIDERS[d.name] ? d.x1 + 6 + iconSize(d) + 4 : d.x1 + 6)
+                .attr('y', d => d.y0 + (d.y1 - d.y0) / 2)
+                .attr('dy', '0.35em')
+                .attr('text-anchor', 'start')
+                .attr('fill', '#000')
+                .style('font-size', d => `${nodeFontSize(d)}px`)
+                .style('font-weight', d => d.level < 2 ? 700 : 500)
+                .text(d => d.level === 2 ? `${d.rank ? d.rank + '.' : '—'}  ${d.name}` : d.name);
+
+            const columnX = [0, 1, 2].map(level => {
+                const nodesAt = graph.nodes.filter(n => n.level === level);
+                if (!nodesAt.length) return 0;
+                return (nodesAt[0].x0 + nodesAt[0].x1) / 2;
+            });
+            const labelG = svg.append('g');
+            COLUMN_LABELS.forEach((label, i) => {
+                const cx = Math.max(44, Math.min(width - 44, columnX[i]));
+                const t = labelG.append('text')
+                    .attr('class', 'level-label')
+                    .attr('x', cx)
+                    .attr('y', 18)
+                    .text(label);
+                const w = t.node().getComputedTextLength();
+                labelG.append('line')
+                    .attr('class', 'level-label-rule')
+                    .attr('x1', cx - w / 2 - 1)
+                    .attr('x2', cx + w / 2 + 1)
+                    .attr('y1', 25)
+                    .attr('y2', 25);
+            });
+
+            const legendEl = document.querySelector('.legend');
+            const container2El = document.getElementById('container2');
+            if (legendEl && container2El) {
+                const vizRect = document.getElementById('viz').getBoundingClientRect();
+                const container2Rect = container2El.getBoundingClientRect();
+                let left = vizRect.left + columnX[2] - container2Rect.left;
+                const half = legendEl.offsetWidth / 2;
+                left = Math.max(half, Math.min(container2Rect.width - half, left));
+                legendEl.style.left = `${left}px`;
+            }
+
+            function connectedLinks(node) {
+                return links.filter(l => {
+                    let seen = l.source === node || l.target === node;
+                    if (!seen && node.level === 0) seen = l.source.name === node.name || (l.source.targetLinks || []).some(tl => tl.source === node);
+                    return seen;
+                });
+            }
+
+            nodeGroups
+                .on('mouseover', function (d) {
+                    const related = new Set([d]);
+                    graph.links.forEach(l => {
+                        if (l.source === d) related.add(l.target);
+                        if (l.target === d) related.add(l.source);
+                    });
+                    nodeGroups.classed('dimmedNode', n => !related.has(n));
+                    links.classed('dimmedLink', l => !(l.source === d || l.target === d));
+                    d3.select(this).classed('hoveredNode', true).classed('dimmedNode', false);
+                    highlightLinksOverlay(links.filter(l => l.source === d || l.target === d));
+                    tooltip.transition().duration(200).style('opacity', 0.95);
+                    if (d.level === 2) {
+                        const org = MODELS.find(m => m.name === d.name).org;
+                        const lmaText = d.lma ? `LMArena: ${d.lma}` : 'LMArena: no score';
+                        tooltip.html(`<strong>${d.name}</strong><br>${org}<br>${lmaText}`);
+                    } else {
+                        const total = d.value || 0;
+                        tooltip.html(`<strong>${d.name}</strong><br>${total} lab${total === 1 ? '' : 's'} in the top 100 by Elo`);
+                    }
+                    positionTooltip(d3.event);
+                })
+                .on('mousemove', () => positionTooltip(d3.event))
+                .on('mouseout', function () {
+                    nodeGroups.classed('dimmedNode', false).classed('hoveredNode', false);
+                    links.classed('dimmedLink', false);
+                    clearHighlightOverlay();
+                    tooltip.interrupt().style('opacity', 0);
+                });
+
+            links
+                .on('mouseover', function (d) {
+                    links.classed('dimmedLink', l => l !== d);
+                    highlightLinksOverlay(d3.select(this));
+                    tooltip.transition().duration(200).style('opacity', 0.95);
+                    tooltip.html(`<strong>${d.source.name} → ${d.target.name}</strong><br>${d.value} model${d.value === 1 ? '' : 's'}`);
+                    positionTooltip(d3.event);
+                })
+                .on('mousemove', () => positionTooltip(d3.event))
+                .on('mouseout', function () {
+                    links.classed('dimmedLink', false);
+                    clearHighlightOverlay();
+                    tooltip.interrupt().style('opacity', 0);
+                });
+        }
+
+        function positionTooltip(event) {
+            const isLeftSide = event.pageX < window.innerWidth / 2;
+            if (isLeftSide) {
+                tooltip.style('left', `${event.pageX + 10}px`).style('top', `${event.pageY - 28}px`);
+            } else {
+                const w = tooltip.node() ? tooltip.node().offsetWidth : 150;
+                tooltip.style('left', `${event.pageX - w - 10}px`).style('top', `${event.pageY - 28}px`);
+            }
+        }
+
+        window.addEventListener('resize', () => render());
+        render();
+    </script>
+</body>
+
+</html>
