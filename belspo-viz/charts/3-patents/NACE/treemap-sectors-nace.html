@@ -832,21 +832,59 @@ body {
       white-space: nowrap;
     }
     /* ═════════════════════════════════════════════════════════════ */
-    html.v2-hide-controls .viz-grid { grid-template-rows: 16fr 0 0 2fr !important; }
-    .viz-grid { grid-template-rows: 16fr 0 1fr 2fr !important; }
-    #container5, .footnote-container { display: none !important; }
+    /* ══ v3: the footnote row is a URL parameter too — `?text=1` shows it ══ */
+    html.v3-text.v2-hide-controls .viz-grid        { grid-template-rows: 16fr 1fr 0 2fr !important; }
+    html.v3-text:not(.v2-hide-controls) .viz-grid  { grid-template-rows: 16fr 1fr 1fr 2fr !important; }
+    html:not(.v3-text).v2-hide-controls .viz-grid  { grid-template-rows: 16fr 0 0 2fr !important; }
+    html:not(.v3-text):not(.v2-hide-controls) .viz-grid { grid-template-rows: 16fr 0 1fr 2fr !important; }
+    html:not(.v3-text) #container5,
+    html:not(.v3-text) .footnote-container { display: none !important; }
+
+    /* ══ v3: source + logo footer, shown by `?source=` / `?logo=` ═════════════
+       A flex row under .viz-grid rather than an extra grid row, so the same
+       rules fit every treemap layout in this folder. ══ */
+    html.v3-footer, html.v3-footer body { height: 100%; margin: 0; }
+    html.v3-footer body { display: flex; flex-direction: column; }
+    html.v3-footer .viz-grid {
+      height: auto !important; flex: 1 1 auto; min-height: 0; width: 100%;
+    }
+    #viz-footer {
+      flex: 0 0 auto; display: flex; align-items: center; justify-content: flex-end;
+      gap: clamp(8px, 2vw, 20px);
+      padding: 0 20px clamp(6px, 1.2vh, 12px);
+      height: clamp(20px, 3.6vh, 34px); box-sizing: content-box;
+    }
+    #viz-footer .source-text { margin-right: auto; }
+    .source-text {
+      font-size: clamp(10px, 1.6vw, 16px); font-weight: 600; color: #333;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 100%; font-style: normal;
+    }
+    .source-text a, .logo-link {
+      color: #2756d3; text-decoration: underline; cursor: pointer; font-style: normal;
+    }
+    .source-text a:visited { color: #2756d3; }
+    .logo-link { display: block; height: 100%; text-decoration: none; }
+    .logo { height: 100%; width: auto; max-height: 100%; object-fit: contain; }
+    @media (max-height: 500px) { #viz-footer { display: none !important; } }
+    /* ═════════════════════════════════════════════════════════════ */
 </style>
   <script src="https://d3js.org/d3.v5.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
 
 <script>
-/* v2: decide before first paint whether the in-chart year controls are shown,
-   so hidden controls never flash. `?controls=1` keeps them. */
+/* ══ v3: read the embed parameters before first paint, so nothing flashes ══
+   ?controls=1  year buttons      ?years=2021-2024  year selection
+   ?text=1      footnote line     ?source=0|text    source line (shown by default)
+   ?logo=ceps|aiw                 logo, bottom-right (off by default)            */
 (function () {
   var q = new URLSearchParams(window.location.search);
-  if (q.get("controls") !== "1") {
-    document.documentElement.classList.add("v2-hide-controls");
-  }
+  var root = document.documentElement;
+  if (q.get("controls") !== "1") root.classList.add("v2-hide-controls");
+  if (q.get("text") === "1") root.classList.add("v3-text");
+  var src = q.get("source");
+  var logo = (q.get("logo") || "").toLowerCase();
+  if (src !== "0" || logo === "ceps" || logo === "aiw") root.classList.add("v3-footer");
 })();
 </script>
 </head>
@@ -1208,6 +1246,48 @@ renderVisualizationForContainer();
   window.addEventListener("load", function () { requestAnimationFrame(pin); });
   window.addEventListener("resize", pin);
   if (typeof ResizeObserver !== "undefined") new ResizeObserver(pin).observe(cell);
+})();
+</script>
+<script>
+/* ══ v3: build the source + logo footer from the URL parameters ══ */
+(function () {
+  var q = new URLSearchParams(window.location.search);
+  var LOGOS = {
+    ceps: ["https://viz.aiworld.eu/ceps-logo.png", "https://www.ceps.eu", "CEPS"],
+    aiw:  ["https://aiworld.eu/logo-transparent.svg", "https://aiworld.eu", "AI World"]
+  };
+  var raw = q.get("source");
+  var text = raw === "0" ? "" : (!raw || raw === "1") ? "OECD REGPAT" : raw;
+  var href = (!raw || raw === "1") ? "https://www.oecd.org/en/data/datasets/regpat-database.html" : "";
+  var logo = LOGOS[(q.get("logo") || "").toLowerCase()];
+  if (!text && !logo) return;
+
+  var bar = document.createElement("div");
+  bar.id = "viz-footer";
+  if (text) {
+    var s = document.createElement("div");
+    s.className = "source-text";
+    s.appendChild(document.createTextNode("Source: "));
+    if (href) {
+      var a = document.createElement("a");
+      a.href = href; a.target = "_blank"; a.rel = "noopener";
+      a.textContent = text;
+      s.appendChild(a);
+    } else {
+      s.appendChild(document.createTextNode(text));
+    }
+    bar.appendChild(s);
+  }
+  if (logo) {
+    var link = document.createElement("a");
+    link.className = "logo-link";
+    link.href = logo[1]; link.target = "_blank"; link.rel = "noopener";
+    var img = document.createElement("img");
+    img.className = "logo"; img.src = logo[0]; img.alt = logo[2] + " logo";
+    link.appendChild(img);
+    bar.appendChild(link);
+  }
+  document.body.appendChild(bar);
 })();
 </script>
 </body>

@@ -3339,6 +3339,16 @@ footer {
       <div class="seg" id="legend-seg" role="group" aria-label="Colour key"></div>
     </div>
 
+    <div class="field">
+      <label>Source line <span class="hint">— follows the source above</span></label>
+      <div class="seg" id="cite-seg" role="group" aria-label="Source line"></div>
+    </div>
+
+    <div class="field">
+      <label>Logo</label>
+      <div class="seg" id="logo-seg" role="group" aria-label="Logo"></div>
+    </div>
+
     <div class="link" id="url-out"></div>
     <div class="actions">
       <button class="btn primary" type="button" id="open">Open in new tab ↗</button>
@@ -3394,7 +3404,9 @@ var DEFAULTS = {
   domain:   null,                       // resolved per cube below
   sectors:  null,                       // null = all
   controls: "0",                        // built links default to a clean figure
-  legend:   "1"
+  legend:   "1",
+  cite:     "1",                        // the source line stays on: a figure needs it
+  logo:     ""                          // "" | "ceps" | "aiw"
 };
 var S = Object.assign({}, DEFAULTS);
 
@@ -3498,6 +3510,16 @@ function renderControls() {
     function (o) { return o.value === S.legend; },
     function (o) { S.legend = o.value; sync(); });
 
+  segment(document.getElementById("cite-seg"),
+    [{ value: "1", label: "Shown" }, { value: "0", label: "Hidden" }],
+    function (o) { return o.value === S.cite; },
+    function (o) { S.cite = o.value; sync(); });
+
+  segment(document.getElementById("logo-seg"),
+    [{ value: "", label: "None" }, { value: "ceps", label: "CEPS" }, { value: "aiw", label: "AI World" }],
+    function (o) { return o.value === S.logo; },
+    function (o) { S.logo = o.value; sync(); });
+
   fillSelect(document.getElementById("country-sel"),
     COUNTRIES.map(function (c) { return { value: c.code, label: c.name + " (" + c.code + ")" }; }),
     S.country);
@@ -3536,6 +3558,8 @@ function url() {
   }
   add("controls", S.controls);
   add("legend", S.legend);
+  add("cite", S.cite);
+  if (S.logo) add("logo", S.logo);      // omitted rather than written empty
   return CHART + "?" + q.join("&");
 }
 function absoluteUrl() {
