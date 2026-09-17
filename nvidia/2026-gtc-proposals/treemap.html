@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Europe writes a quarter of the world's AI research</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1"></script>
+<script>
+
+(function () {
+  try {
+    if (new URLSearchParams(location.search).get("dark") === "1") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  } catch (e) {}
+})();
+</script>
+<style>
+:root {
+    
+
+    --c-bg:          white;
+    --c-text:        #0f172a;
+    --c-muted:       #9aa3ae;
+    --c-source:      #333333;
+    --c-subhead:     #475569;
+    --c-footnote:    #555555;
+    --c-panel-title: #475569;
+    --c-europe:      #4D72B4;
+    --c-us:          #EE7678;
+    --c-china:       #57B66F;
+    --c-row:         #A9A9A9;
+    --c-tooltip-bg:  #fff;
+    --c-tooltip-brd: rgba(17, 24, 39, 0.08);
+    --c-tooltip-sh:  rgba(0, 0, 0, 0.12);
+}
+
+
+
+
+html[data-theme="dark"] {
+    --c-bg:          #0F1319;
+    --c-text:        #F2F5F9;
+    --c-muted:       #9BA6B4;
+    --c-source:      #D2D8E0;
+    --c-subhead:     #9BA6B4;
+    --c-footnote:    #9BA6B4;
+    --c-panel-title: #9BA6B4;
+    --c-europe:      #7AA5EA;
+    --c-us:          #F58D8F;
+    --c-china:       #6FD48A;
+    
+
+    --c-row:         #A9A9A9;
+    --c-tooltip-bg:  #1A212B;
+    --c-tooltip-brd: rgba(242, 245, 249, 0.14);
+    --c-tooltip-sh:  rgba(0, 0, 0, 0.5);
+}
+
+:root {
+    --fs-meta:     clamp(10px, 1.6vw, 16px);
+    --breakpoint-compact: 500px;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    height: 100vh;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+    background-color: var(--c-bg);
+}
+
+.viz-grid {
+    display: grid;
+    grid-template-rows: 16fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    padding-bottom: clamp(8px, 2vh, 18px);
+}
+
+#container1 {
+    grid-row: 1;
+    grid-column: 1 / span 2;
+    overflow: hidden;
+    min-height: 0;
+}
+
+#container3 {
+    grid-row: 3;
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+#container4 {
+    grid-row: 3;
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+
+
+#container5 {
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+#container4 a {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    cursor: default;
+}
+
+#viz {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+    position: relative;
+}
+
+.tm-plot {
+    position: absolute;
+    overflow: hidden;
+}
+
+#chart {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: var(--c-tooltip-bg);
+    color: var(--c-text);
+    border: 1px solid var(--c-tooltip-brd);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    box-shadow: 0 4px 12px var(--c-tooltip-sh);
+    max-width: 240px;
+    z-index: 100;
+}
+
+.footnote-text {
+    font-size: var(--fs-meta);
+    font-style: italic;
+    color: var(--c-source);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.footnote-row {
+    display: flex;
+    gap: clamp(12px, 3vw, 40px);
+    width: 100%;
+    align-items: flex-start;
+}
+
+.footnote-row .footnote-text {
+    flex: 1 1 0;
+    min-width: 0;
+    white-space: normal;
+    text-align: left;
+    font-size: clamp(8px, 0.92vw, 12px);
+    line-height: 1.45;
+    color: var(--c-footnote);
+    text-overflow: clip;
+}
+
+.footnote-row .footnote-text b {
+    font-style: normal;
+    font-weight: 700;
+    color: var(--c-source);
+}
+
+.source-text {
+    font-size: var(--fs-meta);
+    font-weight: 600;
+    color: var(--c-source);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    font-style: normal;
+}
+
+.source-text a {
+    color: var(--c-europe);
+    text-decoration: underline;
+    cursor: default;
+    font-style: normal;
+    display: inline-block;
+}
+
+.source-text a:visited {
+    color: var(--c-europe);
+}
+
+.logo {
+    height: 100%;
+    width: auto;
+    max-height: 100%;
+    max-width: 100%;
+    pointer-events: auto;
+    object-fit: contain;
+}
+
+.headline {
+    font-family: "Libre Baskerville", "Bodoni 72", Didot, serif;
+    font-weight: 700;
+    fill: var(--c-text);
+}
+
+.subhead {
+    font-family: "Libre Baskerville", "Bodoni 72", Didot, serif;
+    font-weight: 400;
+    fill: var(--c-subhead);
+}
+
+.tm-panel-title {
+    font-weight: 700;
+    fill: var(--c-panel-title);
+    letter-spacing: 0.1em;
+}
+
+@media (max-width: 739px) {
+    body { overflow-x: auto; }
+    .viz-grid { min-width: 740px; }
+}
+
+@media (max-height: 500px) {
+    .viz-grid {
+        grid-template-rows: 1fr !important;
+        grid-template-columns: 1fr !important;
+        padding-bottom: 0;
+    }
+
+    #container1 {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+    }
+
+    #container3,
+    #container4,
+    #container5 {
+        display: none !important;
+    }
+
+    .source-text,
+    .logo,
+    .footnote-text {
+        display: none !important;
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="viz-grid">
+  <div id="container1" class="container viz-container">
+    <div id="viz">
+      <svg id="chart"></svg>
+      <div class="tm-plot" id="tm-plot-0"></div>
+      <div class="tm-plot" id="tm-plot-1"></div>
+    </div>
+  </div>
+
+  <div id="container5" class="container footnote-container">
+    <div class="footnote-row">
+      <div class="footnote-text" id="footnote-left">Share of AI research publications, 2025. OpenAlex, primary topic subfield 1702, works with at least one resolvable institution country (188,844 of 297,680). Europe = EU27 plus the UK, Norway and Switzerland.</div>
+      <div class="footnote-text" id="footnote-right">Share of global installed AI accelerator capacity, measured in H100-equivalents. Epoch AI, Data on GPU Clusters, accessed September 2026. Snapshot of clusters operational to mid-2025. Epoch estimates the dataset covers 10-20% of global aggregate cluster performance.</div>
+    </div>
+  </div>
+
+  <div id="container3" class="container source-container">
+    <div class="source-text" id="source-text">Source: <a href="https://openalex.org/" target="_blank" rel="noopener">OpenAlex</a> and <a href="https://epoch.ai/data/gpu-clusters" target="_blank" rel="noopener">Epoch AI</a></div>
+  </div>
+
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+    </a>
+  </div>
+</div>
+
+<script>
+
+
+if (document.documentElement.getAttribute("data-theme") === "dark") {
+  const logo = document.querySelector(".logo");
+  if (logo) logo.src = "https://aiworld.eu/logo-aiworld-white.svg";
+}
+
+const SHOW_CONTAINER_2 = 0;
+const SHOW_CONTAINER_3 = 1;
+const SHOW_CONTAINER_4 = 1;
+const SHOW_CONTAINER_5 = 1;  
+const FOOTNOTE_ROWS = 3;
+
+const LEGEND_ROWS = 1;
+
+
+
+function applyGrid() {
+  const vizGrid = document.querySelector('.viz-grid');
+  const c2 = document.getElementById('container2');
+  const c3 = document.getElementById('container3');
+  const c4 = document.getElementById('container4');
+  const c5 = document.getElementById('container5');
+
+  if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+  if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+  if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+  if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+  const row2Visible = SHOW_CONTAINER_5;
+  const row3Visible = SHOW_CONTAINER_2;
+  const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+  let gridRows = [];
+  let currentRow = 1;
+  const chartHeight = 20 - (row2Visible ? FOOTNOTE_ROWS : 0) - (row3Visible ? LEGEND_ROWS : 0) - (row4Visible ? 1 : 0);
+  gridRows.push(`${chartHeight}fr`);
+
+  if (row2Visible) { gridRows.push(`${FOOTNOTE_ROWS}fr`); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+  if (row3Visible) { gridRows.push(`${LEGEND_ROWS}fr`); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+  if (row4Visible) {
+    gridRows.push('1fr'); currentRow++;
+    if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+    if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+    if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+    if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+  }
+
+  vizGrid.style.gridTemplateRows = gridRows.join(' ');
+  document.getElementById('container1').style.gridRow = '1';
+}
+
+applyGrid();
+
+const SHOW_TOOLTIP = 1;
+const BREAKPOINT_COMPACT = 500;
+const RESIZE_DEBOUNCE = 120;
+
+const HEADLINE = "Europe writes a quarter of the world's AI research";
+const SUBHEAD  = "and holds one twelfth of the world's installed AI accelerators";
+
+const REGION_ORDER = ["Europe", "China", "United States", "Rest of world"];
+
+
+const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+const REGION_VARS = {
+  "Europe": "--c-europe",
+  "China": "--c-china",
+  "United States": "--c-us",
+  "Rest of world": "--c-row"
+};
+
+function getGroupColor(region) {
+  const v = REGION_VARS[region];
+  return (v && cssVar(v)) || "#666666";
+}
+
+function textOn(hex) {
+  const lin = c => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  const r = lin(parseInt(hex.slice(1, 3), 16) / 255);
+  const g = lin(parseInt(hex.slice(3, 5), 16) / 255);
+  const b = lin(parseInt(hex.slice(5, 7), 16) / 255);
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.2 ? "#1A1A1A" : "#FFFFFF";
+}
+
+const VALUE_FONT_MAX = 84;
+const VALUE_FONT_MIN = 11;
+const NAME_FONT_MIN = 9;
+const NAME_FONT_MAX = 22;
+const PANEL_MAX_W = 700;
+const PANEL_MAX_H = 560;
+const PANEL_MAX_ASPECT = 1.35;
+
+const PANELS = [
+  {
+    key: "research",
+    title: "Share of world AI research, 2025",
+    unit: "of AI research publications",
+    values: { "Europe": 24.6, "China": 28.3, "United States": 18.7, "Rest of world": 28.4 },
+    labels: {}
+  },
+  {
+    key: "accelerators",
+    title: "Share of world installed AI accelerators",
+    unit: "of installed AI accelerators (H100-equivalents)",
+    values: { "Europe": 8.3, "China": 7.0, "United States": 79.5, "Rest of world": 5.2 },
+    labels: { "Rest of world": "Rest of world and unassigned" }
+  }
+];
+
+const MAX_SHARE = Math.max.apply(null, PANELS.map(p => Math.max.apply(null, REGION_ORDER.map(r => p.values[r]))));
+
+let valueScaleMax = VALUE_FONT_MAX;
+let nameFontMax = NAME_FONT_MAX;
+
+const SANS = "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
+const SERIF = '"Libre Baskerville", "Bodoni 72", Didot, serif';
+
+const vizContainer = document.getElementById("viz");
+
+let tooltip = null;
+if (SHOW_TOOLTIP) {
+  tooltip = document.createElement("div");
+  tooltip.id = "tooltip";
+  document.body.appendChild(tooltip);
+}
+
+const pct = d3.format(".1f");
+
+function fitText(sel, maxWidth, startPx, minPx) {
+  let size = startPx;
+  sel.style("font-size", `${size}px`);
+  const node = sel.node();
+  if (!node || !node.getComputedTextLength) return size;
+  let guard = 0;
+  while (size > minPx && node.getComputedTextLength() > maxWidth && guard < 140) {
+    size -= 0.6;
+    sel.style("font-size", `${size}px`);
+    guard++;
+  }
+  return size;
+}
+
+
+
+
+
+function drawFrame() {
+  const rect = vizContainer.getBoundingClientRect();
+  const width  = Math.max(320, rect.width);
+  const height = Math.max(220, rect.height);
+  const compact = window.matchMedia(`(max-height:${BREAKPOINT_COMPACT}px)`).matches;
+  const sc = Math.max(0.6, Math.min(1, Math.min(width / 1080, height / 640)));
+
+  const svg = d3.select("#chart")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("viewBox", `0 0 ${width} ${height}`)
+    .style("width", "100%")
+    .style("height", "100%");
+
+  svg.selectAll("*").remove();
+
+  const padX = Math.max(16, Math.min(46, width * 0.023));
+
+  const topPad = Math.max(18, Math.min(46, height * 0.052));
+  const headFont = Math.max(18, Math.min(66, width * 0.0315));
+
+  const headline = svg.append("text")
+    .attr("class", "headline")
+    .attr("x", width / 2)
+    .attr("y", 0)
+    .attr("text-anchor", "middle")
+    .style("font-family", SERIF)
+    .text(HEADLINE);
+  const headSize = fitText(headline, width - padX * 2, headFont, 13);
+  headline.attr("y", topPad + headSize);
+
+  const subhead = svg.append("text")
+    .attr("class", "subhead")
+    .attr("x", width / 2)
+    .attr("y", 0)
+    .attr("text-anchor", "middle")
+    .style("font-family", SERIF)
+    .text(SUBHEAD);
+  const subSize = fitText(subhead, width - padX * 2, Math.max(11, headSize * 0.63), 11);
+  const headerEnd = topPad + headSize + subSize * 1.5;
+  subhead.attr("y", headerEnd - subSize * 0.25);
+
+  const headerGap = Math.max(12, 30 * sc);
+  const headerBottom = headerEnd + headerGap;
+
+  return { svg, width, height, compact, sc, padX, headerBottom };
+}
+
+const treemapInstances = [null, null];
+
+const measureCanvas = document.createElement("canvas").getContext("2d");
+
+function measureText(text, size, weight) {
+  measureCanvas.font = `${weight} ${size}px ${SANS}`;
+  return measureCanvas.measureText(text).width;
+}
+
+function wrapWords(text, size, maxWidth, maxLines) {
+  const words = text.split(" ");
+  const lines = [];
+  let current = "";
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (current && measureText(next, size, 600) > maxWidth) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  }
+  if (current) lines.push(current);
+  if (lines.length > maxLines) return null;
+  if (lines.some(l => measureText(l, size, 600) > maxWidth)) return null;
+  return lines;
+}
+
+function layoutTileLabel(w, h, name, valueText, targetVf, nf) {
+  const pad = Math.max(4, Math.min(20, Math.min(w, h) * 0.075));
+  const aw = w - pad * 2;
+  const ah = h - pad * 2;
+  if (aw < 22 || ah < 18) return null;
+
+  const lines = wrapWords(name, nf, aw, 2);
+  if (!lines) return null;
+  const nameH = lines.length * nf * 1.2;
+
+  for (let vf = Math.min(targetVf, aw * 0.78, ah * 0.7); vf >= VALUE_FONT_MIN; vf -= 0.5) {
+    if (measureText(valueText, vf, 700) <= aw * 0.94 && nameH + vf * 0.24 + vf <= ah) {
+      return { pad, nf, vf, lines, nameH };
+    }
+  }
+  return null;
+}
+
+function panelRows(panel) {
+  return REGION_ORDER.map(r => ({
+    name: r,
+    region: r,
+    value: panel.values[r]
+  })).filter(d => d.value > 0);
+}
+
+function ensureTreemapInstance(pi, panel) {
+  if (!treemapInstances[pi]) {
+    treemapInstances[pi] = new d3plus.Treemap()
+      .select(`#tm-plot-${pi}`)
+      .data(panelRows(panel))
+      .groupBy("name")
+      .sum("value")
+      .duration(0)
+      .layoutPadding(2)
+      .legend(false)
+      .tooltip(!!SHOW_TOOLTIP)
+      .tooltipConfig({
+        title: d => panel.labels[d.region] || d.region,
+        body: d => `<strong>${pct(d.value)}%</strong> ${panel.unit}`
+      })
+      .color(d => getGroupColor(d.region))
+      .shapeConfig({
+        rx: 0,
+        ry: 0,
+        stroke: "transparent",
+        strokeWidth: 0,
+        label: false
+      })
+      .config({ label: false });
+  }
+  return treemapInstances[pi];
+}
+
+function collectTiles(pi, panel) {
+  const host = document.getElementById(`tm-plot-${pi}`);
+  if (!host) return null;
+  const svgEl = host.querySelector("svg.d3plus-viz");
+  if (!svgEl) return null;
+  const group = svgEl.querySelector(".d3plus-Treemap");
+  if (!group) return null;
+
+  const byColor = {};
+  REGION_ORDER.forEach(r => { byColor[getGroupColor(r).toLowerCase()] = r; });
+
+  const tiles = [];
+  svgEl.querySelectorAll(".d3plus-Rect-shape rect").forEach(node => {
+    const m = /translate\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/.exec(node.getAttribute("transform") || "");
+    if (!m) return;
+    const region = byColor[(node.getAttribute("fill") || "").toLowerCase()];
+    if (!region) return;
+    const share = panel.values[region];
+    tiles.push({
+      region,
+      valueText: `${pct(share)}%`,
+      targetVf: Math.max(VALUE_FONT_MIN, valueScaleMax * Math.sqrt(share / MAX_SHARE)),
+      w: +node.getAttribute("width"),
+      h: +node.getAttribute("height"),
+      x0: +m[1] + (+node.getAttribute("x")),
+      y0: +m[2] + (+node.getAttribute("y"))
+    });
+  });
+  return { svgEl, group, tiles };
+}
+
+function uniformNameFont(tiles) {
+  for (let nf = nameFontMax; nf >= NAME_FONT_MIN; nf -= 0.5) {
+    const ok = tiles.every(t => {
+      const spec = layoutTileLabel(t.w, t.h, t.region, t.valueText, t.targetVf, nf);
+      return spec && spec.vf >= t.targetVf - 0.01;
+    });
+    if (ok) return nf;
+  }
+  return NAME_FONT_MIN;
+}
+
+function decorateAll() {
+  const contexts = PANELS.map((panel, pi) => collectTiles(pi, panel));
+  if (contexts.some(c => !c || !c.tiles.length)) return;
+
+  const nf = uniformNameFont(contexts.reduce((all, c) => all.concat(c.tiles), []));
+
+  contexts.forEach((ctx, pi) => {
+    const textLayer = ctx.svgEl.querySelector(".d3plus-Rect-text");
+    if (textLayer) textLayer.innerHTML = "";
+    const old = ctx.group.querySelector(".tm-labels");
+    if (old) old.remove();
+    const layer = d3.select(ctx.group).append("g").attr("class", "tm-labels");
+
+    ctx.tiles.forEach(t => {
+      const spec = layoutTileLabel(t.w, t.h, t.region, t.valueText, t.targetVf, nf);
+      if (!spec) return;
+
+      
+      
+      
+      const ink = textOn(getGroupColor(t.region));
+      const g = layer.append("g").attr("transform", `translate(${t.x0 + spec.pad},${t.y0 + spec.pad})`);
+
+      spec.lines.forEach((line, i) => {
+        g.append("text")
+          .attr("x", 0)
+          .attr("y", spec.nf * (0.92 + i * 1.2))
+          .style("font-family", SANS)
+          .style("font-size", `${spec.nf}px`)
+          .style("font-weight", 600)
+          .style("letter-spacing", "0.01em")
+          .style("fill", ink)
+          .style("fill-opacity", 0.82)
+          .text(line);
+      });
+
+      g.append("text")
+        .attr("x", 0)
+        .attr("y", spec.nameH + spec.vf * 0.3 + spec.vf * 0.82)
+        .style("font-family", SANS)
+        .style("font-size", `${spec.vf}px`)
+        .style("font-weight", 700)
+        .style("letter-spacing", "-0.015em")
+        .style("fill", ink)
+        .text(t.valueText);
+    });
+  });
+}
+
+function updateVisualization(pi, panel, panelW, panelH) {
+  const instance = ensureTreemapInstance(pi, panel);
+  if (!instance) return;
+  instance
+    .data(panelRows(panel))
+    .width(panelW)
+    .height(panelH)
+    .render(decorateAll);
+}
+
+
+
+
+function render() {
+  const { svg, width, height, sc, padX, headerBottom } = drawFrame();
+  svg.style("width", `${width}px`).style("height", `${height}px`);
+
+  const panelGap = Math.max(18, 40 * sc);
+  const halfW = Math.max(60, (width - padX * 2 - panelGap) / 2);
+
+  const panelTitleFont = Math.max(12, Math.min(18, width * 0.015));
+  const panelTitleH = panelTitleFont * 2.6;
+  const bottomPad = Math.max(6, 12 * sc);
+
+  const availH = Math.max(80, height - headerBottom - panelTitleH - bottomPad);
+  const panelH = Math.min(availH, PANEL_MAX_H);
+  const panelW = Math.max(60, Math.min(halfW, PANEL_MAX_W, panelH * PANEL_MAX_ASPECT));
+  const startX = Math.max(padX, (width - (panelW * 2 + panelGap)) / 2);
+  const plotTop = headerBottom + panelTitleH + Math.max(0, (availH - panelH) / 2);
+
+  valueScaleMax = Math.min(VALUE_FONT_MAX, panelH * 0.16);
+  nameFontMax = Math.max(NAME_FONT_MIN, Math.min(NAME_FONT_MAX, panelH * 0.045));
+
+  PANELS.forEach((panel, pi) => {
+    const left = startX + pi * (panelW + panelGap);
+
+    const pt = svg.append("text")
+      .attr("class", "tm-panel-title")
+      .attr("x", left + panelW / 2)
+      .attr("y", plotTop - panelTitleFont * 0.9)
+      .attr("text-anchor", "middle")
+      .style("font-family", SANS)
+      .text(panel.title.toUpperCase());
+    fitText(pt, panelW, panelTitleFont, 9);
+
+    const holder = document.getElementById(`tm-plot-${pi}`);
+    holder.style.left = `${left}px`;
+    holder.style.top = `${plotTop}px`;
+    holder.style.width = `${panelW}px`;
+    holder.style.height = `${panelH}px`;
+
+    updateVisualization(pi, panel, panelW, panelH);
+  });
+
+  decorateAll();
+}
+
+document.getElementById("chart").style.pointerEvents = "none";
+
+render();
+
+let resizeTimer;
+function scheduleRender() {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(render, RESIZE_DEBOUNCE);
+}
+
+window.addEventListener("resize", scheduleRender);
+
+if (typeof ResizeObserver !== "undefined") {
+  new ResizeObserver(scheduleRender).observe(vizContainer);
+}
+
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(render);
+}
+</script>
+</body>
+</html>

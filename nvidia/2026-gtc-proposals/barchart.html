@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Europe does not have a talent problem. It has a compute problem.</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+
+(function () {
+  try {
+    if (new URLSearchParams(location.search).get("dark") === "1") {
+      document.documentElement.setAttribute("data-theme", "dark");
+    }
+  } catch (e) {}
+})();
+</script>
+<style>
+:root {
+    
+    --c-bg:          white;
+    --c-text:        #0f172a;
+    --c-muted:       #9aa3ae;
+    --c-source:      #333333;
+    --c-track:       #A9A9A9;
+    --c-track-swatch: #A9A9A9;
+    --c-europe:      #4D72B4;
+    --c-red:         #E53229;
+    --c-control:     #64748b;
+    --c-tip-muted:   #64748b;
+    --c-focus:       rgba(77, 114, 180, 0.5);
+    --c-tooltip-bg:  #fff;
+    --c-tooltip-brd: rgba(17, 24, 39, 0.08);
+    --c-tooltip-sh:  rgba(0, 0, 0, 0.12);
+    --c-axis:        #cfd2d7;
+    --c-tick:        #4b5563;
+    --c-grid:        #DBDBDB;
+    --c-bar-label:   #555;
+    --c-comparison:  #000000;
+}
+
+
+html[data-theme="dark"] {
+    --c-bg:          #0F1319;
+    --c-text:        #F2F5F9;
+    --c-muted:       #9BA6B4;
+    --c-source:      #D2D8E0;
+    --c-track:       #262C35;
+    --c-track-swatch: #525D6E;
+    --c-europe:      #7AA5EA;
+    --c-red:         #FF6A5E;
+    --c-control:     #B6C0CC;
+    --c-tip-muted:   #9BA6B4;
+    --c-focus:       rgba(122, 165, 234, 0.5);
+    --c-tooltip-bg:  #1A212B;
+    --c-tooltip-brd: rgba(242, 245, 249, 0.14);
+    --c-tooltip-sh:  rgba(0, 0, 0, 0.5);
+    --c-axis:        #3A424E;
+    --c-tick:        #9BA6B4;
+    --c-grid:        #2C333D;
+    --c-bar-label:   #9BA6B4;
+    --c-comparison:  #FFFFFF;
+}
+
+:root {
+    --fs-control:  clamp(11px, 1.55vw, 16px);
+    --fs-legend:   clamp(0.75rem, 1.6vw, 1.125rem);
+    --fs-meta:     clamp(10px, 1.6vw, 16px);
+    --fs-slider:   clamp(11px, 1.2vw, 13px);
+    --breakpoint-compact: 500px;
+    --pad: 30px;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    height: 100vh;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+    background-color: var(--c-bg);
+}
+
+.viz-grid {
+    position: relative;
+    display: grid;
+    grid-template-rows: 1fr auto auto auto;
+    grid-template-columns: 1fr 1fr;
+    row-gap: clamp(6px, 1.4vh, 16px);
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    padding-bottom: clamp(8px, 2vh, 18px);
+}
+
+#container1 {
+    grid-row: 1;
+    grid-column: 1 / span 2;
+    overflow: hidden;
+    min-height: 0;
+}
+
+
+
+#container5 {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: clamp(70px, 10vh, 112px);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 var(--pad);
+    overflow: hidden;
+    min-width: 0;
+}
+
+.footnote-text {
+    font-size: var(--fs-meta);
+    font-style: italic;
+    color: var(--c-source);
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+
+
+
+#container2 {
+    grid-row: 4;
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 var(--pad);
+    overflow: hidden;
+    min-width: 0;
+}
+
+#container3 {
+    grid-row: 4;
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 var(--pad);
+    overflow: hidden;
+    min-width: 0;
+}
+
+#container4 {
+    grid-row: 4;
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 var(--pad);
+    overflow: hidden;
+    min-width: 0;
+}
+
+#container4 a {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    cursor: default;
+}
+
+#viz {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+}
+
+
+
+
+.row-toggles {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(9px, 1.7vw, 26px);
+    padding: 0 var(--pad);
+    box-sizing: border-box;
+}
+
+.row-toggle {
+    display: flex;
+    align-items: center;
+    gap: clamp(5px, 0.7vw, 9px);
+    border: none;
+    background: transparent;
+    padding: 2px 0;
+    margin: 0;
+    font-family: inherit;
+    font-size: var(--fs-control);
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    color: var(--c-text);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+
+
+.row-toggle[aria-pressed="false"] {
+    color: var(--c-muted);
+}
+
+.row-toggle:hover {
+    color: var(--c-europe);
+}
+
+.row-toggle:focus-visible {
+    outline: 2px solid var(--c-focus);
+    outline-offset: 3px;
+}
+
+.row-toggle-dot {
+    width: clamp(9px, 0.9vw, 12px);
+    height: clamp(9px, 0.9vw, 12px);
+    border-radius: 0;
+    flex-shrink: 0;
+    background: var(--c-control);
+    display: grid;
+    place-items: center;
+    color: var(--c-bg);
+    font-size: clamp(8px, 0.72vw, 10px);
+    font-weight: 800;
+    line-height: 1;
+}
+
+.row-toggle[aria-pressed="true"] .row-toggle-dot::after {
+    content: "✓";
+}
+
+.row-toggle[aria-pressed="false"] .row-toggle-dot {
+    background: transparent;
+    box-shadow: inset 0 0 0 2px var(--c-track-swatch);
+}
+
+#chart {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+#tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: var(--c-tooltip-bg);
+    color: var(--c-text);
+    border: 1px solid var(--c-tooltip-brd);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    box-shadow: 0 4px 12px var(--c-tooltip-sh);
+    max-width: 260px;
+    z-index: 100;
+}
+
+.controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(10px, 1.4vw, 22px);
+    width: 100%;
+    min-width: 0;
+}
+
+.controls-left {
+    display: flex;
+    
+
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: clamp(8px, 1.4vw, 18px);
+    min-width: 0;
+    flex-shrink: 0;
+}
+
+.controls-label {
+    font-size: var(--fs-control);
+    font-weight: 600;
+    color: var(--c-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.selector-group {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: clamp(8px, 1.4vw, 18px);
+    padding: 0;
+    border: none;
+    background: none;
+    max-width: 100%;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.selector-pill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: var(--c-europe);
+    border-radius: 1px;
+    z-index: 0;
+    pointer-events: none;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.selector-button {
+    position: relative;
+    z-index: 1;
+    border: none;
+    background: transparent;
+    
+
+    padding: clamp(4px, 0.7vh, 7px) 0;
+    border-radius: 0;
+    font-size: var(--fs-control);
+    font-weight: 600;
+    color: var(--c-control);
+    cursor: pointer;
+    transition: color 0.2s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.selector-button:hover {
+    color: var(--c-text);
+}
+
+.selector-button.active {
+    color: var(--c-europe);
+}
+
+.selector-button:focus-visible {
+    outline: 2px solid var(--c-focus);
+    outline-offset: 3px;
+}
+
+.legend {
+    display: flex;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: clamp(6px, 1vw, 14px);
+    background: var(--c-bg);
+    padding: clamp(4px, 1vh, 10px) 0;
+    border-radius: clamp(6px, 1vw, 12px);
+    max-width: 100%;
+    max-height: 100%;
+    font-size: var(--fs-legend);
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: clamp(4px, 1vw, 8px);
+    font-weight: 600;
+    color: var(--c-source);
+    font-size: inherit;
+    padding: 2px 6px;
+    cursor: default;
+}
+
+.legend-square {
+    width: clamp(8px, 0.9vw, 12px);
+    height: clamp(8px, 0.9vw, 12px);
+    border-radius: 0;
+    flex-shrink: 0;
+}
+
+
+
+.legend-square.two-tone {
+    background: linear-gradient(135deg,
+        var(--c-europe) 0 50%,
+        var(--c-red) 50% 100%) !important;
+}
+
+.source-text {
+    font-size: var(--fs-meta);
+    font-weight: 600;
+    color: var(--c-source);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    font-style: normal;
+}
+
+.source-text a {
+    color: var(--c-europe);
+    text-decoration: underline;
+    cursor: default;
+    font-style: normal;
+    display: inline-block;
+}
+
+.source-text a:visited {
+    color: var(--c-europe);
+}
+
+.logo {
+    height: 100%;
+    width: auto;
+    max-height: 100%;
+    max-width: 100%;
+    pointer-events: auto;
+    object-fit: contain;
+}
+
+.axis path,
+.axis line {
+    stroke: var(--c-axis);
+}
+
+.tick text {
+    font-weight: 600;
+    fill: var(--c-tick);
+}
+
+.grid-lines line {
+    stroke: var(--c-grid);
+    stroke-dasharray: 2, 3;
+}
+
+.grid-lines path {
+    stroke: none;
+}
+
+.bar-label {
+    fill: var(--c-bar-label);
+    font-weight: 500;
+}
+
+.headline {
+    font-family: "Libre Baskerville", "Bodoni 72", Didot, serif;
+    font-weight: 700;
+    fill: var(--c-text);
+}
+
+.row-label {
+    font-weight: 700;
+    fill: var(--c-text);
+}
+
+.row-sublabel {
+    font-weight: 500;
+    fill: var(--c-muted);
+}
+
+.row-credit {
+    font-weight: 600;
+    fill: var(--c-source);
+}
+
+.row-credit a text,
+.row-credit-link {
+    font-weight: 600;
+    fill: var(--c-europe);
+    text-decoration: underline;
+}
+
+.value-label {
+    font-weight: 700;
+    fill: var(--c-europe);
+}
+
+@media (max-width: 739px) {
+    body { overflow-x: auto; }
+    .viz-grid { min-width: 740px; }
+}
+
+@media (max-height: 500px) {
+    .viz-grid {
+        grid-template-rows: 1fr !important;
+        grid-template-columns: 1fr !important;
+        padding-bottom: 0;
+    }
+
+    #container1 {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+    }
+
+    #container2,
+    #container3,
+    #container4,
+    #container5 {
+        display: none !important;
+    }
+
+    .legend,
+    .source-text,
+    .footnote-text,
+    .logo {
+        display: none !important;
+    }
+}
+</style>
+</head>
+<body>
+
+<div class="viz-grid">
+  <div id="container1" class="container viz-container">
+    <div id="viz">
+      <svg id="chart"></svg>
+      <div class="row-toggles" id="row-toggles" role="group" aria-label="Show or hide each row"></div>
+    </div>
+  </div>
+
+  <div id="container5" class="container footnote-container">
+    <div class="footnote-text" id="footnote-text">* Unknowns excluded from every denominator.</div>
+  </div>
+
+  <div id="container2" class="container legend-container">
+    <div class="controls-row">
+      <div class="legend" id="legend">
+        <div class="legend-item">
+          <span class="legend-square two-tone"></span>
+          <span>EU27 + UK + Norway + Switzerland</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-square" style="background:var(--c-track-swatch);"></span>
+          <span>Rest of world</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="container3" class="container source-container">
+    <div class="source-text" id="source-text">Source: <a href="https://openalex.org/" target="_blank" rel="noopener">OpenAlex</a>, <a href="https://innovationgraph.github.com/" target="_blank" rel="noopener">GitHub Innovation Graph</a>, <a href="https://epoch.ai/data/gpu-clusters" target="_blank" rel="noopener">Epoch AI</a>, <a href="https://huggingface.co/datasets/hfmlsoc/hub_weekly_snapshots" target="_blank" rel="noopener">Hugging Face</a> and <a href="https://aiworld.eu/" target="_blank" rel="noopener">AI World</a> (Crunchbase)</div>
+  </div>
+
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+    </a>
+  </div>
+</div>
+
+<script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const HF_ORG_SHARES = {
+  measure: "downloads_30d",
+  measure_label: "30-day downloads",
+  universe: "top 1,000 Hugging Face organizations by 30-day downloads, individual user accounts excluded",
+  basis: "share by count of organizations with an assigned country",
+  snapshot_date: "2026-09-09",
+  source: "Hugging Face, top 1,000 organizations by 30-day downloads; country assigned by hand",
+  n_orgs: 1000,
+  n_unknown: 265,
+  provisional: true,
+  shares: {
+    "Europe"         : { count: 176, pct: 23.9 },
+    "United States"  : { count: 249, pct: 33.9 },
+    "China"          : { count: 131, pct: 17.8 },
+    "Rest of world"  : { count: 179, pct: 24.4 }
+  }
+};
+
+const hfBlock = () => HF_ORG_SHARES;
+
+const METRICS = [
+  {
+    id: "research",
+    short: "Research",
+    credit: { name: "OpenAlex", url: "https://openalex.org/" },
+    label: "AI research",
+    sublabel: "publications, 2025",
+    group: "talent",
+    value: 24.6,
+    source: "OpenAlex, primary topic subfield 1702, works with at least one resolvable institution country (188,844 of 297,680)."
+  },
+  {
+    id: "github",
+    short: "GitHub",
+    credit: { name: "GitHub Innovation Graph", url: "https://innovationgraph.github.com/" },
+    label: "GitHub organizations",
+    sublabel: "2026 Q1",
+    group: "talent",
+    value: 21.63,
+    source: "GitHub Innovation Graph, 2026 Q1, CC0. All GitHub organizations across any activity, not an AI-specific measure. Share of the 8,409,214 organizations in all economies GitHub publishes. Economies with fewer than 100 unique developers are not published."
+  },
+  {
+    id: "researchers",
+    short: "Researchers",
+    credit: { name: "OpenAlex", url: "https://openalex.org/" },
+    label: "AI researchers",
+    sublabel: "distinct authors, 2025",
+    group: "talent",
+    value: 19.4,
+    source: "OpenAlex, primary topic subfield 1702, distinct authors with a resolvable institution country (453,414)."
+  },
+  {
+    id: "hforgs",
+    short: "Hugging Face",
+    credit: { name: "Hugging Face", url: "https://huggingface.co/datasets/hfmlsoc/hub_weekly_snapshots" },
+    label: "Hugging Face organizations",
+    
+    
+    sublabel: "",
+    group: "talent",
+    value: 0,
+    source: ""
+  },
+  {
+    id: "compute",
+    short: "Accelerators",
+    credit: { name: "Epoch AI", url: "https://epoch.ai/data/gpu-clusters" },
+    label: "Installed AI accelerators",
+    sublabel: "H100-equivalents, mid-2025",
+    group: "compute",
+    value: 8.3,
+    colorVar: "--c-red",
+    source: "Epoch AI, Data on GPU Clusters, H100-equivalents, CC BY 4.0. Snapshot of clusters operational to mid-2025."
+  },
+  {
+    id: "funding",
+    short: "Funding",
+    credit: { name: "AI World (Crunchbase)", url: "https://aiworld.eu/" },
+    label: "AI funding",
+    sublabel: "US dollars raised, 2025",
+    group: "capital",
+    value: 8.16,
+    colorVar: "--c-red",
+    source: "AI World, org_geo cube, source Crunchbase, country level, year 2025, retrieved 16 Sep 2026. Share of the $204.49B raised by 5,377 organizations across 90 countries. About 97% of Crunchbase's own published $211B world AI total for 2025. Highly concentrated: OpenAI alone is 20.0% of the world and Anthropic 8.6%. Dropping the five largest rounds moves Europe to 13.9% and the United States to 69.4%."
+  }
+];
+
+const HF_METRIC = METRICS.find(m => m.id === "hforgs");
+
+
+
+function syncHfMetric() {
+  const b = hfBlock();
+  const eu = b.shares["Europe"];
+  HF_METRIC.value = eu.pct;
+
+  
+  const total = d3.format(",")(b.n_orgs);
+  HF_METRIC.sublabel = `top ${total} organizations by ${b.measure_label.toLowerCase()}`;
+
+  
+  
+  HF_METRIC.provisional = b.provisional === true;
+
+  
+  
+  
+  
+  const unknown = b.n_unknown || 0;
+  const known = b.n_orgs - unknown;
+  HF_METRIC.source = `${b.source}. Snapshot ${b.snapshot_date}. `
+    + `Universe: ${b.universe}. `
+    + `Basis: ${b.basis} — the ${b.measure_label.toLowerCase()} ranking only selects the `
+    + `${total}, it does not weight the bar. `
+    + `${known} of ${total} have an assigned country, ${d3.format(",")(unknown)} do not and are excluded. `
+    + `Europe ${pct(eu.pct)}%, United States ${pct(b.shares["United States"].pct)}%, `
+    + `China ${pct(b.shares["China"].pct)}%, rest of world ${pct(b.shares["Rest of world"].pct)}%.`
+    + (HF_METRIC.provisional ? " PROVISIONAL, country assignments not yet checked." : "");
+}
+
+const HEADLINE = "Europe does not have a talent problem. It has a compute problem.";
+
+
+const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const COLOR_EUROPE = cssVar("--c-europe");
+const COLOR_REST = cssVar("--c-track");
+const COLOR_MUTED = cssVar("--c-muted");
+const COLOR_COMPARISON = cssVar("--c-comparison");
+const colorOf = m => m.colorVar ? cssVar(m.colorVar) : COLOR_EUROPE;
+
+
+
+if (document.documentElement.getAttribute("data-theme") === "dark") {
+  const logo = document.querySelector(".logo");
+  if (logo) logo.src = "https://aiworld.eu/logo-aiworld-white.svg";
+}
+const CREDIT_PREFIX = "Source: ";
+
+const SHOW_CONTAINER_2 = 1;
+const SHOW_CONTAINER_3 = 0;
+const SHOW_CONTAINER_4 = 1;
+const SHOW_CONTAINER_5 = 1;  
+const LEGEND_ROWS = 1;
+
+const SHOW_TOOLTIP = 1;
+const BREAKPOINT_COMPACT = 500;
+const RESIZE_DEBOUNCE = 220;
+
+const SANS = "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif";
+const SERIF = '"Libre Baskerville", "Bodoni 72", Didot, serif';
+
+const pct = d3.format(".1f");
+
+
+
+
+const hiddenRows = new Set();
+
+function visibleMetrics() {
+  
+  
+  
+  return METRICS.filter(m => !hiddenRows.has(m.id)).sort((a, b) => b.value - a.value);
+}
+
+function applyGrid() {
+  const vizGrid = document.querySelector('.viz-grid');
+  const c2 = document.getElementById('container2');
+  const c3 = document.getElementById('container3');
+  const c4 = document.getElementById('container4');
+  const c5 = document.getElementById('container5');
+  if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+  if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+  if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+
+  const rowsSpec = ['1fr'];
+  let currentRow = 1;
+
+  
+  
+  
+  
+  const bottomLeft = (SHOW_CONTAINER_2 && c2) ? c2 : ((SHOW_CONTAINER_3 && c3) ? c3 : null);
+  const ownRow = (SHOW_CONTAINER_2 && c2 && SHOW_CONTAINER_3 && c3) ? c3 : null;
+
+  
+  
+  if (SHOW_CONTAINER_5 && c5) {
+    c5.style.display = 'flex';
+  } else if (c5) {
+    c5.style.display = 'none';
+  }
+
+  if (ownRow) {
+    rowsSpec.push('auto');
+    currentRow++;
+    ownRow.style.gridRow = String(currentRow);
+    ownRow.style.gridColumn = '1 / span 2';
+  }
+
+  if (bottomLeft || (SHOW_CONTAINER_4 && c4)) {
+    rowsSpec.push('clamp(32px, 5.4vh, 58px)');
+    currentRow++;
+    
+    
+    
+    
+    if (bottomLeft) {
+      bottomLeft.style.gridRow = String(currentRow);
+      bottomLeft.style.gridColumn = '1 / span 2';
+    }
+    if (SHOW_CONTAINER_4 && c4) {
+      c4.style.gridRow = String(currentRow);
+      c4.style.gridColumn = '1 / span 2';
+      c4.style.pointerEvents = 'none';
+      const logoLink = c4.querySelector('a');
+      if (logoLink) logoLink.style.pointerEvents = 'auto';
+    }
+    vizGrid.style.gridTemplateColumns = '1fr 1fr';
+  }
+
+  vizGrid.style.gridTemplateRows = rowsSpec.join(' ');
+  document.getElementById('container1').style.gridRow = '1';
+}
+
+const vizContainer = document.getElementById("viz");
+
+let tooltip = null;
+if (SHOW_TOOLTIP) {
+  tooltip = document.createElement("div");
+  tooltip.id = "tooltip";
+  document.body.appendChild(tooltip);
+}
+
+const measureCanvas = document.createElement("canvas").getContext("2d");
+
+function measureText(text, size, weight, family) {
+  measureCanvas.font = `${weight} ${size}px ${family || SANS}`;
+  return measureCanvas.measureText(text).width;
+}
+
+function parseNum(value) {
+  if (value == null || value === "") return 0;
+  const n = Number(String(value).replace(/,/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function smartFormat(v) {
+  if (!isFinite(v)) return "N/A";
+  if (Math.abs(v) >= 1e9) return d3.format(".1f")(v / 1e9) + "B";
+  if (Math.abs(v) >= 1e6) return d3.format(".1f")(v / 1e6) + "M";
+  if (Math.abs(v) >= 1e3 && Math.floor(v) === v) return d3.format(",")(v);
+  if (Math.floor(v) === v) return d3.format(",")(v);
+  return d3.format(",.1f")(v);
+}
+
+function fitText(sel, maxWidth, startPx, minPx) {
+  let size = startPx;
+  sel.style("font-size", `${size}px`);
+  const node = sel.node();
+  if (!node || !node.getComputedTextLength) return size;
+  let guard = 0;
+  while (size > minPx && node.getComputedTextLength() > maxWidth && guard < 140) {
+    size -= 0.6;
+    sel.style("font-size", `${size}px`);
+    guard++;
+  }
+  return size;
+}
+
+
+
+function buildRowToggles() {
+  const host = document.getElementById("row-toggles");
+  if (!host) return;
+  host.innerHTML = "";
+
+  
+  
+  METRICS.slice().sort((a, b) => b.value - a.value).forEach(m => {
+    const btn = document.createElement("button");
+    btn.className = "row-toggle";
+    btn.type = "button";
+    btn.dataset.id = m.id;
+    btn.setAttribute("aria-pressed", "true");
+
+    
+    const dot = document.createElement("span");
+    dot.className = "row-toggle-dot";
+
+    
+    
+    const text = document.createElement("span");
+    text.textContent = m.short || m.label;
+    btn.title = m.label;
+    btn.setAttribute("aria-label", m.label);
+
+    btn.appendChild(dot);
+    btn.appendChild(text);
+
+    btn.addEventListener("click", () => {
+      
+      
+      const on = !hiddenRows.has(m.id);
+      if (on && hiddenRows.size >= METRICS.length - 1) return;
+      if (on) hiddenRows.add(m.id); else hiddenRows.delete(m.id);
+      btn.setAttribute("aria-pressed", String(!on));
+      transitionRows(m.id, on ? "hide" : "show");
+    });
+
+    host.appendChild(btn);
+  });
+}
+
+function render(rowTransition = null, previousMids = new Map()) {
+  syncHfMetric();
+  const rows = visibleMetrics();
+  const rect = vizContainer.getBoundingClientRect();
+  const width  = Math.max(320, rect.width);
+  const height = Math.max(220, rect.height);
+  const compact = window.matchMedia(`(max-height:${BREAKPOINT_COMPACT}px)`).matches;
+  const sc = Math.max(0.6, Math.min(1, Math.min(width / 1080, height / 640)));
+
+  const padX = Math.max(16, Math.min(46, width * 0.023));
+  document.documentElement.style.setProperty("--pad", `${Math.round(padX)}px`);
+
+  const svg = d3.select("#chart")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("viewBox", `0 0 ${width} ${height}`)
+    .style("width", "100%")
+    .style("height", "100%");
+
+  svg.selectAll("*").remove();
+
+  if (!rows.length) {
+    svg.append("text")
+      .attr("x", width / 2)
+      .attr("y", height / 2)
+      .attr("text-anchor", "middle")
+      .style("font-family", SANS)
+      .style("font-size", "14px")
+      .style("fill", COLOR_MUTED)
+      .text("No data available");
+    return;
+  }
+
+  const togglesEl = document.getElementById("row-toggles");
+
+  
+  const topPad = Math.max(18, Math.min(46, height * 0.052));
+
+  const headFont = Math.max(18, Math.min(66, width * 0.0315));
+
+  const headline = svg.append("text")
+    .attr("class", "headline")
+    .attr("x", width / 2)
+    .attr("y", 0)
+    .attr("text-anchor", "middle")
+    .style("font-family", SERIF)
+    .text(HEADLINE);
+  const headSize = fitText(headline, width - padX * 2, headFont, 13);
+  headline.attr("y", topPad + headSize);
+
+  
+  
+  const gapAboveToggles = Math.max(24, 42 * sc);
+  const gapBelowToggles = Math.max(12, 26 * sc);
+  let toggleH = 0;
+  if (togglesEl) {
+    togglesEl.style.top = `${Math.round(topPad + headSize + gapAboveToggles)}px`;
+    toggleH = Math.round(togglesEl.getBoundingClientRect().height);
+  }
+
+  const plotTop = topPad + headSize + gapAboveToggles + toggleH + gapBelowToggles;
+  const plotBottom = Math.max(plotTop + 60, height);
+  const plotH = plotBottom - plotTop;
+
+  
+  
+  
+  const comparisonH = rows.length > 1 ? Math.max(42, Math.min(70, plotH * 0.13)) : 0;
+  const barsH = Math.max(60, plotH - comparisonH);
+  const band = barsH / rows.length;
+  const trackH = Math.max(14, Math.min(band * 0.5, height * 0.17));
+  const rowGap = rows.length > 1
+    ? Math.max(trackH * 0.45, Math.min((barsH - rows.length * trackH) / (rows.length - 1), trackH * 0.82))
+    : 0;
+  const blockH = rows.length * trackH + (rows.length - 1) * rowGap;
+  const blockTop = plotTop + Math.max(0, (barsH - blockH) / 2);
+
+  
+  
+  
+  
+  const refBand = barsH / METRICS.length;
+  const refTrackH = Math.max(14, Math.min(refBand * 0.5, height * 0.17));
+
+  const labelFont = Math.max(13, Math.min(34, refTrackH * 0.54, refBand * 0.24));
+  const subLabelFont = Math.max(9, labelFont * 0.64);
+  const creditFont = Math.max(8, subLabelFont * 0.75);
+  const creditTextOf = m => m.credit ? `${CREDIT_PREFIX}${m.credit.name}` : "";
+  const valueFont = Math.max(16, Math.min(28, refTrackH * 0.82));
+
+  const labelPad = Math.max(14, 26 * sc);
+  const labelW = Math.min(
+    width * 0.30,
+    d3.max(rows, m => Math.max(
+      measureText(m.label, labelFont, 700),
+      measureText(m.sublabel, subLabelFont, 500),
+      measureText(creditTextOf(m), creditFont, 600)
+    )) + labelPad
+  );
+
+  const valuePad = Math.max(10, 20 * sc);
+
+  
+  
+  const labelGap = labelPad * 0.5;
+  const valueGap = valuePad * 0.5;
+
+  const trackLeft = padX + labelW;
+  const barRightPad = Math.max(padX, width * 0.15);
+  const availableTrackW = Math.max(120, width - trackLeft - barRightPad);
+  const trackW = Math.max(90, availableTrackW);
+
+  
+  
+  
+  const x = d3.scaleLinear().domain([0, 32]).range([trackLeft, trackLeft + trackW]);
+
+  const defs = svg.append("defs");
+  const trackFade = defs.append("linearGradient")
+    .attr("id", "track-fade")
+    .attr("x1", "0%")
+    .attr("x2", "100%")
+    .attr("y1", "0%")
+    .attr("y2", "0%");
+  trackFade.append("stop").attr("offset", "0%").attr("stop-color", COLOR_REST);
+  trackFade.append("stop").attr("offset", "78%").attr("stop-color", COLOR_REST);
+  trackFade.append("stop").attr("offset", "100%").attr("stop-color", COLOR_REST).attr("stop-opacity", 0);
+
+  if (rows.length > 1) {
+    defs.append("marker")
+      .attr("id", "gap-arrow-end")
+      .attr("viewBox", "0 0 8 8")
+      .attr("refX", 7)
+      .attr("refY", 4)
+      .attr("markerWidth", 9)
+      .attr("markerHeight", 9)
+      .attr("orient", "auto")
+      .append("path")
+      .attr("d", "M 0 0 L 8 4 L 0 8 z")
+      .attr("fill", COLOR_COMPARISON);
+  }
+
+  const valueSpecs = [];
+
+  rows.forEach((m, i) => {
+    const mid = blockTop + i * (trackH + rowGap) + trackH / 2;
+    const trackTop = mid - trackH / 2;
+    const oldMid = previousMids.get(m.id);
+    const entering = rowTransition && rowTransition.action === "show" && rowTransition.id === m.id;
+    const rowG = svg.append("g")
+      .attr("class", "row-content")
+      .attr("data-row-id", m.id)
+      .attr("data-row-mid", mid)
+      .attr("transform", oldMid == null ? null : `translate(0,${oldMid - mid})`)
+      .attr("opacity", entering ? 0 : 1);
+
+    
+    
+    
+    const hasCredit = !!m.credit;
+    const subGap = subLabelFont * 1.4;
+    const creditGap = hasCredit ? creditFont * 1.35 : 0;
+    const blockUp = labelFont * 0.72;
+    const blockDown = subGap + creditGap + (hasCredit ? creditFont * 0.22 : subLabelFont * 0.22);
+    const labelY = mid - (blockDown - blockUp) / 2;
+
+    rowG.append("text")
+      .attr("class", "row-label")
+      .attr("x", trackLeft - labelGap)
+      .attr("y", labelY)
+      .attr("text-anchor", "end")
+      .style("font-family", SANS)
+      .style("font-size", `${labelFont}px`)
+      .text(m.label);
+
+    rowG.append("text")
+      .attr("class", "row-sublabel")
+      .attr("x", trackLeft - labelGap)
+      .attr("y", labelY + subGap)
+      .attr("text-anchor", "end")
+      .style("font-family", SANS)
+      .style("font-size", `${subLabelFont}px`)
+      .text(m.sublabel);
+
+    if (hasCredit) {
+      const creditText = rowG.append("text")
+        .attr("class", "row-credit")
+        .attr("x", trackLeft - labelGap)
+        .attr("y", labelY + subGap + creditGap)
+        .attr("text-anchor", "end")
+        .style("font-family", SANS)
+        .style("font-size", `${creditFont}px`);
+
+      if (CREDIT_PREFIX) creditText.append("tspan").text(CREDIT_PREFIX);
+
+      creditText.append("a")
+        .attr("href", m.credit.url)
+        .attr("target", "_blank")
+        .attr("rel", "noopener")
+        .append("tspan")
+        .attr("class", "row-credit-link")
+        .text(m.credit.name);
+
+
+    }
+
+    rowG.append("rect")
+      .attr("x", trackLeft)
+      .attr("y", trackTop)
+      .attr("width", trackW)
+      .attr("height", trackH)
+      .attr("rx", 2)
+      .attr("fill", "url(#track-fade)");
+
+    const fillW = Math.max(1, x(m.value) - trackLeft);
+
+    rowG.append("rect")
+      .attr("x", trackLeft)
+      .attr("y", trackTop)
+      .attr("height", trackH)
+      .attr("rx", 2)
+      .attr("fill", colorOf(m))
+      .attr("width", fillW);
+
+    
+    
+    valueSpecs.push({ m, mid, oldMid, entering });
+
+    if (SHOW_TOOLTIP) {
+      rowG.append("rect")
+        .attr("x", trackLeft)
+        .attr("y", trackTop)
+        .attr("width", trackW)
+        .attr("height", trackH)
+        .attr("fill", "transparent")
+        .style("cursor", "default")
+        .on("mousemove", (event) => {
+          tooltip.innerHTML = `<strong>${m.label}</strong><br>Europe ${pct(m.value)}% of the world`;
+          tooltip.style.left = (event.clientX + 14) + "px";
+          tooltip.style.top = (event.clientY - 24) + "px";
+          tooltip.style.opacity = "1";
+        })
+        .on("mouseleave", () => { tooltip.style.opacity = "0"; });
+    }
+
+    if (entering || oldMid != null && Math.abs(oldMid - mid) > 0.5) {
+      rowG.transition()
+        .duration(220)
+        .ease(d3.easeCubicOut)
+        .attr("opacity", 1)
+        .attr("transform", "translate(0,0)");
+    }
+  });
+
+  if (rows.length > 1) {
+    const comparisonG = svg.append("g")
+      .attr("class", "comparison-layer")
+      .attr("opacity", 1);
+    const largest = d3.max(rows, m => m.value);
+    const smallest = d3.min(rows, m => m.value);
+    const multiple = largest / smallest;
+    const x1 = x(smallest);
+    const x2 = x(largest);
+    const comparisonFont = Math.max(10, Math.min(18, comparisonH * 0.28));
+    const smallestBottom = blockTop + blockH;
+    const comparisonY = Math.min(height - comparisonFont * 1.9, smallestBottom + comparisonH * 0.30);
+
+    
+    
+    comparisonG.append("line")
+      .attr("x1", x2)
+      .attr("x2", x2)
+      .attr("y1", blockTop + trackH / 2)
+      .attr("y2", comparisonY)
+      .attr("stroke", COLOR_COMPARISON)
+      .attr("stroke-width", Math.max(1, 1.35 * sc))
+      .attr("stroke-dasharray", "4,5");
+
+    comparisonG.append("line")
+      .attr("x1", x1)
+      .attr("x2", x1)
+      .attr("y1", smallestBottom - trackH / 2)
+      .attr("y2", comparisonY)
+      .attr("stroke", COLOR_COMPARISON)
+      .attr("stroke-width", Math.max(1, 1.35 * sc))
+      .attr("stroke-dasharray", "4,5");
+
+    
+    comparisonG.append("line")
+      .attr("x1", x1)
+      .attr("x2", x2)
+      .attr("y1", comparisonY)
+      .attr("y2", comparisonY)
+      .attr("stroke", COLOR_COMPARISON)
+      .attr("stroke-width", Math.max(1.5, 2 * sc))
+      .attr("marker-end", "url(#gap-arrow-end)");
+
+    const comparisonLabel = comparisonG.append("text")
+      .attr("x", (x1 + x2) / 2)
+      .attr("y", comparisonY + comparisonFont * 1.45)
+      .attr("text-anchor", "middle")
+      .style("font-family", SANS)
+      .style("font-size", `${comparisonFont}px`)
+      .style("font-weight", 600)
+      .style("fill", COLOR_COMPARISON)
+      .text(`×${pct(multiple)}`);
+    fitText(comparisonLabel, Math.max(120, x2 - x1 + 120), comparisonFont, 9);
+  }
+
+  valueSpecs.forEach(({ m, mid, oldMid, entering }) => {
+    const valueG = svg.append("g")
+      .attr("class", "value-content")
+      .attr("data-row-id", m.id)
+      .attr("data-row-mid", mid)
+      .attr("transform", oldMid == null ? null : `translate(0,${oldMid - mid})`)
+      .attr("opacity", entering ? 0 : 1);
+
+    valueG.append("text")
+      .attr("class", "value-label")
+      .attr("x", x(m.value) + valueGap)
+      .attr("y", mid)
+      .attr("dy", "0.35em")
+      .attr("text-anchor", "start")
+      .style("font-family", SANS)
+      .style("font-size", `${valueFont}px`)
+      .style("letter-spacing", "-0.02em")
+      .style("fill", colorOf(m))
+      .text(`${pct(m.value)}%`);
+
+    if (entering || oldMid != null && Math.abs(oldMid - mid) > 0.5) {
+      valueG.transition()
+        .duration(220)
+        .ease(d3.easeCubicOut)
+        .attr("opacity", 1)
+        .attr("transform", "translate(0,0)");
+    }
+  });
+}
+
+function transitionRows(rowId, action) {
+  const previousMids = new Map();
+  const rowLayers = d3.select("#chart").selectAll(".row-content, .value-content");
+  d3.select("#chart").selectAll(".row-content").each(function () {
+    const node = d3.select(this);
+    previousMids.set(node.attr("data-row-id"), Number(node.attr("data-row-mid")));
+  });
+
+  const change = { id: rowId, action };
+  if (action === "show" || rowLayers.empty()) {
+    render(change, previousMids);
+    return;
+  }
+
+  const affected = rowLayers.filter(function () {
+    return d3.select(this).attr("data-row-id") === rowId;
+  });
+  affected.interrupt()
+    .transition()
+    .duration(160)
+    .ease(d3.easeCubicIn)
+    .attr("opacity", 0)
+    .end()
+    .catch(() => {})
+    .then(() => render(change, previousMids));
+}
+
+
+
+syncHfMetric();
+buildRowToggles();
+applyGrid();
+render();
+
+let resizeTimer;
+function scheduleRender() {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(render, RESIZE_DEBOUNCE);
+}
+
+window.addEventListener("resize", scheduleRender);
+
+if (typeof ResizeObserver !== "undefined") {
+  new ResizeObserver(scheduleRender).observe(vizContainer);
+}
+
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(render);
+}
+</script>
+</body>
+</html>
