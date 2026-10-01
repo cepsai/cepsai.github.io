@@ -327,6 +327,27 @@ ENTRY_ONLY_GROW = {"Campus Ambassador", "Teaching Assistant", "Research Assistan
 OVERALL_ONLY = {"Principal", "Board Member", "Owner", "Head of Sales", "Founder", "Co-Founder"}
 
 
+# Separate rng for the entry vs overall gap fix, so the main rng draws (and every other mock CSV) stay unchanged.
+rng_gap = random.Random(SEED + 1)
+GAP_LO, GAP_HI = -15, 6
+
+
+def fix_entry_gaps(lists, pool):
+    """Keep entry within GAP_LO..GAP_HI points of overall for occupations on both levels, as in the real data."""
+    over = {o: (d, v) for d in ("growing", "declining") for o, v in zip(*lists[("overall", d)])}
+    for d in ("growing", "declining"):
+        occs, vals = (list(x) for x in lists[("entry", d)])
+        for k, o in enumerate(occs):
+            if o in over and over[o][0] != d:
+                taken = set(over) | set(lists[("entry", "growing")][0]) | set(lists[("entry", "declining")][0]) | set(occs)
+                occs[k] = rng_gap.choice([p for p in pool if p not in taken and p not in OVERALL_ONLY])
+            elif o in over:
+                gap = clamp(round(rng_gap.gauss(-1.5, 3.5)), GAP_LO, GAP_HI)
+                vals[k] = over[o][1] + gap
+        order = sorted(range(len(occs)), key=lambda i: -vals[i])
+        lists[("entry", d)] = ([occs[i] for i in order], [vals[i] for i in order])
+
+
 def pick(pool, weights, k, exclude):
     cands = [o for o in pool if o not in exclude]
     chosen = []
@@ -384,6 +405,7 @@ def gen_top5():
         lists[("entry", "growing")] = (g_entry, ve)
         lists[("overall", "declining")] = (d_over, vdo)
         lists[("entry", "declining")] = (d_entry, vde)
+        fix_entry_gaps(lists, pool)
         for key in [("overall", "growing"), ("entry", "growing"), ("overall", "declining"), ("entry", "declining")]:
             occs, vals = lists[key]
             for rank, (occ, v) in enumerate(zip(occs, vals), 1):

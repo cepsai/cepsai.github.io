@@ -51,8 +51,7 @@ const SHOW_CONTAINER_5 = 0;
 const DATA_URL = "data/top5.csv";
 const DATASETS = {
   top5: "top5.csv",
-  talent: "p5_finance_ai_talent.csv",
-  allJobs: "p2_entry_overall.csv"
+  talent: "p5_finance_ai_talent.csv"
 };
 const MODES = {
   real: { base: "data/", extra: {} },
@@ -81,8 +80,8 @@ const REGION_PRESETS = [
   { id: "real", label: "LinkedIn 5", real: true }
 ];
 const D3PLUS_URL = "https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1";
-const DEFAULT_TAB = "matrix";
-const TABS = ["matrix", "strip", "themes", "treemap", "pairs", "bump", "countries"];
+const DEFAULT_TAB = "treemap";
+const TABS = ["treemap", "pairs", "bump", "matrix", "strip", "themes"];
 const FILTER_OFF = {};
 const REAL_COUNTRIES = ["France", "Germany", "India", "United Kingdom", "United States"];
 let COUNTRIES = REAL_COUNTRIES.slice();
@@ -119,6 +118,9 @@ const LABEL_FS_MIN = 9;
 const SHOW_TOOLTIP = 1;
 const TREEMAP_GROUP_STROKE = "#fff";
 const TREEMAP_DURATION = 600;
+const TREEMAP_FONT_MAX = 22;
+const TREEMAP_FONT_MAX_PHONE = 14;
+const TREEMAP_FONT_MIN = 7;
 
 
 const BREAKPOINT_COMPACT = 500;
@@ -280,20 +282,16 @@ function prepare(rows) {
 }
 
 const fmt1 = v => d3.format(".1f")(v);
-const pct1 = v => (v > 0 ? "+" : v < 0 ? "−" : "") + fmt1(Math.abs(v)) + "%";
-const pts1 = v => (v > 0 ? "+" : v < 0 ? "−" : "") + fmt1(Math.abs(v)) + " pts";
 const share1 = v => fmt1(v) + "%";
 const selCountries = () => COUNTRIES.filter(c => selectedCountries.has(c));
 const filterOff = () => !!(FILTER_OFF[activeTab] && FILTER_OFF[activeTab]());
 const EXTRA = {};
 
 function prepareExtra() {
-  const lvl = r => r.level.trim().toLowerCase();
   const mk = r => parseNum(r.mock) === 1;
   const talentRow = (r, field) => ({ country: r.country.trim(), field, year: parseNum(r.year), value: parseNum(r.share_finance_members_ai_talent_pct), mock: mk(r) });
   EXTRA.talent = DS.talent.map(r => talentRow(r, TALENT_BASE_FIELD))
     .concat((DS.talentFields || []).map(r => talentRow(r, r.field.trim())));
-  EXTRA.allJobs = DS.allJobs.map(r => ({ country: r.country.trim(), facet: "All jobs", level: lvl(r), value: parseNum(r.yoy_hiring_rate_pct), mock: mk(r) }));
   EXTRA.bumpByField = new Map();
 }
 
@@ -497,7 +495,7 @@ function applyMode(mode, bundle, redraw) {
   if (COUNTRIES.length) savedSelection[dataMode] = Array.from(selectedCountries);
   dataMode = mode;
   META.clear();
-  bundle.top5.concat(bundle.allJobs).forEach(r => {
+  bundle.top5.forEach(r => {
     const c = r.country.trim();
     if (!META.has(c)) META.set(c, { iso3: (r.iso3 || "").trim(), region: (r.region || "").trim(), mock: parseNum(r.mock) === 1 });
   });
@@ -585,7 +583,7 @@ function render() {
   setSourceBody(false);
   updateCountryFilter();
   ({ matrix: renderMatrix, strip: renderStrip, themes: renderThemes, treemap: renderTreemap, pairs: renderPairs,
-     bump: renderBump, countries: renderCountries })[activeTab]();
+     bump: renderBump })[activeTab]();
 }
 
 function panelSize(el) {
@@ -1127,7 +1125,7 @@ function ensureTreemapInstance(width, height) {
         rx: 0,
         ry: 0,
         label: d => d.name,
-        labelConfig: { fontColor: d => valText(d.avg) },
+        labelConfig: { fontColor: d => valText(d.avg), fontMin: TREEMAP_FONT_MIN },
         stroke: d => d.depth === 0 ? TREEMAP_GROUP_STROKE : "transparent",
         strokeWidth: d => d.depth === 0 ? 3 : 0
       })
@@ -1143,6 +1141,7 @@ function ensureTreemapInstance(width, height) {
       };
     }
   }
+  treemapInstance.shapeConfig({ labelConfig: { fontMax: isPhone() ? TREEMAP_FONT_MAX_PHONE : TREEMAP_FONT_MAX } });
   if (width) treemapInstance.width(width);
   if (height) treemapInstance.height(height);
   return treemapInstance;
@@ -1452,139 +1451,6 @@ function renderBump() {
   svg.on("click", () => { bumpSelected = null; apply(null); });
   apply(null);
   setLegend([]);
-}
-
-const COUNTRIES_FRAMING = "axes";
-const COUNTRIES_LABELS = "flank";
-
-function renderCountries() {
-  const host = document.getElementById("countries");
-  host.innerHTML = "";
-  const phone = isPhone();
-  const { w: width, h: height } = panelSize(host);
-  if (width <= 0 || height <= 0) return;
-  const sc = Math.max(0.6, Math.min(1, Math.min(width / 1080, height / 720)));
-  const byC = d3.group(EXTRA.allJobs, d => d.country);
-  const pts = COUNTRIES.filter(c => byC.has(c)).map(c => {
-    const ov = byC.get(c).find(d => d.level === "overall"), en = byC.get(c).find(d => d.level === "entry");
-    return ov && en ? { id: c, country: c, overall: ov.value, entry: en.value, gap: en.value - ov.value, mock: ov.mock || en.mock, on: selectedCountries.has(c) } : null;
-  }).filter(Boolean);
-  if (!pts.length) { host.innerHTML = `<div class="error-message">No data available</div>`; setLegend([]); return; }
-  const margin = { top: 16, right: 16, bottom: 48, left: phone ? 52 : 70 };
-  const innerW = Math.max(50, width - margin.left - margin.right);
-  const innerH = Math.max(50, height - margin.top - margin.bottom);
-  const ext = d3.extent(pts.flatMap(p => [p.overall, p.entry]));
-  const pad0 = Math.max((ext[1] - ext[0]) * 0.10, 1);
-  const dom = d3.scaleLinear().domain([ext[0] - pad0, ext[1] + pad0]).nice().domain();
-  const x = d3.scaleLinear().domain(dom).range([0, innerW]);
-  const y = d3.scaleLinear().domain(dom).range([innerH, 0]);
-
-  const svg = d3.select(host).append("svg").attr("width", width).attr("height", height).attr("viewBox", `0 0 ${width} ${height}`);
-  const root = svg.append("g").attr("class", "plot-area").attr("transform", `translate(${margin.left},${margin.top})`);
-  const frame = root.append("g").attr("class", "frame");
-  const gridY = root.append("g").attr("class", "axis-grid grid-y");
-  const gridX = root.append("g").attr("class", "axis-grid grid-x");
-  const axisX = root.append("g").attr("class", "axis axis-x");
-  const axisY = root.append("g").attr("class", "axis axis-y");
-  const leadersG = root.append("g").attr("class", "leaders");
-  const labelsG = root.append("g").attr("class", "labels");
-  const dotsG = root.append("g").attr("class", "dots");
-
-  frame.append("path").attr("d", `M0,${y(dom[0])}L0,${y(dom[1])}L${x(dom[1])},${y(dom[1])}Z`).attr("fill", "rgba(39,86,211,.045)");
-  frame.append("path").attr("d", `M0,${y(dom[0])}L${x(dom[1])},${y(dom[0])}L${x(dom[1])},${y(dom[1])}Z`).attr("fill", "rgba(242,169,0,.06)");
-  if (dom[0] < 0 && dom[1] > 0) {
-    frame.append("line").attr("class", "zero-line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", 0).attr("y2", innerH);
-    frame.append("line").attr("class", "zero-line").attr("x1", 0).attr("x2", innerW).attr("y1", y(0)).attr("y2", y(0));
-  }
-  frame.append("line").attr("class", "split-line").attr("x1", x(dom[0])).attr("y1", y(dom[0])).attr("x2", x(dom[1])).attr("y2", y(dom[1]));
-
-  const nT = Math.max(4, Math.floor(innerW / 110));
-  const nTy = Math.max(4, Math.floor(innerH / 70));
-  gridY.call(d3.axisLeft(y).ticks(nTy).tickSize(-innerW).tickFormat(""));
-  gridX.attr("transform", `translate(0,${innerH})`).call(d3.axisBottom(x).ticks(nT).tickSize(-innerH).tickFormat(""));
-  axisX.attr("transform", `translate(0,${innerH})`).call(d3.axisBottom(x).ticks(nT).tickFormat(v => pct(v)));
-  axisY.call(d3.axisLeft(y).ticks(nTy).tickFormat(v => pct(v)));
-  [axisX, axisY].forEach(a => { a.selectAll("text").attr("font-size", 11).attr("fill", "#374151"); a.select(".domain").attr("stroke", "#9ca3af"); });
-  svg.append("text").attr("class", "axis-label").attr("text-anchor", "middle")
-    .attr("x", margin.left + innerW / 2).attr("y", height - 10).text(phone ? "Overall YoY hiring rate" : "Overall YoY change in LinkedIn hiring rate");
-  svg.append("text").attr("class", "axis-label").attr("text-anchor", "middle")
-    .attr("transform", `translate(14,${margin.top + innerH / 2}) rotate(-90)`).text(phone ? "Entry-level YoY hiring rate" : "Entry-level YoY change in LinkedIn hiring rate");
-  const noteFS = Math.max(9, 12 * sc);
-  root.append("text").attr("class", "region-note").attr("x", 8 * sc).attr("y", 16 * sc).style("font-size", noteFS + "px").text("Entry-level did better");
-  root.append("text").attr("class", "region-note").attr("x", innerW - 8 * sc).attr("y", innerH - 10 * sc).attr("text-anchor", "end").style("font-size", noteFS + "px").text("Entry-level did worse");
-
-  const many = pts.length > 12;
-  const dotR = Math.max(3.5, Math.min(many ? 5.5 : 7, innerW / 110));
-  pts.forEach(p => { p.cx = x(p.overall); p.cy = y(p.entry); });
-  const minGap = dotR * 2 + 1;
-  for (let pass = 0; pass < 6; pass++) {
-    for (let i = 0; i < pts.length; i++) for (let j = i + 1; j < pts.length; j++) {
-      const a = pts[i], b = pts[j];
-      const dx = b.cx - a.cx, dy = b.cy - a.cy, d = Math.hypot(dx, dy);
-      if (d >= minGap) continue;
-      const ux = d > 0.01 ? dx / d : 1, uy = d > 0.01 ? dy / d : 0, push = (minGap - d) / 2;
-      a.cx -= ux * push; a.cy -= uy * push; b.cx += ux * push; b.cy += uy * push;
-    }
-  }
-  const reach = dotR + 5 * sc;
-  const xMinText = 2, xMaxText = innerW - 2;
-  const labelled = pts.filter(p => p.on);
-  const labelText = p => cname(p.country);
-  let labelFS = LABEL_FS * Math.max(sc, 0.85), nameW = {};
-  for (;;) {
-    labelled.forEach(p => { nameW[p.id] = measureWidth(svg, labelText(p), labelFS, 600); });
-    const stuck = labelled.some(p => { const cx = p.cx, w = nameW[p.id]; return cx - reach - w < xMinText && cx + reach + w > xMaxText; });
-    if (!stuck || labelFS <= LABEL_FS_MIN) break;
-    labelFS = Math.max(LABEL_FS_MIN, labelFS - 0.35);
-  }
-  const hits = (p, sd, cx, cy, w) => {
-    const x0 = sd < 0 ? cx - reach - w : cx + reach, x1 = x0 + w, y0 = cy - labelFS * 0.6, y1 = cy + labelFS * 0.6;
-    return pts.filter(o => o.id !== p.id && o.cx + dotR > x0 && o.cx - dotR < x1 && o.cy + dotR > y0 && o.cy - dotR < y1).length;
-  };
-  const placed = labelled.map(p => {
-    const cx = p.cx, cy = p.cy, w = nameW[p.id];
-    const prefer = p.gap >= 0 ? -1 : 1;
-    const fitsLeft = cx - reach - w >= xMinText, fitsRight = cx + reach + w <= xMaxText;
-    let side = prefer < 0 ? (fitsLeft ? -1 : (fitsRight ? 1 : -1)) : (fitsRight ? 1 : (fitsLeft ? -1 : 1));
-    if (fitsLeft && fitsRight && hits(p, side, cx, cy, w) > hits(p, -side, cx, cy, w)) side = -side;
-    let lx = cx + side * reach;
-    lx = side < 0 ? Math.max(lx, xMinText + w) : Math.min(lx, xMaxText - w);
-    return { ...p, cx, cy, side, lx };
-  });
-  [-1, 1].forEach(sd => {
-    const grp = placed.filter(d => d.side === sd).sort((a, b) => a.cy - b.cy);
-    const ys = declump(grp.map(d => d.cy), 4, innerH - 4, labelFS + 3 * sc);
-    grp.forEach((d, i) => { d.ly = ys[i]; });
-  });
-  placed.forEach(d => {
-    if (Math.abs(d.ly - d.cy) > 2 || Math.abs(d.lx - d.cx) > reach + 1) {
-      leadersG.append("path").attr("class", "leader hit").attr("data-k", d.id)
-        .attr("d", `M${d.cx + d.side * (dotR + 1)},${d.cy}L${d.lx - d.side * 2},${d.ly}`);
-    }
-    labelsG.append("text").attr("class", "dot-label hit").attr("data-k", d.id)
-      .attr("x", d.lx).attr("y", d.ly).attr("dy", "0.35em").attr("text-anchor", d.side < 0 ? "end" : "start")
-      .style("font-size", labelFS + "px").style("font-weight", 600).text(labelText(d));
-  });
-  const tip = p => `<span class="t-name">${esc(p.country)}</span><span class="t-q">All jobs, Apr to Jun 2026</span>` +
-    row("Entry-level", pct1(p.entry), LEVEL_COLOR.entry) + row("Overall", pct1(p.overall), LEVEL_COLOR.overall) +
-    row("Entry minus overall", pts1(p.gap)) + mockTag(p);
-  dotsG.selectAll("circle").data(pts.slice().sort((a, b) => a.on - b.on), d => d.id).join("circle")
-    .attr("class", "point-dot hit").attr("data-k", d => d.id)
-    .attr("cx", d => d.cx).attr("cy", d => d.cy).attr("r", d => d.on ? dotR : dotR * 0.75)
-    .attr("fill", d => d.on ? colourOf(d.country) : MUTED).attr("stroke", "#fff").attr("stroke-width", 1.2)
-    .on("mouseover", function (e, d) { d3.select(this).interrupt().attr("r", (d.on ? dotR : dotR * 0.75) + 2); })
-    .on("mousemove", (e, d) => tipShow(e, tip(d)))
-    .on("mouseout", function (e, d) { d3.select(this).interrupt().attr("r", d.on ? dotR : dotR * 0.75); tipHide(); });
-  const node = svg.node();
-  node.addEventListener("mouseover", e => {
-    const hit = e.target.closest("[data-k]");
-    node.querySelectorAll(".hovered").forEach(n => n.classList.remove("hovered"));
-    if (!hit) { node.classList.remove("dim"); return; }
-    node.classList.add("dim");
-    node.querySelectorAll(`[data-k="${CSS.escape(hit.dataset.k)}"]`).forEach(n => n.classList.add("hovered"));
-  });
-  node.addEventListener("mouseleave", () => { node.classList.remove("dim"); node.querySelectorAll(".hovered").forEach(n => n.classList.remove("hovered")); });
-  setLegend([`<div class="legend-item"><svg width="22" height="10"><line x1="1" y1="9" x2="21" y2="1" class="split-line"/></svg><span>Same rate</span></div>`]);
 }
 
 function init() {
