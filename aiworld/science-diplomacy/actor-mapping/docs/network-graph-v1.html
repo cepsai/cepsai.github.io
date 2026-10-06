@@ -133,7 +133,7 @@
       <option value="verification">Verification status</option>
       <option value="relevance">Relevance (agent)</option>
       <option value="kind">Node kind</option>
-      <option value="job">Discovery job</option>
+      <option value="job">Discovery job (seed vs new)</option>
       <option value="cusp">CUSP gate (CZ/DK lists)</option>
       <option value="country" selected>Country (where known)</option>
     </select>
@@ -238,6 +238,7 @@ function matches(n){ if(!state.q) return true; const q=state.q.toLowerCase();
   return (n.name+" "+(n.country||"")+" "+(n.subkind||"")+" "+(n.host||"")+" "+(n.cusp?n.cusp.id+" "+(n.cusp.acronym||"")+" "+(n.cusp.name_local||""):"")).toLowerCase().includes(q); }
 
 const CUSPCOL = {pass:"var(--ok)", uncertain:"var(--warn)", none:"#4a5668"};
+const JOBCOL = {seed:PAL[0], new:PAL[1]};
 // countries ranked by actor count; the top 11 get distinct colours, the long tail is pooled as "other"
 const CC_MAX = 11, CC_OTHER = "#9aa3ad";
 function countries(){ const c={}; G.nodes.forEach(n=>{ if(n.kind==="actor"&&n.country) c[n.country]=(c[n.country]||0)+1; });
@@ -250,7 +251,7 @@ function colourFor(n){
   if(m==="verification") return COL.verification[n.verification.status];
   if(m==="relevance") return COL.relevance[n.relevance] || "#6b7683";
   if(m==="kind") return n.kind==="collective" ? COL.kind.collective : COL.kind.actor;
-  if(m==="job"){ const jobs=[...new Set(G.nodes.map(n=>n.job||"seed"))]; return PAL[jobs.indexOf(n.job||"seed")%PAL.length]; }
+  if(m==="job") return n.job ? JOBCOL.new : JOBCOL.seed;
 }
 function legend(){
   const box=document.getElementById("legend"); box.innerHTML="";
@@ -258,7 +259,7 @@ function legend(){
   if(state.colourBy==="verification") items=Object.entries(COL.verification).map(([k,c])=>[pretty(k),c,G.nodes.filter(n=>n.verification.status===k).length]);
   if(state.colourBy==="relevance") items=[[3,"3 · mission-level"],[2,"2 · concrete activity"],[1,"1 · generic (leaf)"]].map(([k,l])=>[l,COL.relevance[k],G.nodes.filter(n=>n.relevance===k).length]);
   if(state.colourBy==="kind") items=[["actor",COL.kind.actor,G.nodes.filter(n=>n.kind==="actor").length],["collective (◆)",COL.kind.collective,G.nodes.filter(n=>n.kind==="collective").length]];
-  if(state.colourBy==="job"){ const jobs=[...new Set(G.nodes.map(n=>n.job||"seed"))]; items=jobs.map((j,i)=>[j,PAL[i%PAL.length],G.nodes.filter(n=>(n.job||"seed")===j).length]); }
+  if(state.colourBy==="job") items=[["seed",JOBCOL.seed,G.nodes.filter(n=>!n.job).length],["new (any discovery job)",JOBCOL.new,G.nodes.filter(n=>n.job).length]];
   if(state.colourBy==="cusp") items=[["CUSP pass",CUSPCOL.pass,G.nodes.filter(n=>n.cusp&&n.cusp.gate==="pass").length],["CUSP uncertain",CUSPCOL.uncertain,G.nodes.filter(n=>n.cusp&&n.cusp.gate==="uncertain").length],["found by the agent / seed",CUSPCOL.none,G.nodes.filter(n=>!n.cusp).length]];
   if(state.colourBy==="country"){ const cs=countries(), tail=cs.slice(CC_MAX);
     items=cs.slice(0,CC_MAX).map(([c,k])=>[c,countryCol(c),k]);
@@ -393,10 +394,7 @@ function renderSide(){
     `<div><b>${m.actors??0}</b> <span class="k">actors</span></div><div><b>${m.collectives??0}</b> <span class="k">collectives</span></div>
      <div><b>${m.edges??0}</b> <span class="k">edges</span></div><div><b>${m.frontier??0}</b> <span class="k">frontier</span></div>
      <div><b>${m.verified??0}</b> <span class="k">verified</span></div><div><b>${G.nodes.filter(n=>n.verification.status==="rejected").length}</b> <span class="k">rejected</span></div>
-     <div class="big">Alliance members reached: <b>${m.gold_reached??0}</b> / ${m.gold_total??86} <span class="sub">(hidden gold set)</span></div>
-     ${m.cusp_total?`<div class="big">CUSP CZ/DK layer: <b>${m.cusp_pass}</b> pass · ${m.cusp_total-m.cusp_pass} unreviewed</div>`:""}
-     ${m.beyond?`<div class="big">Beyond the lists: <b>${m.beyond.new_actors}</b> new actors · <b>${m.beyond.collab_edges}</b> collaboration edges · <b>${m.beyond.cusp_connected}</b> list actors connected · <b>${m.beyond.rechecks_promoted}</b> leaves promoted${m.beyond.sweep_also?` · ${m.beyond.sweep_also} also found by the non-state sweep`:""}<br><span class="sub">${m.beyond.candidates_open} candidates waiting · ${m.beyond.candidates_checked} checked</span></div>`:""}
-     ${m.tokens?`<div class="big">Tokens: ${esc(tokLine(m.tokens))} <span class="sub">≈ €${cost(m.tokens).toFixed(2)}</span></div>`:""}`;
+     ${m.beyond?`<div class="big">Beyond the lists: <b>${m.beyond.new_actors}</b> new actors · <b>${m.beyond.collab_edges}</b> collaboration edges · <b>${m.beyond.cusp_connected}</b> list actors connected · <b>${m.beyond.rechecks_promoted}</b> leaves promoted</div>`:""}`;
   legend();
   const jb=document.getElementById("jobs");
   const jobs=[...(G.jobs||[])].reverse();
@@ -616,7 +614,7 @@ new ResizeObserver(()=>draw()).observe(svg);
     .tbl th{position:sticky;top:0;background:var(--panel);cursor:pointer;user-select:none;z-index:1}
     .tbl tr:hover td{background:var(--panel2);cursor:pointer} .tbl td.wrap{white-space:normal;max-width:420px}`;
   document.head.appendChild(css);
-  const show = t => { tv.classList.toggle("on", t === "table"); document.getElementById("tabGraph").classList.toggle("on", t === "graph"); document.getElementById("tabTable").classList.toggle("on", t === "table"); if (t === "table") buildTable(); };
+  const show = t => { tv.classList.toggle("on", t === "table"); document.getElementById("tabGraph").classList.toggle("on", t === "graph"); document.getElementById("tabTable").classList.toggle("on", t === "table"); document.getElementById("jump").hidden = t === "table"; if (t === "table") buildTable(); };
   document.getElementById("tabGraph").onclick = () => show("graph");
   document.getElementById("tabTable").onclick = () => show("table");
 
