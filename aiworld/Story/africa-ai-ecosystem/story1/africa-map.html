@@ -1,0 +1,335 @@
+<!doctype html><html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recent AI companies in Africa</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+  :root { --breakpoint-compact: 500px; }            /* MUST equal BREAKPOINT_COMPACT in JS */
+  html,body { margin:0; height:100vh; width:100vw; overflow:hidden; color:#0f172a; background:#fff;
+    font-family: system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,Helvetica,Arial,sans-serif; }
+  .viz-grid { display:grid; height:100vh; box-sizing:border-box; padding-bottom:clamp(8px,2vh,18px);
+    grid-template-rows:18fr 1fr 1fr; grid-template-columns:1fr 1fr; }
+  #container1 { grid-column:1 / -1; position:relative; min-height:0; }
+  #map { position:absolute; inset:0; background:#fff; }
+  #map svg { display:block; width:100%; height:100%; }
+  #map .country { cursor:default; }
+  #map .hover-outline, #map .badge { pointer-events:none; }
+  #map .badge circle { fill:#0f172a; stroke:#fff; stroke-width:1.5; }
+  #map .badge text { fill:#fff; font-size:11px; font-weight:700; text-anchor:middle; dominant-baseline:central; }
+
+  /* top-3 list on the left, in the empty Atlantic */
+  /* side lists (top countries, island states): same text style as the subtitle lines; only country names are darker */
+  #top-list, #island-list { position:absolute; left:clamp(8px,2vw,24px); z-index:500; pointer-events:none;
+    font-size:clamp(10px,1.5vw,15px); font-weight:600; color:#475569; line-height:1.5; }
+  #top-list { top:42%; }
+  #island-list { bottom:clamp(6px,2vh,20px); }
+  .side-header { margin-bottom:2px; text-transform:uppercase; }
+  .side-row { display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  .side-name { color:#0f172a; }
+  .top-rank { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto;
+    width:1.5em; height:1.5em; border-radius:50%; background:#0f172a; color:#fff; font-size:0.8em; font-weight:700; }
+  .top-note { margin-top:2px; }
+  #island-list .side-row { pointer-events:auto; cursor:default; }
+  .island-swatch { flex:0 0 auto; width:1em; height:1em; border:1px solid rgba(17,24,39,0.12); }
+
+  /* title + Africa total overlay on the map */
+  #title-overlay { position:absolute; top:clamp(6px,2vh,20px); left:clamp(8px,2vw,24px); z-index:500;
+    pointer-events:none; line-height:1.15; }
+  #title-overlay .title { font-size:clamp(14px,2.6vw,26px); font-weight:700; color:#0f172a; }
+  #title-overlay .subtitle, #title-overlay .total { font-size:clamp(10px,1.5vw,15px); font-weight:600; color:#475569; }
+
+  /* legend + per-capita toggle */
+  #container2 { grid-column:1 / -1; display:flex; align-items:center; justify-content:center;
+    gap:clamp(8px,2vw,24px); padding:0 20px; min-width:0; overflow:hidden; }
+  #legend { display:flex; align-items:center; flex-wrap:nowrap; gap:clamp(4px,1vw,12px);
+    font-size:clamp(8px,1.3vw,12px); font-weight:600; color:#333; }
+  .legend-item { display:flex; align-items:center; gap:4px; white-space:nowrap; }
+  .legend-swatch { width:clamp(10px,1.6vw,18px); height:clamp(8px,1.2vw,12px); border:1px solid rgba(17,24,39,0.12); }
+  .check-toggle { display:flex; align-items:center; gap:4px; flex:0 0 auto; cursor:pointer; white-space:nowrap;
+    font-size:clamp(8px,1.3vw,12px); font-weight:600; color:#475569; }
+  .check-toggle input { accent-color:#2756d3; cursor:pointer; margin:0; }
+
+  /* source (left) + logo (right) */
+  #container3 { font-size:clamp(5px,1.6vw,16px); display:flex; align-items:center; justify-content:flex-start;
+    padding:0 20px; overflow:hidden; min-width:0; }
+  #container3 #source-text { font-weight:600; color:#333; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  #container3 #source-text a { color:#2756d3; text-decoration:underline; }
+  #container4 { display:flex; justify-content:flex-end; align-items:center; padding:0 20px; overflow:hidden; min-width:0; }
+  #container4 a { height:100%; display:flex; align-items:center; }
+  #container4 img { height:100%; width:auto; max-height:100%; max-width:100%; object-fit:contain; }
+
+  #tooltip { position:fixed; pointer-events:none; display:none; background:#fff; z-index:1000;
+    border:1px solid #DBDBDB; padding:6px 8px; font-size:12px; border-radius:4px; line-height:1.4; }
+  #error-box { position:fixed; bottom:10px; left:10px; z-index:2000; background:#fee2e2; color:#b91c1c;
+    border:1px solid #fca5a5; padding:6px 10px; font-size:12px; border-radius:4px; }
+
+  /* Short iframe / "snapshot" embed: drop ALL chrome; map alone fills the frame. */
+  @media (max-height:500px){
+    .viz-grid { grid-template-rows:1fr !important; grid-template-columns:1fr !important; padding-bottom:0; }
+    #container1 { grid-row:1 !important; grid-column:1 / -1 !important; }
+    #container2,#container3,#container4,#top-list,#island-list { display:none !important; }
+  }
+</style></head><body>
+<div class="viz-grid">
+  <div id="container1">
+    <div id="map"></div>
+    <div id="title-overlay"><div class="title"></div><div class="subtitle"></div><div class="total"></div></div>
+    <div id="top-list"></div>
+    <div id="island-list"></div>
+  </div>
+  <div id="container2">
+    <label class="check-toggle" title="AI companies per 1 million inhabitants"><input type="checkbox" id="percap-toggle">Per 1M population</label>
+    <div id="legend"></div>
+  </div>
+  <div id="container3"><span id="source-text"></span></div>
+  <div id="container4"><a href="https://aiworld.eu/" target="_blank" rel="noopener"><img src="https://aiworld.eu/logo-transparent.svg" alt="AI World"></a></div>
+</div>
+<div id="tooltip"></div>
+<script>
+// ---- CONFIG: declare everything; nothing implicit ----
+const SHOW_CONTAINER_2 = 1, SHOW_CONTAINER_3 = 1, SHOW_CONTAINER_4 = 1;
+const SHOW_TOOLTIP = 1;
+const BREAKPOINT_COMPACT = 500;                       // px; MUST equal --breakpoint-compact
+const SOURCE_NAME = "Crunchbase (23rd Sep)", SOURCE_HREF = "https://www.crunchbase.com/";
+const BLUES = ["#eff3ff","#c6dbef","#9ecae1","#6baed6","#3182bd","#08519c","#08306b"];
+const NO_DATA_FILL = "#e5e7eb", CONTEXT_FILL = "#f8fafc", BORDER = "#ffffff", CONTEXT_BORDER = "#DBDBDB";
+const GEOJSON_URL = "https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_0_countries.geojson";
+const AFRICA_BOUNDS = [[-18.5, -35.5], [52.0, 38.0]];   // [[lon, lat] south-west, [lon, lat] north-east]
+const CENTER = [17, 2];                                   // [lon, lat] projection centre, middle of Africa
+const TOP_N = 3;
+const ISLAND_STATES = ["MU", "SC", "CV", "KM", "ST"];   // too small to read on the map; listed as colour tiles instead
+const TOP_MIN_POP = 2e6;   // per-1M ranking only among countries with at least this population (keeps island states like Mauritius, 1.3M, out)
+
+// ---- DATA (inlined by ai_companies_viz.py) ----
+const RECENT_FROM = 2021;  // "recent" = founded in this year or later
+const DATA = [{"iso2": "ZA", "country": "South Africa", "n_companies": 288, "population": 64747319.0}, {"iso2": "NG", "country": "Nigeria", "n_companies": 352, "population": 237527782.0}, {"iso2": "EG", "country": "Egypt", "n_companies": 151, "population": 118365995.0}, {"iso2": "KE", "country": "Kenya", "n_companies": 156, "population": 57532493.0}, {"iso2": "MA", "country": "Morocco", "n_companies": 106, "population": 38430770.0}, {"iso2": "TN", "country": "Tunisia", "n_companies": 66, "population": 12348573.0}, {"iso2": "GH", "country": "Ghana", "n_companies": 59, "population": 35064272.0}, {"iso2": "CM", "country": "Cameroon", "n_companies": 39, "population": 29879337.0}, {"iso2": "UG", "country": "Uganda", "n_companies": 31, "population": 51384894.0}, {"iso2": "ET", "country": "Ethiopia", "n_companies": 31, "population": 135472051.0}, {"iso2": "DZ", "country": "Algeria", "n_companies": 27, "population": 47435312.0}, {"iso2": "RW", "country": "Rwanda", "n_companies": 32, "population": 14569341.0}, {"iso2": "SN", "country": "Senegal", "n_companies": 18, "population": 18931966.0}, {"iso2": "CI", "country": "Côte d'Ivoire", "n_companies": 17, "population": 32711547.0}, {"iso2": "TZ", "country": "Tanzania", "n_companies": 22, "population": 70545865.0}, {"iso2": "MU", "country": "Mauritius", "n_companies": 18, "population": 1243741.0}, {"iso2": "ZW", "country": "Zimbabwe", "n_companies": 14, "population": 16950795.0}, {"iso2": "ZM", "country": "Zambia", "n_companies": 14, "population": 21913874.0}, {"iso2": "AO", "country": "Angola", "n_companies": 12, "population": 39040039.0}, {"iso2": "BJ", "country": "Benin", "n_companies": 10, "population": 14814460.0}, {"iso2": "MG", "country": "Madagascar", "n_companies": 9, "population": 32740678.0}, {"iso2": "MZ", "country": "Mozambique", "n_companies": 7, "population": 35631653.0}, {"iso2": "BF", "country": "Burkina Faso", "n_companies": 8, "population": 24074580.0}, {"iso2": "BW", "country": "Botswana", "n_companies": 4, "population": 2562122.0}, {"iso2": "MW", "country": "Malawi", "n_companies": 8, "population": 22216120.0}, {"iso2": "SC", "country": "Seychelles", "n_companies": 4, "population": 122730.0}, {"iso2": "TG", "country": "Togo", "n_companies": 2, "population": 8591626.0}, {"iso2": "LY", "country": "Libya", "n_companies": 4, "population": 7458555.0}, {"iso2": "NA", "country": "Namibia", "n_companies": 4, "population": 3092816.0}, {"iso2": "ML", "country": "Mali", "n_companies": 4, "population": 25198821.0}, {"iso2": "SL", "country": "Sierra Leone", "n_companies": 2, "population": 8819794.0}, {"iso2": "CD", "country": "DR Congo", "n_companies": 5, "population": 112832473.0}, {"iso2": "MR", "country": "Mauritania", "n_companies": 4, "population": 5315065.0}, {"iso2": "SO", "country": "Somalia", "n_companies": 1, "population": 19654739.0}, {"iso2": "GN", "country": "Guinea", "n_companies": 2, "population": 15099727.0}, {"iso2": "SZ", "country": "Eswatini", "n_companies": 3, "population": 1256174.0}, {"iso2": "SD", "country": "Sudan", "n_companies": 1, "population": 51662147.0}, {"iso2": "CG", "country": "Republic of the Congo", "n_companies": 2, "population": 6484437.0}, {"iso2": "NE", "country": "Niger", "n_companies": 1, "population": 27917831.0}, {"iso2": "BI", "country": "Burundi", "n_companies": 1, "population": 14390003.0}, {"iso2": "CV", "country": "Cabo Verde", "n_companies": 1, "population": 527326.0}, {"iso2": "LR", "country": "Liberia", "n_companies": 2, "population": 5731206.0}, {"iso2": "TD", "country": "Chad", "n_companies": 1, "population": 21003705.0}, {"iso2": "GA", "country": "Gabon", "n_companies": 2, "population": 2593130.0}, {"iso2": "LS", "country": "Lesotho", "n_companies": 0, "population": 2363325.0}, {"iso2": "KM", "country": "Comoros", "n_companies": 0, "population": 882847.0}, {"iso2": "CF", "country": "Central African Republic", "n_companies": 0, "population": 5513282.0}, {"iso2": "GW", "country": "Guinea-Bissau", "n_companies": 0, "population": 2249515.0}, {"iso2": "GQ", "country": "Equatorial Guinea", "n_companies": 0, "population": 1938431.0}, {"iso2": "GM", "country": "Gambia", "n_companies": 0, "population": 2822093.0}, {"iso2": "ER", "country": "Eritrea", "n_companies": 0, "population": 3607003.0}, {"iso2": "DJ", "country": "Djibouti", "n_companies": 0, "population": 1184076.0}, {"iso2": "EH", "country": "Western Sahara", "n_companies": 0, "population": null}, {"iso2": "ST", "country": "São Tomé and Príncipe", "n_companies": 0, "population": 240254.0}, {"iso2": "SS", "country": "South Sudan", "n_companies": 0, "population": 12188788.0}];                // one row per country: [{iso2, country, n_companies, population|null}]
+
+document.getElementById("source-text").innerHTML =
+  'Source: <a href="'+SOURCE_HREF+'" target="_blank" rel="noopener">'+SOURCE_NAME+'</a>';
+(function applyContainerVisibility(){
+  const grid = document.querySelector(".viz-grid"), c = n => document.getElementById("container"+n);
+  const c2=c(2), c3=c(3), c4=c(4);
+  if (c2 && !SHOW_CONTAINER_2) c2.style.display="none";
+  if (c3 && !SHOW_CONTAINER_3) c3.style.display="none";
+  if (c4 && !SHOW_CONTAINER_4) c4.style.display="none";
+  const rowLegend=SHOW_CONTAINER_2, rowFooter=SHOW_CONTAINER_3||SHOW_CONTAINER_4;
+  const rows=[]; let r=1;
+  rows.push((20-(rowLegend?1:0)-(rowFooter?1:0))+"fr");
+  if (rowLegend) { rows.push("1fr"); r++; if (c2) c2.style.gridRow=r; }
+  if (rowFooter) { rows.push("1fr"); r++;
+    if (SHOW_CONTAINER_3 && c3) c3.style.gridRow=r;
+    if (SHOW_CONTAINER_4 && c4) c4.style.gridRow=r;
+    if (SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn="1 / span 2";
+    if (!SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn="1 / span 2";
+  }
+  grid.style.gridTemplateRows = rows.join(" ");
+  c(1).style.gridRow = "1";
+})();
+
+function showError(msg){
+  const box = document.createElement("div");
+  box.id = "error-box"; box.textContent = msg;
+  document.body.appendChild(box);
+}
+
+// ---- state + lookups ----
+let perCapita = false;            // colour by companies per 1M inhabitants
+
+const byIso = new Map(DATA.map(d => [d.iso2, d]));
+const africaTotal = d3.sum(DATA, d => d.n_companies);
+
+const fmtInt = d3.format(",");
+const fmtRate = v => d3.format(".2~r")(v);
+function perMillion(n, pop){ return pop ? n / pop * 1e6 : null; }  // null = no population data
+
+function value(iso, pc = perCapita){
+  const d = byIso.get(iso);
+  return pc ? perMillion(d.n_companies, d.population) : d.n_companies;
+}
+
+// 7-class quantile thresholds over the non-zero country values; one scale per mode
+function buildScale(pc){
+  const values = DATA.map(d => value(d.iso2, pc)).filter(v => v > 0).sort(d3.ascending);
+  const round = pc ? v => +v.toPrecision(2) : v => Math.max(1, Math.round(v));
+  const thresholds = values.length
+    ? [...new Set(d3.range(1, 7).map(i => round(d3.quantile(values, i / 7))))].sort(d3.ascending)
+    : [1];
+  return d3.scaleThreshold().domain(thresholds).range(BLUES.slice(BLUES.length - thresholds.length - 1));
+}
+const SCALES = { true: buildScale(true), false: buildScale(false) };
+function currentScale(){ return SCALES[perCapita]; }
+
+function binLabel(lo, hi){
+  if (!perCapita) {
+    if (lo === null) return hi - 1 <= 0 ? "0" : `< ${fmtInt(hi)}`;
+    if (hi === null) return `${fmtInt(lo)}+`;
+    return hi - 1 === lo ? fmtInt(lo) : `${fmtInt(lo)}–${fmtInt(hi - 1)}`;
+  }
+  if (lo === null) return `< ${fmtRate(hi)}`;
+  if (hi === null) return `≥ ${fmtRate(lo)}`;
+  return `${fmtRate(lo)}–${fmtRate(hi)}`;
+}
+
+function buildLegend(){
+  const scale = currentScale(), t = scale.domain();
+  const legend = d3.select("#legend").html("");
+  scale.range().forEach((color, i) => {
+    const item = legend.append("div").attr("class", "legend-item");
+    item.append("span").attr("class", "legend-swatch").style("background", color);
+    item.append("span").text(binLabel(i === 0 ? null : t[i - 1], i === t.length ? null : t[i]));
+  });
+  const nd = legend.append("div").attr("class", "legend-item");
+  nd.append("span").attr("class", "legend-swatch").style("background", NO_DATA_FILL);
+  nd.append("span").text("No data");
+}
+
+document.getElementById("percap-toggle")
+  .addEventListener("change", e => { perCapita = e.target.checked; update(); });
+
+// ---- map ----
+const tooltip = d3.select("#tooltip");
+const mapDiv = document.getElementById("map");
+const svg = d3.select(mapDiv).append("svg");
+const contextLayer = svg.append("g"), countryLayer = svg.append("g");
+// one shared outline on top instead of restyling/raising the hovered path, so no highlight can get stuck
+const hoverOutline = svg.append("path").attr("class", "hover-outline")
+  .attr("fill", "none").attr("stroke", "#0f172a").attr("stroke-width", 2);
+const badgeLayer = svg.append("g");
+const featureByIso = new Map();
+// Lambert azimuthal equal-area; clipped to the hemisphere around Africa (the far side blows up near the edge)
+const projection = d3.geoAzimuthalEqualArea().rotate([-CENTER[0], -CENTER[1]]).clipAngle(90);
+const path = d3.geoPath(projection);
+const boundsOutline = d3.geoGraticule().extent(AFRICA_BOUNDS).outline();
+
+function fitMap(){
+  const compact = window.matchMedia(`(max-height:${BREAKPOINT_COMPACT}px)`).matches;
+  const pad = compact ? 4 : 10, w = mapDiv.clientWidth, h = mapDiv.clientHeight;
+  if (!w || !h) return;
+  svg.attr("viewBox", `0 0 ${w} ${h}`);
+  projection.fitExtent([[pad, pad], [w - pad, h - pad]], boundsOutline);
+  svg.selectAll("path").attr("d", path);
+  drawBadges();
+}
+
+function isoOf(props){
+  const iso = props.ISO_A2 !== "-99" ? props.ISO_A2 : props.ISO_A2_EH;
+  return iso === "-99" ? null : iso;
+}
+
+// d3 needs clockwise outer rings; a ring wound the other way would cover the whole globe, so reverse those
+function rewind(feature){
+  if (d3.geoArea(feature) > 2 * Math.PI) {
+    const polys = feature.geometry.type === "Polygon" ? [feature.geometry.coordinates] : feature.geometry.coordinates;
+    polys.forEach(rings => rings.forEach(ring => ring.reverse()));
+  }
+  return feature;
+}
+
+function fillOf(iso){
+  const v = value(iso);
+  return v === null ? NO_DATA_FILL : currentScale()(v);
+}
+
+function tooltipHtml(iso){
+  const d = byIso.get(iso);
+  return `<b>${d.country}</b><br>` +
+         `AI companies founded since ${RECENT_FROM}: ${fmtInt(d.n_companies)}<br>` +
+         `Per 1M population: ${d.population ? fmtRate(perMillion(d.n_companies, d.population)) : "no population data"}` +
+         (d.population ? `<br><span style="color:#64748b">Population 2025: ${d3.format(".3~s")(d.population).replace("G", "B")}</span>` : "");
+}
+
+// ---- top countries: ranked by what the map currently shows ----
+function topCountries(){
+  const pool = perCapita ? DATA.filter(d => d.population >= TOP_MIN_POP) : DATA;
+  return [...pool].sort((a, b) => d3.descending(value(a.iso2), value(b.iso2))).slice(0, TOP_N);
+}
+
+function renderTopList(){
+  const list = d3.select("#top-list").html("");
+  list.append("div").attr("class", "side-header").text("Top countries");
+  topCountries().forEach((d, i) => {
+    const row = list.append("div").attr("class", "side-row");
+    row.append("span").attr("class", "top-rank").text(i + 1);
+    row.append("span").attr("class", "side-name").text(d.country);
+    row.append("span").text(valueText(d.iso2));
+  });
+  if (perCapita) list.append("div").attr("class", "top-note").text(`Countries with ≥ ${TOP_MIN_POP / 1e6}M people`);
+}
+
+function valueText(iso){
+  const v = value(iso);
+  return v === null ? "no data" : perCapita ? `${fmtRate(v)} per 1M` : fmtInt(v);
+}
+
+function renderIslandList(){
+  const islands = ISLAND_STATES.filter(iso => byIso.has(iso))
+    .sort((a, b) => d3.descending(value(a), value(b)));
+  const list = d3.select("#island-list").html("");
+  list.append("div").attr("class", "side-header").text("Island states");
+  islands.forEach(iso => {
+    const row = list.append("div").attr("class", "side-row")
+      .on("mouseenter", () => { if (SHOW_TOOLTIP) tooltip.style("display", "block").html(tooltipHtml(iso)); })
+      .on("mousemove", e => tooltip.style("left", (e.clientX + 12) + "px").style("top", (e.clientY + 12) + "px"))
+      .on("mouseleave", () => tooltip.style("display", "none"));
+    row.append("span").attr("class", "island-swatch").style("background", fillOf(iso));
+    row.append("span").attr("class", "side-name").text(byIso.get(iso).country);
+    row.append("span").text(valueText(iso));
+  });
+}
+
+// numbered badge at the centroid of each top country
+function drawBadges(){
+  const top = topCountries().map((d, i) => ({ ...d, rank: i + 1 })).filter(d => featureByIso.has(d.iso2));
+  badgeLayer.selectAll("g.badge").data(top, d => d.iso2).join(enter => {
+    const g = enter.append("g").attr("class", "badge");
+    g.append("circle").attr("r", 9);
+    g.append("text");
+    return g;
+  })
+    .attr("transform", d => `translate(${path.centroid(featureByIso.get(d.iso2))})`)
+    .select("text").text(d => d.rank);
+}
+
+function update(){
+  d3.select("#title-overlay .title").text("AI companies in Africa");
+  d3.select("#title-overlay .subtitle").text(`founded since ${RECENT_FROM}`);
+  d3.select("#title-overlay .total").text(`(n = ${fmtInt(africaTotal)})`);
+  buildLegend();
+  renderTopList();
+  renderIslandList();
+  countryLayer.selectAll("path").attr("fill", d => fillOf(isoOf(d.properties)));
+  drawBadges();
+}
+
+fetch(GEOJSON_URL)
+  .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+  .then(geo => {
+    geo.features.forEach(rewind);
+    const isSelected = f => f.properties.CONTINENT === "Africa" && byIso.has(isoOf(f.properties));
+    // non-interactive background: rest of the world lightly, African countries not in the table as "no data"
+    contextLayer.selectAll("path").data(geo.features.filter(f => !isSelected(f))).join("path")
+      .attr("fill", f => f.properties.CONTINENT === "Africa" ? NO_DATA_FILL : CONTEXT_FILL)
+      .attr("stroke", f => f.properties.CONTINENT === "Africa" ? BORDER : CONTEXT_BORDER)
+      .attr("stroke-width", f => f.properties.CONTINENT === "Africa" ? 0.8 : 0.5);
+    const selected = geo.features.filter(isSelected);
+    selected.forEach(f => featureByIso.set(isoOf(f.properties), f));
+    countryLayer.selectAll("path").data(selected).join("path")
+      .attr("class", "country").attr("stroke", BORDER).attr("stroke-width", 0.8)
+      .on("mouseenter", (e, d) => {
+        hoverOutline.datum(d).attr("d", path).style("display", null);
+        if (SHOW_TOOLTIP) tooltip.style("display", "block").html(tooltipHtml(isoOf(d.properties)));
+      })
+      .on("mousemove", e => tooltip.style("left", (e.clientX + 12) + "px").style("top", (e.clientY + 12) + "px"));
+    countryLayer.on("mouseleave", () => { hoverOutline.style("display", "none"); tooltip.style("display", "none"); });
+    fitMap();
+    update();
+  })
+  .catch(err => showError("Could not load map geometry: " + err.message));
+
+update();
+
+let resizeTimer = null;
+const onResize = () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(fitMap, 220); };
+window.addEventListener("resize", onResize);
+if (typeof ResizeObserver !== "undefined") new ResizeObserver(onResize).observe(mapDiv);
+</script></body></html>
