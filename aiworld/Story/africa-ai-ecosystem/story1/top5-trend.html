@@ -106,8 +106,10 @@ const xPos = d => d.year < LAST_YEAR ? d.year : LAST_YEAR - 1 + LAST_GAP;
 const yearLabel = y => y === LAST_YEAR ? `${y}*` : String(y);
 const newCount = new Map(DATA.map(d => [`${d.group}|${d.year}`, d.n]));   // O(1) lookup in render
 const activeGroups = new Set(GROUP_ORDER);
-let currentView = VIEWS.some(v => v.key === new URLSearchParams(location.search).get("view"))
-  ? new URLSearchParams(location.search).get("view") : "cumulative";
+const SHOW_VIEW_SWITCH = 0;        // 0 = cumulative-only copy: no switch, ?view is ignored
+const requestedView = new URLSearchParams(location.search).get("view");
+let currentView = SHOW_VIEW_SWITCH && VIEWS.some(v => v.key === requestedView) ? requestedView : "cumulative";
+if (!SHOW_VIEW_SWITCH) document.getElementById("switch-row").style.display = "none";
 const isCumulative = () => currentView === "cumulative";
 const colorFor = g => !isCumulative() && COLORS[g] === REST_COLOR ? REST_LINE_COLOR : COLORS[g];
 
