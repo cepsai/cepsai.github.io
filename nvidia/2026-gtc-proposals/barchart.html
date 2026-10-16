@@ -725,10 +725,13 @@ if (document.documentElement.getAttribute("data-theme") === "dark") {
 }
 const CREDIT_PREFIX = "Source: ";
 
-const SHOW_CONTAINER_2 = 1;
+const _bcQ = new URLSearchParams(location.search);
+const SHOW_CONTAINER_2 = _bcQ.get("legend") !== "0";
 const SHOW_CONTAINER_3 = 0;
-const SHOW_CONTAINER_4 = 1;
-const SHOW_CONTAINER_5 = 1;  
+const SHOW_CONTAINER_4 = _bcQ.get("logo") !== "0";
+const SHOW_CONTAINER_5 = _bcQ.get("footnote") !== "0";
+const SHOW_TOGGLES = _bcQ.get("toggles") !== "0";
+const SHOW_CREDITS = _bcQ.get("source") !== "0";
 const LEGEND_ROWS = 1;
 
 const SHOW_TOOLTIP = 1;
@@ -934,7 +937,8 @@ function render(rowTransition = null, previousMids = new Map()) {
     return;
   }
 
-  const togglesEl = document.getElementById("row-toggles");
+  const togglesEl = SHOW_TOGGLES ? document.getElementById("row-toggles") : null;
+  if (!SHOW_TOGGLES) document.getElementById("row-toggles").style.display = "none";
 
   
   const topPad = Math.max(18, Math.min(46, height * 0.052));
@@ -991,7 +995,7 @@ function render(rowTransition = null, previousMids = new Map()) {
   let labelFont = Math.max(13, Math.min(34, refTrackH * 0.54, refBand * 0.24));
   let subLabelFont = Math.max(9, labelFont * 0.64);
   let creditFont = Math.max(8, subLabelFont * 0.75);
-  const creditTextOf = m => m.credit ? `${CREDIT_PREFIX}${m.credit.name}` : "";
+  const creditTextOf = m => (SHOW_CREDITS && m.credit) ? `${CREDIT_PREFIX}${m.credit.name}` : "";
   const valueFont = Math.max(16, Math.min(28, refTrackH * 0.82));
 
   const labelPad = Math.max(14, 26 * sc);
@@ -1070,7 +1074,7 @@ function render(rowTransition = null, previousMids = new Map()) {
     
     
     
-    const hasCredit = !!m.credit;
+    const hasCredit = SHOW_CREDITS && !!m.credit;
     const subGap = subLabelFont * 1.4;
     const creditGap = hasCredit ? creditFont * 1.35 : 0;
     const blockUp = labelFont * 0.72;
