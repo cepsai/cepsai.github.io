@@ -653,9 +653,9 @@ const METRICS = [
     label: "Installed AI accelerators",
     sublabel: "H100-equivalents, mid-2025",
     group: "compute",
-    value: 8.3,
+    value: 7.97,
     colorVar: "--c-red",
-    source: "Epoch AI, Data on GPU Clusters, H100-equivalents, CC BY 4.0. Snapshot of clusters operational to mid-2025."
+    source: "Epoch AI, Data on GPU Clusters, H100-equivalents, CC BY 4.0. Snapshot of clusters operational to mid-2025. Epoch has since marked the dataset as deprecated."
   },
   {
     id: "funding",
@@ -666,7 +666,7 @@ const METRICS = [
     group: "capital",
     value: 8.16,
     colorVar: "--c-red",
-    source: "AI World, org_geo cube, source Crunchbase, country level, year 2025, retrieved 16 Sep 2026. Share of the $204.49B raised by 5,377 organizations across 90 countries. About 97% of Crunchbase's own published $211B world AI total for 2025. Highly concentrated: OpenAI alone is 20.0% of the world and Anthropic 8.6%. Dropping the five largest rounds moves Europe to 13.9% and the United States to 69.4%."
+    source: "AI World, org_geo cube, source Crunchbase, country level, year 2025, retrieved 16 Sep 2026. Share of the $204.49B raised by 5,377 organizations across 90 countries. About 97% of Crunchbase's own published $211B world AI total for 2025. Highly concentrated: OpenAI alone is 20.0% of the world and Anthropic 8.6%. Dropping the five largest recipients moves Europe to 13.9% and the United States to 69.4%."
   }
 ];
 
@@ -703,6 +703,7 @@ function syncHfMetric() {
     + (HF_METRIC.provisional ? " PROVISIONAL, country assignments not yet checked." : "");
 }
 
+const SHOW_TITLE = new URLSearchParams(location.search).get("title") !== "0";
 const HEADLINE = "Europe does not have a talent problem. It has a compute problem.";
 
 
@@ -937,19 +938,22 @@ function render(rowTransition = null, previousMids = new Map()) {
 
   const headFont = Math.max(18, Math.min(66, width * 0.0315));
 
-  const headline = svg.append("text")
-    .attr("class", "headline")
-    .attr("x", width / 2)
-    .attr("y", 0)
-    .attr("text-anchor", "middle")
-    .style("font-family", SERIF)
-    .text(HEADLINE);
-  const headSize = fitText(headline, width - padX * 2, headFont, 13);
-  headline.attr("y", topPad + headSize);
+  let headSize = 0;
+  if (SHOW_TITLE) {
+    const headline = svg.append("text")
+      .attr("class", "headline")
+      .attr("x", width / 2)
+      .attr("y", 0)
+      .attr("text-anchor", "middle")
+      .style("font-family", SERIF)
+      .text(HEADLINE);
+    headSize = fitText(headline, width - padX * 2, headFont, 13);
+    headline.attr("y", topPad + headSize);
+  }
 
   
   
-  const gapAboveToggles = Math.max(24, 42 * sc);
+  const gapAboveToggles = SHOW_TITLE ? Math.max(24, 42 * sc) : 0;
   const gapBelowToggles = Math.max(12, 26 * sc);
   let toggleH = 0;
   if (togglesEl) {

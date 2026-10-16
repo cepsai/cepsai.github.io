@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Most coding-agent harnesses publish their code</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<style>
+:root {
+    --fs-control:  clamp(9px, 1.4vw, 13px);
+    --fs-legend:   clamp(0.625rem, 1.4vw, 1rem);
+    --fs-meta:     clamp(10px, 1.6vw, 16px);
+    --fs-slider:   clamp(11px, 1.2vw, 13px);
+    --breakpoint-compact: 500px;
+}
+html, body { height: 100%; }
+body {
+    margin: 0;
+    overflow: hidden;
+    height: 100vh;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+    background-color: white;
+}
+.viz-grid {
+    display: grid;
+    grid-template-rows: 16fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    padding-bottom: clamp(8px, 2vh, 18px);
+}
+#container1 { grid-row: 1; grid-column: 1 / span 2; overflow: hidden; min-height: 0; }
+#container2 { grid-row: 2; grid-column: 1 / span 2; display: flex; align-items: center; justify-content: center; gap: clamp(8px, 2vw, 20px); flex-wrap: wrap; overflow: hidden; }
+#container3 { grid-row: 3; grid-column: 1; display: flex; align-items: center; justify-content: flex-start; padding: 0 20px; overflow: hidden; min-width: 0; }
+#container4 { grid-row: 3; grid-column: 2; display: flex; align-items: center; justify-content: flex-end; padding: 0 20px; overflow: hidden; min-width: 0; }
+#container5 { grid-column: 1 / span 2; display: flex; align-items: center; justify-content: flex-end; padding: 0 20px; overflow: hidden; min-width: 0; }
+#container4 a { height: 100%; display: flex; align-items: center; cursor: pointer; }
+#viz { width: 100%; height: 100%; min-height: 0; min-width: 0; }
+#chart { display: block; width: 100%; height: 100%; }
+#tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: #fff;
+    color: #0f172a;
+    border: 1px solid rgba(17, 24, 39, 0.08);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.4;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    max-width: 240px;
+    z-index: 100;
+}
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(6px, 1vw, 14px);
+    background: rgba(255, 255, 255, 1);
+    padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+    border-radius: clamp(6px, 1vw, 12px);
+    max-width: 100%;
+    max-height: 100%;
+    font-size: var(--fs-legend);
+}
+.legend-item { display: flex; align-items: center; gap: clamp(4px, 1vw, 8px); font-weight: 600; color: #333; font-size: inherit; padding: 2px 6px; cursor: default; }
+.legend-item.interactive { cursor: pointer; transition: opacity 0.2s ease; }
+.legend-item.dim { opacity: 0.35; }
+.legend-item:focus-visible { outline: 2px solid rgba(0, 0, 0, 0.5); outline-offset: 2px; }
+.legend-square { width: clamp(8px, 0.9vw, 12px); height: clamp(8px, 0.9vw, 12px); border-radius: 0; flex-shrink: 0; }
+.footnote-text { font-size: var(--fs-meta); font-style: italic; color: #333; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.source-text { font-size: var(--fs-meta); font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; font-style: normal; }
+.source-text a { color: #2756d3; text-decoration: underline; cursor: pointer; font-style: normal; display: inline-block; }
+.source-text a:visited { color: #2756d3; }
+.logo { height: 100%; width: auto; max-height: 100%; max-width: 100%; pointer-events: auto; object-fit: contain; }
+.axis path, .axis line { stroke: #cfd2d7; }
+.tick text { font-weight: 600; fill: #4b5563; }
+.grid-lines line { stroke: #DBDBDB; stroke-dasharray: 2, 3; }
+.grid-lines path { stroke: none; }
+.bar-label { fill: #555; font-weight: 500; }
+.selector-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(2px, 0.5vw, 6px);
+    padding: clamp(2px, 0.4vw, 4px);
+    border-radius: 6px;
+    border: 1px solid rgba(17, 24, 39, 0.15);
+    background: #f8fafc;
+    max-width: 100%;
+    flex-shrink: 1;
+    min-width: 0;
+}
+.selector-pill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: #2756d3;
+    border-radius: 6px;
+    z-index: 0;
+    pointer-events: none;
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.selector-button {
+    position: relative;
+    z-index: 1;
+    border: none;
+    background: transparent;
+    padding: clamp(4px, 0.8vh, 8px) clamp(8px, 1.5vw, 14px);
+    border-radius: 6px;
+    font-size: var(--fs-control);
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: color 0.2s ease;
+    white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+}
+.selector-button.active { color: #fff; }
+@media (max-height: 500px) {
+    .viz-grid { grid-template-rows: 1fr !important; grid-template-columns: 1fr !important; padding-bottom: 0; }
+    #container1 { grid-row: 1 !important; grid-column: 1 !important; }
+    #container2, #container3, #container4, #container5 { display: none !important; }
+    .legend, .source-text, .logo, .footnote-text { display: none !important; }
+}
+#viz { position: relative; overflow: hidden; }
+#chart { position: absolute; inset: 0; }
+.hit { transition: opacity 0.16s ease; }
+#chart.dim .hit:not(.on) { opacity: 0.18; }
+.dot-label { fill: #0f172a; font-weight: 600; paint-order: stroke; stroke: #fff; stroke-width: 3px; stroke-linejoin: round; }
+.dot-label.faint { opacity: 0.6; }
+.leader { stroke: #9ba1a9; stroke-width: 0.8px; fill: none; }
+.row-label { fill: #6b7280; font-weight: 600; }
+.callout { fill: #111; font-weight: 700; }
+#tooltip .t-name { font-weight: 700; font-size: 14px; display: block; margin-bottom: 3px; }
+#tooltip .t-row { display: flex; justify-content: space-between; gap: 14px; }
+#tooltip .t-v { font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+#tooltip .t-note { color: #6b7280; margin-top: 4px; font-size: 11px; }
+@media (max-width: 599px)  { body { overflow-x: auto; } .viz-grid { min-width: 600px; } }
+</style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1" class="container viz-container">
+    <div id="viz"><svg id="chart"></svg></div>
+  </div>
+  <div id="container5" class="container footnote-container">
+    <div class="footnote-text" id="footnote-text"></div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div class="selector-group" id="scope-selector">
+      <button class="selector-button active" data-scope="all">All tools</button>
+      <button class="selector-button" data-scope="coding">Coding only</button>
+    </div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text" id="source-text"></div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+    </a>
+  </div>
+</div>
+
+<script>
+const SHOW_CONTAINER_2 = 1;
+const SHOW_CONTAINER_3 = 1;
+const SHOW_CONTAINER_4 = 1;
+const SHOW_CONTAINER_5 = 0;
+
+(function applyContainerVisibility() {
+  const vizGrid = document.querySelector('.viz-grid');
+  const c2 = document.getElementById('container2');
+  const c3 = document.getElementById('container3');
+  const c4 = document.getElementById('container4');
+  const c5 = document.getElementById('container5');
+  if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+  if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+  if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+  if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+  const row2Visible = SHOW_CONTAINER_5;
+  const row3Visible = SHOW_CONTAINER_2;
+  const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+  let gridRows = [];
+  let currentRow = 1;
+  const chartHeight = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+  gridRows.push(`${chartHeight}fr`);
+  if (row2Visible) { gridRows.push('1fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+  if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+  if (row4Visible) {
+    gridRows.push('1fr'); currentRow++;
+    if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+    if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+    if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+    if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+  }
+  vizGrid.style.gridTemplateRows = gridRows.join(' ');
+  document.getElementById('container1').style.gridRow = '1';
+})();
+
+const FRAMING = 'axes';
+const LABELS = 'flank';
+const SIZE_BY = 'tok';
+const SHOW_TOOLTIP = 1;
+const LABEL_MIN_STARS = 20000;
+const LABEL_MIN_TOK = 4e11;
+const SOURCE_NAME = "GitHub / OpenRouter";
+const SOURCE_HREF = "https://openrouter.ai/apps";
+const FOOTNOTE_TEXT = "Stars on 14 Oct 2026. Area = tokens routed via OpenRouter in 30 days, so bring-your-own-key traffic only. Tiny dots: not among OpenRouter's 200 listed apps.";
+const BREAKPOINT_COMPACT = 500;
+const COLOR = { open: "#2756d3", closed: "#E53229" };
+
+const DATA = [{"name":"Claude Code","maker":"Anthropic","type":"terminal CLI","license":"proprietary","open":false,"agnostic":false,"date":"2025-02","stars":150778,"tok":32622523164080,"rank":3,"status":"active","repo":"https://github.com/anthropics/claude-code","lineage":null,"dconf":0.95,"note":null},{"name":"Codex CLI","maker":"OpenAI","type":"terminal CLI","license":"Apache-2.0","open":true,"agnostic":true,"date":"2025-04","stars":129188,"tok":11878351751632,"rank":9,"status":"active","repo":"https://github.com/openai/codex","lineage":null,"dconf":0.95,"note":null},{"name":"Gemini CLI","maker":"Google","type":"terminal CLI","license":"Apache-2.0","open":true,"agnostic":false,"date":"2025-06","stars":107351,"tok":null,"rank":null,"status":"active","repo":"https://github.com/google-gemini/gemini-cli","lineage":null,"dconf":0.95,"note":null},{"name":"Qwen Code","maker":"Alibaba","type":"terminal CLI","license":"Apache-2.0","open":true,"agnostic":true,"date":"2025-07","stars":28479,"tok":131487079854,"rank":91,"status":"active","repo":"https://github.com/QwenLM/qwen-code","lineage":"Fork of Google Gemini CLI","dconf":0.95,"note":null},{"name":"OpenCode","maker":"Anomaly","type":"terminal CLI","license":"MIT","open":true,"agnostic":true,"date":"2025-05","stars":213428,"tok":null,"rank":null,"status":"active","repo":"https://github.com/anomalyco/opencode","lineage":"Not related to Kujtim Hoxha's opencode-ai/opencode (that codebase became Charm Crush); the SST team kept the OpenCode name.","dconf":0.95,"note":null},{"name":"Aider","maker":"Paul Gauthier","type":"terminal CLI","license":"Apache-2.0","open":true,"agnostic":true,"date":"2023-05","stars":49547,"tok":null,"rank":null,"status":"active","repo":"https://github.com/Aider-AI/aider","lineage":null,"dconf":0.95,"note":null},{"name":"Cline","maker":"Cline Bot Inc.","type":"IDE extension","license":"Apache-2.0","open":true,"agnostic":true,"date":"2024-07","stars":70306,"tok":19991603468681,"rank":6,"status":"active","repo":"https://github.com/cline/cline","lineage":"Originally 'Claude Dev'; parent of Roo Code and, via Roo, Kilo Code.","dconf":0.95,"note":null},{"name":"Roo Code","maker":"Roo Code Inc.","type":"IDE extension","license":"Apache-2.0","open":true,"agnostic":true,"date":"2024-11","stars":24278,"tok":225076670495,"rank":61,"status":"archived 2026-05-15","repo":"https://github.com/RooCodeInc/Roo-Code","lineage":"Fork of Cline (as Roo Cline). Parent of Kilo Code and Zoo Code.","dconf":0.85,"note":null},{"name":"Kilo Code","maker":"Kilo AI","type":"IDE extension","license":"MIT","open":true,"agnostic":true,"date":"2025-03","stars":27601,"tok":23249839024511,"rank":5,"status":"active","repo":"https://github.com/Kilo-Org/kilocode","lineage":"Fork of Roo Code (itself a fork of Cline).","dconf":0.95,"note":null},{"name":"Zoo Code","maker":"Zoo Code community","type":"IDE extension","license":"Apache-2.0","open":true,"agnostic":true,"date":"2026-05","stars":1995,"tok":489969657771,"rank":44,"status":"active","repo":"https://github.com/Zoo-Code-Org/Zoo-Code","lineage":"Community fork of Roo Code after its 2026-05 shutdown, with official handoff.","dconf":0.95,"note":null},{"name":"goose","maker":"Block, donated to Agentic AI Foundation","type":"terminal CLI","license":"Apache-2.0","open":true,"agnostic":true,"date":"2025-01","stars":55279,"tok":290769084748,"rank":58,"status":"active","repo":"https://github.com/aaif-goose/goose","lineage":null,"dconf":0.85,"note":null},{"name":"OpenHands","maker":"OpenHands","type":"cloud agent","license":"MIT","open":true,"agnostic":true,"date":"2024-03","stars":90878,"tok":3364506093687,"rank":15,"status":"active","repo":"https://github.com/OpenHands/OpenHands","lineage":"Started as OpenDevin, an open re-implementation of Devin.","dconf":0.95,"note":null},{"name":"Cursor","maker":"Anysphere","type":"IDE fork","license":"proprietary","open":false,"agnostic":false,"date":"2023-03","stars":33274,"tok":1098549432945,"rank":28,"status":"active","repo":"https://github.com/cursor/cursor","lineage":null,"dconf":0.9,"note":null},{"name":"Devin Desktop (ex-Windsurf)","maker":"Cognition","type":"IDE fork","license":"proprietary","open":false,"agnostic":false,"date":"2024-11","stars":null,"tok":null,"rank":null,"status":"active","repo":null,"lineage":null,"dconf":0.9,"note":null},{"name":"Devin","maker":"Cognition","type":"cloud agent","license":"proprietary","open":false,"agnostic":false,"date":"2024-03","stars":null,"tok":null,"rank":null,"status":"active","repo":null,"lineage":null,"dconf":0.95,"note":null},{"name":"Continue","maker":"Continue Dev Inc.","type":"IDE extension","license":"Apache-2.0","open":true,"agnostic":true,"date":"2023-07","stars":36222,"tok":56286433597,"rank":179,"status":"active","repo":"https://github.com/continuedev/continue","lineage":null,"dconf":0.85,"note":null},{"name":"Zed","maker":"Zed Industries","type":"editor","license":"GPL-3.0","open":true,"agnostic":true,"date":"2025-05","stars":91705,"tok":926196754667,"rank":33,"status":"active","repo":"https://github.com/zed-industries/zed","lineage":null,"dconf":0.95,"note":"Stars are for the whole editor (repo from 2021). The agent panel shipped May 2025 and runs locally."},{"name":"Amp","maker":"Amp","type":"terminal CLI","license":"proprietary","open":false,"agnostic":false,"date":"2025-05","stars":null,"tok":null,"rank":null,"status":"active","repo":null,"lineage":null,"dconf":0.95,"note":null},{"name":"Kiro","maker":"Amazon Web Services","type":"IDE fork","license":"proprietary","open":false,"agnostic":false,"date":"2025-07","stars":4367,"tok":null,"rank":null,"status":"active","repo":"https://github.com/kirodotdev/Kiro","lineage":"Kiro CLI = Amazon Q Developer CLI renamed 2025-11-17 (https://kiro.dev/docs/upgrade-guides/migrating-from-q/).","dconf":0.95,"note":null},{"name":"Junie","maker":"JetBrains","type":"IDE extension","license":"proprietary","open":false,"agnostic":true,"date":"2025-01","stars":477,"tok":null,"rank":null,"status":"active","repo":"https://github.com/JetBrains/junie","lineage":null,"dconf":0.95,"note":null},{"name":"GitHub Copilot CLI","maker":"GitHub","type":"terminal CLI","license":"proprietary","open":false,"agnostic":false,"date":"2025-09","stars":11252,"tok":null,"rank":null,"status":"active","repo":"https://github.com/github/copilot-cli","lineage":null,"dconf":0.95,"note":null},{"name":"Crush","maker":"Charm","type":"terminal CLI","license":"FSL-1.1-MIT (source-available)","open":true,"agnostic":true,"date":"2025-07","stars":28632,"tok":151982765329,"rank":85,"status":"active","repo":"https://github.com/charmbracelet/crush","lineage":"Successor to Kujtim Hoxha's opencode-ai/opencode (MIT, archived, 13,806 stars) after Charm hired him; renamed to avoid clash with SST's OpenCode.","dconf":0.95,"note":"Source-available license (converts to MIT after 2 years), not OSI open source."},{"name":"Trae","maker":"ByteDance","type":"IDE fork","license":"proprietary","open":false,"agnostic":false,"date":"2025-01","stars":915,"tok":null,"rank":null,"status":"active","repo":"https://github.com/Trae-AI/TRAE","lineage":null,"dconf":0.95,"note":null},{"name":"Auggie","maker":"Augment Code","type":"terminal CLI","license":"proprietary","open":false,"agnostic":false,"date":"2025-09","stars":285,"tok":null,"rank":null,"status":"active","repo":"https://github.com/augmentcode/auggie","lineage":null,"dconf":0.95,"note":null},{"name":"Warp","maker":"Warp","type":"terminal CLI","license":"AGPL-3.0 client / proprietary agent","open":false,"agnostic":false,"date":"2025-06","stars":65456,"tok":null,"rank":null,"status":"active","repo":"https://github.com/warpdotdev/warp","lineage":null,"dconf":0.8,"note":"Terminal client is open. The agent harness runs on Warp servers, even with your own key."},{"name":"Droid","maker":"Factory AI","type":"terminal CLI","license":"proprietary","open":false,"agnostic":true,"date":"2025-09","stars":53,"tok":58373918027,"rank":172,"status":"active","repo":"https://github.com/Factory-AI/factory","lineage":null,"dconf":0.95,"note":null},{"name":"Mistral Vibe","maker":"Mistral AI","type":"terminal CLI","license":"Apache-2.0","open":true,"agnostic":true,"date":"2025-12","stars":5117,"tok":null,"rank":null,"status":"active","repo":"https://github.com/mistralai/mistral-vibe","lineage":null,"dconf":0.95,"note":null},{"name":"Kimi Code CLI","maker":"Moonshot AI","type":"terminal CLI","license":"MIT","open":true,"agnostic":true,"date":"2025-10","stars":7868,"tok":null,"rank":null,"status":"active","repo":"https://github.com/MoonshotAI/kimi-code","lineage":null,"dconf":0.95,"note":"Successor repo. The legacy kimi-cli repo, now archived, has 11,423 more stars."},{"name":"pi","maker":"Earendil","type":"terminal CLI","license":"MIT","open":true,"agnostic":true,"date":"2025-08","stars":115102,"tok":12337753716607,"rank":8,"status":"active","repo":"https://github.com/earendil-works/pi","lineage":null,"dconf":0.95,"note":null},{"name":"omp (Oh My Pi)","maker":"Can Bölük","type":"terminal CLI","license":"MIT","open":true,"agnostic":true,"date":"2026-01","stars":35408,"tok":10415057136217,"rank":10,"status":"active","repo":"https://github.com/can1357/oh-my-pi","lineage":"Fork of pi (badlogic/pi-mono).","dconf":0.95,"note":null},{"name":"Hermes Agent","maker":"Nous Research","type":"general-purpose agent (CLI)","license":"MIT","open":true,"agnostic":true,"date":"2026-02","stars":253680,"tok":52598392583225,"rank":2,"status":"active","repo":"https://github.com/NousResearch/hermes-agent","lineage":null,"dconf":0.95,"note":null},{"name":"OpenClaw","maker":"OpenClaw Foundation","type":"general-purpose agent (terminal, messaging)","license":"MIT","open":true,"agnostic":true,"date":"2025-11","stars":391963,"tok":6962598512494,"rank":12,"status":"active","repo":"https://github.com/openclaw/openclaw","lineage":null,"dconf":0.95,"note":null},{"name":"DeepSeek Harness","maker":"DeepSeek","type":"terminal CLI","license":"MIT","open":true,"agnostic":true,"date":"2026-08","stars":249511,"tok":5912445313770,"rank":13,"status":"active","repo":"https://github.com/deepseek-ai/deepseek-harness","lineage":null,"dconf":0.95,"note":null},{"name":"Grok Build","maker":"xAI","type":"terminal CLI","license":"Apache-2.0","open":true,"agnostic":true,"date":"2026-05","stars":27369,"tok":null,"rank":null,"status":"active","repo":"https://github.com/xai-org/grok-build","lineage":null,"dconf":0.85,"note":"Code published 2026-07-15 as a snapshot of an internal repo. No history, no outside pull requests."},{"name":"Antigravity","maker":"Google","type":"IDE fork","license":"proprietary","open":false,"agnostic":false,"date":"2025-11","stars":null,"tok":null,"rank":null,"status":"active","repo":null,"lineage":null,"dconf":0.95,"note":null},{"name":"Freebuff (Codebuff)","maker":"Codebuff","type":"terminal CLI","license":"Apache-2.0","open":true,"agnostic":true,"date":"2024-10","stars":13526,"tok":8945502936474,"rank":11,"status":"active","repo":"https://github.com/CodebuffAI/freebuff","lineage":null,"dconf":0.75,"note":"Bubble is the Freebuff app (OpenRouter app 4137556), titled 'Zazen (Freebuff fork)' until September. The Codebuff app (1275184) is below the 200-row cut."},{"name":"Plandex","maker":"Plandex Inc.","type":"terminal CLI","license":"MIT","open":true,"agnostic":true,"date":"2024-03","stars":15717,"tok":null,"rank":null,"status":"active","repo":"https://github.com/plandex-ai/plandex","lineage":null,"dconf":0.95,"note":null},{"name":"Forge","maker":"Tailcall","type":"terminal CLI","license":"Apache-2.0","open":true,"agnostic":true,"date":"2025-01","stars":7638,"tok":null,"rank":null,"status":"active","repo":"https://github.com/tailcallhq/forgecode","lineage":null,"dconf":0.95,"note":null},{"name":"Command Code","maker":"Command Code AI","type":"terminal CLI","license":"proprietary","open":false,"agnostic":false,"date":"2026-03","stars":4127,"tok":4177484629020,"rank":14,"status":"active","repo":"https://github.com/CommandCodeAI/command-code","lineage":null,"dconf":0.85,"note":"README-only repo renamed from a 2017 project, so the star count is inherited."},{"name":"ZCode","maker":"Z.ai","type":"desktop app (+ browser, terminal agent)","license":"Apache-2.0","open":true,"agnostic":true,"date":"2026-07","stars":7817,"tok":1903218078881,"rank":19,"status":"active","repo":"https://github.com/zai-org/ZCode","lineage":null,"dconf":0.8,"note":"Code published 2026-09-20 as version snapshots (4 commits, no outside pull requests). The app itself shipped 2026-07."},{"name":"Strix","maker":"Strix (usestrix)","type":"security agent (pentest CLI)","license":"Apache-2.0","open":true,"agnostic":true,"date":"2025-08","stars":68527,"tok":1842750325016,"rank":21,"status":"active","repo":"https://github.com/usestrix/strix","lineage":null,"dconf":0.95,"note":"Security testing agent, not a coding harness. Shown in All tools only."},{"name":"CodeGPT","maker":"CodeGPT","type":"IDE extension","license":"proprietary","open":false,"agnostic":true,"date":"2022-12","stars":null,"tok":1278449161122,"rank":25,"status":"active","repo":"https://github.com/JudiniLabs/code-gpt-docs","lineage":null,"dconf":0.9,"note":"Repo holds the docs site only (MIT). The extension code is closed."},{"name":"Proto Agent","maker":"ERP•AI","type":"general-purpose agent (desktop, business ops)","license":"proprietary","open":false,"agnostic":true,"date":"2026-08","stars":null,"tok":1269226119480,"rank":27,"status":"active","repo":"https://github.com/erphq/proto-releases","lineage":"Renamed from Neo, which ERP•AI described as a local-first AI coding assistant in April 2026.","dconf":0.7,"note":"Agent for finance, ops, HR and sales work. Repo holds signed binaries only."},{"name":"Letta Code","maker":"Letta","type":"terminal CLI","license":"Apache-2.0","open":true,"agnostic":true,"date":"2025-10","stars":3605,"tok":788062491651,"rank":37,"status":"active","repo":"https://github.com/letta-ai/letta-code","lineage":null,"dconf":0.95,"note":"Tokens are Letta's own OpenRouter app, which links to the Letta Code page. It predates Letta Code, so some traffic may be other Letta agents."}];
+
+const parseMonth = d3.utcParse("%Y-%m");
+DATA.forEach(d => { d.t = parseMonth(d.date); d.kind = d.open ? 'open' : 'closed'; d.id = d.name; });
+
+document.getElementById('footnote-text').textContent = FOOTNOTE_TEXT;
+document.getElementById('source-text').innerHTML = 'Source: ' + (SOURCE_HREF
+  ? `<a href="${SOURCE_HREF}" target="_blank" rel="noopener">${SOURCE_NAME}</a>` : SOURCE_NAME);
+
+function smartFormat(v) {
+  if (!isFinite(v)) return "N/A";
+  if (Math.abs(v) >= 1e9) return d3.format(".1f")(v / 1e9) + "B";
+  if (Math.abs(v) >= 1e6) return d3.format(".1f")(v / 1e6) + "M";
+  if (Math.abs(v) >= 1e3 && Math.floor(v) === v) return d3.format(",")(v);
+  if (Math.floor(v) === v) return d3.format(",")(v);
+  return d3.format(",.1f")(v);
+}
+function fmtTok(v) {
+  if (v == null) return 'not in top 200';
+  if (v >= 1e12) return d3.format(".1f")(v / 1e12) + 'T';
+  if (v >= 1e9) return d3.format(".0f")(v / 1e9) + 'B';
+  return d3.format(",")(v);
+}
+function fmtStars(v) { return v == null ? 'no public repo' : (v >= 1000 ? d3.format(".0f")(v / 1000) + 'k' : String(v)); }
+const fmtMonth = d3.utcFormat("%b %Y");
+
+const legendEl = document.getElementById('legend');
+function legendItem(label, swatchHtml) {
+  const item = document.createElement('div');
+  item.className = 'legend-item';
+  item.innerHTML = swatchHtml + `<span>${label}</span>`;
+  legendEl.appendChild(item);
+}
+legendItem('Source code published', `<span class="legend-square" style="background:${COLOR.open};border-radius:50%"></span>`);
+legendItem('Proprietary', `<span class="legend-square" style="background:${COLOR.closed};border-radius:50%"></span>`);
+legendItem('Area = OpenRouter tokens, 30d', `<svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="none" stroke="#555" stroke-width="1.4"/><circle cx="10" cy="14" r="5" fill="none" stroke="#555" stroke-width="1.4"/></svg>`);
+
+let tooltip = null;
+if (SHOW_TOOLTIP) { tooltip = document.createElement('div'); tooltip.id = 'tooltip'; document.body.appendChild(tooltip); }
+function showTip(html, ev) {
+  if (!tooltip) return;
+  tooltip.innerHTML = html; tooltip.style.opacity = '1';
+  const w = tooltip.offsetWidth || 240;
+  let left = ev.clientX + 14;
+  if (left + w > window.innerWidth - 8) left = ev.clientX - w - 14;
+  tooltip.style.left = left + 'px'; tooltip.style.top = (ev.clientY - 24) + 'px';
+}
+function hideTip() { if (tooltip) tooltip.style.opacity = '0'; }
+
+function declump(ys, lo, hi, pitch) {
+  const n = ys.length, out = ys.slice();
+  if (!n) return out;
+  const p = Math.min(pitch, (hi - lo) / Math.max(1, n - 1));
+  out[0] = Math.max(lo, out[0]);
+  for (let i = 1; i < n; i++) out[i] = Math.max(out[i], out[i - 1] + p);
+  out[n - 1] = Math.min(out[n - 1], hi);
+  for (let i = n - 2; i >= 0; i--) out[i] = Math.min(out[i], out[i + 1] - p);
+  return out;
+}
+
+const vizEl = document.getElementById('viz');
+const svg = d3.select('#chart');
+let measureText = null;
+function measureWidth(str, fs, weight) {
+  if (!measureText) measureText = svg.append('text').attr('opacity', 0).attr('x', -9999).attr('y', -9999);
+  measureText.style('font-size', fs + 'px').style('font-weight', weight).text(str);
+  return measureText.node().getComputedTextLength();
+}
+
+let SCOPE = 'all';
+function activeData() { return SCOPE === 'coding' ? DATA.filter(d => !/^(general-purpose|security)/.test(d.type)) : DATA; }
+
+function render() {
+  const rect = vizEl.getBoundingClientRect();
+  const width = Math.max(320, rect.width);
+  const height = Math.max(220, rect.height);
+  const sc = Math.max(0.6, Math.min(1, Math.min(width / 1080, height / 720)));
+  const compact = window.matchMedia(`(max-height:${BREAKPOINT_COMPACT}px)`).matches;
+  svg.attr('width', width).attr('height', height);
+  svg.selectAll('*').remove();
+  measureText = null;
+
+  const axisFont = Math.max(9, Math.min(13, width / 90));
+  const labelFS = Math.max(9, Math.min(12, 11.5 * sc));
+  const margin = { top: 24 * sc, right: 44 * sc, bottom: Math.max(78, height * 0.15), left: 72 };
+  const innerWidth = Math.max(40, width - margin.left - margin.right);
+  const innerHeight = Math.max(40, height - margin.top - margin.bottom);
+  const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const today = d3.utcParse("%Y-%m-%d")("2026-10-14");
+  const x = d3.scaleUtc().domain([parseMonth("2022-10"), today]).range([0, innerWidth]);
+  const y = d3.scaleLog().domain([200, 600000]).range([innerHeight, 0]);
+  const noRepoY = innerHeight + 46 * sc;
+  const rows = activeData();
+  const r = d3.scaleSqrt().domain([0, d3.max(DATA, d => d.tok || 0)]).range([0, Math.max(22, Math.min(72, innerWidth / 14))]);
+  const rOf = d => d.tok ? Math.max(6, r(d.tok)) : 5;
+
+  g.append('g').attr('class', 'grid-lines')
+    .call(d3.axisLeft(y).tickValues([1000, 10000, 100000]).tickSize(-innerWidth).tickFormat(''))
+    .select('.domain').remove();
+  const xAxisG = g.append('g').attr('class', 'axis axis--x').attr('transform', `translate(0,${innerHeight})`)
+    .call(d3.axisBottom(x).ticks(d3.utcMonth.every(innerWidth < 700 ? 6 : 3)).tickFormat(d => d.getUTCMonth() === 0 ? d3.utcFormat('%Y')(d) : d3.utcFormat('%b')(d)).tickSizeOuter(0));
+  xAxisG.selectAll('text').style('font-size', `${axisFont}px`).style('font-family', 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif')
+    .style('font-weight', d => d.getUTCMonth() === 0 ? '700' : '500');
+  const yAxisG = g.append('g').attr('class', 'axis axis--y').call(d3.axisLeft(y).tickValues([1000, 10000, 100000]).tickFormat(fmtStars));
+  yAxisG.selectAll('text').style('font-size', `${axisFont}px`).style('font-family', 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif');
+  yAxisG.select('.domain').remove();
+  yAxisG.append('text')
+    .attr('transform', 'rotate(-90)').attr('y', -margin.left + 16).attr('x', -(innerHeight / 2)).attr('dy', '0.71em')
+    .attr('text-anchor', 'middle').style('fill', '#000').style('font-weight', '700')
+    .style('font-size', 'clamp(12px, 1.5vw, 18px)').style('font-family', 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif')
+    .text('GitHub stars (log)');
+  g.append('text').attr('x', innerWidth / 2).attr('y', innerHeight + margin.bottom - 4 * sc).attr('text-anchor', 'middle')
+    .style('fill', '#000').style('font-weight', '700').style('font-size', 'clamp(12px, 1.5vw, 18px)')
+    .style('font-family', 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif').text('First public release');
+  g.append('text').attr('class', 'row-label').attr('x', -8 * sc).attr('y', noRepoY + 3.5).attr('text-anchor', 'end')
+    .style('font-size', `${Math.max(8, 9.5 * sc)}px`).text('no repo');
+
+  const pts = rows.map(d => ({ d, cx: x(d.t), cy: d.stars ? y(Math.max(d.stars, y.domain()[0])) : noRepoY, r: rOf(d) }));
+  pts.sort((a, b) => b.r - a.r);
+  const dots = g.append('g');
+  dots.selectAll('circle').data(pts).enter().append('circle')
+    .attr('class', 'point-dot hit').attr('data-k', p => p.d.id)
+    .attr('cx', p => p.cx).attr('cy', p => p.cy).attr('r', p => p.r)
+    .attr('fill', p => COLOR[p.d.kind]).attr('fill-opacity', p => p.d.tok ? 0.55 : 1)
+    .attr('stroke', p => COLOR[p.d.kind]).attr('stroke-width', 1.2)
+    .attr('stroke-dasharray', p => p.d.status.startsWith('archived') ? '3 2' : null);
+
+  const labeled = pts.filter(p => (p.d.stars || 0) >= LABEL_MIN_STARS || (p.d.tok || 0) >= LABEL_MIN_TOK || !p.d.stars)
+    .sort((a, b) => b.r - a.r || (b.d.stars || 0) - (a.d.stars || 0));
+  const labG = g.append('g');
+  const rExtent = d3.extent(pts, p => p.r);
+  const fsFor = p => rExtent[1] > rExtent[0]
+    ? labelFS * (0.72 + 0.56 * (p.r - rExtent[0]) / (rExtent[1] - rExtent[0]))
+    : labelFS;
+  const pad = 4 * sc;
+  const boxes = pts.map(p => ({ x0: p.cx - p.r, x1: p.cx + p.r, y0: p.cy - p.r, y1: p.cy + p.r }));
+  const overlaps = b => boxes.some(o => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0);
+  labeled.forEach(p => {
+    const fs = fsFor(p), lh = fs * 1.1;
+    const w = measureWidth(p.d.name, fs, 600);
+    const cands = [
+      { x: p.cx + p.r + pad, y: p.cy, anchor: 'start' },
+      { x: p.cx - p.r - pad, y: p.cy, anchor: 'end' },
+      { x: p.cx, y: p.cy - p.r - pad - lh * 0.5, anchor: 'middle' },
+      { x: p.cx, y: p.cy + p.r + pad + lh * 0.5, anchor: 'middle' },
+      { x: p.cx + p.r * 0.7 + pad, y: p.cy - p.r * 0.7 - lh * 0.5, anchor: 'start' },
+      { x: p.cx + p.r * 0.7 + pad, y: p.cy + p.r * 0.7 + lh * 0.5, anchor: 'start' },
+      { x: p.cx - p.r * 0.7 - pad, y: p.cy - p.r * 0.7 - lh * 0.5, anchor: 'end' },
+      { x: p.cx - p.r * 0.7 - pad, y: p.cy + p.r * 0.7 + lh * 0.5, anchor: 'end' }
+    ];
+    let pick = null;
+    for (const c of cands) {
+      const x0 = c.anchor === 'start' ? c.x : c.anchor === 'end' ? c.x - w : c.x - w / 2;
+      const b = { x0, x1: x0 + w, y0: c.y - lh / 2, y1: c.y + lh / 2 };
+      if (b.x0 < -margin.left + 4 || b.x1 > innerWidth + margin.right - 4) continue;
+      if (b.y0 < -margin.top + 2 || b.y1 > noRepoY + lh) continue;
+      if (!overlaps(b)) { pick = { c, b }; break; }
+    }
+    if (!pick) { const c = cands[0]; const x0 = c.x; pick = { c, b: { x0, x1: x0 + w, y0: c.y - lh / 2, y1: c.y + lh / 2 }, forced: true }; }
+    boxes.push(pick.b);
+    labG.append('text').attr('class', 'dot-label hit' + (pick.forced ? ' faint' : '')).attr('data-k', p.d.id)
+      .attr('x', pick.c.x).attr('y', pick.c.y + fs * 0.35).attr('text-anchor', pick.c.anchor)
+      .style('font-size', `${fs}px`).text(p.d.name);
+  });
+
+  const chartNode = svg.node();
+  chartNode.onmousemove = e => {
+    const hit = e.target.closest('[data-k]');
+    if (!hit) { chartNode.classList.remove('dim'); chartNode.querySelectorAll('.on').forEach(n => n.classList.remove('on')); hideTip(); return; }
+    chartNode.classList.add('dim');
+    chartNode.querySelectorAll('.on').forEach(n => n.classList.remove('on'));
+    chartNode.querySelectorAll(`[data-k="${CSS.escape(hit.dataset.k)}"]`).forEach(n => n.classList.add('on'));
+    const d = DATA.find(v => v.id === hit.dataset.k);
+    showTip(`<span class="t-name">${d.name}</span>
+      <div class="t-row"><span>Maker</span><span class="t-v">${d.maker}</span></div>
+      <div class="t-row"><span>Type</span><span class="t-v">${d.type}</span></div>
+      <div class="t-row"><span>License</span><span class="t-v" style="color:${COLOR[d.kind]}">${d.license}</span></div>
+      <div class="t-row"><span>Any model?</span><span class="t-v">${d.agnostic ? 'yes' : 'vendor-locked'}</span></div>
+      <div class="t-row"><span>First release</span><span class="t-v">${fmtMonth(d.t)}</span></div>
+      <div class="t-row"><span>GitHub stars</span><span class="t-v">${d.stars == null ? 'no public repo' : d3.format(",")(d.stars)}${d.stars != null && !d.open ? ' (no source in repo)' : ''}</span></div>
+      <div class="t-row"><span>OpenRouter, 30d</span><span class="t-v">${fmtTok(d.tok)}${d.rank ? ` (#${d.rank})` : ''}</span></div>
+      ${d.status !== 'active' ? `<div class="t-note">${d.status}</div>` : ''}
+      ${d.lineage ? `<div class="t-note">${d.lineage}</div>` : ''}
+      ${d.note ? `<div class="t-note">${d.note}</div>` : ''}`, e);
+  };
+  chartNode.onmouseleave = () => { chartNode.classList.remove('dim'); chartNode.querySelectorAll('.on').forEach(n => n.classList.remove('on')); hideTip(); };
+}
+
+function positionPill(group) {
+  const pill = group._pill, btn = group.querySelector('.selector-button.active');
+  if (!pill || !btn) return;
+  pill.style.width = btn.offsetWidth + 'px';
+  pill.style.height = btn.offsetHeight + 'px';
+  pill.style.transform = `translate(${btn.offsetLeft}px,${btn.offsetTop}px)`;
+}
+function initPill(group) {
+  const pill = document.createElement('span');
+  pill.className = 'selector-pill';
+  pill.style.transition = 'none';
+  group.insertBefore(pill, group.firstChild);
+  group._pill = pill;
+  positionPill(group);
+  requestAnimationFrame(() => { pill.style.transition = ''; });
+}
+const scopeGroup = document.getElementById('scope-selector');
+initPill(scopeGroup);
+scopeGroup.querySelectorAll('.selector-button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.classList.contains('active')) return;
+    scopeGroup.querySelectorAll('.selector-button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    positionPill(scopeGroup);
+    SCOPE = btn.dataset.scope;
+    render();
+  });
+});
+window.addEventListener('resize', () => {
+  const p = scopeGroup._pill; if (p) p.style.transition = 'none';
+  positionPill(scopeGroup);
+  requestAnimationFrame(() => { if (p) p.style.transition = ''; });
+});
+
+render();
+window.addEventListener('resize', render);
+let lastW = 0, lastH = 0;
+if (typeof ResizeObserver !== 'undefined') new ResizeObserver(() => {
+  const rr = vizEl.getBoundingClientRect();
+  if (Math.abs(rr.width - lastW) < 1 && Math.abs(rr.height - lastH) < 1) return;
+  lastW = rr.width; lastH = rr.height;
+  render();
+}).observe(vizEl);
+</script>
+</body>
+</html>

@@ -257,10 +257,6 @@ body {
     letter-spacing: 0.1em;
 }
 
-@media (max-width: 739px) {
-    body { overflow-x: auto; }
-    .viz-grid { min-width: 740px; }
-}
 
 @media (max-height: 500px) {
     .viz-grid {
@@ -326,9 +322,10 @@ if (document.documentElement.getAttribute("data-theme") === "dark") {
 }
 
 const SHOW_CONTAINER_2 = 0;
-const SHOW_CONTAINER_3 = 1;
-const SHOW_CONTAINER_4 = 1;
-const SHOW_CONTAINER_5 = 1;  
+const _tmQ = new URLSearchParams(location.search);
+const SHOW_CONTAINER_3 = _tmQ.get("source") !== "0";
+const SHOW_CONTAINER_4 = _tmQ.get("logo") !== "0";
+const SHOW_CONTAINER_5 = _tmQ.get("footnote") !== "0";
 const FOOTNOTE_ROWS = 3;
 
 const LEGEND_ROWS = 1;
@@ -373,11 +370,13 @@ function applyGrid() {
 applyGrid();
 
 const SHOW_TOOLTIP = 1;
+const SHOW_TITLE = new URLSearchParams(location.search).get("title") !== "0";
 const BREAKPOINT_COMPACT = 500;
 const RESIZE_DEBOUNCE = 120;
+const STACK_BELOW = 560;
 
 const HEADLINE = "Europe writes a quarter of the world's AI research";
-const SUBHEAD  = "and holds one twelfth of the world's installed AI accelerators";
+const SUBHEAD  = "and holds about one twelfth of the world's installed AI accelerators";
 
 const REGION_ORDER = ["Europe", "China", "United States", "Rest of world"];
 
@@ -424,7 +423,7 @@ const PANELS = [
     key: "accelerators",
     title: "Share of world installed AI accelerators",
     unit: "of installed AI accelerators (H100-equivalents)",
-    values: { "Europe": 8.3, "China": 7.0, "United States": 79.5, "Rest of world": 5.2 },
+    values: { "Europe": 8.0, "China": 7.0, "United States": 79.5, "Rest of world": 5.6 },
     labels: { "Rest of world": "Rest of world and unassigned" }
   }
 ];
@@ -485,6 +484,7 @@ function drawFrame() {
   const padX = Math.max(16, Math.min(46, width * 0.023));
 
   const topPad = Math.max(18, Math.min(46, height * 0.052));
+  if (!SHOW_TITLE) return { svg, width, height, compact, sc, padX, headerBottom: topPad };
   const headFont = Math.max(18, Math.min(66, width * 0.0315));
 
   const headline = svg.append("text")
@@ -711,22 +711,29 @@ function render() {
   const panelTitleH = panelTitleFont * 2.6;
   const bottomPad = Math.max(6, 12 * sc);
 
-  const availH = Math.max(80, height - headerBottom - panelTitleH - bottomPad);
+  // Narrow screens stack the two panels, side by side their titles collide.
+  const stack = width < STACK_BELOW;
+  const availH = stack
+    ? Math.max(80, (height - headerBottom - panelTitleH * 2 - panelGap - bottomPad) / 2)
+    : Math.max(80, height - headerBottom - panelTitleH - bottomPad);
   const panelH = Math.min(availH, PANEL_MAX_H);
-  const panelW = Math.max(60, Math.min(halfW, PANEL_MAX_W, panelH * PANEL_MAX_ASPECT));
-  const startX = Math.max(padX, (width - (panelW * 2 + panelGap)) / 2);
-  const plotTop = headerBottom + panelTitleH + Math.max(0, (availH - panelH) / 2);
+  const panelW = stack
+    ? Math.max(60, width - padX * 2)
+    : Math.max(60, Math.min(halfW, PANEL_MAX_W, panelH * PANEL_MAX_ASPECT));
+  const startX = stack ? padX : Math.max(padX, (width - (panelW * 2 + panelGap)) / 2);
+  const plotTop = headerBottom + panelTitleH + (stack ? 0 : Math.max(0, (availH - panelH) / 2));
 
   valueScaleMax = Math.min(VALUE_FONT_MAX, panelH * 0.16);
   nameFontMax = Math.max(NAME_FONT_MIN, Math.min(NAME_FONT_MAX, panelH * 0.045));
 
   PANELS.forEach((panel, pi) => {
-    const left = startX + pi * (panelW + panelGap);
+    const left = stack ? startX : startX + pi * (panelW + panelGap);
+    const top = stack ? plotTop + pi * (panelH + panelGap + panelTitleH) : plotTop;
 
     const pt = svg.append("text")
       .attr("class", "tm-panel-title")
       .attr("x", left + panelW / 2)
-      .attr("y", plotTop - panelTitleFont * 0.9)
+      .attr("y", top - panelTitleFont * 0.9)
       .attr("text-anchor", "middle")
       .style("font-family", SANS)
       .text(panel.title.toUpperCase());
@@ -734,7 +741,7 @@ function render() {
 
     const holder = document.getElementById(`tm-plot-${pi}`);
     holder.style.left = `${left}px`;
-    holder.style.top = `${plotTop}px`;
+    holder.style.top = `${top}px`;
     holder.style.width = `${panelW}px`;
     holder.style.height = `${panelH}px`;
 
