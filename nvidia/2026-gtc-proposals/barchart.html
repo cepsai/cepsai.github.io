@@ -494,8 +494,11 @@ body {
 }
 
 @media (max-width: 739px) {
-    body { overflow-x: auto; }
-    .viz-grid { min-width: 740px; }
+}
+
+@media (max-width: 599px) {
+    #container2 { justify-content: flex-start; padding-right: 96px; }
+    .legend { flex-wrap: wrap; white-space: normal; row-gap: 0; }
 }
 
 @media (max-height: 500px) {
@@ -985,21 +988,28 @@ function render(rowTransition = null, previousMids = new Map()) {
   const refBand = barsH / METRICS.length;
   const refTrackH = Math.max(14, Math.min(refBand * 0.5, height * 0.17));
 
-  const labelFont = Math.max(13, Math.min(34, refTrackH * 0.54, refBand * 0.24));
-  const subLabelFont = Math.max(9, labelFont * 0.64);
-  const creditFont = Math.max(8, subLabelFont * 0.75);
+  let labelFont = Math.max(13, Math.min(34, refTrackH * 0.54, refBand * 0.24));
+  let subLabelFont = Math.max(9, labelFont * 0.64);
+  let creditFont = Math.max(8, subLabelFont * 0.75);
   const creditTextOf = m => m.credit ? `${CREDIT_PREFIX}${m.credit.name}` : "";
   const valueFont = Math.max(16, Math.min(28, refTrackH * 0.82));
 
   const labelPad = Math.max(14, 26 * sc);
-  const labelW = Math.min(
-    width * 0.30,
-    d3.max(rows, m => Math.max(
-      measureText(m.label, labelFont, 700),
-      measureText(m.sublabel, subLabelFont, 500),
-      measureText(creditTextOf(m), creditFont, 600)
-    )) + labelPad
-  );
+  const labelTextW = () => d3.max(rows, m => Math.max(
+    measureText(m.label, labelFont, 700),
+    measureText(m.sublabel, subLabelFont, 500),
+    measureText(creditTextOf(m), creditFont, 600)
+  ));
+  // Narrow screens give labels more room, then shrink the type until it fits.
+  const labelCap = width * (width < 760 ? 0.40 : 0.30);
+  const naturalW = labelTextW();
+  if (naturalW + labelPad > labelCap) {
+    const k = Math.max(0.4, (labelCap - labelPad) / naturalW);
+    labelFont *= k;
+    subLabelFont *= k;
+    creditFont *= k;
+  }
+  const labelW = Math.min(labelCap, labelTextW() + labelPad);
 
   const valuePad = Math.max(10, 20 * sc);
 
