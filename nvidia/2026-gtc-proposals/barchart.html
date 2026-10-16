@@ -732,6 +732,8 @@ const SHOW_CONTAINER_4 = _bcQ.get("logo") !== "0";
 const SHOW_CONTAINER_5 = _bcQ.get("footnote") !== "0";
 const SHOW_TOGGLES = _bcQ.get("toggles") !== "0";
 const SHOW_CREDITS = _bcQ.get("source") !== "0";
+// Banner mode: bars fill the card and leave the top right corner free for the date badge.
+const FILL = _bcQ.get("fill") === "1";
 const LEGEND_ROWS = 1;
 
 const SHOW_TOOLTIP = 1;
@@ -968,7 +970,9 @@ function render(rowTransition = null, previousMids = new Map()) {
     toggleH = Math.round(togglesEl.getBoundingClientRect().height);
   }
 
-  const plotTop = topPad + headSize + gapAboveToggles + toggleH + gapBelowToggles;
+  const plotTop = FILL
+    ? Math.max(topPad, Math.min(height * 0.2, 60))
+    : topPad + headSize + gapAboveToggles + toggleH + gapBelowToggles;
   const plotBottom = Math.max(plotTop + 60, height);
   const plotH = plotBottom - plotTop;
 
@@ -978,7 +982,7 @@ function render(rowTransition = null, previousMids = new Map()) {
   const comparisonH = rows.length > 1 ? Math.max(42, Math.min(70, plotH * 0.13)) : 0;
   const barsH = Math.max(60, plotH - comparisonH);
   const band = barsH / rows.length;
-  const trackH = Math.max(14, Math.min(band * 0.5, height * 0.17));
+  const trackH = Math.max(14, Math.min(band * (FILL ? 0.62 : 0.5), height * 0.17));
   const rowGap = rows.length > 1
     ? Math.max(trackH * 0.45, Math.min((barsH - rows.length * trackH) / (rows.length - 1), trackH * 0.82))
     : 0;
@@ -1023,7 +1027,7 @@ function render(rowTransition = null, previousMids = new Map()) {
   const valueGap = valuePad * 0.5;
 
   const trackLeft = padX + labelW;
-  const barRightPad = Math.max(padX, width * 0.15);
+  const barRightPad = FILL ? padX : Math.max(padX, width * 0.15);
   const availableTrackW = Math.max(120, width - trackLeft - barRightPad);
   const trackW = Math.max(90, availableTrackW);
 
