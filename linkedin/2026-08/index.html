@@ -537,6 +537,8 @@
     .cf-dd .selector-dropdown-option { display: flex; align-items: center; gap: 8px; }
     .cf-dd .selector-dropdown-option.active { background: rgba(39, 86, 211, 0.08); color: #0f172a; }
     .cf-box { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #cbd5e1; flex-shrink: 0; box-sizing: border-box; }
+    .cf-flag { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; flex: none; box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.12); }
+    .selector-dropdown-toggle .cf-flag { vertical-align: -3px; margin: 0 6px 0 4px; }
     .cf-region { margin-left: auto; color: #94a3b8; font-weight: 400; font-size: 0.9em; }
     .country-filter { padding: 0; gap: clamp(2px, 0.6vw, 8px); }
     .country-filter.off { display: none; }
@@ -552,6 +554,15 @@
     .series.highlighted .series-line { stroke-width: calc(var(--lineWidth, 3.4) * 1.3); opacity: 1; filter: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.2)); }
     .rank-label { fill: #6b7280; font-weight: 600; }
     #field-ctx.field-off { display: none; }
+    #tabs .selector-button:disabled { opacity: 0.35; cursor: not-allowed; }
+    .hire-ctx { gap: 8px; flex-wrap: wrap; justify-content: center; }
+    .cf-dd .selector-dropdown-option:disabled { opacity: 0.4; cursor: not-allowed; }
+    .expo-line { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+    .stacked-area { opacity: 0.92; }
+    .year-line { stroke: #cbd5e1; stroke-dasharray: 2 3; }
+    .focus-line { stroke: #64748b; stroke-dasharray: 2 3; opacity: 0; pointer-events: none; }
+    .month-axis-label { font-size: 11px; font-weight: 600; fill: #6b7280; }
+    .year-axis-label { font-weight: 700; fill: #0f172a; }
     #field-dd .selector-dropdown-menu, #sort-dd .selector-dropdown-menu { width: auto; }
     .tm-group-label { font-weight: 700; fill: #0f172a; pointer-events: none; }
     .tm-group-label .tm-n { font-weight: 400; fill: #64748b; }
@@ -592,10 +603,13 @@
             <button class="selector-button" data-tab="matrix" role="tab" aria-selected="false">Occupations</button>
             <button class="selector-button" data-tab="strip" role="tab" aria-selected="false">Spread</button>
             <button class="selector-button" data-tab="themes" role="tab" aria-selected="false">Themes</button>
+            <button class="selector-button" data-tab="hiring" role="tab" aria-selected="false">Hiring by exposure</button>
+            <button class="selector-button" data-tab="share" role="tab" aria-selected="false">Posting share</button>
           </div>
           <div class="selector-group" id="data-mode" role="group" aria-label="Data">
             <button class="selector-button active" data-mode="real">LinkedIn 5</button>
             <button class="selector-button" data-mode="mock">Mock 50</button>
+            <button class="selector-button" data-mode="actual">Actual Data</button>
           </div>
     </nav>
 
@@ -607,6 +621,8 @@
         <div class="panel" id="matrix" data-tab="matrix"></div>
         <div class="panel" id="strip" data-tab="strip"></div>
         <div class="panel" id="themes" data-tab="themes"></div>
+        <div class="panel" id="hiring" data-tab="hiring"></div>
+        <div class="panel" id="share" data-tab="share"></div>
       </div>
     </div>
 
@@ -626,6 +642,16 @@
             <div class="selector-dropdown" id="field-dd">
               <button class="selector-dropdown-toggle" aria-expanded="false" aria-haspopup="listbox">Field: Finance</button>
               <div class="selector-dropdown-menu" role="listbox" aria-label="Field"></div>
+            </div>
+          </div>
+          <div class="ctx hire-ctx" data-for="hiring">
+            <div class="selector-group" id="hire-level" role="group" aria-label="Level">
+              <button class="selector-button active" data-value="Overall">Overall</button>
+              <button class="selector-button" data-value="Entry">Entry-level</button>
+            </div>
+            <div class="selector-group" id="hire-metric" role="group" aria-label="Measure">
+              <button class="selector-button active" data-value="yoy">YoY</button>
+              <button class="selector-button" data-value="rel_yoy">Relative</button>
             </div>
           </div>
           <div class="ctx" data-for="themes">

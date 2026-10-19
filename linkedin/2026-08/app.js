@@ -55,12 +55,14 @@ const DATASETS = {
 };
 const MODES = {
   real: { base: "data/", extra: {} },
-  mock: { base: "data/mock/", extra: { talentFields: "p5_ai_talent_by_field.csv" } }
+  mock: { base: "data/mock/", extra: { talentFields: "p5_ai_talent_by_field.csv" } },
+  actual: { base: "data/actual/", files: { hiring: "hiring_by_exposure.csv", share: "posting_share_by_exposure.csv" } }
 };
 const TALENT_BASE_FIELD = "Finance";
 const TALENT_FIELDS = {
   real: [TALENT_BASE_FIELD],
-  mock: [TALENT_BASE_FIELD, "ICT", "Manufacturing", "Professional services", "Health", "Education", "Retail", "Public administration"]
+  mock: [TALENT_BASE_FIELD, "ICT", "Manufacturing", "Professional services", "Health", "Education", "Retail", "Public administration"],
+  actual: []
 };
 const MOCK_SOURCE = "Mockup data";
 const MOCK_DEFAULT_EXTRA = ["Spain", "Italy", "Japan"];
@@ -81,11 +83,18 @@ const REGION_PRESETS = [
 ];
 const D3PLUS_URL = "https://cdn.jsdelivr.net/npm/d3plus-hierarchy@1";
 const DEFAULT_TAB = "treemap";
-const TABS = ["treemap", "pairs", "bump", "matrix", "strip", "themes"];
+const TABS = ["treemap", "pairs", "bump", "matrix", "strip", "themes", "hiring", "share"];
+const OCC_MODES = ["real", "mock"];
+const TAB_MODES = { treemap: OCC_MODES, pairs: OCC_MODES, bump: OCC_MODES, matrix: OCC_MODES, strip: OCC_MODES, themes: OCC_MODES, hiring: ["actual"], share: ["actual"] };
+const EXPOSURES = ["Augmented", "Disrupted", "Insulated"];
+const EXPO_COLOR = { Augmented: "#2756d3", Disrupted: "#E53229", Insulated: "#f59e0b" };
+const ACTUAL_DEFAULT_COUNTRY = "United States";
+const ACCENT = "#2756d3";
 const FILTER_OFF = {};
 const REAL_COUNTRIES = ["France", "Germany", "India", "United Kingdom", "United States"];
 let COUNTRIES = REAL_COUNTRIES.slice();
 const COUNTRY_SHORT = { "France": "FR", "Germany": "DE", "India": "IN", "United Kingdom": "UK", "United States": "US" };
+const flagImg = c => { const k = (COUNTRY_SHORT[c] || "").toLowerCase(); return k ? `<img class="cf-flag" src="https://flagcdn.com/w40/${k === "uk" ? "gb" : k}.png" alt="" loading="lazy">` : ""; };
 const COUNTRY_COLOR = { "France": "#2756d3", "Germany": "#f59e0b", "India": "#10b981", "United Kingdom": "#8b5cf6", "United States": "#E53229" };
 const LEVELS = ["overall", "entry"];
 const LEVEL_LABEL = { overall: "Overall", entry: "Entry" };
@@ -245,6 +254,10 @@ let bumpSelected = null;
 let activeTab = DEFAULT_TAB;
 let sortState = { mode: "count" };
 let themeView = "avg";
+let hireLevel = "Overall";
+let hireMetric = "yoy";
+let actualCountry = ACTUAL_DEFAULT_COUNTRY;
+const ACT = { hiring: [], share: [], hiringBy: new Map(), shareBy: new Map() };
 let treemapInstance = null;
 let tmLegendInitialized = false;
 let tmBusy = false, tmPending = false;
@@ -376,6 +389,7 @@ function buildCountryFilter() {
   const el = document.getElementById("country-filter");
   el.innerHTML = "";
   if (dataMode === "mock") { buildCountryDropdown(el); return; }
+  if (dataMode === "actual") { buildCountryDropdown(el, true); return; }
   COUNTRIES.forEach(c => {
     const item = document.createElement("div");
     item.className = "legend-item interactive active";
@@ -390,11 +404,19 @@ function buildCountryFilter() {
   });
 }
 
-function buildCountryDropdown(el) {
+function pickCountry(c) {
+  actualCountry = c;
+  const dd = document.querySelector(".cf-dd");
+  dd.querySelector(".selector-dropdown-menu").classList.remove("open");
+  dd.querySelector(".selector-dropdown-toggle").setAttribute("aria-expanded", "false");
+  render();
+}
+
+function buildCountryDropdown(el, single) {
   const dd = document.createElement("div");
-  dd.className = "selector-dropdown cf-dd";
+  dd.className = "selector-dropdown cf-dd" + (single ? " cf-single" : "");
   dd.innerHTML = `<button class="selector-dropdown-toggle" aria-expanded="false" aria-haspopup="listbox"></button>` +
-    `<div class="selector-dropdown-menu" role="listbox" aria-multiselectable="true"><input class="cf-search" type="search" placeholder="Search countries" aria-label="Search countries">` +
+    `<div class="selector-dropdown-menu" role="listbox" aria-multiselectable="${!single}"><input class="cf-search" type="search" placeholder="Search countries" aria-label="Search countries">` +
     `<div class="cf-presets"></div><div class="cf-list"></div></div>`;
   el.appendChild(dd);
   const toggle = dd.querySelector(".selector-dropdown-toggle");
@@ -402,7 +424,7 @@ function buildCountryDropdown(el) {
   const search = dd.querySelector(".cf-search");
   const presets = dd.querySelector(".cf-presets");
   const list = dd.querySelector(".cf-list");
-  REGION_PRESETS.forEach(p => {
+  if (!single) REGION_PRESETS.forEach(p => {
     const b = document.createElement("button");
     b.textContent = p.label;
     b.addEventListener("click", e => {
@@ -415,13 +437,13 @@ function buildCountryDropdown(el) {
     });
     presets.appendChild(b);
   });
-  COUNTRIES.forEach(c => {
+  (single ? COUNTRIES.slice().sort(d3.ascending) : COUNTRIES).forEach(c => {
     const o = document.createElement("button");
     o.className = "selector-dropdown-option";
     o.dataset.country = c;
     o.setAttribute("role", "option");
-    o.innerHTML = `<span class="cf-box"></span><span>${esc(c)}</span><span class="cf-region">${esc(COUNTRY_SHORT[c])}</span>`;
-    o.addEventListener("click", e => { e.stopPropagation(); toggleCountry(c); });
+    o.innerHTML = `<span class="cf-box"></span>${flagImg(c)}<span>${esc(c)}</span><span class="cf-region">${esc(COUNTRY_SHORT[c])}</span>`;
+    o.addEventListener("click", e => { e.stopPropagation(); if (single) pickCountry(c); else toggleCountry(c); });
     list.appendChild(o);
   });
   search.addEventListener("input", () => {
@@ -454,6 +476,20 @@ function updateCountryFilter() {
   const el = document.getElementById("country-filter");
   el.classList.toggle("off", filterOff());
   const dd = el.querySelector(".cf-dd");
+  if (dd && dataMode === "actual") {
+    dd.querySelector(".selector-dropdown-toggle").innerHTML = `Country: ${flagImg(actualCountry)}${esc(isPhone() ? COUNTRY_SHORT[actualCountry] : actualCountry)}`;
+    dd.querySelectorAll(".cf-list .selector-dropdown-option").forEach(o => {
+      const c = o.dataset.country, on = c === actualCountry, has = actualHas(activeTab, c);
+      o.classList.toggle("active", on);
+      o.disabled = !has;
+      o.setAttribute("aria-disabled", String(!has));
+      o.setAttribute("aria-selected", String(on));
+      const box = o.querySelector(".cf-box");
+      box.style.background = on ? ACCENT : "transparent";
+      box.style.borderColor = on ? ACCENT : "#cbd5e1";
+    });
+    return;
+  }
   if (dd) {
     dd.querySelector(".selector-dropdown-toggle").textContent = `Countries: ${selectedCountries.size} of ${COUNTRIES.length}`;
     dd.querySelectorAll(".cf-list .selector-dropdown-option").forEach(o => {
@@ -479,7 +515,7 @@ function updateCountryFilter() {
 function loadMode(mode) {
   if (!modeCache[mode]) {
     const m = MODES[mode];
-    const files = Object.assign({}, DATASETS, m.extra);
+    const files = m.files || Object.assign({}, DATASETS, m.extra);
     const keys = Object.keys(files);
     modeCache[mode] = Promise.all(keys.map(k => d3.csv(m.base + files[k]))).then(list => {
       const out = {};
@@ -495,7 +531,7 @@ function applyMode(mode, bundle, redraw) {
   if (COUNTRIES.length) savedSelection[dataMode] = Array.from(selectedCountries);
   dataMode = mode;
   META.clear();
-  bundle.top5.forEach(r => {
+  (bundle.top5 || bundle.hiring).forEach(r => {
     const c = r.country.trim();
     if (!META.has(c)) META.set(c, { iso3: (r.iso3 || "").trim(), region: (r.region || "").trim(), mock: parseNum(r.mock) === 1 });
   });
@@ -508,8 +544,7 @@ function applyMode(mode, bundle, redraw) {
   colourSlots.clear();
   Object.keys(DS).forEach(k => delete DS[k]);
   Object.assign(DS, bundle);
-  prepare(bundle.top5);
-  prepareExtra();
+  if (bundle.top5) { prepare(bundle.top5); prepareExtra(); } else prepareActual();
   buildCols();
   buildSortMenu();
   if (sortState.mode === "col" && !COLS.some(c => c.key === sortState.key)) sortState = { mode: "count" };
@@ -520,8 +555,20 @@ function applyMode(mode, bundle, redraw) {
   const dm = document.getElementById("data-mode");
   if (dm) positionPill(dm);
   document.querySelector(".viz-grid").classList.toggle("wide-source", mode === "mock");
+  gateTabs();
   setSourceBody(redraw);
-  if (redraw) render();
+  if (redraw) { if (tabOn(activeTab)) render(); else setTab(activeTab, true); }
+}
+
+const tabOn = t => (TAB_MODES[t] || []).includes(dataMode);
+
+function gateTabs() {
+  document.querySelectorAll("#tabs .selector-button").forEach(b => {
+    const on = tabOn(b.dataset.tab);
+    b.disabled = !on;
+    b.setAttribute("aria-disabled", String(!on));
+    b.tabIndex = on ? 0 : -1;
+  });
 }
 
 function sourceHTML() {
@@ -559,6 +606,7 @@ function switchMode(mode) {
 
 function setTab(tab, push) {
   if (!TABS.includes(tab)) tab = DEFAULT_TAB;
+  if (!tabOn(tab)) tab = TABS.find(tabOn);
   activeTab = tab;
   document.querySelectorAll("#tabs .selector-button").forEach(b => {
     const on = b.dataset.tab === tab;
@@ -577,13 +625,13 @@ function setLegend(items) {
 }
 
 function render() {
-  if (!DATA.length) return;
+  if (!DATA.length && !ACT.hiring.length) return;
   tipHide();
   syncColourSlots();
   setSourceBody(false);
   updateCountryFilter();
   ({ matrix: renderMatrix, strip: renderStrip, themes: renderThemes, treemap: renderTreemap, pairs: renderPairs,
-     bump: renderBump })[activeTab]();
+     bump: renderBump, hiring: renderHiring, share: renderShare })[activeTab]();
 }
 
 function panelSize(el) {
@@ -1453,6 +1501,175 @@ function renderBump() {
   setLegend([]);
 }
 
+const monthDate = m => { const [y, mo] = m.split("-").map(Number); return new Date(Date.UTC(y, mo - 1, 1)); };
+const monthLabel = d3.utcFormat("%b %Y");
+const pct1 = v => (v > 0 ? "+" : v < 0 ? "−" : "") + fmt1(Math.abs(v)) + "%";
+
+function byMonth(rows, key, val) {
+  const out = new Map();
+  d3.group(rows, key).forEach((items, k) => {
+    out.set(k, Array.from(d3.group(items, d => d.month), ([month, xs]) => {
+      const r = { month, date: monthDate(month) };
+      xs.forEach(d => { r[d.exposure] = val(d); });
+      return r;
+    }).sort((a, b) => a.date - b.date));
+  });
+  return out;
+}
+
+function prepareActual() {
+  ACT.hiring = DS.hiring.map(r => ({ country: r.country.trim(), month: r.month.trim(), exposure: r.exposure.trim(), level: r.level.trim(), metric: r.metric.trim(), value: parseNum(r.value_pct) }));
+  ACT.share = DS.share.map(r => ({ country: r.country.trim(), month: r.month.trim(), exposure: r.exposure.trim(), value: parseNum(r.share_pct) }));
+  ACT.hiringBy = byMonth(ACT.hiring, d => d.country + "|" + d.level + "|" + d.metric, d => d.value);
+  ACT.shareBy = byMonth(ACT.share, d => d.country, d => d.value);
+  if (!META.has(actualCountry)) actualCountry = META.has(ACTUAL_DEFAULT_COUNTRY) ? ACTUAL_DEFAULT_COUNTRY : COUNTRIES[0];
+}
+
+function actualHas(tab, c) {
+  if (tab === "share") return ACT.shareBy.has(c);
+  return ACT.hiringBy.has(c + "|" + hireLevel + "|" + hireMetric);
+}
+
+function timeAxis(g, x, rows, innerW, innerH, phone) {
+  const d0 = rows[0].date, d1 = rows[rows.length - 1].date;
+  const years = d3.range(d0.getUTCFullYear(), d1.getUTCFullYear() + 1);
+  years.forEach(yr => {
+    const ys = new Date(Date.UTC(yr, 0, 1));
+    if (ys > d0 && ys < d1) g.append("line").attr("class", "year-line").attr("x1", x(ys)).attr("x2", x(ys)).attr("y1", 0).attr("y2", innerH);
+  });
+  const subY = innerH + 16;
+  const quarterly = rows.filter(r => r.date.getUTCMonth() % 3 === 0);
+  const showSub = !phone && innerW / Math.max(1, quarterly.length) >= 34;
+  if (showSub) {
+    g.append("g").selectAll("text").data(quarterly).join("text").attr("class", "month-axis-label")
+      .attr("x", d => x(d.date)).attr("y", subY).attr("text-anchor", "middle").text(d => d3.utcFormat("%b")(d.date));
+  }
+  const yearFS = phone ? 11 : Math.max(12, Math.min(16, innerW * 0.016));
+  g.append("g").selectAll("text").data(years.map(yr => {
+    const a = new Date(Math.max(+d0, Date.UTC(yr, 0, 1))), b = new Date(Math.min(+d1, Date.UTC(yr, 11, 1)));
+    return { yr, x: (x(a) + x(b)) / 2, w: x(b) - x(a) };
+  })).join("text").attr("class", "year-axis-label")
+    .attr("x", d => d.x).attr("y", showSub ? subY + yearFS + 6 : subY)
+    .attr("text-anchor", "middle").style("font-size", yearFS + "px")
+    .text(d => d.w < yearFS * 2.6 ? "’" + String(d.yr).slice(2) : d.yr);
+  return showSub ? subY + yearFS + 14 : subY + 10;
+}
+
+function timeHover(g, x, rows, innerW, innerH, onMove, onLeave) {
+  const focus = g.append("line").attr("class", "focus-line").attr("y1", 0).attr("y2", innerH);
+  const bis = d3.bisector(d => d.date).center;
+  g.append("rect").attr("class", "hover-rect").attr("width", innerW).attr("height", innerH).attr("fill", "transparent")
+    .on("mousemove", function (e) {
+      const d = rows[bis(rows, x.invert(d3.pointer(e, this)[0]))];
+      focus.attr("x1", x(d.date)).attr("x2", x(d.date)).style("opacity", 1);
+      onMove(e, d);
+    })
+    .on("mouseleave", () => { focus.style("opacity", 0); onLeave(); tipHide(); });
+}
+
+function styleAxis(ax, fs) {
+  ax.selectAll("text").attr("font-size", fs).attr("fill", "#374151");
+  ax.select(".domain").remove();
+  ax.selectAll(".tick line").remove();
+}
+
+function actualEmpty(host, msg) {
+  host.innerHTML = `<div class="error-message">${esc(msg)}</div>`;
+  setLegend([]);
+}
+
+function renderHiring() {
+  const host = document.getElementById("hiring");
+  host.innerHTML = "";
+  const phone = isPhone();
+  const { w: width, h: height } = panelSize(host);
+  if (width <= 0 || height <= 0) return;
+  updateCountryFilter();
+  const rows = ACT.hiringBy.get(actualCountry + "|" + hireLevel + "|" + hireMetric);
+  if (!rows) { actualEmpty(host, `No hiring data for ${actualCountry}`); return; }
+  const rel = hireMetric === "rel_yoy";
+  const axisFS = phone ? 10 : 11;
+  const margin = { top: 14, right: phone ? 8 : 20, bottom: phone ? 30 : 48, left: phone ? 48 : 70 };
+  const innerW = Math.max(50, width - margin.left - margin.right);
+  const innerH = Math.max(50, height - margin.top - margin.bottom);
+  const vals = rows.flatMap(r => EXPOSURES.map(k => r[k]).filter(v => v != null)).concat([0]);
+  const ext = d3.extent(vals), pad = Math.max(1, (ext[1] - ext[0]) * 0.06);
+  const x = d3.scaleUtc().domain([rows[0].date, rows[rows.length - 1].date]).range([0, innerW]);
+  const y = d3.scaleLinear().domain([ext[0] - pad, ext[1] + pad]).nice().range([innerH, 0]);
+
+  const svg = d3.select(host).append("svg").attr("role", "img")
+    .attr("aria-label", `${rel ? "Relative year-on-year" : "Year-on-year"} change in ${hireLevel === "Entry" ? "entry-level " : ""}hiring rate by AI exposure group, ${actualCountry}, monthly`)
+    .attr("width", width).attr("height", height).attr("viewBox", `0 0 ${width} ${height}`);
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+  const nTy = Math.max(3, Math.floor(innerH / 60));
+  g.append("g").attr("class", "axis-grid").call(d3.axisLeft(y).ticks(nTy).tickSize(-innerW).tickFormat(""));
+  styleAxis(g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(nTy).tickFormat(v => v === 0 ? "0%" : pct(v))), axisFS);
+  timeAxis(g, x, rows, innerW, innerH, phone);
+  g.append("line").attr("class", "zero-line").attr("x1", 0).attr("x2", innerW).attr("y1", y(0)).attr("y2", y(0));
+  svg.append("text").attr("class", "axis-label").attr("text-anchor", "middle")
+    .attr("transform", `translate(${phone ? 11 : 14},${margin.top + innerH / 2}) rotate(-90)`)
+    .text(phone ? (rel ? "Relative YoY hiring change" : "YoY hiring change") : (rel ? "Relative YoY change in hiring rate" : "YoY change in hiring rate"));
+
+  const lw = phone ? 2 : 2.6;
+  EXPOSURES.forEach(k => {
+    g.append("path").datum(rows).attr("class", "expo-line").attr("stroke", EXPO_COLOR[k]).attr("stroke-width", lw)
+      .attr("d", d3.line().defined(d => d[k] != null).x(d => x(d.date)).y(d => y(d[k]))(rows));
+  });
+  const dots = g.append("g").style("pointer-events", "none");
+  timeHover(g, x, rows, innerW, innerH, (e, d) => {
+    dots.selectAll("circle").data(EXPOSURES.filter(k => d[k] != null)).join("circle")
+      .attr("cx", x(d.date)).attr("cy", k => y(d[k])).attr("r", phone ? 3.5 : 4.5)
+      .attr("fill", k => EXPO_COLOR[k]).attr("stroke", "#fff").attr("stroke-width", 1.5);
+    tipShow(e, `<span class="t-name">${monthLabel(d.date)}</span><span class="t-q">${esc(actualCountry)} / ${hireLevel === "Entry" ? "Entry-level" : "Overall"}</span>` +
+      EXPOSURES.slice().sort((a, b) => d[b] - d[a]).map(k => row(k, d[k] == null ? "N/A" : pct1(d[k]), EXPO_COLOR[k])).join("") +
+      `<span class="t-note">${rel ? "Relative YoY change in hiring rate" : "YoY change in hiring rate"}</span>`);
+  }, () => dots.selectAll("circle").remove());
+
+  setLegend(EXPOSURES.map(k => `<div class="legend-item"><svg width="20" height="10"><line x1="2" y1="5" x2="18" y2="5" stroke="${EXPO_COLOR[k]}" stroke-width="3" stroke-linecap="round"/></svg><span>${k}</span></div>`));
+}
+
+function renderShare() {
+  const host = document.getElementById("share");
+  host.innerHTML = "";
+  const phone = isPhone();
+  const { w: width, h: height } = panelSize(host);
+  if (width <= 0 || height <= 0) return;
+  updateCountryFilter();
+  const rows = ACT.shareBy.get(actualCountry);
+  if (!rows) { actualEmpty(host, `No posting share data for ${actualCountry}`); return; }
+  const axisFS = phone ? 10 : 11;
+  const margin = { top: 14, right: phone ? 8 : 20, bottom: phone ? 30 : 48, left: phone ? 48 : 70 };
+  const innerW = Math.max(50, width - margin.left - margin.right);
+  const innerH = Math.max(50, height - margin.top - margin.bottom);
+  const x = d3.scaleUtc().domain([rows[0].date, rows[rows.length - 1].date]).range([0, innerW]);
+  const y = d3.scaleLinear().domain([0, 1]).range([innerH, 0]);
+  const stackOrder = EXPOSURES.slice().reverse();
+  const series = d3.stack().keys(stackOrder).value((d, k) => d[k] || 0).offset(d3.stackOffsetExpand)(rows);
+
+  const svg = d3.select(host).append("svg").attr("role", "img")
+    .attr("aria-label", `Share of job postings by AI exposure group, ${actualCountry}, monthly`)
+    .attr("width", width).attr("height", height).attr("viewBox", `0 0 ${width} ${height}`);
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+  g.append("g").selectAll("path").data(series).join("path").attr("class", "stacked-area")
+    .attr("fill", s => EXPO_COLOR[s.key])
+    .attr("d", d3.area().x(d => x(d.data.date)).y0(d => y(d[0])).y1(d => y(d[1])));
+  const nTy = Math.max(3, Math.min(5, Math.floor(innerH / 70)));
+  g.append("g").attr("class", "axis-grid").call(d3.axisLeft(y).ticks(nTy).tickSize(-innerW).tickFormat(""));
+  styleAxis(g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(nTy).tickFormat(d3.format(".0%"))), axisFS);
+  timeAxis(g, x, rows, innerW, innerH, phone);
+  svg.append("text").attr("class", "axis-label").attr("text-anchor", "middle")
+    .attr("transform", `translate(${phone ? 11 : 14},${margin.top + innerH / 2}) rotate(-90)`)
+    .text(phone ? "Share of postings" : "Share of job postings");
+
+  timeHover(g, x, rows, innerW, innerH, (e, d) => {
+    tipShow(e, `<span class="t-name">${monthLabel(d.date)}</span><span class="t-q">${esc(actualCountry)}</span>` +
+      EXPOSURES.map(k => row(k, d[k] == null ? "N/A" : share1(d[k]), EXPO_COLOR[k])).join("") +
+      `<span class="t-note">Share of job postings</span>`);
+  }, () => {});
+
+  setLegend(EXPOSURES.map(k => `<div class="legend-item"><span class="legend-square" style="background:${EXPO_COLOR[k]}"></span><span>${k}</span></div>`));
+}
+
 function init() {
   tooltip = document.createElement("div");
   tooltip.id = "tooltip";
@@ -1460,7 +1677,16 @@ function init() {
 
   SELECTOR_GROUPS.forEach(initPill);
   const themeGroup = document.getElementById("theme-view");
-  document.querySelectorAll("#tabs .selector-button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab, true)));
+  document.querySelectorAll("#tabs .selector-button").forEach(b => b.addEventListener("click", () => { if (tabOn(b.dataset.tab)) setTab(b.dataset.tab, true); }));
+  [["hire-level", v => { hireLevel = v; }], ["hire-metric", v => { hireMetric = v; }]].forEach(([id, set]) => {
+    const grp = document.getElementById(id);
+    grp.querySelectorAll(".selector-button").forEach(b => b.addEventListener("click", () => {
+      grp.querySelectorAll(".selector-button").forEach(x => x.classList.toggle("active", x === b));
+      positionPill(grp);
+      set(b.dataset.value);
+      renderHiring();
+    }));
+  });
   themeGroup.querySelectorAll(".selector-button").forEach(b => b.addEventListener("click", () => {
     themeGroup.querySelectorAll(".selector-button").forEach(x => x.classList.toggle("active", x === b));
     positionPill(themeGroup);
@@ -1487,11 +1713,13 @@ function init() {
     new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(onResize, 120); }).observe(vizEl);
   }
 
-  loadMode("real").then(bundle => {
-    applyMode("real", bundle, false);
+  const hashTab = (location.hash || "").slice(1);
+  const startMode = TAB_MODES[hashTab] && !TAB_MODES[hashTab].includes("real") ? TAB_MODES[hashTab][0] : "real";
+  loadMode(startMode).then(bundle => {
+    applyMode(startMode, bundle, false);
     const rc = vizEl.getBoundingClientRect();
     lastW = rc.width; lastH = rc.height;
-    setTab((location.hash || "").slice(1) || DEFAULT_TAB, false);
+    setTab(hashTab || DEFAULT_TAB, false);
   }).catch(err => {
     console.error(err);
     const el = document.createElement("div");
