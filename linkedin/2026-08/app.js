@@ -89,6 +89,7 @@ const TAB_MODES = { treemap: OCC_MODES, pairs: OCC_MODES, bump: OCC_MODES, matri
 const EXPOSURES = ["Augmented", "Disrupted", "Insulated"];
 const EXPO_COLOR = { Augmented: "#2756d3", Disrupted: "#E53229", Insulated: "#f59e0b" };
 const ACTUAL_DEFAULT_COUNTRY = "United States";
+const REL_NOTE = "The Relative LinkedIn Hiring Rate is the hiring rate for one exposure group divided by the hiring rate for all groups. For example, the rate for Augmented divided by the rate for all groups. The chart shows the year-on-year change in this ratio.";
 const ACCENT = "#2756d3";
 const FILTER_OFF = {};
 const REAL_COUNTRIES = ["France", "Germany", "India", "United Kingdom", "United States"];
@@ -614,7 +615,7 @@ function setTab(tab, push) {
     b.setAttribute("aria-selected", String(on));
   });
   document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.dataset.tab === tab));
-  document.querySelectorAll(".ctx").forEach(c => c.classList.toggle("show", c.dataset.for === tab));
+  document.querySelectorAll(".ctx").forEach(c => c.classList.toggle("show", c.dataset.for.split(" ").includes(tab)));
   if (push) history.replaceState(null, "", "#" + tab);
   render();
   SELECTOR_GROUPS.forEach(positionPill);
@@ -1519,14 +1520,14 @@ function byMonth(rows, key, val) {
 
 function prepareActual() {
   ACT.hiring = DS.hiring.map(r => ({ country: r.country.trim(), month: r.month.trim(), exposure: r.exposure.trim(), level: r.level.trim(), metric: r.metric.trim(), value: parseNum(r.value_pct) }));
-  ACT.share = DS.share.map(r => ({ country: r.country.trim(), month: r.month.trim(), exposure: r.exposure.trim(), value: parseNum(r.share_pct) }));
+  ACT.share = DS.share.map(r => ({ country: r.country.trim(), month: r.month.trim(), exposure: r.exposure.trim(), level: r.level.trim(), value: parseNum(r.share_pct) }));
   ACT.hiringBy = byMonth(ACT.hiring, d => d.country + "|" + d.level + "|" + d.metric, d => d.value);
-  ACT.shareBy = byMonth(ACT.share, d => d.country, d => d.value);
+  ACT.shareBy = byMonth(ACT.share, d => d.country + "|" + d.level, d => d.value);
   if (!META.has(actualCountry)) actualCountry = META.has(ACTUAL_DEFAULT_COUNTRY) ? ACTUAL_DEFAULT_COUNTRY : COUNTRIES[0];
 }
 
 function actualHas(tab, c) {
-  if (tab === "share") return ACT.shareBy.has(c);
+  if (tab === "share") return ACT.shareBy.has(c + "|" + hireLevel);
   return ACT.hiringBy.has(c + "|" + hireLevel + "|" + hireMetric);
 }
 
@@ -1582,12 +1583,14 @@ function renderHiring() {
   const host = document.getElementById("hiring");
   host.innerHTML = "";
   const phone = isPhone();
-  const { w: width, h: height } = panelSize(host);
-  if (width <= 0 || height <= 0) return;
+  const { w: width, h: panelH } = panelSize(host);
+  if (width <= 0 || panelH <= 0) return;
   updateCountryFilter();
   const rows = ACT.hiringBy.get(actualCountry + "|" + hireLevel + "|" + hireMetric);
   if (!rows) { actualEmpty(host, `No hiring data for ${actualCountry}`); return; }
   const rel = hireMetric === "rel_yoy";
+  const note = rel ? host.appendChild(Object.assign(document.createElement("p"), { className: "rel-note", textContent: REL_NOTE })) : null;
+  const height = Math.max(120, panelH - (note ? note.offsetHeight : 0));
   const axisFS = phone ? 10 : 11;
   const margin = { top: 14, right: phone ? 8 : 20, bottom: phone ? 30 : 48, left: phone ? 48 : 70 };
   const innerW = Math.max(50, width - margin.left - margin.right);
@@ -1622,7 +1625,7 @@ function renderHiring() {
       .attr("fill", k => EXPO_COLOR[k]).attr("stroke", "#fff").attr("stroke-width", 1.5);
     tipShow(e, `<span class="t-name">${monthLabel(d.date)}</span><span class="t-q">${esc(actualCountry)} / ${hireLevel === "Entry" ? "Entry-level" : "Overall"}</span>` +
       EXPOSURES.slice().sort((a, b) => d[b] - d[a]).map(k => row(k, d[k] == null ? "N/A" : pct1(d[k]), EXPO_COLOR[k])).join("") +
-      `<span class="t-note">${rel ? "Relative YoY change in hiring rate" : "YoY change in hiring rate"}</span>`);
+      `<span class="t-note">${rel ? esc(REL_NOTE) : "YoY change in hiring rate"}</span>`);
   }, () => dots.selectAll("circle").remove());
 
   setLegend(EXPOSURES.map(k => `<div class="legend-item"><svg width="20" height="10"><line x1="2" y1="5" x2="18" y2="5" stroke="${EXPO_COLOR[k]}" stroke-width="3" stroke-linecap="round"/></svg><span>${k}</span></div>`));
@@ -1635,8 +1638,9 @@ function renderShare() {
   const { w: width, h: height } = panelSize(host);
   if (width <= 0 || height <= 0) return;
   updateCountryFilter();
-  const rows = ACT.shareBy.get(actualCountry);
-  if (!rows) { actualEmpty(host, `No posting share data for ${actualCountry}`); return; }
+  const rows = ACT.shareBy.get(actualCountry + "|" + hireLevel);
+  const levelLong = hireLevel === "Entry" ? "Entry-level" : "Overall";
+  if (!rows) { actualEmpty(host, `No ${levelLong.toLowerCase()} posting share data for ${actualCountry}`); return; }
   const axisFS = phone ? 10 : 11;
   const margin = { top: 14, right: phone ? 8 : 20, bottom: phone ? 30 : 48, left: phone ? 48 : 70 };
   const innerW = Math.max(50, width - margin.left - margin.right);
@@ -1647,7 +1651,7 @@ function renderShare() {
   const series = d3.stack().keys(stackOrder).value((d, k) => d[k] || 0).offset(d3.stackOffsetExpand)(rows);
 
   const svg = d3.select(host).append("svg").attr("role", "img")
-    .attr("aria-label", `Share of job postings by AI exposure group, ${actualCountry}, monthly`)
+    .attr("aria-label", `Share of ${hireLevel === "Entry" ? "entry-level " : ""}job postings by AI exposure group, ${actualCountry}, monthly`)
     .attr("width", width).attr("height", height).attr("viewBox", `0 0 ${width} ${height}`);
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
   g.append("g").selectAll("path").data(series).join("path").attr("class", "stacked-area")
@@ -1659,12 +1663,12 @@ function renderShare() {
   timeAxis(g, x, rows, innerW, innerH, phone);
   svg.append("text").attr("class", "axis-label").attr("text-anchor", "middle")
     .attr("transform", `translate(${phone ? 11 : 14},${margin.top + innerH / 2}) rotate(-90)`)
-    .text(phone ? "Share of postings" : "Share of job postings");
+    .text(phone ? "Share of postings" : (hireLevel === "Entry" ? "Share of entry-level job postings" : "Share of job postings"));
 
   timeHover(g, x, rows, innerW, innerH, (e, d) => {
-    tipShow(e, `<span class="t-name">${monthLabel(d.date)}</span><span class="t-q">${esc(actualCountry)}</span>` +
+    tipShow(e, `<span class="t-name">${monthLabel(d.date)}</span><span class="t-q">${esc(actualCountry)} / ${levelLong}</span>` +
       EXPOSURES.map(k => row(k, d[k] == null ? "N/A" : share1(d[k]), EXPO_COLOR[k])).join("") +
-      `<span class="t-note">Share of job postings</span>`);
+      `<span class="t-note">${hireLevel === "Entry" ? "Share of entry-level job postings" : "Share of job postings"}</span>`);
   }, () => {});
 
   setLegend(EXPOSURES.map(k => `<div class="legend-item"><span class="legend-square" style="background:${EXPO_COLOR[k]}"></span><span>${k}</span></div>`));
@@ -1684,7 +1688,7 @@ function init() {
       grp.querySelectorAll(".selector-button").forEach(x => x.classList.toggle("active", x === b));
       positionPill(grp);
       set(b.dataset.value);
-      renderHiring();
+      render();
     }));
   });
   themeGroup.querySelectorAll(".selector-button").forEach(b => b.addEventListener("click", () => {

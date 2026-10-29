@@ -10,7 +10,10 @@ HIRING_SHEETS = [
     ("12 - Entry YOY LHR by Exposure", "Entry", "yoy"),
     ("13 - Entry YOY Rel LHR by Expo", "Entry", "rel_yoy"),
 ]
-SHARE_SHEET = "11 - Posting Share by Exposure"
+SHARE_SHEETS = [
+    ("11 - Posting Share by Exposure", "Overall"),
+    ("14 - Entry Post Share by Expo", "Entry"),
+]
 EXPOSURES = ["Augmented", "Disrupted", "Insulated"]
 META = {
     "Australia": ("AUS", "Asia-Pacific"),
@@ -68,12 +71,13 @@ def main(src, dest):
         w.writerow(["country", "iso3", "region", "month", "exposure", "level", "metric", "value_pct"])
         w.writerows(hiring)
     share = []
-    for country, month, exposure, v in order(read_sheet(wb, SHARE_SHEET)):
-        iso3, region = META[country]
-        share.append([country, iso3, region, month, exposure, f"{v * 100:.2f}"])
+    for sheet, level in SHARE_SHEETS:
+        for country, month, exposure, v in order(read_sheet(wb, sheet)):
+            iso3, region = META[country]
+            share.append([country, iso3, region, month, exposure, level, f"{v * 100:.2f}"])
     with open(dest / "posting_share_by_exposure.csv", "w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["country", "iso3", "region", "month", "exposure", "share_pct"])
+        w.writerow(["country", "iso3", "region", "month", "exposure", "level", "share_pct"])
         w.writerows(share)
     print(f"hiring_by_exposure.csv {len(hiring)} rows, posting_share_by_exposure.csv {len(share)} rows")
 
