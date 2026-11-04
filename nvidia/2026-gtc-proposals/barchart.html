@@ -494,8 +494,11 @@ body {
 }
 
 @media (max-width: 739px) {
-    body { overflow-x: auto; }
-    .viz-grid { min-width: 740px; }
+}
+
+@media (max-width: 599px) {
+    #container2 { justify-content: flex-start; padding-right: 96px; }
+    .legend { flex-wrap: wrap; white-space: normal; row-gap: 0; }
 }
 
 @media (max-height: 500px) {
@@ -722,10 +725,15 @@ if (document.documentElement.getAttribute("data-theme") === "dark") {
 }
 const CREDIT_PREFIX = "Source: ";
 
-const SHOW_CONTAINER_2 = 1;
+const _bcQ = new URLSearchParams(location.search);
+const SHOW_CONTAINER_2 = _bcQ.get("legend") !== "0";
 const SHOW_CONTAINER_3 = 0;
-const SHOW_CONTAINER_4 = 1;
-const SHOW_CONTAINER_5 = 1;  
+const SHOW_CONTAINER_4 = _bcQ.get("logo") !== "0";
+const SHOW_CONTAINER_5 = _bcQ.get("footnote") !== "0";
+const SHOW_TOGGLES = _bcQ.get("toggles") !== "0";
+const SHOW_CREDITS = _bcQ.get("source") !== "0";
+// Banner mode: bars fill the card and leave the top right corner free for the date badge.
+const FILL = _bcQ.get("fill") === "1";
 const LEGEND_ROWS = 1;
 
 const SHOW_TOOLTIP = 1;
@@ -931,7 +939,8 @@ function render(rowTransition = null, previousMids = new Map()) {
     return;
   }
 
-  const togglesEl = document.getElementById("row-toggles");
+  const togglesEl = SHOW_TOGGLES ? document.getElementById("row-toggles") : null;
+  if (!SHOW_TOGGLES) document.getElementById("row-toggles").style.display = "none";
 
   
   const topPad = Math.max(18, Math.min(46, height * 0.052));
@@ -961,7 +970,9 @@ function render(rowTransition = null, previousMids = new Map()) {
     toggleH = Math.round(togglesEl.getBoundingClientRect().height);
   }
 
-  const plotTop = topPad + headSize + gapAboveToggles + toggleH + gapBelowToggles;
+  const plotTop = FILL
+    ? Math.max(topPad, Math.min(height * 0.2, 60))
+    : topPad + headSize + gapAboveToggles + toggleH + gapBelowToggles;
   const plotBottom = Math.max(plotTop + 60, height);
   const plotH = plotBottom - plotTop;
 
@@ -971,7 +982,7 @@ function render(rowTransition = null, previousMids = new Map()) {
   const comparisonH = rows.length > 1 ? Math.max(42, Math.min(70, plotH * 0.13)) : 0;
   const barsH = Math.max(60, plotH - comparisonH);
   const band = barsH / rows.length;
-  const trackH = Math.max(14, Math.min(band * 0.5, height * 0.17));
+  const trackH = Math.max(14, Math.min(band * (FILL ? 0.62 : 0.5), height * 0.17));
   const rowGap = rows.length > 1
     ? Math.max(trackH * 0.45, Math.min((barsH - rows.length * trackH) / (rows.length - 1), trackH * 0.82))
     : 0;
@@ -985,21 +996,28 @@ function render(rowTransition = null, previousMids = new Map()) {
   const refBand = barsH / METRICS.length;
   const refTrackH = Math.max(14, Math.min(refBand * 0.5, height * 0.17));
 
-  const labelFont = Math.max(13, Math.min(34, refTrackH * 0.54, refBand * 0.24));
-  const subLabelFont = Math.max(9, labelFont * 0.64);
-  const creditFont = Math.max(8, subLabelFont * 0.75);
-  const creditTextOf = m => m.credit ? `${CREDIT_PREFIX}${m.credit.name}` : "";
+  let labelFont = Math.max(13, Math.min(34, refTrackH * 0.54, refBand * 0.24));
+  let subLabelFont = Math.max(9, labelFont * 0.64);
+  let creditFont = Math.max(8, subLabelFont * 0.75);
+  const creditTextOf = m => (SHOW_CREDITS && m.credit) ? `${CREDIT_PREFIX}${m.credit.name}` : "";
   const valueFont = Math.max(16, Math.min(28, refTrackH * 0.82));
 
   const labelPad = Math.max(14, 26 * sc);
-  const labelW = Math.min(
-    width * 0.30,
-    d3.max(rows, m => Math.max(
-      measureText(m.label, labelFont, 700),
-      measureText(m.sublabel, subLabelFont, 500),
-      measureText(creditTextOf(m), creditFont, 600)
-    )) + labelPad
-  );
+  const labelTextW = () => d3.max(rows, m => Math.max(
+    measureText(m.label, labelFont, 700),
+    measureText(m.sublabel, subLabelFont, 500),
+    measureText(creditTextOf(m), creditFont, 600)
+  ));
+  // Narrow screens give labels more room, then shrink the type until it fits.
+  const labelCap = width * (width < 760 ? 0.40 : 0.30);
+  const naturalW = labelTextW();
+  if (naturalW + labelPad > labelCap) {
+    const k = Math.max(0.4, (labelCap - labelPad) / naturalW);
+    labelFont *= k;
+    subLabelFont *= k;
+    creditFont *= k;
+  }
+  const labelW = Math.min(labelCap, labelTextW() + labelPad);
 
   const valuePad = Math.max(10, 20 * sc);
 
@@ -1009,7 +1027,7 @@ function render(rowTransition = null, previousMids = new Map()) {
   const valueGap = valuePad * 0.5;
 
   const trackLeft = padX + labelW;
-  const barRightPad = Math.max(padX, width * 0.15);
+  const barRightPad = FILL ? padX : Math.max(padX, width * 0.15);
   const availableTrackW = Math.max(120, width - trackLeft - barRightPad);
   const trackW = Math.max(90, availableTrackW);
 
@@ -1060,7 +1078,7 @@ function render(rowTransition = null, previousMids = new Map()) {
     
     
     
-    const hasCredit = !!m.credit;
+    const hasCredit = SHOW_CREDITS && !!m.credit;
     const subGap = subLabelFont * 1.4;
     const creditGap = hasCredit ? creditFont * 1.35 : 0;
     const blockUp = labelFont * 0.72;
