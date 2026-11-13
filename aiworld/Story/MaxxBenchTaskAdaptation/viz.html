@@ -701,10 +701,13 @@
       c4.style.display = small ? 'none' : '';
       c3.style.gridColumn = small ? '1 / span 2' : '';
 
-      const nameSize = HOUSE.fs.label;
+      // compact mode: every row fits the frame, names drop to 10px, logos go when rows get tight
+      const fitPitch = (height - 10 - 26) / data.length;
+      const showIcons = !small || fitPitch >= 18;
+      const nameSize = small ? 10 : HOUSE.fs.label;
       const nameWeight = HOUSE.fw.emphasis;
-      const icon = Math.round(Math.max(14, Math.min(20, nameSize * 1.4)));
-      const iconPad = 6;
+      const icon = showIcons ? Math.round(Math.max(14, Math.min(20, nameSize * 1.4))) : 0;
+      const iconPad = showIcons ? 6 : 0;
       const edgePad = Math.round(Math.max(6, Math.min(14, width * 0.012)));
       const nameCap = width * 0.3 - icon - iconPad;
       const nameW = Math.min(d3.max(data, d => textWidth(d.cat, nameSize, nameWeight)), nameCap);
@@ -718,7 +721,7 @@
         left: edgePad + nameW + icon + iconPad + 10
       };
       const innerW = Math.max(40, width - margin.left - margin.right);
-      const innerH = Math.max(height - margin.top - margin.bottom, data.length * ROW_PITCH);
+      const innerH = small ? height - margin.top - margin.bottom : Math.max(height - margin.top - margin.bottom, data.length * ROW_PITCH);
       const svgH = innerH + margin.top + margin.bottom;
 
       const y = d3.scaleBand(data.map(d => d.cat), [0, innerH]).padding(0.5);
@@ -786,7 +789,7 @@
         .call(d3.axisLeft(y).tickSize(0).tickPadding(icon + iconPad + 6).tickFormat(c => names.get(c)));
       namesG.select('.domain').remove();
       namesG.selectAll('text').style('font-size', `${nameSize}px`);
-      namesG.selectAll('.tick').filter(c => logoFor(c)).append('image')
+      namesG.selectAll('.tick').filter(c => showIcons && logoFor(c)).append('image')
         .attr('href', c => logoFor(c))
         .attr('x', -(icon + iconPad))
         .attr('y', -icon / 2)
