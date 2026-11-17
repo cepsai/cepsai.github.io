@@ -262,6 +262,7 @@ const ACT = { hiring: [], share: [], hiringBy: new Map(), shareBy: new Map() };
 let treemapInstance = null;
 let tmLegendInitialized = false;
 let tmBusy = false, tmPending = false;
+let tmView = "group";
 const COLS = [];
 function buildCols() {
   COLS.length = 0;
@@ -1123,10 +1124,21 @@ function renderStrip() {
   ]);
 }
 
+const TM_SIGN = { up: "Growing", down: "Shrinking", flat: "No change" };
+
+// Sign follows the rounded value so it matches the tooltip.
+function tmSign(avg) {
+  const r = Math.round(avg * 10) / 10;
+  return r > 0 ? TM_SIGN.up : r < 0 ? TM_SIGN.down : TM_SIGN.flat;
+}
+
+const tmFields = () => tmView === "sign" ? ["sign", "parent"] : ["parent"];
+
 function treemapLeaves() {
   return Array.from(d3.group(DATA.filter(d => selectedCountries.has(d.country)), d => d.occupation), ([name, items]) => ({
     parent: themeOf(name),
     name,
+    sign: tmSign(d3.mean(items, d => d.yoy)),
     value: items.length,
     avg: d3.mean(items, d => d.yoy),
     lists: items.slice().sort((a, b) => COUNTRIES.indexOf(a.country) - COUNTRIES.indexOf(b.country) || LEVELS.indexOf(a.level) - LEVELS.indexOf(b.level))
@@ -1185,7 +1197,7 @@ function ensureTreemapInstance(width, height) {
       tm.padding = function (p) {
         if (!arguments.length) return basePadding.call(tm);
         basePadding.call(tm, p);
-        tm.paddingTop(n => n.depth === 1 ? tmLabelH() : (typeof p === "function" ? p(n) : +p));
+        tm.paddingTop(n => n.depth >= 1 && n.depth <= tmFields().length ? tmLabelH() : (typeof p === "function" ? p(n) : +p));
         return tm;
       };
     }
@@ -1231,6 +1243,7 @@ function renderTreemap() {
   tmBusy = true;
   d3.selectAll("#treemap g.tm-groups").remove();
   tmLeaves = treemapLeaves();
+  instance.groupBy([...tmFields(), "name"]);
   instance.data(tmLeaves).render(() => {
     setTimeout(() => {
       tmBusy = false;
@@ -1245,29 +1258,40 @@ function drawTreemapGroups() {
   if (layer.empty()) return;
   const svg = d3.select(layer.node().parentNode);
   svg.selectAll("g.tm-groups").remove();
-  const live = new Set(tmLeaves.map(d => d.parent + "|" + d.name));
-  const slots = d3.rollup(tmLeaves, v => d3.sum(v, d => d.value), d => d.parent);
+  const fields = tmFields();
+  const pathKey = (leaf, depth) => fields.slice(0, depth).map(f => leaf[f]).join("|");
+  const live = new Set(tmLeaves.map(d => pathKey(d, fields.length) + "|" + d.name));
+  const slots = new Map();
+  tmLeaves.forEach(d => fields.forEach((f, i) => {
+    const k = pathKey(d, i + 1);
+    slots.set(k, (slots.get(k) || 0) + d.value);
+  }));
   const boxes = new Map();
   layer.selectAll("rect").each(function (d) {
-    if (!d || !d.data || !d.parent || d.parent.x0 == null || !live.has(d.data.parent + "|" + d.data.name)) return;
-    boxes.set(d.data.parent, d.parent);
+    if (!d || !d.data || !live.has(pathKey(d.data, fields.length) + "|" + d.data.name)) return;
+    for (let node = d.parent; node && node.depth >= 1; node = node.parent) {
+      if (node.x0 == null || node.depth > fields.length) continue;
+      boxes.set(pathKey(d.data, node.depth), { b: node, depth: node.depth, label: d.data[fields[node.depth - 1]] });
+    }
   });
   const g = svg.append("g").attr("class", "tm-groups").attr("transform", layer.attr("transform")).style("pointer-events", "none");
   const lh = tmLabelH(), fs = isPhone() ? 10.5 : 12.5;
-  boxes.forEach((b, theme) => {
+  // Outer boxes first so inner labels draw on top.
+  Array.from(boxes.entries()).sort((a, b) => a[1].depth - b[1].depth).forEach(([key, { b, depth, label }]) => {
+    const top = fields.length > 1 && depth === 1;
     g.append("rect").attr("x", b.x0 - 1).attr("y", b.y0 - 1).attr("width", b.x1 - b.x0 + 2).attr("height", b.y1 - b.y0 + 2)
-      .attr("fill", "none").attr("stroke", TREEMAP_GROUP_STROKE).attr("stroke-width", 3);
+      .attr("fill", "none").attr("stroke", top ? "#0f172a" : TREEMAP_GROUP_STROKE).attr("stroke-width", top ? 2 : 3);
     const maxW = b.x1 - b.x0 - 6;
-    const t = g.append("text").attr("class", "tm-group-label").attr("x", b.x0 + 3).attr("y", b.y0 + lh - 5).style("font-size", fs + "px");
-    t.append("tspan").text(theme);
-    const n = slots.get(theme) || 0;
+    const t = g.append("text").attr("class", "tm-group-label" + (top ? " tm-top-label" : "")).attr("x", b.x0 + 3).attr("y", b.y0 + lh - 5).style("font-size", (top ? fs + 1.5 : fs) + "px");
+    t.append("tspan").text(label);
+    const n = slots.get(key) || 0;
     const tn = t.append("tspan").attr("class", "tm-n").text(` ${n} slot${n === 1 ? "" : "s"}`);
     if (t.node().getComputedTextLength() > maxW) tn.remove();
     const main = t.select("tspan");
-    let label = theme;
-    while (t.node().getComputedTextLength() > maxW && label.length > 1) {
-      label = label.slice(0, -1);
-      main.text(label.trimEnd() + "…");
+    let text = label;
+    while (t.node().getComputedTextLength() > maxW && text.length > 1) {
+      text = text.slice(0, -1);
+      main.text(text.trimEnd() + "…");
     }
     if (maxW < 14) t.remove();
   });
@@ -1696,6 +1720,14 @@ function init() {
     positionPill(themeGroup);
     themeView = b.dataset.view;
     renderThemes();
+  }));
+  const tmGroup = document.getElementById("tm-view");
+  tmGroup.querySelectorAll(".selector-button").forEach(b => b.addEventListener("click", () => {
+    if (b.dataset.view === tmView) return;
+    tmGroup.querySelectorAll(".selector-button").forEach(x => x.classList.toggle("active", x === b));
+    positionPill(tmGroup);
+    tmView = b.dataset.view;
+    renderTreemap();
   }));
   document.querySelectorAll("#data-mode .selector-button").forEach(b => b.addEventListener("click", () => switchMode(b.dataset.mode)));
 
