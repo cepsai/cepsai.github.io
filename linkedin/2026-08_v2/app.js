@@ -191,7 +191,7 @@ function lineChart(host, cfg) {
     g.append("line").attr("class", "base-line").attr("x1", 0).attr("x2", innerW).attr("y1", y(cfg.base)).attr("y2", y(cfg.base));
   }
 
-  const lw = phone ? 1.8 : 2.4;
+  const lw = phone ? 1.53 : 2.04;
   const line = d3.line().x(d => x(d.date)).y(d => y(d.v));
   const ordered = series.slice().sort((a, b) => (b.ref ? 1 : 0) - (a.ref ? 1 : 0));
   g.append("g").selectAll("path").data(ordered).join("path")
@@ -305,7 +305,7 @@ function buildCountryFilter() {
   REFS.forEach(c => {
     const item = document.createElement("div");
     item.className = "legend-item ref";
-    item.innerHTML = `<svg width="22" height="10" aria-hidden="true"><line x1="2" y1="5" x2="20" y2="5" stroke="${REF_COLOR}" stroke-width="2.4" stroke-dasharray="${REF_DASH[c]}"/></svg><span class="cf-name"></span>`;
+    item.innerHTML = `<svg width="22" height="10" aria-hidden="true"><line x1="2" y1="5" x2="20" y2="5" stroke="${REF_COLOR}" stroke-width="2.04" stroke-dasharray="${REF_DASH[c]}"/></svg><span class="cf-name"></span>`;
     item.dataset.country = c;
     el.appendChild(item);
   });
@@ -357,7 +357,7 @@ function renderTight() {
     aria: MEASURE_LONG[tightMeasure] + ", monthly, November 2019 to October 2026"
   });
   document.getElementById("legend").innerHTML = series.map(s =>
-    `<div class="legend-item"><svg width="22" height="10" aria-hidden="true"><line x1="2" y1="5" x2="20" y2="5" stroke="${s.color}" stroke-width="${s.ref ? 2.4 : 3}" stroke-dasharray="${s.dash || ""}" stroke-linecap="${s.ref ? "butt" : "round"}"/></svg><span>${esc(cname(s.name))}</span></div>`).join("");
+    `<div class="legend-item"><svg width="22" height="10" aria-hidden="true"><line x1="2" y1="5" x2="20" y2="5" stroke="${s.color}" stroke-width="${s.ref ? 2.04 : 2.55}" stroke-dasharray="${s.dash || ""}" stroke-linecap="${s.ref ? "butt" : "round"}"/></svg><span>${esc(cname(s.name))}</span></div>`).join("");
 }
 
 function renderChange() {
