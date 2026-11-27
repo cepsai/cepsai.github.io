@@ -571,10 +571,10 @@ const LOGOS = {
 };
 
 const DATA_CSV = `Model,Developer,Terminal-Bench 4.0: Mistral's chart,Terminal-Bench 4.0: same harness for all,FrontierCode 2.0: Mistral's chart,FrontierCode 2.0: same harness for all
-Mistral Large 4,Mistral (EU),41,24.7,19.7,15.0
-GLM-5.3,Z.ai (China),40,41.9,17.8,21.6
-DeepSeek V4.1 Flash,DeepSeek (China),31,33.8,19.3,28.2
-Kimi K3.1 Pro,Moonshot AI (China),Not included,67.2,Not included,25.5`;
+Mistral Large 4,Mistral,41,24.7,19.7,15.0
+GLM-5.3,Z.ai,40,41.9,17.8,21.6
+DeepSeek V4.1 Flash,DeepSeek,31,33.8,19.3,28.2
+Kimi K3.1 Pro,Moonshot AI,Not included,67.2,Not included,25.5`;
 
 function parseNum(value) {
   if (value == null || value === "") return 0;
@@ -796,14 +796,30 @@ function groupScale(length, padIn, padOut, bigGap) {
   return scale;
 }
 
+function barScale(width, pad, familyGap) {
+  const benchOf = name => SERIES.find(s => s.name === name).bench;
+  const gaps = names => names.slice(1).map((n, i) => (benchOf(n) === benchOf(names[i]) ? pad : familyGap));
+  const all = SERIES.map(s => s.name);
+  const bw = width / (all.length + d3.sum(gaps(all)));
+  const scale = names => {
+    const g = gaps(names);
+    const pos = [0];
+    g.forEach((gap, i) => pos.push(pos[i] + bw + gap * bw));
+    const used = pos[pos.length - 1] + bw;
+    const shift = (width - used) / 2;
+    return new Map(names.map((n, i) => [n, pos[i] + shift]));
+  };
+  scale.bandwidth = () => bw;
+  return scale;
+}
+
 function verticalLayout(width, compact) {
   const yMaxStr = smartFormat(Math.max(100, yMax));
   const yLabelWidth = Math.max(yMaxStr.length * 7.5, 28) + 16;
   const margin = { top: 16, right: Math.max(24, width * 0.04), bottom: 0, left: yLabelWidth + 32 };
   const innerWidth = Math.max(40, width - margin.left - margin.right);
   const x0 = groupScale(innerWidth, compact ? 0.42 : 0.5, compact ? 0.10 : 0.14, compact ? 0.5 : 0.7);
-  const x1 = d3.scaleBand().domain(SERIES.map(s => s.name)).range([0, x0.bandwidth()])
-    .padding(compact ? 0.05 : 0.08);
+  const x1 = barScale(x0.bandwidth(), compact ? 0.05 : 0.08, compact ? 0.35 : 0.45);
   const barLabelFont = Math.max(HOUSE.barLabelRange[0], Math.min(HOUSE.barLabelRange[1], x1.bandwidth() * 0.42));
   return { margin, innerWidth, x0, x1, barLabelFont };
 }
@@ -815,9 +831,10 @@ function drawVertical(width, height, compact, animate) {
   const devFont = Math.max(HOUSE.fs.floor, axisFont - 1);
   const logoSize = Math.round(axisFont * 1.3);
   const logoGap = Math.round(axisFont * 0.35);
-  const logoAbove = narrow;
-  const labelMaxW = x0.step() * 0.96 - (logoAbove ? 0 : logoSize + logoGap);
-  const nameLines = MODELS.map(m => splitLabel(m.model, axisFont, HOUSE.fw.emphasis, labelMaxW));
+  const fullW = x0.step() * 0.96;
+  const fitsBeside = !narrow && MODELS.every(m => textWidth(m.model, axisFont, HOUSE.fw.emphasis) + logoSize + logoGap <= fullW);
+  const logoAbove = !fitsBeside;
+  const nameLines = MODELS.map(m => splitLabel(m.model, axisFont, HOUSE.fw.emphasis, fullW));
   const maxLines = d3.max(nameLines, l => l.length);
   const nameTop = logoAbove ? logoSize + logoGap : 0;
   const labelBlock = nameTop + maxLines * axisFont * 1.2 + devFont * 1.3;
@@ -830,15 +847,8 @@ function drawVertical(width, height, compact, animate) {
   const y = d3.scaleLinear().domain([0, rotate ? maxValue : yMax]).range([innerHeight, 0]);
   if (!rotate) y.nice();
 
-  const slotOf = m => {
-    const present = m.cells.filter(c => !c.missing).map(c => c.series);
-    const all = SERIES.map(s => s.name);
-    if (present.length === all.length) return name => x1(name);
-    const shift = (x1.step() * (all.length - present.length)) / 2;
-    return name => x1(all[0]) + present.indexOf(name) * x1.step() + shift;
-  };
-  const SLOTS = new Map(MODELS.map(m => [m.model, slotOf(m)]));
-  const barX = d => SLOTS.get(d.model)(d.series);
+  const SLOTS = new Map(MODELS.map(m => [m.model, x1(m.cells.filter(c => !c.missing).map(c => c.series))]));
+  const barX = d => SLOTS.get(d.model).get(d.series);
 
   const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
