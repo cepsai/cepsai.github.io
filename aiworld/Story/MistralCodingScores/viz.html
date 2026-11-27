@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Coding scores: Mistral's chart vs. independent tests with the same harness for all</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+:root {
+    --fs-control:  clamp(9px, 1.4vw, 13px);        
+    --fs-legend:   clamp(0.625rem, 1.4vw, 1rem);   
+    --fs-meta:     clamp(10px, 1.6vw, 16px);       
+    --fs-slider:   clamp(11px, 1.2vw, 13px);       
+    --breakpoint-compact: 500px;
+}
+html, body {
+    height: 100%;
+}
+body {
+    margin: 0;
+    overflow: hidden;
+    height: 100vh;
+}
+.viz-grid {
+    display: grid;
+    grid-template-rows: 16fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    height: 100vh;
+    width: 100vw;
+    box-sizing: border-box;
+    padding-bottom: clamp(8px, 2vh, 18px);
+}
+#container1 {
+    grid-row: 1;
+    grid-column: 1 / span 2;
+    overflow: hidden;
+    min-height: 0;
+}
+#container1 .chart-wrapper {
+    flex: 1 1 auto;
+    display: flex;
+    min-width: 0;
+    height: 100%;
+    margin-left: 0;
+}
+#container1 .chart-wrapper-inner {
+    flex: 1 1 auto;
+    display: flex;
+    min-width: 0;
+    height: 100%;
+}
+#container2 {
+    grid-row: 2;
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+#container3 {
+    grid-row: 3;
+    grid-column: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+#container4 {
+    grid-row: 3;
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+#container5 {
+    grid-column: 1 / span 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 20px;
+    overflow: hidden;
+    min-width: 0;
+}
+#container4 a {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    cursor: default;
+}
+#viz {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    min-width: 0;
+}
+#chart {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+#tooltip {
+    position: fixed;
+    pointer-events: none;
+    padding: 8px 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    max-width: 240px;
+    z-index: 1100;
+}
+#tooltip .t-name { display: block; margin-bottom: 2px; }
+#tooltip .t-count { display: block; margin-top: 2px; font-variant-numeric: tabular-nums; }
+#tooltip .t-meta { display: block; margin-top: 1px; }
+#tooltip .t-row { display: flex; justify-content: space-between; gap: 14px; }
+#tooltip .t-v { font-variant-numeric: tabular-nums; }
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(6px, 1vw, 14px);
+    padding: clamp(4px, 1vh, 10px) clamp(10px, 2vw, 16px);
+    max-width: 100%;
+    max-height: 100%;
+    font-size: var(--fs-legend);
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: clamp(4px, 1vw, 8px);
+    font-size: inherit;
+    padding: 2px 6px;
+    cursor: default;
+}
+.legend-item.interactive {
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+.legend-item.dim {
+    opacity: 0.35;
+}
+.legend-item:focus-visible {
+    outline-offset: 2px;
+}
+.legend-square {
+    flex-shrink: 0;
+}
+.legend-sep {
+    width: 1px;
+    height: 16px;
+    margin: 0 8px;
+    flex-shrink: 0;
+}
+.footnote-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.source-text {
+    font-size: var(--fs-meta);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+.source-text a {
+    cursor: pointer;
+    display: inline-block;
+    transition: transform .32s cubic-bezier(.4,0,.2,1), opacity .32s cubic-bezier(.4,0,.2,1);
+}
+.source-text a.slide-out { transform: translateY(12px);  opacity: 0; }
+.source-text a.slide-in  { transform: translateY(-12px); opacity: 0; transition: none; }
+.src-switch #container3,
+.src-switch .source-text { overflow: visible; }
+.logo {
+    height: 100%;
+    width: auto;
+    max-height: 100%;
+    max-width: 100%;
+    pointer-events: auto;
+    object-fit: contain;
+}
+a .logo,
+.logo a {
+    cursor: pointer;
+}
+.grid-lines path {
+    stroke: none;
+}
+.text-halo {
+    paint-order: stroke;
+    stroke-linejoin: round;
+}
+@media (max-height: 500px) {
+    .viz-grid {
+        grid-template-rows: 1fr !important;
+        grid-template-columns: 1fr !important;
+        padding-bottom: 0;
+    }
+    #container1 {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+    }
+    #container2,
+    #container3,
+    #container4,
+    #container5 {
+        display: none !important;
+    }
+    .legend,
+    .source-text,
+    .logo,
+    .footnote-text {
+        display: none !important;
+    }
+}
+:root {
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial, sans-serif;
+    --ink: #0f172a;
+    --ink-2: #333;
+    --muted: #4b5563;
+    --faint: #9ca3af;
+    --rule: #ccc;
+    --grid: #DBDBDB;
+    --grid-dash: 2 3;
+    --paper: #fff;
+    --no-data: #e5e7eb;
+    --context: #e5e7eb;
+    --water: #e0f2fe;
+    --accent: #2756d3;
+    --accent-tint: #DDE7F9;
+    --hover: #0f172a;
+    --highlight: drop-shadow(0 4px 10px rgba(15, 23, 42, 0.2));
+    --halo: 0 0 3px rgba(255, 255, 255, 0.95), 0 0 3px rgba(255, 255, 255, 0.95);
+    --mark-sep: rgba(255, 255, 255, 0.3);
+    --band: rgba(15, 23, 42, 0.05);
+    --radius-ui: 6px;
+    --radius-mark: 0;
+    --radius-knob: 50%;
+    --fw-regular: 400;
+    --fw-emphasis: 600;
+    --fw-title: 700;
+    --fs-floor: 9px;
+    --fs-small: 11px;
+    --fs-tick: 11px;
+    --fs-label: 13px;
+    --fs-title: clamp(12px, 1.5vw, 18px);
+    --fs-tip: 12px;
+    --fs-tip-title: 13px;
+    --fs-tip-big: 17px;
+    --fs-tip-meta: 11px;
+    --tip-border: 1px solid rgba(17, 24, 39, 0.08);
+    --tip-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    --tip-pad: 8px 12px;
+    --legend-bg: #fff;
+    --swatch-size: clamp(8px, 0.9vw, 12px);
+    --focus-ring: 2px solid rgba(0, 0, 0, 0.5);
+    --control-bg: #f8fafc;
+    --control-border: 1px solid rgba(17, 24, 39, 0.15);
+    --check-size: 14px;
+    --play-bg: var(--control-bg);
+    --play-ink: var(--muted);
+    --play-border: var(--control-border);
+    --text-halo: var(--paper);
+    --text-halo-width: 3px;
+    --text-halo-opacity: 0.95;
+    --card-radius: var(--radius-ui);
+    --card-border: 1px solid rgba(255, 255, 255, 0.12);
+    --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+    --footnote-style: italic;
+    --footnote-align: right;
+    --footnote-ink: var(--ink-2);
+    --footnote-size: var(--fs-meta);
+}
+body {
+    font-family: var(--font);
+    color: var(--ink);
+    background-color: var(--paper);
+}
+html, body, svg, svg text, button, select, input {
+    font-family: var(--font) !important;
+}
+#tooltip {
+    background: var(--paper);
+    color: var(--ink);
+    border: var(--tip-border);
+    border-radius: var(--radius-ui);
+    box-shadow: var(--tip-shadow);
+    padding: var(--tip-pad);
+    font-family: var(--font);
+    font-size: var(--fs-tip);
+    font-weight: var(--fw-regular);
+}
+#tooltip .t-name, #tooltip b, #tooltip strong {
+    font-weight: var(--fw-title);
+    color: var(--ink);
+}
+#tooltip .t-name {
+    font-size: var(--fs-tip-title);
+}
+#tooltip .t-count {
+    font-weight: var(--fw-title);
+    font-size: var(--fs-tip-big);
+    color: var(--accent);
+}
+#tooltip .t-meta {
+    font-size: var(--fs-tip-meta);
+    color: var(--muted);
+}
+#tooltip .t-v {
+    font-weight: var(--fw-title);
+}
+.legend {
+    background: var(--legend-bg);
+    border-radius: var(--radius-ui);
+}
+.legend-item {
+    font-weight: var(--fw-emphasis);
+    color: var(--ink-2);
+}
+.legend-item:focus-visible {
+    outline: var(--focus-ring);
+}
+.legend-square {
+    width: var(--swatch-size);
+    height: var(--swatch-size);
+    border-radius: var(--radius-mark);
+}
+.legend-sep {
+    background: var(--rule);
+}
+.footnote-text {
+    flex: 1 1 auto;
+    font-size: var(--footnote-size);
+    font-style: var(--footnote-style);
+    font-weight: var(--fw-regular);
+    text-align: var(--footnote-align);
+    color: var(--footnote-ink);
+}
+.source-text {
+    font-weight: var(--fw-emphasis);
+    color: var(--ink-2);
+    font-style: normal;
+}
+.source-text a,
+.source-text a:visited {
+    color: var(--accent);
+    text-decoration: underline;
+    font-style: normal;
+}
+.axis path,
+.axis line {
+    stroke: var(--rule);
+}
+.tick text {
+    font-family: var(--font);
+    font-weight: var(--fw-emphasis);
+    fill: var(--muted);
+}
+.grid-lines line {
+    stroke: var(--grid);
+    stroke-dasharray: var(--grid-dash);
+}
+.axis-title {
+    fill: var(--ink);
+    font-weight: var(--fw-title);
+    font-size: var(--fs-title);
+}
+.bar-label {
+    fill: var(--ink-2);
+    font-weight: var(--fw-emphasis);
+}
+.empty-state {
+    font-family: var(--font);
+    color: var(--muted);
+    fill: var(--muted);
+    font-size: var(--fs-label);
+}
+.text-halo {
+    stroke: var(--text-halo);
+    stroke-width: var(--text-halo-width);
+    stroke-opacity: var(--text-halo-opacity);
+}
+.bar.hovered {
+    stroke: var(--hover);
+    stroke-width: 1.5px;
+}
+.group-label {
+    fill: var(--ink);
+    font-weight: var(--fw-emphasis);
+}
+.dev-label {
+    fill: var(--muted);
+    font-weight: var(--fw-regular);
+}
+.legend {
+    align-items: stretch;
+    row-gap: 8px;
+}
+.legend-group {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+.legend-group-title {
+    font-weight: var(--fw-title);
+    color: var(--ink);
+    text-align: center;
+    padding-bottom: 3px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--rule);
+}
+.legend-group-items {
+    display: flex;
+    justify-content: center;
+    gap: clamp(6px, 1vw, 14px);
+}
+.legend-sep {
+    height: auto;
+    align-self: stretch;
+}
+.legend.stacked {
+    flex-direction: column;
+    align-items: center;
+}
+.legend.stacked .legend-sep {
+    display: none;
+}
+.group-divider {
+    stroke: var(--rule);
+    stroke-width: 1px;
+    stroke-dasharray: 4 4;
+}
+.model-logo {
+    pointer-events: none;
+}
+@media (max-width: 319px) {
+    body { overflow-x: auto; }
+    .viz-grid { min-width: 320px; }
+}
+  </style>
+</head>
+<body>
+<div class="viz-grid">
+  <div id="container1" class="container viz-container">
+    <div id="viz">
+      <svg id="chart" role="img"></svg>
+    </div>
+  </div>
+  <div id="container2" class="container legend-container">
+    <div class="legend" id="legend"></div>
+  </div>
+  <div id="container5" class="container footnote-container">
+    <div class="footnote-text" id="footnote-text"></div>
+  </div>
+  <div id="container3" class="container source-container">
+    <div class="source-text" id="source-text"></div>
+  </div>
+  <div id="container4" class="container logo-container">
+    <a href="https://aiworld.eu/" target="_blank" rel="noopener">
+      <img src="https://aiworld.eu/logo-transparent.svg" class="logo" alt="AI World logo">
+    </a>
+  </div>
+</div>
+<script>
+const SHOW_CONTAINER_2 = 1;
+const SHOW_CONTAINER_3 = 1;
+const SHOW_CONTAINER_4 = 1;
+const SHOW_CONTAINER_5 = 1;
+
+const HOUSE = {
+  font: 'system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Helvetica, Arial, sans-serif',
+  palette: ["#2756d3", "#E53229", "#f59e0b", "#10b981", "#8b5cf6", "#06b6d4", "#f97316"],
+  accent: "#2756d3",
+  accentTint: "#DDE7F9",
+  ink: "#0f172a",
+  ink2: "#333",
+  muted: "#4b5563",
+  faint: "#9ca3af",
+  rule: "#ccc",
+  grid: "#DBDBDB",
+  gridDash: "2 3",
+  paper: "#fff",
+  noData: "#e5e7eb",
+  context: "#e5e7eb",
+  hover: "#0f172a",
+  band: "rgba(15, 23, 42, 0.05)",
+  radiusUi: 6,
+  radiusMark: 0,
+  fw: { regular: 400, emphasis: 600, title: 700 },
+  fs: { floor: 9, small: 11, tick: 11, label: 13, title: 18, tip: 12 },
+  axisFontRange: [9, 13],
+  barLabelRange: [9, 13]
+};
+
+(function applyContainerVisibility() {
+  const vizGrid = document.querySelector('.viz-grid');
+  const c2 = document.getElementById('container2');
+  const c3 = document.getElementById('container3');
+  const c4 = document.getElementById('container4');
+  const c5 = document.getElementById('container5');
+
+  if (!SHOW_CONTAINER_2 && c2) c2.style.display = 'none';
+  if (!SHOW_CONTAINER_3 && c3) c3.style.display = 'none';
+  if (!SHOW_CONTAINER_4 && c4) c4.style.display = 'none';
+  if (c5 && !SHOW_CONTAINER_5) c5.style.display = 'none';
+
+  const row2Visible = SHOW_CONTAINER_2;
+  const row3Visible = SHOW_CONTAINER_5;
+  const row4Visible = SHOW_CONTAINER_3 || SHOW_CONTAINER_4;
+
+  let gridRows = [];
+  let currentRow = 1;
+  const chartHeight = 20 - (row2Visible ? 1 : 0) - (row3Visible ? 1 : 0) - (row4Visible ? 1 : 0);
+  gridRows.push(`${chartHeight}fr`);
+
+  if (row2Visible) { gridRows.push('1fr'); currentRow++; if (c2) c2.style.gridRow = String(currentRow); }
+  if (row3Visible) { gridRows.push('1fr'); currentRow++; if (c5) c5.style.gridRow = String(currentRow); }
+  if (row4Visible) {
+    gridRows.push('1fr'); currentRow++;
+    if (SHOW_CONTAINER_3 && c3) c3.style.gridRow = String(currentRow);
+    if (SHOW_CONTAINER_4 && c4) c4.style.gridRow = String(currentRow);
+    if (row4Visible && SHOW_CONTAINER_3 && !SHOW_CONTAINER_4 && c3) c3.style.gridColumn = '1 / span 2';
+    if (row4Visible && !SHOW_CONTAINER_3 && SHOW_CONTAINER_4 && c4) c4.style.gridColumn = '1 / span 2';
+  }
+
+  vizGrid.style.gridTemplateRows = gridRows.join(' ');
+  document.getElementById('container1').style.gridRow = '1';
+})();
+
+const SHOW_LEGEND = 1;
+const SHOW_TOOLTIP = 1;
+const SHOW_VALUE_LABELS = 1;
+
+const TITLE = "Coding scores: Mistral's chart vs. independent tests with the same harness for all";
+const Y_TITLE = "Score (%)";
+const VALUE_SUFFIX = "%";
+const MISSING_TOKEN = "Not included";
+const MISSING_LABEL = "n/a";
+
+const SOURCE_NAME = "Artificial Analysis, Mistral";
+const SOURCE_HREF = "https://artificialanalysis.ai/evaluations/terminalbench-4-0";
+const FOOTNOTE_TEXT = "Kimi K3.1 Pro was not in Mistral's chart.";
+
+const BREAKPOINT_COMPACT = 500;
+const BREAKPOINT_SIDE_KEY = 560;
+const RESIZE_DEBOUNCE = 220;
+
+const BENCHMARKS = ["Terminal-Bench 4.0", "FrontierCode 2.0"];
+const SOURCES = ["Mistral's chart", "same harness for all"];
+
+const COLORS = {
+  "Terminal-Bench 4.0: Mistral's chart": "#7D9AE5",
+  "Terminal-Bench 4.0: same harness for all": "#2756d3",
+  "FrontierCode 2.0: Mistral's chart": "#FBAB73",
+  "FrontierCode 2.0: same harness for all": "#f97316"
+};
+
+const LOGOS = {
+  "Mistral Large 4": "logos/mistral.png",
+  "GLM-5.3": "logos/zai.png",
+  "DeepSeek V4.1 Flash": "logos/deepseek.png",
+  "Kimi K3.1 Pro": "logos/moonshot.png"
+};
+
+const DATA_CSV = `Model,Developer,Terminal-Bench 4.0: Mistral's chart,Terminal-Bench 4.0: same harness for all,FrontierCode 2.0: Mistral's chart,FrontierCode 2.0: same harness for all
+Mistral Large 4,Mistral (EU),41,24.7,19.7,15.0
+GLM-5.3,Z.ai (China),40,41.9,17.8,21.6
+DeepSeek V4.1 Flash,DeepSeek (China),31,33.8,19.3,28.2
+Kimi K3.1 Pro,Moonshot AI (China),Not included,67.2,Not included,25.5`;
+
+function parseNum(value) {
+  if (value == null || value === "") return 0;
+  const n = Number(String(value).replace(/,/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+function smartFormat(v) {
+  if (!isFinite(v)) return "N/A";
+  if (Math.abs(v) >= 1e9) return d3.format(".1f")(v / 1e9) + "B";
+  if (Math.abs(v) >= 1e6) return d3.format(".1f")(v / 1e6) + "M";
+  if (Math.abs(v) >= 1e3 && Math.floor(v) === v) return d3.format(",")(v);
+  if (Math.floor(v) === v) return d3.format(",")(v);
+  return d3.format(",.1f")(v);
+}
+
+const SERIES = [];
+BENCHMARKS.forEach(b => SOURCES.forEach(s => SERIES.push({ name: `${b}: ${s}`, bench: b, source: s })));
+const colorOf = name => COLORS[name];
+const seriesMeta = name => {
+  const s = SERIES.find(d => d.name === name);
+  return `${s.bench}, ${s.source}`;
+};
+
+const ROWS = d3.csvParse(DATA_CSV);
+const MODELS = ROWS.map(r => ({
+  model: r.Model,
+  developer: r.Developer,
+  cells: SERIES.map(s => {
+    const raw = String(r[s.name] ?? "").trim();
+    const missing = raw === "" || raw === MISSING_TOKEN;
+    return {
+      model: r.Model,
+      developer: r.Developer,
+      series: s.name,
+      raw,
+      missing,
+      value: missing ? null : parseNum(raw)
+    };
+  })
+}));
+const CELLS = MODELS.flatMap(m => m.cells);
+const maxValue = d3.max(CELLS, d => d.value) || 1;
+const yMax = Math.ceil(maxValue * 1.15 / 10) * 10;
+
+document.title = TITLE;
+const svg = d3.select("#chart").attr("aria-label", TITLE);
+const vizContainer = document.getElementById("viz");
+const vizGrid = document.querySelector(".viz-grid");
+const legendEl = document.getElementById("legend");
+const container2 = document.getElementById("container2");
+const BASE_ROWS = vizGrid.style.gridTemplateRows;
+
+(function fillMeta() {
+  const src = document.getElementById("source-text");
+  src.textContent = "Source: ";
+  if (SOURCE_HREF) {
+    const a = document.createElement("a");
+    a.href = SOURCE_HREF; a.target = "_blank"; a.rel = "noopener";
+    a.textContent = SOURCE_NAME;
+    src.appendChild(a);
+  } else {
+    src.appendChild(document.createTextNode(SOURCE_NAME));
+  }
+  const fn = document.getElementById("footnote-text");
+  fn.textContent = FOOTNOTE_TEXT;
+  fn.title = FOOTNOTE_TEXT;
+})();
+
+function buildLegend() {
+  legendEl.innerHTML = "";
+  BENCHMARKS.forEach((b, i) => {
+    if (i > 0) {
+      const sep = document.createElement("div");
+      sep.className = "legend-sep";
+      legendEl.appendChild(sep);
+    }
+    const group = document.createElement("div");
+    group.className = "legend-group";
+    const title = document.createElement("span");
+    title.className = "legend-group-title";
+    title.textContent = b;
+    group.appendChild(title);
+    const items = document.createElement("div");
+    items.className = "legend-group-items";
+    group.appendChild(items);
+    SERIES.filter(s => s.bench === b).forEach(s => {
+      const item = document.createElement("div");
+      item.className = "legend-item";
+      const sq = document.createElement("span");
+      sq.className = "legend-square";
+      sq.style.background = colorOf(s.name);
+      const label = document.createElement("span");
+      label.textContent = s.source.charAt(0).toUpperCase() + s.source.slice(1);
+      item.append(sq, label);
+      items.appendChild(item);
+    });
+    legendEl.appendChild(group);
+  });
+}
+
+function fitLegend() {
+  vizGrid.style.gridTemplateRows = BASE_ROWS;
+  legendEl.classList.remove("stacked");
+  const groups = legendEl.querySelectorAll(".legend-group");
+  if (groups.length > 1 && groups[groups.length - 1].offsetTop > groups[0].offsetTop + 2) {
+    legendEl.classList.add("stacked");
+  }
+  if (container2.scrollHeight > container2.clientHeight + 1) {
+    const rows = BASE_ROWS.split(" ");
+    rows[1] = `${Math.ceil(legendEl.scrollHeight) + 4}px`;
+    vizGrid.style.gridTemplateRows = rows.join(" ");
+  }
+}
+
+const tooltip = document.createElement("div");
+tooltip.id = "tooltip";
+tooltip.setAttribute("role", "tooltip");
+document.body.appendChild(tooltip);
+
+function tipHtml(d) {
+  const val = d.missing ? MISSING_LABEL : `${d.raw}${VALUE_SUFFIX}`;
+  const extra = d.missing ? `<span class="t-meta">Not included in Mistral's chart</span>` : "";
+  return `<span class="t-name">${d.model}</span>` +
+    `<span class="t-count">${val}</span>` +
+    `<span class="t-meta">${seriesMeta(d.series)}</span>` + extra;
+}
+
+function showTip(event, d) {
+  if (!SHOW_TOOLTIP) return;
+  tooltip.innerHTML = tipHtml(d);
+  const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+  let left = event.clientX + 14;
+  let top = event.clientY - 24;
+  if (left + tw > window.innerWidth - 8) left = Math.max(8, event.clientX - tw - 14);
+  if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${Math.max(8, top)}px`;
+  tooltip.style.opacity = "1";
+}
+
+function hideTip() { tooltip.style.opacity = "0"; }
+
+function bindHover(sel) {
+  sel.on("mousemove", function (event, d) {
+      if (this.classList.contains("bar")) this.classList.add("hovered");
+      showTip(event, d);
+    })
+    .on("mouseleave", function () {
+      this.classList.remove("hovered");
+      hideTip();
+    });
+}
+
+function textWidth(text, size, weight) {
+  const ctx = textWidth.ctx || (textWidth.ctx = document.createElement("canvas").getContext("2d"));
+  ctx.font = `${weight} ${size}px ${HOUSE.font}`;
+  return ctx.measureText(text).width;
+}
+
+function splitLabel(text, size, weight, maxW) {
+  if (textWidth(text, size, weight) <= maxW) return [text];
+  const words = text.split(" ");
+  let best = [text];
+  let bestW = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const a = words.slice(0, i).join(" "), b = words.slice(i).join(" ");
+    const w = Math.max(textWidth(a, size, weight), textWidth(b, size, weight));
+    if (w < bestW) { bestW = w; best = [a, b]; }
+  }
+  return best;
+}
+
+let firstDraw = true;
+let lastSize = "";
+
+function render() {
+  if (SHOW_LEGEND && SHOW_CONTAINER_2) fitLegend();
+  const rect = vizContainer.getBoundingClientRect();
+  const width = Math.max(320, rect.width);
+  const height = Math.max(220, rect.height);
+  const sizeKey = `${Math.round(width)}x${Math.round(height)}`;
+  if (sizeKey === lastSize) return;
+  lastSize = sizeKey;
+  const compact = window.matchMedia(`(max-height:${BREAKPOINT_COMPACT}px)`).matches;
+  const animate = firstDraw;
+  firstDraw = false;
+
+  svg.selectAll("*").interrupt().remove();
+  svg.attr("width", width).attr("height", height)
+    .attr("viewBox", `0 0 ${width} ${height}`)
+    .style("width", "100%").style("height", "100%");
+
+  if (!CELLS.length) {
+    svg.append("text").attr("class", "empty-state")
+      .attr("x", width / 2).attr("y", height / 2).attr("text-anchor", "middle")
+      .text("No data available");
+    return;
+  }
+
+  drawVertical(width, height, compact, animate);
+}
+
+const SPLIT = MODELS.findIndex(m => m.cells.some(c => c.missing));
+
+function groupScale(length, padIn, padOut, bigGap) {
+  const n = MODELS.length;
+  const extra = SPLIT > 0 ? bigGap : 0;
+  const step = length / Math.max(1, n - padIn + 2 * padOut + extra);
+  const start = step * padOut;
+  const index = new Map(MODELS.map((m, i) => [m.model, i]));
+  const scale = model => {
+    const i = index.get(model);
+    return start + i * step + (SPLIT > 0 && i >= SPLIT ? extra * step : 0);
+  };
+  scale.bandwidth = () => step * (1 - padIn);
+  scale.step = () => step;
+  scale.divider = SPLIT > 0 ? start + SPLIT * step - step * padIn / 2 + extra * step / 2 : null;
+  return scale;
+}
+
+function verticalLayout(width, compact) {
+  const yMaxStr = smartFormat(Math.max(100, yMax));
+  const yLabelWidth = Math.max(yMaxStr.length * 7.5, 28) + 16;
+  const margin = { top: 16, right: Math.max(24, width * 0.04), bottom: 0, left: yLabelWidth + 32 };
+  const innerWidth = Math.max(40, width - margin.left - margin.right);
+  const x0 = groupScale(innerWidth, compact ? 0.42 : 0.5, compact ? 0.10 : 0.14, compact ? 0.5 : 0.7);
+  const x1 = d3.scaleBand().domain(SERIES.map(s => s.name)).range([0, x0.bandwidth()])
+    .padding(compact ? 0.05 : 0.08);
+  const barLabelFont = Math.max(HOUSE.barLabelRange[0], Math.min(HOUSE.barLabelRange[1], x1.bandwidth() * 0.42));
+  return { margin, innerWidth, x0, x1, barLabelFont };
+}
+
+function drawVertical(width, height, compact, animate) {
+  const { margin, innerWidth, x0, x1, barLabelFont } = verticalLayout(width, compact);
+  const narrow = width <= BREAKPOINT_COMPACT;
+  const axisFont = Math.max(HOUSE.axisFontRange[0], Math.min(HOUSE.axisFontRange[1], innerWidth / Math.max(5, MODELS.length) * 0.5));
+  const devFont = Math.max(HOUSE.fs.floor, axisFont - 1);
+  const logoSize = Math.round(axisFont * 1.3);
+  const logoGap = Math.round(axisFont * 0.35);
+  const logoAbove = narrow;
+  const labelMaxW = x0.step() * 0.96 - (logoAbove ? 0 : logoSize + logoGap);
+  const nameLines = MODELS.map(m => splitLabel(m.model, axisFont, HOUSE.fw.emphasis, labelMaxW));
+  const maxLines = d3.max(nameLines, l => l.length);
+  const nameTop = logoAbove ? logoSize + logoGap : 0;
+  const labelBlock = nameTop + maxLines * axisFont * 1.2 + devFont * 1.3;
+  const widestLabel = d3.max(CELLS.filter(d => !d.missing), d => textWidth(d.raw, barLabelFont, HOUSE.fw.emphasis));
+  const rotate = widestLabel + 2 > x1.bandwidth();
+  const barLabelOffset = Math.max(5, Math.min(10, barLabelFont * 0.7));
+  if (rotate) margin.top += widestLabel + barLabelOffset;
+  margin.bottom = Math.max(28, height * 0.07, labelBlock + 14);
+  const innerHeight = Math.max(40, height - margin.top - margin.bottom);
+  const y = d3.scaleLinear().domain([0, rotate ? maxValue : yMax]).range([innerHeight, 0]);
+  if (!rotate) y.nice();
+
+  const slotOf = m => {
+    const present = m.cells.filter(c => !c.missing).map(c => c.series);
+    const all = SERIES.map(s => s.name);
+    if (present.length === all.length) return name => x1(name);
+    const shift = (x1.step() * (all.length - present.length)) / 2;
+    return name => x1(all[0]) + present.indexOf(name) * x1.step() + shift;
+  };
+  const SLOTS = new Map(MODELS.map(m => [m.model, slotOf(m)]));
+  const barX = d => SLOTS.get(d.model)(d.series);
+
+  const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+
+  g.append("g").attr("class", "grid-lines")
+    .call(d3.axisLeft(y).ticks(compact ? 4 : 5).tickSize(-innerWidth).tickFormat(""))
+    .select(".domain").remove();
+
+  const yAxisG = g.append("g").attr("class", "axis y-axis")
+    .call(d3.axisLeft(y).ticks(compact ? 4 : 5).tickFormat(smartFormat));
+  yAxisG.selectAll("text").style("font-size", `${axisFont}px`).style("font-family", HOUSE.font);
+  yAxisG.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", -margin.left + 16)
+    .attr("x", -(innerHeight / 2))
+    .attr("dy", "0.71em")
+    .attr("text-anchor", "middle")
+    .attr("class", "axis-title")
+    .text(Y_TITLE);
+
+  g.append("g").attr("class", "axis x-axis")
+    .attr("transform", `translate(0,${innerHeight})`)
+    .call(d3.axisBottom(d3.scaleLinear().range([0, innerWidth])).tickValues([]).tickSize(0).tickFormat(""));
+
+  if (x0.divider != null) {
+    g.append("line").attr("class", "group-divider")
+      .attr("x1", x0.divider).attr("x2", x0.divider)
+      .attr("y1", 0).attr("y2", innerHeight);
+  }
+
+  const labels = g.append("g").attr("class", "group-labels")
+    .attr("transform", `translate(0,${innerHeight + 10})`);
+  MODELS.forEach((m, i) => {
+    const cx = x0(m.model) + x0.bandwidth() / 2;
+    const nameW = d3.max(nameLines[i], line => textWidth(line, axisFont, HOUSE.fw.emphasis));
+    const tx = logoAbove ? cx : cx + (logoSize + logoGap) / 2;
+    if (LOGOS[m.model]) {
+      labels.append("image").attr("class", "model-logo")
+        .attr("href", LOGOS[m.model])
+        .attr("x", logoAbove ? cx - logoSize / 2 : tx - nameW / 2 - logoGap - logoSize)
+        .attr("y", logoAbove ? 0 : axisFont * 0.45 - logoSize / 2)
+        .attr("width", logoSize).attr("height", logoSize)
+        .attr("preserveAspectRatio", "xMidYMid meet");
+    }
+    const t = labels.append("text").attr("class", "group-label")
+      .attr("text-anchor", "middle").attr("y", nameTop).style("font-size", `${axisFont}px`);
+    nameLines[i].forEach((line, j) => {
+      t.append("tspan").attr("x", tx).attr("dy", j === 0 ? `${axisFont * 0.8}px` : `${axisFont * 1.2}px`).text(line);
+    });
+    labels.append("text").attr("class", "dev-label").attr("text-anchor", "middle")
+      .attr("x", cx)
+      .attr("y", nameTop + axisFont * 0.8 + (nameLines[i].length - 1) * axisFont * 1.2 + devFont * 1.3)
+      .style("font-size", `${devFont}px`)
+      .text(m.developer);
+  });
+
+  const groups = g.append("g").attr("class", "bars").selectAll("g")
+    .data(MODELS).join("g")
+    .attr("transform", m => `translate(${x0(m.model)},0)`);
+
+  const present = groups.selectAll("rect").data(m => m.cells.filter(c => !c.missing)).join("rect")
+    .attr("class", "bar")
+    .attr("x", barX)
+    .attr("width", x1.bandwidth())
+    .attr("rx", HOUSE.radiusMark)
+    .attr("fill", d => colorOf(d.series));
+  if (animate) {
+    present.attr("y", y(0)).attr("height", 0)
+      .transition().duration(850).ease(d3.easeCubicOut)
+      .attr("y", d => y(d.value)).attr("height", d => y(0) - y(d.value));
+  } else {
+    present.attr("y", d => y(d.value)).attr("height", d => y(0) - y(d.value));
+  }
+  bindHover(present);
+
+  if (SHOW_VALUE_LABELS) {
+    const vl = groups.selectAll("text.bar-label").data(m => m.cells.filter(c => !c.missing)).join("text")
+      .attr("class", "bar-label text-halo")
+      .style("font-size", `${barLabelFont}px`)
+      .text(d => d.raw);
+    if (rotate) {
+      vl.attr("text-anchor", "start").attr("dy", "0.35em")
+        .attr("transform", d => `translate(${barX(d) + x1.bandwidth() / 2},${y(d.value) - barLabelOffset}) rotate(-90)`);
+    } else {
+      vl.attr("text-anchor", "middle")
+        .attr("x", d => barX(d) + x1.bandwidth() / 2)
+        .attr("y", d => y(d.value) - barLabelOffset);
+    }
+    if (animate) vl.attr("opacity", 0).transition().duration(850).delay(100).attr("opacity", 1);
+  }
+}
+
+buildLegend();
+render();
+
+let resizeTimer;
+window.addEventListener("resize", () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(render, RESIZE_DEBOUNCE);
+});
+
+if (typeof ResizeObserver !== "undefined") {
+  new ResizeObserver(() => render()).observe(vizContainer);
+}
+</script>
+</body>
+</html>
