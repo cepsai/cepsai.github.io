@@ -441,6 +441,55 @@ html, body, svg, svg text, button, select, input {
 .model-logo {
     pointer-events: none;
 }
+.lbl-short {
+    display: none;
+}
+@media (max-height: 500px) {
+    .viz-grid {
+        grid-template-rows: 1fr auto !important;
+        grid-template-columns: 1fr !important;
+        padding-bottom: 0;
+    }
+    #container1 {
+        grid-row: 1 !important;
+        grid-column: 1 !important;
+    }
+    #container2 {
+        grid-row: 2 !important;
+        grid-column: 1 !important;
+    }
+    #container3,
+    #container4,
+    #container5 {
+        display: none !important;
+    }
+    .legend,
+    .legend.stacked {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        padding: 2px 8px 4px;
+        gap: 4px;
+        font-size: 10px;
+    }
+    .legend-group {
+        flex-direction: row;
+        align-items: center;
+        gap: 4px;
+    }
+    .legend-group-title {
+        border-bottom: none;
+        padding: 0 2px 0 0;
+        margin: 0;
+    }
+    .legend-group-items {
+        gap: 4px;
+    }
+    .legend-item { padding: 0 4px; gap: 4px; }
+    .legend-sep { display: block !important; height: 10px; align-self: center; margin: 0 4px; }
+    .lbl-full { display: none; }
+    .lbl-short { display: inline; }
+}
 @media (max-width: 319px) {
     body { overflow-x: auto; }
     .viz-grid { min-width: 320px; }
@@ -668,7 +717,8 @@ function buildLegend() {
       sq.className = "legend-square";
       sq.style.background = colorOf(s.name);
       const label = document.createElement("span");
-      label.textContent = s.source.charAt(0).toUpperCase() + s.source.slice(1);
+      const full = s.source.charAt(0).toUpperCase() + s.source.slice(1);
+      label.innerHTML = `<span class="lbl-full">${full}</span><span class="lbl-short">${full.replace(" for all", "")}</span>`;
       item.append(sq, label);
       items.appendChild(item);
     });
@@ -829,20 +879,21 @@ function drawVertical(width, height, compact, animate) {
   const narrow = width <= BREAKPOINT_COMPACT;
   const axisFont = Math.max(HOUSE.axisFontRange[0], Math.min(HOUSE.axisFontRange[1], innerWidth / Math.max(5, MODELS.length) * 0.5));
   const devFont = Math.max(HOUSE.fs.floor, axisFont - 1);
-  const logoSize = Math.round(axisFont * 1.3);
+  const banner = compact;
+  const logoSize = Math.round(axisFont * (banner ? 1.7 : 1.3));
   const logoGap = Math.round(axisFont * 0.35);
   const fullW = x0.step() * 0.96;
   const fitsBeside = !narrow && MODELS.every(m => textWidth(m.model, axisFont, HOUSE.fw.emphasis) + logoSize + logoGap <= fullW);
-  const logoAbove = !fitsBeside;
+  const logoAbove = banner || !fitsBeside;
   const nameLines = MODELS.map(m => splitLabel(m.model, axisFont, HOUSE.fw.emphasis, fullW));
   const maxLines = d3.max(nameLines, l => l.length);
   const nameTop = logoAbove ? logoSize + logoGap : 0;
-  const labelBlock = nameTop + maxLines * axisFont * 1.2 + devFont * 1.3;
+  const labelBlock = banner ? logoSize : nameTop + maxLines * axisFont * 1.2 + devFont * 1.3;
   const widestLabel = d3.max(CELLS.filter(d => !d.missing), d => textWidth(d.raw, barLabelFont, HOUSE.fw.emphasis));
   const rotate = widestLabel + 2 > x1.bandwidth();
   const barLabelOffset = Math.max(5, Math.min(10, barLabelFont * 0.7));
   if (rotate) margin.top += widestLabel + barLabelOffset;
-  margin.bottom = Math.max(28, height * 0.07, labelBlock + 14);
+  margin.bottom = banner ? labelBlock + 14 : Math.max(28, height * 0.07, labelBlock + 14);
   const innerHeight = Math.max(40, height - margin.top - margin.bottom);
   const y = d3.scaleLinear().domain([0, rotate ? maxValue : yMax]).range([innerHeight, 0]);
   if (!rotate) y.nice();
@@ -890,8 +941,10 @@ function drawVertical(width, height, compact, animate) {
         .attr("x", logoAbove ? cx - logoSize / 2 : tx - nameW / 2 - logoGap - logoSize)
         .attr("y", logoAbove ? 0 : axisFont * 0.45 - logoSize / 2)
         .attr("width", logoSize).attr("height", logoSize)
-        .attr("preserveAspectRatio", "xMidYMid meet");
+        .attr("preserveAspectRatio", "xMidYMid meet")
+        .append("title").text(m.model);
     }
+    if (banner) return;
     const t = labels.append("text").attr("class", "group-label")
       .attr("text-anchor", "middle").attr("y", nameTop).style("font-size", `${axisFont}px`);
     nameLines[i].forEach((line, j) => {
